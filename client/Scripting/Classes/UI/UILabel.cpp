@@ -1,13 +1,12 @@
 #include "UILabel.h"
 #include "../../ScriptEngine.h"
-
-std::vector<UILabel*> UILabel::_labels;
+#include "../../../Rendering/UIElementRegistry.h"
 
 UILabel::UILabel(const vec2& pos, const vec2& size)
     : _label(pos, size)
     , UIWidget(&_label)
 {
-    _labels.push_back(this);
+    UIElementRegistry::Instance()->AddUILabel(this);
 }
 
 void UILabel::RegisterType()

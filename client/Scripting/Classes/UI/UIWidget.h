@@ -32,6 +32,4 @@ public:
 
 private:
     UI::Widget* _widget;
-
-    static std::vector<UIWidget*> _widgets;
 };

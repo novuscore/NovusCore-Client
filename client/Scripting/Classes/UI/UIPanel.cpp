@@ -1,12 +1,11 @@
 #include "UIPanel.h"
 #include "../../ScriptEngine.h"
-
-std::vector<UIPanel*> UIPanel::_panels;
+#include "../../../Rendering/UIElementRegistry.h"
 
 UIPanel::UIPanel(const vec2& pos, const vec2& size)
     : _panel(pos, size), UIWidget(&_panel), _onClickCallback(nullptr)
 {
-    _panels.push_back(this);
+    UIElementRegistry::Instance()->AddUIPanel(this);
 }
 
 void UIPanel::RegisterType()

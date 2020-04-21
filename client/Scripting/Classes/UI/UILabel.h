@@ -18,7 +18,6 @@ public:
     void SetFont(std::string& fontPath, f32 fontSize);
 
     UI::Label* GetInternal() { return &_label; }
-    static std::vector<UILabel*> _labels;
 private:
     static UILabel* CreateLabel(const vec2& pos, const vec2& size);
 

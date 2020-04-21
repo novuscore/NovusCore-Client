@@ -24,7 +24,6 @@ public:
     void OnClick();
 
     UI::Panel* GetInternal();
-    static std::vector<UIPanel*> _panels;
 private:
     static UIPanel* CreatePanel(const vec2& pos, const vec2& size);
 

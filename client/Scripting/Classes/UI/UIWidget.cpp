@@ -1,7 +1,5 @@
 #include "UIWidget.h"
 
-std::vector<UIWidget*> UIWidget::_widgets;
-
 void UIWidget::RegisterType()
 {
     i32 r = ScriptEngine::RegisterScriptClass("UIWidget", 0, asOBJ_REF | asOBJ_NOCOUNT);

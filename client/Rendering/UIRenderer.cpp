@@ -1,5 +1,6 @@
 #include "UIRenderer.h"
 #include "Camera.h"
+#include "UIElementRegistry.h"
 
 #include "../Utils/ServiceLocator.h"
 #include "../Scripting/Classes/UI/UIPanel.h"
@@ -28,7 +29,9 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
 
 void UIRenderer::Update(f32 deltaTime)
 {
-    for (auto uiPanel : UIPanel::_panels) // TODO: Store panels in a better manner than this
+    UIElementRegistry* uiElementRegistry = UIElementRegistry::Instance();
+
+    for (auto uiPanel : uiElementRegistry->GetUIPanels()) // TODO: Store panels in a better manner than this
     {
         UI::Panel* panel = uiPanel->GetInternal();
 
@@ -90,7 +93,7 @@ void UIRenderer::Update(f32 deltaTime)
         }
     }
 
-    for (auto uiLabel : UILabel::_labels) // TODO: Store labels in a better manner than this
+    for (auto uiLabel : uiElementRegistry->GetUILabels()) // TODO: Store labels in a better manner than this
     {
         UI::Label* label = uiLabel->GetInternal();
 
@@ -198,6 +201,8 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 {
     // UI Pass
     {
+        UIElementRegistry* uiElementRegistry = UIElementRegistry::Instance();
+
         struct UIPassData
         {
             Renderer::RenderPassMutableResource renderTarget;
@@ -210,7 +215,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 
             return true; // Return true from setup to enable this pass, return false to disable it
         },
-        [&](UIPassData& data, Renderer::CommandList& commandList) // Execute
+        [&, uiElementRegistry](UIPassData& data, Renderer::CommandList& commandList) // Execute
         {
             Renderer::GraphicsPipelineDesc pipelineDesc;
             renderGraph->InitializePipelineDesc(pipelineDesc);
@@ -276,7 +281,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             commandList.BeginPipeline(pipeline);
 
             // Draw all the panels
-            for (auto uiPanel : UIPanel::_panels)
+            for (auto uiPanel : uiElementRegistry->GetUIPanels())
             {
                 UI::Panel* panel = uiPanel->GetInternal();
 
@@ -307,7 +312,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             commandList.BeginPipeline(pipeline);
 
             // Draw all the labels
-            for (auto uiLabel : UILabel::_labels)
+            for (auto uiLabel : uiElementRegistry->GetUILabels())
             {
                 UI::Label* label = uiLabel->GetInternal();
 
@@ -336,11 +341,12 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 
 void UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 {
+    UIElementRegistry* uiElementRegistry = UIElementRegistry::Instance();
     InputManager* inputManager = ServiceLocator::GetInputManager();
     f32 mouseX = inputManager->GetMousePositionX();
     f32 mouseY = inputManager->GetMousePositionY();
 
-    for (auto uiPanel : UIPanel::_panels) // TODO: Store panels in a better manner than this
+    for (auto uiPanel : uiElementRegistry->GetUIPanels()) // TODO: Store panels in a better manner than this
     {
         UI::Panel* panel = uiPanel->GetInternal();
 
@@ -380,7 +386,9 @@ void UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 
 void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
 {
-    for (auto uiPanel : UIPanel::_panels) // TODO: Store panels in a better manner than this
+    UIElementRegistry* uiElementRegistry = UIElementRegistry::Instance();
+
+    for (auto uiPanel : uiElementRegistry->GetUIPanels()) // TODO: Store panels in a better manner than this
     {
         UI::Panel* panel = uiPanel->GetInternal();
 
