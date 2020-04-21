@@ -30,7 +30,6 @@ namespace UI
     public:
         Label(const vec2& pos, const vec2& size);
 
-    private:
         std::string& GetText();
         void SetText(std::string& text);
 
@@ -51,6 +50,8 @@ namespace UI
         f32 GetFontSize();
 
         Renderer::ConstantBuffer<LabelConstantBuffer>* GetConstantBuffer() { return _constantBuffer; }
+
+    private:
         void SetConstantBuffer(Renderer::ConstantBuffer<LabelConstantBuffer>* constantBuffer) { _constantBuffer = constantBuffer; }
 
     private:

@@ -5,6 +5,7 @@ namespace UI
     // Public
     Widget::Widget(const vec2& pos, const vec2& size)
         : _position(pos.x, pos.y, 0)
+        , _localPosition(0, 0, 0)
         , _size(size)
         , _parent(nullptr)
         , _children(16)

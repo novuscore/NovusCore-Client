@@ -1,6 +1,7 @@
 #include "UIElementRegistry.h"
 #include "../Scripting/Classes/UI/UIPanel.h"
 #include "../Scripting/Classes/UI/UILabel.h"
+#include "../Scripting/Classes/UI/UIButton.h"
 
 UIElementRegistry* UIElementRegistry::_instance = nullptr;
 UIElementRegistry* UIElementRegistry::Instance()
@@ -26,4 +27,10 @@ void UIElementRegistry::Clear()
         delete label;
     }
     _UILabels.clear();
+
+    for (UIButton* button : _UIButtons)
+    {
+        delete button;
+    }
+    _UIButtons.clear();
 }

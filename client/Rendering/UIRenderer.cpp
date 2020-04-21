@@ -350,7 +350,7 @@ void UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
     {
         UI::Panel* panel = uiPanel->GetInternal();
 
-        if (!panel->IsClickable() && !panel->IsDragable())
+        if (!panel->IsClickable() && !panel->IsDraggable())
             continue;
 
         const vec2& size = panel->GetSize();
@@ -361,7 +361,7 @@ void UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         {
             if (keybind->state)
             {
-                if (panel->IsDragable())
+                if (panel->IsDraggable())
                     panel->BeingDrag(vec2(mouseX - pos.x, mouseY - pos.y));
             }
             else
@@ -376,7 +376,7 @@ void UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 
         if (!keybind->state)
         {
-            if (panel->IsDragable())
+            if (panel->IsDraggable())
             {
                 panel->EndDrag();
             }
@@ -392,7 +392,7 @@ void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
     {
         UI::Panel* panel = uiPanel->GetInternal();
 
-        if (!panel->IsDragable())
+        if (!panel->IsDraggable())
             continue;
 
         if (!panel->IsDragging())

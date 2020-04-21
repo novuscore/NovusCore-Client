@@ -48,6 +48,7 @@ namespace UI
 
     private:
         vec3 _position;
+        vec3 _localPosition;
         vec2 _size;
         vec2 _anchor;
         Widget* _parent;

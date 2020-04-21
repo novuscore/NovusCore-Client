@@ -18,13 +18,13 @@ void UIPanel::RegisterType()
         r = ScriptEngine::RegisterScriptClassFunction("void SetColor(vec4 color)", asMETHOD(UIPanel, SetColor)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetTexture(string texture)", asMETHOD(UIPanel, SetTexture)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetClickable(bool value)", asMETHOD(UIPanel, SetClickable)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("bool IsClickable()", asMETHOD(UIPanel, IsDragable)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetDragable(bool value)", asMETHOD(UIPanel, SetDragable)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("bool IsDragable()", asMETHOD(UIPanel, IsDragable)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("bool IsClickable()", asMETHOD(UIPanel, IsClickable)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetDragable(bool value)", asMETHOD(UIPanel, SetDraggable)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("bool IsDragable()", asMETHOD(UIPanel, IsDraggable)); assert(r >= 0);
 
         // Callback
-        r = ScriptEngine::RegisterScriptFunctionDef("void OnClickCallback(UIPanel@ panel)"); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void OnClick(OnClickCallback @cb)", asMETHOD(UIPanel, SetOnClick)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptFunctionDef("void OnPanelClickCallback(UIPanel@ panel)"); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void OnClick(OnPanelClickCallback@ cb)", asMETHOD(UIPanel, SetOnClick)); assert(r >= 0);
     }
 }
 
@@ -51,13 +51,13 @@ void UIPanel::SetClickable(bool value)
     _panel.SetClickable(value);
 }
 
-bool UIPanel::IsDragable()
+bool UIPanel::IsDraggable()
 {
-    return _panel.IsDragable();
+    return _panel.IsDraggable();
 }
-void UIPanel::SetDragable(bool value)
+void UIPanel::SetDraggable(bool value)
 {
-    _panel.SetDragable(value);
+    _panel.SetDraggable(value);
 }
 
 void UIPanel::SetOnClick(asIScriptFunction* function)

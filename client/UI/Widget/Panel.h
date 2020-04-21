@@ -20,7 +20,6 @@ namespace UI
     public:
         Panel(const vec2& pos, const vec2& size);
 
-    private:
         Renderer::ModelID GetModelID();
         void SetModelID(Renderer::ModelID modelID);
 
@@ -36,17 +35,18 @@ namespace UI
         bool IsClickable();
         void SetClickable(bool value);
 
-        bool IsDragable();
-        void SetDragable(bool value);
-
+        bool IsDraggable();
+        void SetDraggable(bool value);
 
         Renderer::ConstantBuffer<PanelConstantBuffer>* GetConstantBuffer() { return _constantBuffer; }
+
+    private:
         void SetConstantBuffer(Renderer::ConstantBuffer<PanelConstantBuffer>* constantBuffer) { _constantBuffer = constantBuffer; }
 
     private:
         Color _color;
         bool _clickable;
-        bool _dragable;
+        bool _draggable;
         bool _isDragging;
         bool _didDrag;
         vec2 _deltaDragPosition;

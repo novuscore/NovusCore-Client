@@ -5,7 +5,7 @@ namespace UI
     // Public
     Panel::Panel(const vec2& pos, const vec2& size)
         : Widget(pos, size)
-        , _color(1.0f, 1.0f, 1.0f, 1.0f), _clickable(true), _dragable(false), _isDragging(false), _deltaDragPosition(0, 0), _didDrag(false)
+        , _color(1.0f, 1.0f, 1.0f, 1.0f), _clickable(true), _draggable(false), _isDragging(false), _deltaDragPosition(0, 0), _didDrag(false)
     {
     }
 
@@ -57,14 +57,14 @@ namespace UI
         _clickable = value;
     }
 
-    bool Panel::IsDragable()
+    bool Panel::IsDraggable()
     {
-        return _dragable;
+        return _draggable;
     }
 
-    void Panel::SetDragable(bool value)
+    void Panel::SetDraggable(bool value)
     {
-        _dragable = value;
+        _draggable = value;
     }
 
     bool Panel::IsDragging()
