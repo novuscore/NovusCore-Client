@@ -19,6 +19,10 @@ namespace UI
 
     public:
         Panel(const vec2& pos, const vec2& size);
+        static void RegisterType();
+
+        std::string GetTypeName() override;
+
 
         Renderer::ModelID GetModelID();
         void SetModelID(Renderer::ModelID modelID);
@@ -37,12 +41,16 @@ namespace UI
 
         bool IsDraggable();
         void SetDraggable(bool value);
+        
+        void SetOnClick(asIScriptFunction* function);
+        void OnClick();
 
         Renderer::ConstantBuffer<PanelConstantBuffer>* GetConstantBuffer() { return _constantBuffer; }
 
     private:
         void SetConstantBuffer(Renderer::ConstantBuffer<PanelConstantBuffer>* constantBuffer) { _constantBuffer = constantBuffer; }
 
+        static Panel* CreatePanel(const vec2& pos, const vec2& size);
     private:
         Color _color;
         bool _clickable;
@@ -60,7 +68,8 @@ namespace UI
 
         Renderer::ConstantBuffer<PanelConstantBuffer>* _constantBuffer = nullptr;
 
-        friend class ::UIPanel;
+        asIScriptFunction* _onClickCallback;
+
         friend class UIRenderer;
     };
 }

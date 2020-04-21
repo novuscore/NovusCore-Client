@@ -1,36 +1,40 @@
 #pragma once
 #include <vector>
 
-class UIPanel;
-class UILabel;
-class UIButton;
+namespace UI 
+{
+    class Panel;
+    class Label;
+    class Button;
+}
+
 class UIElementRegistry
 {
 public:
     static UIElementRegistry* Instance();
 
-    std::vector<UIPanel*>& GetUIPanels() { return _UIPanels; }
-    void AddUIPanel(UIPanel* panel) { _UIPanels.push_back(panel); }
+    std::vector<UI::Panel*>& GetPanels() { return _Panels; }
+    void AddPanel(UI::Panel* panel) { _Panels.push_back(panel); }
 
-    std::vector<UILabel*>& GetUILabels() { return _UILabels; }
-    void AddUILabel(UILabel* label) { _UILabels.push_back(label); }
+    std::vector<UI::Label*>& GetLabels() { return _Labels; }
+    void AddLabel(UI::Label* label) { _Labels.push_back(label); }
 
-    std::vector<UIButton*>& GetUIButtons() { return _UIButtons; }
-    void AddUIButton(UIButton* button) { _UIButtons.push_back(button); }
+    std::vector<UI::Button*>& GetButtons() { return _Buttons; }
+    void AddButton(UI::Button* button) { _Buttons.push_back(button); }
 
     void Clear();
     
 private:
-    UIElementRegistry() : _UIPanels(), _UILabels(), _UIButtons()
+    UIElementRegistry() : _Panels(), _Labels(), _Buttons()
     { 
-        _UIPanels.reserve(100);
-        _UILabels.reserve(100);
-        _UIButtons.reserve(100);
+        _Panels.reserve(100);
+        _Labels.reserve(100);
+        _Buttons.reserve(100);
     }
 
     static UIElementRegistry* _instance;
 
-    std::vector<UIPanel*> _UIPanels;
-    std::vector<UILabel*> _UILabels;
-    std::vector<UIButton*> _UIButtons;
+    std::vector<UI::Panel*> _Panels;
+    std::vector<UI::Label*> _Labels;
+    std::vector<UI::Button*> _Buttons;
 };

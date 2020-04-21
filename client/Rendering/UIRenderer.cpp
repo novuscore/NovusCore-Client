@@ -3,8 +3,9 @@
 #include "UIElementRegistry.h"
 
 #include "../Utils/ServiceLocator.h"
-#include "../Scripting/Classes/UI/UIPanel.h"
-#include "../Scripting/Classes/UI/UILabel.h"
+#include "../UI/Widget/Panel.h"
+#include "../UI/Widget/Label.h"
+#include "../UI/Widget/Button.h"
 
 #include <Renderer/Renderer.h>
 #include <Renderer/Renderers/Vulkan/RendererVK.h>
@@ -31,10 +32,8 @@ void UIRenderer::Update(f32 deltaTime)
 {
     UIElementRegistry* uiElementRegistry = UIElementRegistry::Instance();
 
-    for (auto uiPanel : uiElementRegistry->GetUIPanels()) // TODO: Store panels in a better manner than this
+    for (auto panel : uiElementRegistry->GetPanels()) // TODO: Store panels in a better manner than this
     {
-        UI::Panel* panel = uiPanel->GetInternal();
-
         if (panel->IsDirty())
         {
             if (panel->GetTexture().length() == 0)
@@ -53,7 +52,7 @@ void UIRenderer::Update(f32 deltaTime)
             Renderer::PrimitiveModelDesc primitiveModelDesc;
 
             // Update vertex buffer
-            const vec3& pos = panel->GetPosition();
+            const vec3 pos = vec3(panel->GetScreenPosition(),0);
             const vec2& size = panel->GetSize();
 
             CalculateVertices(pos, size, primitiveModelDesc.vertices);
@@ -93,10 +92,8 @@ void UIRenderer::Update(f32 deltaTime)
         }
     }
 
-    for (auto uiLabel : uiElementRegistry->GetUILabels()) // TODO: Store labels in a better manner than this
+    for (auto label : uiElementRegistry->GetLabels()) // TODO: Store labels in a better manner than this
     {
-        UI::Label* label = uiLabel->GetInternal();
-
         if (label->IsDirty())
         {
             // (Re)load font
@@ -131,7 +128,7 @@ void UIRenderer::Update(f32 deltaTime)
             }
 
             size_t glyph = 0;
-            vec3 currentPosition = label->GetPosition();
+            vec3 currentPosition = vec3(label->GetScreenPosition(),0);
             for (size_t i = 0; i < textLength; i++)
             {
                 char character = text[i];
@@ -193,6 +190,66 @@ void UIRenderer::Update(f32 deltaTime)
             constantBuffer->Apply(1);
 
             label->ResetDirty();
+        }
+    }
+
+    for (auto button : uiElementRegistry->GetButtons()) // TODO: Store panels in a better manner than this
+    {
+        if (button->IsDirty())
+        {
+            if (button->GetTexture().length() == 0)
+            {
+                button->ResetDirty();
+                continue;
+            }
+
+            // (Re)load texture
+            Renderer::TextureID textureID = ReloadTexture(button->GetTexture());
+            button->SetTextureID(textureID);
+
+            // Update position depending on parents etc
+            // TODO
+
+            Renderer::PrimitiveModelDesc primitiveModelDesc;
+
+            // Update vertex buffer
+            const vec3 pos = vec3(button->GetScreenPosition(), 0);
+            const vec2& size = button->GetSize();
+
+            CalculateVertices(pos, size, primitiveModelDesc.vertices);
+
+            Renderer::ModelID modelID = button->GetModelID();
+            // If the primitive model hasn't been created yet, create it
+            if (modelID == Renderer::ModelID::Invalid())
+            {
+                // Indices
+                primitiveModelDesc.indices.push_back(0);
+                primitiveModelDesc.indices.push_back(1);
+                primitiveModelDesc.indices.push_back(2);
+                primitiveModelDesc.indices.push_back(1);
+                primitiveModelDesc.indices.push_back(3);
+                primitiveModelDesc.indices.push_back(2);
+
+                Renderer::ModelID modelID = _renderer->CreatePrimitiveModel(primitiveModelDesc);
+                button->SetModelID(modelID);
+            }
+            else // Otherwise we just update the already existing primitive model
+            {
+                _renderer->UpdatePrimitiveModel(modelID, primitiveModelDesc);
+            }
+
+            // Create constant buffer if necessary
+            auto constantBuffer = button->GetConstantBuffer();
+            if (constantBuffer == nullptr)
+            {
+                constantBuffer = _renderer->CreateConstantBuffer<UI::Button::ButtonConstantBuffer>();
+                button->SetConstantBuffer(constantBuffer);
+            }
+            constantBuffer->resource.color = button->GetColor();
+            constantBuffer->Apply(0);
+            constantBuffer->Apply(1);
+
+            button->ResetDirty();
         }
     }
 }
@@ -281,10 +338,8 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             commandList.BeginPipeline(pipeline);
 
             // Draw all the panels
-            for (auto uiPanel : uiElementRegistry->GetUIPanels())
+            for (auto panel : uiElementRegistry->GetPanels())
             {
-                UI::Panel* panel = uiPanel->GetInternal();
-
                 commandList.PushMarker("Panel", Color(0.0f, 0.1f, 0.0f));
 
                 // Set constant buffer
@@ -312,10 +367,8 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             commandList.BeginPipeline(pipeline);
 
             // Draw all the labels
-            for (auto uiLabel : uiElementRegistry->GetUILabels())
+            for (auto label : uiElementRegistry->GetLabels())
             {
-                UI::Label* label = uiLabel->GetInternal();
-
                 commandList.PushMarker("Label", Color(0.0f, 0.1f, 0.0f));
 
                 // Set constant buffer
@@ -335,6 +388,31 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                 commandList.PopMarker();
             }
             commandList.EndPipeline(pipeline);
+
+            // Set pipeline
+            pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+            commandList.BeginPipeline(pipeline);
+
+            // Draw all the buttons
+            for (auto button : uiElementRegistry->GetButtons())
+            {
+                if (button->GetTexture().length() == 0)
+                    continue;
+
+                commandList.PushMarker("Button", Color(0.0f, 0.1f, 0.0f));
+
+                // Set constant buffer
+                commandList.SetConstantBuffer(0, button->GetConstantBuffer()->GetGPUResource(frameIndex));
+
+                // Set texture-sampler pair
+                commandList.SetTextureSampler(1, button->GetTextureID(), _linearSampler);
+
+                // Draw
+                commandList.Draw(button->GetModelID());
+
+                commandList.PopMarker();
+            }
+            commandList.EndPipeline(pipeline);
         });
     }
 }
@@ -346,10 +424,8 @@ void UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
     f32 mouseX = inputManager->GetMousePositionX();
     f32 mouseY = inputManager->GetMousePositionY();
 
-    for (auto uiPanel : uiElementRegistry->GetUIPanels()) // TODO: Store panels in a better manner than this
+    for (auto panel : uiElementRegistry->GetPanels()) // TODO: Store panels in a better manner than this
     {
-        UI::Panel* panel = uiPanel->GetInternal();
-
         if (!panel->IsClickable() && !panel->IsDraggable())
             continue;
 
@@ -369,7 +445,7 @@ void UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
                 if (panel->IsClickable())
                 {
                     if (!panel->DidDrag())
-                        uiPanel->OnClick();
+                        panel->OnClick();
                 }
             }
         }
@@ -382,16 +458,32 @@ void UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             }
         }
     }
+
+    for (auto button : uiElementRegistry->GetButtons()) // TODO: Store panels in a better manner than this
+    {
+        if (!button->IsClickable())
+            continue;
+
+        const vec2& size = button->GetSize();
+        const vec2& pos = button->GetPosition();
+
+        if ((mouseX > pos.x&& mouseX < pos.x + size.x) &&
+            (mouseY > pos.y&& mouseY < pos.y + size.y))
+        {
+            if (keybind->state)
+            {
+                button->OnClick();
+            }
+        }
+    }
 }
 
 void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
 {
     UIElementRegistry* uiElementRegistry = UIElementRegistry::Instance();
 
-    for (auto uiPanel : uiElementRegistry->GetUIPanels()) // TODO: Store panels in a better manner than this
+    for (auto panel : uiElementRegistry->GetPanels()) // TODO: Store panels in a better manner than this
     {
-        UI::Panel* panel = uiPanel->GetInternal();
-
         if (!panel->IsDraggable())
             continue;
 
@@ -403,9 +495,9 @@ void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
 
         const vec2& deltaDragPosition = panel->GetDeltaDragPosition();
         const vec2& size = panel->GetSize();
-        vec3 newPosition(x - deltaDragPosition.x, y - deltaDragPosition.y, 0);
+        vec2 newPosition(x - deltaDragPosition.x, y - deltaDragPosition.y);
 
-        panel->SetPosition(newPosition);
+        panel->SetPosition(newPosition, 0);
         panel->SetDirty();
     }
 }

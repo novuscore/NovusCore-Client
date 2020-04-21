@@ -7,6 +7,7 @@ namespace UI
         : _position(pos.x, pos.y, 0)
         , _localPosition(0, 0, 0)
         , _size(size)
+        , _anchor(0,0)
         , _parent(nullptr)
         , _children(16)
         , _isDirty(true) 
@@ -14,11 +15,36 @@ namespace UI
 
     }
 
-    const vec3& Widget::GetPosition() { return _position; }
-    void Widget::SetPosition(const vec3& position)
-    { 
-        _position = position;
+    void Widget::RegisterType()
+    {
+        i32 r = ScriptEngine::RegisterScriptClass("Widget", 0, asOBJ_REF | asOBJ_NOCOUNT);
+        assert(r >= 0);
+        {
+            RegisterBase<Widget>();
+        }
+    }
+
+    std::string Widget::GetTypeName()
+    {
+        return "Widget";
+    }
+
+    vec2 Widget::GetPosition() { return vec2(_position.x, _position.y); }
+    void Widget::SetPosition(const vec2& position, float depth)
+    {
+        float d = depth == 0 ? _position.z : depth;
+        _position = vec3(position.x, position.y, d);
         SetDirty();
+    }
+
+    float Widget::GetDepth()
+    {
+        return _position.z;
+    }
+
+    vec2 Widget::GetScreenPosition()
+    {
+        return _position + _localPosition;
     }
 
     const vec2& Widget::GetSize() { return _size; }

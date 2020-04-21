@@ -6,10 +6,10 @@
 #include "Addons/scriptstdstring/scriptstdstring.h"
 #include "Classes/Math/Math.h"
 #include "Classes/Player.h"
-#include "Classes/UI/UIWidget.h"
-#include "Classes/UI/UIPanel.h"
-#include "Classes/UI/UILabel.h"
-#include "Classes/UI/UIButton.h"
+#include "../UI/Widget/Widget.h"
+#include "../UI/Widget/Panel.h"
+#include "../UI/Widget/Label.h"
+#include "../UI/Widget/Button.h"
 
 thread_local asIScriptEngine* ScriptEngine::_scriptEngine = nullptr;
 thread_local asIScriptContext* ScriptEngine::_scriptContext = nullptr;
@@ -97,10 +97,10 @@ void ScriptEngine::RegisterFunctions()
     ASMath::RegisterNamespace();
 
     Player::RegisterType();
-    UIWidget::RegisterType();
-    UIPanel::RegisterType();
-    UILabel::RegisterType();
-    UIButton::RegisterType();
+    UI::Widget::RegisterType();
+    UI::Panel::RegisterType();
+    UI::Label::RegisterType();
+    UI::Button::RegisterType();
 
     ScriptEngine::RegisterScriptFunction("void Print(string msg)", asFUNCTION(ScriptEngine::Print));
 }

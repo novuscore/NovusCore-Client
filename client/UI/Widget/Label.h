@@ -29,6 +29,10 @@ namespace UI
 
     public:
         Label(const vec2& pos, const vec2& size);
+        static void RegisterType();
+
+        std::string GetTypeName() override;
+
 
         std::string& GetText();
         void SetText(std::string& text);
@@ -71,7 +75,8 @@ namespace UI
 
         Renderer::ConstantBuffer<LabelConstantBuffer>* _constantBuffer = nullptr;
 
-        friend class ::UILabel;
+        static Label* CreateLabel(const vec2& pos, const vec2& size);
+
         friend class UIRenderer;
     };
 }
