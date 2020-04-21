@@ -12,30 +12,29 @@ namespace UI
     // Private
     Renderer::ModelID Panel::GetModelID()
     {
-        return _modelID;
+        return Widget::GetModelID();
     }
     void Panel::SetModelID(Renderer::ModelID modelID)
     {
-        _modelID = modelID;
+        Widget::SetModelID(modelID);
     }
     
     std::string& Panel::GetTexture() 
     { 
-        return _texture; 
+        return Widget::GetTexture(); 
     }
     void Panel::SetTexture(std::string& texture) 
     { 
-        _texture = texture;
-        SetDirty();
+        Widget::SetTexture(texture);
     }
 
     Renderer::TextureID Panel::GetTextureID()
     {
-        return _textureID;
+        return Widget::GetTextureID();
     }
     void Panel::SetTextureID(Renderer::TextureID textureID)
     {
-        _textureID = textureID;
+        Widget::SetTextureID(textureID);
     }
 
     const Color& Panel::GetColor()

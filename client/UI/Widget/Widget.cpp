@@ -50,6 +50,35 @@ namespace UI
         _isDirty = true;
     }
 
+    // Protected
+    Renderer::ModelID Widget::GetModelID()
+    {
+        return _modelID;
+    }
+    void Widget::SetModelID(Renderer::ModelID modelID)
+    {
+        _modelID = modelID;
+    }
+
+    std::string& Widget::GetTexture()
+    {
+        return _texture;
+    }
+    void Widget::SetTexture(std::string& texture)
+    {
+        _texture = texture;
+        SetDirty();
+    }
+
+    Renderer::TextureID Widget::GetTextureID()
+    {
+        return _textureID;
+    }
+    void Widget::SetTextureID(Renderer::TextureID textureID)
+    {
+        _textureID = textureID;
+    }
+
     // Private
     void Widget::AddChild(Widget* child)
     {

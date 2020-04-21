@@ -1,7 +1,5 @@
 #pragma once
 #include "Widget.h"
-#include <Renderer/Descriptors/ModelDesc.h>
-#include <Renderer/Descriptors/TextureDesc.h>
 #include <Renderer/ConstantBuffer.h>
 
 class UIPanel;
@@ -46,10 +44,6 @@ namespace UI
         void SetConstantBuffer(Renderer::ConstantBuffer<PanelConstantBuffer>* constantBuffer) { _constantBuffer = constantBuffer; }
 
     private:
-        Renderer::ModelID _modelID = Renderer::ModelID::Invalid();
-
-        std::string _texture;
-        Renderer::TextureID _textureID = Renderer::TextureID::Invalid();
         Color _color;
         bool _clickable;
         bool _dragable;

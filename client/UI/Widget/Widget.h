@@ -2,6 +2,8 @@
 #include <NovusTypes.h>
 #include <vector>
 #include <assert.h>
+#include <Renderer/Descriptors/ModelDesc.h>
+#include <Renderer/Descriptors/TextureDesc.h>
 
 class UIRenderer;
 
@@ -29,6 +31,16 @@ namespace UI
         bool IsDirty();
         void SetDirty();
 
+    protected:
+        Renderer::ModelID GetModelID();
+        void SetModelID(Renderer::ModelID modelID);
+
+        std::string& GetTexture();
+        void SetTexture(std::string& texture);
+
+        Renderer::TextureID GetTextureID();
+        void SetTextureID(Renderer::TextureID textureID);
+
     private:
         void AddChild(Widget* child);
         void RemoveChild(Widget* child);
@@ -41,6 +53,11 @@ namespace UI
         Widget* _parent;
         std::vector<Widget*> _children;
         bool _isDirty;
+
+        Renderer::ModelID _modelID = Renderer::ModelID::Invalid();
+
+        std::string _texture;
+        Renderer::TextureID _textureID = Renderer::TextureID::Invalid();
 
         friend class UIRenderer;
     };
