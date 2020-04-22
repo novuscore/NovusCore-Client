@@ -31,30 +31,28 @@ namespace UI
         Label(const vec2& pos, const vec2& size);
         static void RegisterType();
 
-        std::string GetTypeName() override;
+        std::string GetTypeName() override { return "Label"; }
 
-
-        std::string& GetText();
+        std::string& GetText() { return _text; }
         void SetText(std::string& text);
 
-        u32 GetTextLength();
-        u32 GetGlyphCount();
+        u32 GetTextLength() { return static_cast<u32>(_text.length()); }
+        u32 GetGlyphCount() { return _glyphCount; }
 
-        const Color& GetColor();
+        const Color& GetColor() { return _color; }
         void SetColor(const Color& color);
 
-        f32 GetOutlineWidth();
+        f32 GetOutlineWidth() { return _outlineWidth; }
         void SetOutlineWidth(f32 width);
 
-        const Color& GetOutlineColor();
+        const Color& GetOutlineColor() { return _outlineColor; }
         void SetOutlineColor(const Color& color);
 
+        std::string& GetFontPath() { return _fontPath; }
+        f32 GetFontSize() { return _fontSize; }
         void SetFont(std::string& fontPath, f32 fontSize);
-        std::string& GetFontPath();
-        f32 GetFontSize();
 
         Renderer::ConstantBuffer<LabelConstantBuffer>* GetConstantBuffer() { return _constantBuffer; }
-
     private:
         void SetConstantBuffer(Renderer::ConstantBuffer<LabelConstantBuffer>* constantBuffer) { _constantBuffer = constantBuffer; }
 
@@ -62,9 +60,9 @@ namespace UI
         std::string _text;
         u32 _glyphCount;
 
-        Color _color = Color(1,1,1,1);
-        Color _outlineColor = Color(0, 0, 0, 1);
-        f32 _outlineWidth = 0.0f;
+        Color _color;
+        Color _outlineColor;
+        f32 _outlineWidth;
 
         std::string _fontPath;
         f32 _fontSize;

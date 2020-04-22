@@ -355,6 +355,31 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             }
             commandList.EndPipeline(pipeline);
 
+            // Set pipeline
+            pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+            commandList.BeginPipeline(pipeline);
+
+            // Draw all the buttons
+            for (auto button : uiElementRegistry->GetButtons())
+            {
+                if (button->GetTexture().length() == 0)
+                    continue;
+
+                commandList.PushMarker("Button", Color(0.0f, 0.1f, 0.0f));
+
+                // Set constant buffer
+                commandList.SetConstantBuffer(0, button->GetConstantBuffer()->GetGPUResource(frameIndex));
+
+                // Set texture-sampler pair
+                commandList.SetTextureSampler(1, button->GetTextureID(), _linearSampler);
+
+                // Draw
+                commandList.Draw(button->GetModelID());
+
+                commandList.PopMarker();
+            }
+            commandList.EndPipeline(pipeline);
+
             // Draw text
             vertexShaderDesc.path = "Data/shaders/text.vert.spv";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
@@ -384,31 +409,6 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                     // Draw
                     commandList.Draw(label->_models[i]);
                 }
-
-                commandList.PopMarker();
-            }
-            commandList.EndPipeline(pipeline);
-
-            // Set pipeline
-            pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
-            commandList.BeginPipeline(pipeline);
-
-            // Draw all the buttons
-            for (auto button : uiElementRegistry->GetButtons())
-            {
-                if (button->GetTexture().length() == 0)
-                    continue;
-
-                commandList.PushMarker("Button", Color(0.0f, 0.1f, 0.0f));
-
-                // Set constant buffer
-                commandList.SetConstantBuffer(0, button->GetConstantBuffer()->GetGPUResource(frameIndex));
-
-                // Set texture-sampler pair
-                commandList.SetTextureSampler(1, button->GetTextureID(), _linearSampler);
-
-                // Draw
-                commandList.Draw(button->GetModelID());
 
                 commandList.PopMarker();
             }

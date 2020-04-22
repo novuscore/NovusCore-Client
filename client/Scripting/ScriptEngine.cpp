@@ -5,6 +5,7 @@
 #include "Addons/scriptarray/scriptarray.h"
 #include "Addons/scriptstdstring/scriptstdstring.h"
 #include "Classes/Math/Math.h"
+#include "Classes/Math/ColorUtil.h"
 #include "Classes/Player.h"
 #include "../UI/Widget/Widget.h"
 #include "../UI/Widget/Panel.h"
@@ -95,6 +96,7 @@ void ScriptEngine::RegisterFunctions()
 
     // NovusCore Types
     ASMath::RegisterNamespace();
+    ColorUtil::RegisterType();
 
     Player::RegisterType();
     UI::Widget::RegisterType();

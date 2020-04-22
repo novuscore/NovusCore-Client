@@ -21,27 +21,30 @@ namespace UI
         Panel(const vec2& pos, const vec2& size);
         static void RegisterType();
 
-        std::string GetTypeName() override;
+        std::string GetTypeName() override { return "Panel"; }
 
-
-        Renderer::ModelID GetModelID();
+        Renderer::ModelID GetModelID() { return Widget::GetModelID(); }
         void SetModelID(Renderer::ModelID modelID);
 
-        std::string& GetTexture();
+        std::string& GetTexture() { return Widget::GetTexture(); }
         void SetTexture(std::string& texture);
 
-        Renderer::TextureID GetTextureID();
+        Renderer::TextureID GetTextureID() { return Widget::GetTextureID(); }
         void SetTextureID(Renderer::TextureID textureID);
 
-        const Color& GetColor();
+        const Color& GetColor() { return _color; }
         void SetColor(const Color& color);
 
-        bool IsClickable();
+        bool IsClickable() { return _clickable; }
         void SetClickable(bool value);
 
-        bool IsDraggable();
+        bool IsDraggable() { return _draggable; }
         void SetDraggable(bool value);
-        
+
+        bool IsDragging() { return _isDragging; }
+        bool DidDrag() { return _didDrag; }
+        const vec2& GetDeltaDragPosition() { return _deltaDragPosition; }
+
         void SetOnClick(asIScriptFunction* function);
         void OnClick();
 
@@ -59,10 +62,7 @@ namespace UI
         bool _didDrag;
         vec2 _deltaDragPosition;
 
-        bool IsDragging();
         void BeingDrag(const vec2& deltaDragPosition);
-        const vec2& GetDeltaDragPosition();
-        bool DidDrag();
         void SetDidDrag();
         void EndDrag();
 

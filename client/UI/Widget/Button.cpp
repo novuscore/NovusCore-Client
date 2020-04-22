@@ -9,6 +9,7 @@ namespace UI
         : Widget(pos, size)
         , _color(1.0f, 1.0f, 1.0f, 1.0f)
         , _clickable(true)
+        , _onClickCallback(nullptr)
     {
         _label = new Label(pos, size);
         _label->SetParent(this);
@@ -23,9 +24,11 @@ namespace UI
         {
             r = ScriptEngine::RegisterScriptInheritance<Widget, Button>("Widget");
             r = ScriptEngine::RegisterScriptFunction("Button@ CreateButton(vec2 pos = vec2(0, 0), vec2 size = vec2(100, 100))", asFUNCTION(Button::CreateButton)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetText(string text)", asMETHOD(Button, SetText)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetColor(vec4 color)", asMETHOD(Button, SetColor)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetTexture(string texture)", asMETHOD(Button, SetTexture)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetColor(Color color)", asMETHOD(Button, SetColor)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetText(string text)", asMETHOD(Button, SetText)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetTextColor(Color col)", asMETHOD(Button, SetTextColor)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetFont(string fontPath, float fontSize)", asMETHOD(Button, SetFont)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetClickable(bool value)", asMETHOD(Button, SetClickable)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("bool IsClickable()", asMETHOD(Button, IsClickable)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("Label@ GetLabel()", asMETHOD(Button, GetLabel)); assert(r >= 0);
@@ -36,51 +39,25 @@ namespace UI
         }
     }
 
-    std::string Button::GetTypeName()
-    {
-        return "UIButton";
-    }
-
-    // Private
-    Renderer::ModelID Button::GetModelID()
-    {
-        return Widget::GetModelID();
-    }
+    // Public
     void Button::SetModelID(Renderer::ModelID modelID)
     {
         Widget::SetModelID(modelID);
     }
 
-    std::string& Button::GetTexture()
-    {
-        return Widget::GetTexture();
-    }
     void Button::SetTexture(std::string& texture)
     {
         Widget::SetTexture(texture);
     }
 
-    Renderer::TextureID Button::GetTextureID()
-    {
-        return Widget::GetTextureID();
-    }
     void Button::SetTextureID(Renderer::TextureID textureID)
     {
         Widget::SetTextureID(textureID);
     }
 
-    const Color& Button::GetColor()
-    {
-        return _color;
-    }
     void Button::SetColor(const Color& color)
     {
         _color = color;
-    }
-
-    bool Button::IsClickable()
-    {
-        return _clickable;
     }
 
     void Button::SetClickable(bool value)
@@ -97,9 +74,14 @@ namespace UI
         _label->SetText(text);
     }
 
-    Label* Button::GetLabel()
+    void Button::SetFont(std::string& fontPath, f32 fontSize)
     {
-        return _label;
+        _label->SetFont(fontPath, fontSize);
+    }
+
+    void Button::SetTextColor(const Color& color)
+    {
+        _label->SetColor(color);
     }
 
     void Button::SetOnClick(asIScriptFunction* function)
@@ -122,6 +104,7 @@ namespace UI
         }
     }
 
+    //Private
     Button* Button::CreateButton(const vec2& pos, const vec2& size)
     {
         Button* button = new Button(pos, size);

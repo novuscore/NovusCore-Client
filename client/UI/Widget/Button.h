@@ -22,27 +22,29 @@ namespace UI
 		Button(const vec2& pos, const vec2& size);
 		static void RegisterType();
 
-		std::string GetTypeName() override;
+        std::string GetTypeName() override { return "Button"; }
 
-		Renderer::ModelID GetModelID();
+        Renderer::ModelID GetModelID() { return Widget::GetModelID(); }
 		void SetModelID(Renderer::ModelID modelID);
 
-		std::string& GetTexture();
+		std::string& GetTexture() { return Widget::GetTexture(); }
 		void SetTexture(std::string& texture);
 
-		Renderer::TextureID GetTextureID();
+		Renderer::TextureID GetTextureID() { return Widget::GetTextureID(); }
 		void SetTextureID(Renderer::TextureID textureID);
 
-		const Color& GetColor();
+		const Color& GetColor() { return _color; }
 		void SetColor(const Color& color);
 
-		bool IsClickable();
+		bool IsClickable() { return _clickable; }
 		void SetClickable(bool value);
 
-		std::string& GetText();
+        std::string& GetText();
 		void SetText(std::string& text);
+        void SetFont(std::string& fontPath, f32 fontSize);
+        void SetTextColor(const Color& color);
 
-		Label* GetLabel();
+		Label* GetLabel() { return _label; }
 
 		void SetOnClick(asIScriptFunction* function);
 		void OnClick();
