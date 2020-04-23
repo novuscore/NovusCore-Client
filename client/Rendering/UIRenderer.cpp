@@ -101,7 +101,7 @@ void UIRenderer::Update(f32 deltaTime)
             label->_font = Renderer::Font::GetFont(_renderer, label->GetFontPath(), label->GetFontSize());
 
             // Grow arrays if necessary
-            std::string& text = label->GetText();
+            const std::string& text = label->GetText();
 
             size_t textLength = text.size();
             size_t textLengthWithoutSpaces = std::count_if(text.begin(), text.end(), [](char c)
@@ -528,7 +528,7 @@ void UIRenderer::CreatePermanentResources()
     _linearSampler = _renderer->CreateSampler(samplerDesc);
 }
 
-Renderer::TextureID UIRenderer::ReloadTexture(std::string& texturePath)
+Renderer::TextureID UIRenderer::ReloadTexture(const std::string& texturePath)
 {
     Renderer::TextureDesc textureDesc;
     textureDesc.path = texturePath;

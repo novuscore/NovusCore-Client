@@ -65,7 +65,7 @@ namespace UI
         _clickable = value;
     }
 
-    std::string& Button::GetText()
+    const std::string& Button::GetText() const
     {
         return _label->GetText();
     }

@@ -22,34 +22,34 @@ namespace UI
 		Button(const vec2& pos, const vec2& size);
 		static void RegisterType();
 
-        std::string GetTypeName() override { return "Button"; }
+        std::string GetTypeName() const override { return "Button"; }
 
-        Renderer::ModelID GetModelID() { return Widget::GetModelID(); }
+        Renderer::ModelID GetModelID() const { return Widget::GetModelID(); }
 		void SetModelID(Renderer::ModelID modelID);
 
-		std::string& GetTexture() { return Widget::GetTexture(); }
+        const std::string& GetTexture() const { return Widget::GetTexture(); }
 		void SetTexture(std::string& texture);
 
 		Renderer::TextureID GetTextureID() { return Widget::GetTextureID(); }
 		void SetTextureID(Renderer::TextureID textureID);
 
-		const Color& GetColor() { return _color; }
+		const Color& GetColor() const { return _color; }
 		void SetColor(const Color& color);
 
-		bool IsClickable() { return _clickable; }
+		bool IsClickable() const { return _clickable; }
 		void SetClickable(bool value);
 
-        std::string& GetText();
+        const std::string& GetText() const;
 		void SetText(std::string& text);
         void SetFont(std::string& fontPath, f32 fontSize);
         void SetTextColor(const Color& color);
 
-		Label* GetLabel() { return _label; }
+		Label* GetLabel() const { return _label; }
 
 		void SetOnClick(asIScriptFunction* function);
 		void OnClick();
 
-		Renderer::ConstantBuffer<ButtonConstantBuffer>* GetConstantBuffer() { return _constantBuffer; }
+		Renderer::ConstantBuffer<ButtonConstantBuffer>* GetConstantBuffer() const { return _constantBuffer; }
 			
 	private:
 		void SetConstantBuffer(Renderer::ConstantBuffer<ButtonConstantBuffer>* constantBuffer) { _constantBuffer = constantBuffer; }

@@ -27,37 +27,37 @@ namespace UI
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetSize()", asMETHOD(T, GetSize)); assert(r >= 0);
         }
 
-        virtual std::string GetTypeName();
+        virtual std::string GetTypeName() const { return "Widget"; }
 
-        vec2 GetPosition();
+        vec2 GetPosition() const { return vec2(_position.x, _position.y); }
         void SetPosition(const vec2& position, float depth);
 
-        float GetDepth();
+        float GetDepth() const { return _position.z; }
 
-        vec2 GetScreenPosition();
+        vec2 GetScreenPosition() const { return _position + _localPosition; }
 
-        const vec2& GetSize();
+        const vec2& GetSize() const { return _size; }
         void SetSize(const vec2& size);
 
-        const vec2& GetAnchor();
+        const vec2& GetAnchor() const { return _anchor; }
         void SetAnchor(const vec2& anchor);
 
-        Widget* GetParent();
+        Widget* GetParent() const { return _parent; }
         void SetParent(Widget* widget);
 
-        const std::vector<Widget*>& GetChildren();
+        const std::vector<Widget*>& GetChildren() const { return _children; }
 
-        bool IsDirty();
+        bool IsDirty() const { return _isDirty; }
         void SetDirty();
 
     protected:
-        Renderer::ModelID GetModelID();
+        Renderer::ModelID GetModelID() const { return _modelID; }
         void SetModelID(Renderer::ModelID modelID);
 
-        std::string& GetTexture();
+        const std::string& GetTexture() const { return _texture; }
         void SetTexture(std::string& texture);
 
-        Renderer::TextureID GetTextureID();
+        Renderer::TextureID GetTextureID() const { return _textureID; }
         void SetTextureID(Renderer::TextureID textureID);
 
     private:

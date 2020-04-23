@@ -31,7 +31,7 @@ private:
     void CreatePermanentResources();
 
     // Helper functions
-    Renderer::TextureID ReloadTexture(std::string& texturePath);
+    Renderer::TextureID ReloadTexture(const std::string& texturePath);
     void CalculateVertices(const vec3& pos, const vec2& size, std::vector<Renderer::Vertex>& vertices);
 
 private:
