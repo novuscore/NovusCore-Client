@@ -55,7 +55,7 @@ void UIRenderer::Update(f32 deltaTime)
             Renderer::PrimitiveModelDesc primitiveModelDesc;
 
             // Update vertex buffer
-            const vec3 pos = vec3(panel->GetScreenPosition(),0);
+            const vec3 pos = vec3(panel->GetScreenPosition(), 0);
             const vec2& size = panel->GetSize();
 
             CalculateVertices(pos, size, primitiveModelDesc.vertices);
@@ -131,7 +131,7 @@ void UIRenderer::Update(f32 deltaTime)
             }
 
             size_t glyph = 0;
-            vec3 currentPosition = vec3(label->GetScreenPosition(),0);
+            vec3 currentPosition = vec3(label->GetScreenPosition(), 0);
             for (size_t i = 0; i < textLength; i++)
             {
                 char character = text[i];
@@ -260,16 +260,15 @@ void UIRenderer::Update(f32 deltaTime)
 void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex)
 {
     // UI Pass
+    UIElementRegistry* uiElementRegistry = UIElementRegistry::Instance();
+
+    struct UIPassData
     {
-        UIElementRegistry* uiElementRegistry = UIElementRegistry::Instance();
+        Renderer::RenderPassMutableResource renderTarget;
+    };
 
-        struct UIPassData
-        {
-            Renderer::RenderPassMutableResource renderTarget;
-        };
-
-        renderGraph->AddPass<UIPassData>("UI Pass",
-            [&](UIPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
+    renderGraph->AddPass<UIPassData>("UI Pass",
+        [&](UIPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
             data.renderTarget = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_LOAD);
 
@@ -417,7 +416,6 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             }
             commandList.EndPipeline(pipeline);
         });
-    }
 }
 
 bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
@@ -474,13 +472,13 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         const vec2& size = button->GetSize();
         const vec2& pos = button->GetPosition();
 
-        if ((mouseX > pos.x&& mouseX < pos.x + size.x) &&
-            (mouseY > pos.y&& mouseY < pos.y + size.y))
+        if ((mouseX > pos.x && mouseX < pos.x + size.x) &&
+            (mouseY > pos.y && mouseY < pos.y + size.y))
         {
             if (keybind->state)
             {
                 button->OnClick();
-                
+
                 return true;
             }
         }
@@ -539,61 +537,58 @@ void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
 
 bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
 {
-    if (_focusedField)
+    if (!_focusedField)
+        return false;
+
+    if (action == GLFW_PRESS)
     {
-        if (action == GLFW_PRESS)
+        switch (key)
         {
-            switch (key)
-            {
-            case GLFW_KEY_ESCAPE:
-                _focusedField->OnSubmit();
-                _focusedField = nullptr;
-                break;
+        case GLFW_KEY_ESCAPE:
+            _focusedField->OnSubmit();
+            _focusedField = nullptr;
+            break;
 
-            case GLFW_KEY_ENTER:
-                _focusedField->OnEnter();
-                _focusedField = nullptr;
-                break;
+        case GLFW_KEY_ENTER:
+            _focusedField->OnEnter();
+            _focusedField = nullptr;
+            break;
 
-            case GLFW_KEY_BACKSPACE:
-                _focusedField->RemovePreviousCharacter();
-                break;
+        case GLFW_KEY_BACKSPACE:
+            _focusedField->RemovePreviousCharacter();
+            break;
 
-            case GLFW_KEY_DELETE:
-                _focusedField->RemoveNextCharacter();
-                break;
+        case GLFW_KEY_DELETE:
+            _focusedField->RemoveNextCharacter();
+            break;
 
-            case GLFW_KEY_LEFT:
-                _focusedField->MovePointerLeft();
-                break;
+        case GLFW_KEY_LEFT:
+            _focusedField->MovePointerLeft();
+            break;
 
-            case GLFW_KEY_RIGHT:
-                _focusedField->MovePointerRight();
-                break;
+        case GLFW_KEY_RIGHT:
+            _focusedField->MovePointerRight();
+            break;
 
-            default:
-                break;
-            }
+        default:
+            break;
         }
-
-        return true;
     }
 
-    return false;
+    return true;
 }
 
 bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
 {
-    if (_focusedField)
-    {
-        std::string input = "";
-        input.append(1,(char)unicodeKey);
-        _focusedField->AddText(input);
+    if (!_focusedField)
+        return false;
 
-        return true;
-    }
+    std::string input = "";
+    input.append(1, (char)unicodeKey);
+    _focusedField->AddText(input);
 
-    return false;
+    return true;
+
 }
 
 void UIRenderer::CreatePermanentResources()
