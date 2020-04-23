@@ -1,11 +1,12 @@
 #include "InputField.h"
 #include "Label.h"
 #include "../../Rendering/UIElementRegistry.h"
+#include <Utils\DebugHandler.h>
 
 namespace UI
 {
     InputField::InputField(const vec2& pos, const vec2& size) : Widget(pos, size)
-        , _onSubmitCallback(nullptr), _onEnterCallback(nullptr)
+        , _pointerIndex(0), _onSubmitCallback(nullptr), _onEnterCallback(nullptr)
     {
         _label = new Label(pos, size);
         _label->SetParent(this);
@@ -40,14 +41,57 @@ namespace UI
         _color = color;
     }
 
-    void InputField::AddText(const std::string& character)
+    void InputField::AddText(const std::string& text)
     {
-        _label->SetText(_label->GetText() + character);
+        std::string newString = _label->GetText();
+        if (_pointerIndex == _label->GetTextLength())
+        {
+            newString += text;
+        }
+        else
+        {
+            newString.insert((size_t)_pointerIndex, text);
+        }
+
+        _label->SetText(newString);
+
+        _pointerIndex += (u32)text.length();
     }
 
-    void InputField::RemoveCharacter()
+    void InputField::RemovePreviousCharacter()
     {
-        _label->SetText(_label->GetText().substr(0, _label->GetText().length()-1));
+        if (!_label->GetText().empty() && _pointerIndex > 0)
+        {
+            std::string newString = _label->GetText();
+            newString.erase(_pointerIndex - 1, 1);
+
+            _label->SetText(newString);
+
+            MovePointerLeft();
+        }
+    }
+
+    void InputField::RemoveNextCharacter()
+    {
+        if (_label->GetText().length() > _pointerIndex)
+        {
+            std::string newString = _label->GetText();
+            newString.erase(_pointerIndex, 1);
+
+            _label->SetText(newString);
+        }
+    }
+
+    void InputField::MovePointerLeft()
+    {
+        _pointerIndex = _pointerIndex > 0 ? _pointerIndex - 1 : 0;
+        NC_LOG_MESSAGE("PointerIndex: %d, Length: %d", _pointerIndex, _label->GetTextLength());
+    }
+
+    void InputField::MovePointerRight()
+    {
+        _pointerIndex = _pointerIndex + 1 > _label->GetTextLength() ? _pointerIndex : _pointerIndex + 1;
+        NC_LOG_MESSAGE("PointerIndex: %d, Length: %d", _pointerIndex, _label->GetTextLength());
     }
 
     const std::string& InputField::GetText() const
@@ -57,6 +101,8 @@ namespace UI
     void InputField::SetText(const std::string& text)
     {
         _label->SetText(text);
+
+        _pointerIndex = (u32)text.length();
     }
     void InputField::SetFont(const std::string& fontPath, f32 fontSize)
     {

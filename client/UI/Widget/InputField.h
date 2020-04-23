@@ -23,8 +23,12 @@ namespace UI
 
         void SetColor(const Color& color);
 
-        void AddText(const std::string& character);
-        void RemoveCharacter();
+        void AddText(const std::string& text);
+        void RemovePreviousCharacter();
+        void RemoveNextCharacter();
+
+        void MovePointerLeft();
+        void MovePointerRight();
 
         const std::string& GetText() const;
         void SetText(const std::string& text);
@@ -42,10 +46,13 @@ namespace UI
         void SetConstantBuffer(Renderer::ConstantBuffer<InputFieldConstantBuffer>* constantBuffer) { _constantBuffer = constantBuffer; }
 
         static InputField* CreateInputField(const vec2& pos, const vec2& size);
+
     private:
         Color _color;
 
         Label* _label;
+
+        u32 _pointerIndex = 0;
 
         Renderer::ConstantBuffer<InputFieldConstantBuffer>* _constantBuffer = nullptr;
         

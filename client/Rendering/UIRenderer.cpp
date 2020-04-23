@@ -541,26 +541,39 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
 {
     if (_focusedField)
     {
-        switch (key)
+        if (action == GLFW_PRESS)
         {
-        case GLFW_KEY_ESCAPE:
-            _focusedField->OnSubmit();
-            _focusedField = nullptr;
-            break;
+            switch (key)
+            {
+            case GLFW_KEY_ESCAPE:
+                _focusedField->OnSubmit();
+                _focusedField = nullptr;
+                break;
 
-        case GLFW_KEY_ENTER:
-            _focusedField->OnEnter();
-            _focusedField = nullptr;
-            break;
+            case GLFW_KEY_ENTER:
+                _focusedField->OnEnter();
+                _focusedField = nullptr;
+                break;
 
-        case GLFW_KEY_BACKSPACE:
-            _focusedField->RemoveCharacter();
-            break;
+            case GLFW_KEY_BACKSPACE:
+                _focusedField->RemovePreviousCharacter();
+                break;
 
-        case GLFW_KEY_DELETE:
-            //TODO Handle delete.
-        default:
-            break;
+            case GLFW_KEY_DELETE:
+                _focusedField->RemoveNextCharacter();
+                break;
+
+            case GLFW_KEY_LEFT:
+                _focusedField->MovePointerLeft();
+                break;
+
+            case GLFW_KEY_RIGHT:
+                _focusedField->MovePointerRight();
+                break;
+
+            default:
+                break;
+            }
         }
 
         return true;
