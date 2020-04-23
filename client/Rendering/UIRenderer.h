@@ -25,6 +25,7 @@ public:
     void OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind);
     void OnMousePositionUpdate(Window* window, f32 x, f32 y);
     void OnKeyboardInput(Window* window, i32 key, i32 actionMask, i32 modifierMask);
+    void OnCharInput(Window* window, u32 unicodeKey);
 
 private:
     void CreatePermanentResources();

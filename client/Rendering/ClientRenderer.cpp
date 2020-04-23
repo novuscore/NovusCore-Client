@@ -21,6 +21,11 @@ void key_callback(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mod
     Window* userWindow = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
     ServiceLocator::GetInputManager()->KeyboardInputHandler(userWindow, key, scancode, action, modifiers);
 }
+void char_callback(GLFWwindow* window, u32 unicodeKey)
+{
+    Window* userWindow = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
+    ServiceLocator::GetInputManager()->CharInputHandler(userWindow, unicodeKey);
+}
 void mouse_callback(GLFWwindow* window, i32 button, i32 action, i32 modifiers)
 {
     Window* userWindow = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
@@ -46,6 +51,7 @@ ClientRenderer::ClientRenderer()
     _camera->Init();
 
     glfwSetKeyCallback(_window->GetWindow(), key_callback);
+    glfwSetCharCallback(_window->GetWindow(), char_callback);
     glfwSetMouseButtonCallback(_window->GetWindow(), mouse_callback);
     glfwSetCursorPosCallback(_window->GetWindow(), cursor_position_callback);
 

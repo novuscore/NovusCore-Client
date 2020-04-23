@@ -2,7 +2,7 @@
 #include <Utils/StringUtils.h>
 #include <GLFW/glfw3.h>
 
-InputManager::InputManager() : _keyToKeybindMap(), _titleToKeybindMap(), _keyboardInputCallbackMap()
+InputManager::InputManager() : _keyToKeybindMap(), _titleToKeybindMap(), _keyboardInputCallbackMap(), _charInputCallbackMap()
 {
     // Mouse
     _keyToKeybindMap[GLFW_MOUSE_BUTTON_1] = robin_hood::unordered_map<u32, std::shared_ptr<Keybind>>();
@@ -174,6 +174,13 @@ void InputManager::KeyboardInputHandler(Window* window, i32 key, i32 /*scanCode*
         kv.second(window, key, actionMask, modifierMask);
     }
 }
+void InputManager::CharInputHandler(Window* window, u32 unicodeKey)
+{
+    for (auto kv : _charInputCallbackMap)
+    {
+        kv.second(window, unicodeKey);
+    }
+}
 void InputManager::MouseInputHandler(Window* window, i32 button, i32 actionMask, i32 modifierMask)
 {
     _mouseState = actionMask == GLFW_RELEASE ? 0 : 1;
@@ -255,6 +262,26 @@ bool InputManager::UnregisterKeyboardInputCallback(u32 callbackNameHash)
         return false;
 
     _keyboardInputCallbackMap.erase(callbackNameHash);
+    return true;
+}
+
+bool InputManager::RegisterCharInputCallback(u32 callbackNameHash, std::function<CharInputCallbackFunc> callback)
+{
+    auto iterator = _charInputCallbackMap.find(callbackNameHash);
+    if (iterator != _charInputCallbackMap.end())
+        return false;
+
+    _charInputCallbackMap[callbackNameHash] = callback;
+    return true;
+}
+
+bool InputManager::UnregisterCharInputCallback(u32 callbackNameHash)
+{
+    auto iterator = _charInputCallbackMap.find(callbackNameHash);
+    if (iterator == _charInputCallbackMap.end())
+        return false;
+
+    _charInputCallbackMap.erase(callbackNameHash);
     return true;
 }
 

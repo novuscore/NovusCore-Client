@@ -26,6 +26,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
     inputManager->RegisterKeybind("UI Click Checker", GLFW_MOUSE_BUTTON_LEFT, KEYBIND_ACTION_CLICK, KEYBIND_MOD_ANY, std::bind(&UIRenderer::OnMouseClick, this, std::placeholders::_1, std::placeholders::_2));
     inputManager->RegisterMousePositionCallback("UI Mouse Position Checker", std::bind(&UIRenderer::OnMousePositionUpdate, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     inputManager->RegisterKeyboardInputCallback("UI Keyboard Input Checker"_h, std::bind(&UIRenderer::OnKeyboardInput, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+    inputManager->RegisterCharInputCallback("UI Char Input Cheker"_h, std::bind(&UIRenderer::OnCharInput, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 void UIRenderer::Update(f32 deltaTime)
@@ -504,6 +505,13 @@ void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
 
 void UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
 {
+    
+}
+
+void UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
+{
+    static std::string currentInput = "";
+    currentInput += (char)unicodeKey;
 }
 
 void UIRenderer::CreatePermanentResources()

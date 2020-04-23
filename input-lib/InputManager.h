@@ -8,12 +8,14 @@ struct GLFWwindow;
 
 typedef void MousePositionUpdateFunc(Window* window, f32 x, f32 y);
 typedef void KeyboardInputCallbackFunc(Window* window, i32 key, i32 actionMask, i32 modifierMask);
+typedef void CharInputCallbackFunc(Window* window, u32 unicodeKey);
 
 class InputManager
 {
 public:
     InputManager();
     void KeyboardInputHandler(Window* window, i32 key, i32 scancode, i32 actionMask, i32 modifierMask);
+    void CharInputHandler(Window* window, u32 unicodeKey);
     void MouseInputHandler(Window* window, i32 button, i32 actionMask, i32 modifierMask);
     void MousePositionHandler(Window* window, f32 x, f32 y);
 
@@ -22,6 +24,9 @@ public:
 
     bool RegisterKeyboardInputCallback(u32 callbackNameHash, std::function<KeyboardInputCallbackFunc> callback);
     bool UnregisterKeyboardInputCallback(u32 callbackNameHash);
+
+    bool RegisterCharInputCallback(u32 callbackNameHash, std::function<CharInputCallbackFunc> callback);
+    bool UnregisterCharInputCallback(u32 callbackNameHash);
 
     bool RegisterMousePositionCallback(std::string callbackName, std::function<MousePositionUpdateFunc> callback);
     bool UnregisterMousePositionCallback(std::string callbackName);
@@ -38,6 +43,7 @@ private:
     robin_hood::unordered_map<i32, robin_hood::unordered_map<u32, std::shared_ptr<Keybind>>> _keyToKeybindMap;
     robin_hood::unordered_map<u32, std::shared_ptr<Keybind>> _titleToKeybindMap;
     robin_hood::unordered_map<u32, std::function<KeyboardInputCallbackFunc>> _keyboardInputCallbackMap;
+    robin_hood::unordered_map<u32, std::function<CharInputCallbackFunc>> _charInputCallbackMap;
     robin_hood::unordered_map<u32, std::function<MousePositionUpdateFunc>> _mousePositionUpdateCallbacks;
     f32 _mousePositionX = 0;
     f32 _mousePositionY = 0;
