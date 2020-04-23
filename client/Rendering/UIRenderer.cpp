@@ -490,7 +490,10 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
     if (keybind->state)
     {
         if (_focusedField)
+        {
+            _focusedField->OnSubmit();
             _focusedField = nullptr;
+        }
 
         for (auto inputField : uiElementRegistry->GetInputFields())
         {
@@ -541,6 +544,12 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
         switch (key)
         {
         case GLFW_KEY_ESCAPE:
+            _focusedField->OnSubmit();
+            _focusedField = nullptr;
+            break;
+
+        case GLFW_KEY_ENTER:
+            _focusedField->OnEnter();
             _focusedField = nullptr;
             break;
 
@@ -564,7 +573,9 @@ bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
 {
     if (_focusedField)
     {
-        _focusedField->AddText("" + (char)unicodeKey);
+        std::string input = "";
+        input.append(1,(char)unicodeKey);
+        _focusedField->AddText(input);
 
         return true;
     }

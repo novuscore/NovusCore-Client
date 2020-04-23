@@ -5,6 +5,7 @@
 namespace UI
 {
     InputField::InputField(const vec2& pos, const vec2& size) : Widget(pos, size)
+        , _onSubmitCallback(nullptr), _onEnterCallback(nullptr)
     {
         _label = new Label(pos, size);
         _label->SetParent(this);
@@ -26,8 +27,11 @@ namespace UI
             r = ScriptEngine::RegisterScriptClassFunction("void SetFont(string fontPath, float fontSize)", asMETHOD(InputField, SetFont)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetText(string text)", asMETHOD(InputField, SetText)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetTextColor(Color col)", asMETHOD(InputField, SetTextColor)); assert(r >= 0);
-
             r = ScriptEngine::RegisterScriptClassFunction("string GetText()", asMETHOD(InputField, GetText)); assert(r >= 0);
+
+            r = ScriptEngine::RegisterScriptFunctionDef("void OnInputFieldCallback(InputField@ inputField)"); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void OnSubmit(OnInputFieldCallback@ cb)", asMETHOD(InputField, SetOnSubmit)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void OnEnter(OnInputFieldCallback@ cb)", asMETHOD(InputField, SetOnEnter)); assert(r >= 0);
         }
     }
 
@@ -62,6 +66,46 @@ namespace UI
     {
         _label->SetColor(color);
     }
+    
+    void InputField::SetOnSubmit(asIScriptFunction* function)
+    {
+        _onSubmitCallback = function;
+    }
+    void InputField::OnSubmit()
+    {
+        if (!_onSubmitCallback)
+            return;
+
+        asIScriptContext* context = ScriptEngine::GetScriptContext();
+        {
+            context->Prepare(_onSubmitCallback);
+            {
+                context->SetArgObject(0, this);
+            }
+            context->Execute();
+        }
+    }
+
+    void InputField::SetOnEnter(asIScriptFunction* function)
+    {
+        _onEnterCallback = function;
+    }
+
+    void InputField::OnEnter()
+    {
+        if (!_onEnterCallback)
+            return;
+
+        asIScriptContext* context = ScriptEngine::GetScriptContext();
+        {
+            context->Prepare(_onEnterCallback);
+            {
+                context->SetArgObject(0, this);
+            }
+            context->Execute();
+        }
+    }
+    
     InputField* InputField::CreateInputField(const vec2& pos, const vec2& size)
     {
         InputField* inputField = new InputField(pos, size);

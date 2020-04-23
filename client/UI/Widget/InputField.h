@@ -31,18 +31,26 @@ namespace UI
         void SetFont(const std::string& fontPath, f32 fontSize);
         void SetTextColor(const Color& color);
 
+        void SetOnSubmit(asIScriptFunction* function);
+        void OnSubmit();
+
+        void SetOnEnter(asIScriptFunction* function);
+        void OnEnter();
+
         Renderer::ConstantBuffer<InputFieldConstantBuffer>* GetConstantBuffer() const { return _constantBuffer; }
     private:
         void SetConstantBuffer(Renderer::ConstantBuffer<InputFieldConstantBuffer>* constantBuffer) { _constantBuffer = constantBuffer; }
 
+        static InputField* CreateInputField(const vec2& pos, const vec2& size);
     private:
         Color _color;
 
         Label* _label;
 
         Renderer::ConstantBuffer<InputFieldConstantBuffer>* _constantBuffer = nullptr;
-
-        static InputField* CreateInputField(const vec2& pos, const vec2& size);
+        
+        asIScriptFunction* _onSubmitCallback;
+        asIScriptFunction* _onEnterCallback;
 
         friend class UIRenderer;
     };
