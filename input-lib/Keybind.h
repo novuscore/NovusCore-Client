@@ -26,7 +26,7 @@ enum KeybindModifier
 
 class Window;
 class Keybind;
-typedef void KeybindCallbackFunc(Window*, std::shared_ptr<Keybind>);
+typedef bool KeybindCallbackFunc(Window*, std::shared_ptr<Keybind>);
 class Keybind
 {
 public:

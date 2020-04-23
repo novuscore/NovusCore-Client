@@ -13,6 +13,11 @@ namespace Renderer
     class Renderer;
 }
 
+namespace UI
+{
+    class InputField;
+}
+
 class Window;
 class Keybind;
 class UIRenderer
@@ -22,10 +27,10 @@ public:
 
     void Update(f32 deltaTime);
     void AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex);
-    void OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind);
+    bool OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind);
     void OnMousePositionUpdate(Window* window, f32 x, f32 y);
-    void OnKeyboardInput(Window* window, i32 key, i32 actionMask, i32 modifierMask);
-    void OnCharInput(Window* window, u32 unicodeKey);
+    bool OnKeyboardInput(Window* window, i32 key, i32 actionMask, i32 modifierMask);
+    bool OnCharInput(Window* window, u32 unicodeKey);
 
 private:
     void CreatePermanentResources();
@@ -38,4 +43,6 @@ private:
     Renderer::Renderer* _renderer;
 
     Renderer::SamplerID _linearSampler;
+
+    UI::InputField* _focusedField;
 };

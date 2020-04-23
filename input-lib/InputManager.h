@@ -7,8 +7,8 @@ class Window;
 struct GLFWwindow;
 
 typedef void MousePositionUpdateFunc(Window* window, f32 x, f32 y);
-typedef void KeyboardInputCallbackFunc(Window* window, i32 key, i32 actionMask, i32 modifierMask);
-typedef void CharInputCallbackFunc(Window* window, u32 unicodeKey);
+typedef bool KeyboardInputCallbackFunc(Window* window, i32 key, i32 actionMask, i32 modifierMask);
+typedef bool CharInputCallbackFunc(Window* window, u32 unicodeKey);
 
 class InputManager
 {

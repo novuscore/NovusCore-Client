@@ -148,6 +148,13 @@ InputManager::InputManager() : _keyToKeybindMap(), _titleToKeybindMap(), _keyboa
 
 void InputManager::KeyboardInputHandler(Window* window, i32 key, i32 /*scanCode*/, i32 actionMask, i32 modifierMask)
 {
+    for (auto kv : _keyboardInputCallbackMap)
+    {
+        //If this returns true it consumed the input.
+        if (kv.second(window, key, actionMask, modifierMask))
+            return;
+    }
+
     for (auto kv : _keyToKeybindMap[key])
     {
         auto inputBinding = kv.second;
@@ -165,20 +172,19 @@ void InputManager::KeyboardInputHandler(Window* window, i32 key, i32 /*scanCode*
             if (!inputBinding->callback)
                 continue;
 
-            inputBinding->callback(window, inputBinding);
+            //If this returns true it consumed the input.
+            if (inputBinding->callback(window, inputBinding))
+                return;
         }
-    }
-
-    for (auto kv : _keyboardInputCallbackMap)
-    {
-        kv.second(window, key, actionMask, modifierMask);
     }
 }
 void InputManager::CharInputHandler(Window* window, u32 unicodeKey)
 {
     for (auto kv : _charInputCallbackMap)
     {
-        kv.second(window, unicodeKey);
+        //If this returns true it consumed the input.
+        if (kv.second(window, unicodeKey))
+            break;
     }
 }
 void InputManager::MouseInputHandler(Window* window, i32 button, i32 actionMask, i32 modifierMask)

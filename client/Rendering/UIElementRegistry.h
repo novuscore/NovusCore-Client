@@ -6,6 +6,7 @@ namespace UI
     class Panel;
     class Label;
     class Button;
+    class InputField;
 }
 
 class UIElementRegistry
@@ -22,6 +23,9 @@ public:
     std::vector<UI::Button*>& GetButtons() { return _Buttons; }
     void AddButton(UI::Button* button) { _Buttons.push_back(button); }
 
+    std::vector<UI::InputField*>& GetInputFields() { return _InputFields; }
+    void AddInputField(UI::InputField* inputField) { _InputFields.push_back(inputField); }
+
     void Clear();
     
 private:
@@ -37,4 +41,5 @@ private:
     std::vector<UI::Panel*> _Panels;
     std::vector<UI::Label*> _Labels;
     std::vector<UI::Button*> _Buttons;
+    std::vector<UI::InputField*> _InputFields;
 };

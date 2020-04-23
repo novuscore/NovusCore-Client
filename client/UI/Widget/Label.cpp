@@ -33,7 +33,7 @@ namespace UI
     }
 
     // Public
-    void Label::SetText(std::string& text)
+    void Label::SetText(const std::string& text)
     { 
         _text = text;
         SetDirty();
@@ -60,7 +60,7 @@ namespace UI
         SetDirty();
     }
 
-    void Label::SetFont(std::string& fontPath, f32 fontSize)
+    void Label::SetFont(const std::string& fontPath, f32 fontSize)
     {
         if (_parent)
         {

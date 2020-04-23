@@ -34,7 +34,7 @@ namespace UI
         std::string GetTypeName() const override { return "Label"; }
 
         const std::string& GetText() const { return _text; }
-        void SetText(std::string& text);
+        void SetText(const std::string& text);
 
         u32 GetTextLength() const { return static_cast<u32>(_text.length()); }
         u32 GetGlyphCount() const { return _glyphCount; }
@@ -50,7 +50,7 @@ namespace UI
 
         const std::string& GetFontPath() const { return _fontPath; }
         f32 GetFontSize() const { return _fontSize; }
-        void SetFont(std::string& fontPath, f32 fontSize);
+        void SetFont(const std::string& fontPath, f32 fontSize);
 
         Renderer::ConstantBuffer<LabelConstantBuffer>* GetConstantBuffer() const { return _constantBuffer; }
     private:

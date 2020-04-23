@@ -3,9 +3,11 @@
 #include "UIElementRegistry.h"
 
 #include "../Utils/ServiceLocator.h"
+#include "../UI/Widget/Widget.h"
 #include "../UI/Widget/Panel.h"
 #include "../UI/Widget/Label.h"
 #include "../UI/Widget/Button.h"
+#include "../UI/Widget/InputField.h"
 
 #include <Renderer/Renderer.h>
 #include <Renderer/Renderers/Vulkan/RendererVK.h>
@@ -17,7 +19,7 @@
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
 
-UIRenderer::UIRenderer(Renderer::Renderer* renderer)
+UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _focusedField(nullptr)
 {
     _renderer = renderer;
     CreatePermanentResources();
@@ -418,7 +420,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
     }
 }
 
-void UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
+bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 {
     UIElementRegistry* uiElementRegistry = UIElementRegistry::Instance();
     InputManager* inputManager = ServiceLocator::GetInputManager();
@@ -449,6 +451,8 @@ void UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
                         panel->OnClick();
                 }
             }
+
+            return true;
         }
 
         if (!keybind->state)
@@ -456,11 +460,13 @@ void UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             if (panel->IsDraggable())
             {
                 panel->EndDrag();
+
+                return true;
             }
         }
     }
 
-    for (auto button : uiElementRegistry->GetButtons()) // TODO: Store panels in a better manner than this
+    for (auto button : uiElementRegistry->GetButtons()) // TODO: Store buttons in a better manner than this
     {
         if (!button->IsClickable())
             continue;
@@ -474,9 +480,34 @@ void UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             if (keybind->state)
             {
                 button->OnClick();
+                
+                return true;
             }
         }
     }
+
+    //Unfocus field if we clicked.
+    if (keybind->state)
+    {
+        if (_focusedField)
+            _focusedField = nullptr;
+
+        for (auto inputField : uiElementRegistry->GetInputFields())
+        {
+            const vec2& size = inputField->GetSize();
+            const vec2& pos = inputField->GetPosition();
+
+            if ((mouseX > pos.x && mouseX < pos.x + size.x) &&
+                (mouseY > pos.y && mouseY < pos.y + size.y))
+            {
+                _focusedField = inputField;
+
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
@@ -503,15 +534,42 @@ void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
     }
 }
 
-void UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
+bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
 {
-    
+    if (_focusedField)
+    {
+        switch (key)
+        {
+        case GLFW_KEY_ESCAPE:
+            _focusedField = nullptr;
+            break;
+
+        case GLFW_KEY_BACKSPACE:
+            _focusedField->RemoveCharacter();
+            break;
+
+        case GLFW_KEY_DELETE:
+            //TODO Handle delete.
+        default:
+            break;
+        }
+
+        return true;
+    }
+
+    return false;
 }
 
-void UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
+bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
 {
-    static std::string currentInput = "";
-    currentInput += (char)unicodeKey;
+    if (_focusedField)
+    {
+        _focusedField->AddText("" + (char)unicodeKey);
+
+        return true;
+    }
+
+    return false;
 }
 
 void UIRenderer::CreatePermanentResources()

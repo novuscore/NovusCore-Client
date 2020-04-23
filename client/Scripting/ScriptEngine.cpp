@@ -11,6 +11,7 @@
 #include "../UI/Widget/Panel.h"
 #include "../UI/Widget/Label.h"
 #include "../UI/Widget/Button.h"
+#include "../UI/Widget/InputField.h"
 
 thread_local asIScriptEngine* ScriptEngine::_scriptEngine = nullptr;
 thread_local asIScriptContext* ScriptEngine::_scriptContext = nullptr;
@@ -103,6 +104,7 @@ void ScriptEngine::RegisterFunctions()
     UI::Panel::RegisterType();
     UI::Label::RegisterType();
     UI::Button::RegisterType();
+    UI::InputField::RegisterType();
 
     ScriptEngine::RegisterScriptFunction("void Print(string msg)", asFUNCTION(ScriptEngine::Print));
 }
