@@ -23,15 +23,6 @@ namespace UI
 
         std::string GetTypeName() const override { return "Panel"; }
 
-        Renderer::ModelID GetModelID() const { return Widget::GetModelID(); }
-        void SetModelID(Renderer::ModelID modelID);
-
-        const std::string& GetTexture() const { return Widget::GetTexture(); }
-        void SetTexture(std::string& texture);
-
-        Renderer::TextureID GetTextureID() const { return Widget::GetTextureID(); }
-        void SetTextureID(Renderer::TextureID textureID);
-
         const Color& GetColor() const { return _color; }
         void SetColor(const Color& color);
 

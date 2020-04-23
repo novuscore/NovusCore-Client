@@ -31,21 +31,6 @@ namespace UI
         }
     }
 
-    void Panel::SetModelID(Renderer::ModelID modelID)
-    {
-        Widget::SetModelID(modelID);
-    }
-
-    void Panel::SetTexture(std::string& texture) 
-    { 
-        Widget::SetTexture(texture);
-    }
-
-    void Panel::SetTextureID(Renderer::TextureID textureID)
-    {
-        Widget::SetTextureID(textureID);
-    }
-
     void Panel::SetColor(const Color& color)
     { 
         _color = color;
