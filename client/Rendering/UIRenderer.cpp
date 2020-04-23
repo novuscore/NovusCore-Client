@@ -255,6 +255,66 @@ void UIRenderer::Update(f32 deltaTime)
             button->ResetDirty();
         }
     }
+
+    for (auto inputField : uiElementRegistry->GetInputFields()) // TODO: Store panels in a better manner than this
+    {
+        if (inputField->IsDirty())
+        {
+            if (inputField->GetTexture().length() == 0)
+            {
+                inputField->ResetDirty();
+                continue;
+            }
+
+            // (Re)load texture
+            Renderer::TextureID textureID = ReloadTexture(inputField->GetTexture());
+            inputField->SetTextureID(textureID);
+
+            // Update position depending on parents etc
+            // TODO
+
+            Renderer::PrimitiveModelDesc primitiveModelDesc;
+
+            // Update vertex buffer
+            const vec3 pos = vec3(inputField->GetScreenPosition(), 0);
+            const vec2& size = inputField->GetSize();
+
+            CalculateVertices(pos, size, primitiveModelDesc.vertices);
+
+            Renderer::ModelID modelID = inputField->GetModelID();
+            // If the primitive model hasn't been created yet, create it
+            if (modelID == Renderer::ModelID::Invalid())
+            {
+                // Indices
+                primitiveModelDesc.indices.push_back(0);
+                primitiveModelDesc.indices.push_back(1);
+                primitiveModelDesc.indices.push_back(2);
+                primitiveModelDesc.indices.push_back(1);
+                primitiveModelDesc.indices.push_back(3);
+                primitiveModelDesc.indices.push_back(2);
+
+                Renderer::ModelID modelID = _renderer->CreatePrimitiveModel(primitiveModelDesc);
+                inputField->SetModelID(modelID);
+            }
+            else // Otherwise we just update the already existing primitive model
+            {
+                _renderer->UpdatePrimitiveModel(modelID, primitiveModelDesc);
+            }
+
+            // Create constant buffer if necessary
+            auto constantBuffer = inputField->GetConstantBuffer();
+            if (constantBuffer == nullptr)
+            {
+                constantBuffer = _renderer->CreateConstantBuffer<UI::InputField::InputFieldConstantBuffer>();
+                inputField->SetConstantBuffer(constantBuffer);
+            }
+            constantBuffer->resource.color = inputField->GetColor();
+            constantBuffer->Apply(0);
+            constantBuffer->Apply(1);
+
+            inputField->ResetDirty();
+        }
+    }
 }
 
 void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex)
@@ -367,7 +427,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                 if (button->GetTexture().length() == 0)
                     continue;
 
-                commandList.PushMarker("Button", Color(0.0f, 0.1f, 0.0f));
+                commandList.PushMarker("Button", Color(0.0f, 0.0f, 0.0f));
 
                 // Set constant buffer
                 commandList.SetConstantBuffer(0, button->GetConstantBuffer()->GetGPUResource(frameIndex));
@@ -377,6 +437,31 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 
                 // Draw
                 commandList.Draw(button->GetModelID());
+
+                commandList.PopMarker();
+            }
+            commandList.EndPipeline(pipeline);
+
+            // Set pipeline
+            pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+            commandList.BeginPipeline(pipeline);
+            
+            // Draw all the inputFields
+            for (auto inputField : uiElementRegistry->GetInputFields())
+            {
+                if (inputField->GetTexture().length() == 0)
+                    continue;
+
+                commandList.PushMarker("InputField", Color(0.0f, 0.0f, 0.0f));
+
+                // Set constant buffer
+                commandList.SetConstantBuffer(0, inputField->GetConstantBuffer()->GetGPUResource(frameIndex));
+
+                // Set texture-sampler pair
+                commandList.SetTextureSampler(1, inputField->GetTextureID(), _linearSampler);
+
+                // Draw
+                commandList.Draw(inputField->GetModelID());
 
                 commandList.PopMarker();
             }

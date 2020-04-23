@@ -6,7 +6,7 @@
 namespace UI
 {
     InputField::InputField(const vec2& pos, const vec2& size) : Widget(pos, size)
-        , _pointerIndex(0), _onSubmitCallback(nullptr), _onEnterCallback(nullptr)
+        , _color(1.0f,1.0f,1.0f, 1.0f), _pointerIndex(0), _onSubmitCallback(nullptr), _onEnterCallback(nullptr)
     {
         _label = new Label(pos, size);
         _label->SetParent(this);

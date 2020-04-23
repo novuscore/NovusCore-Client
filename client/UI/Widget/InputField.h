@@ -21,6 +21,7 @@ namespace UI
         InputField(const vec2& pos, const vec2& size);
         static void RegisterType();
 
+        const Color& GetColor() { return _color; }
         void SetColor(const Color& color);
 
         void AddText(const std::string& text);
