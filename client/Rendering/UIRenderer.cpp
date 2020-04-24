@@ -12,6 +12,7 @@
 #include "../ECS/Components/UI/UITransform.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
 #include "../ECS/Components/UI/UIRenderable.h"
+#include "../ECS/Components/UI/UIText.h"
 
 #include <Renderer/Renderer.h>
 #include <Renderer/Renderers/Vulkan/RendererVK.h>
@@ -40,19 +41,39 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _focusedField(nullptr)
     registry->prepare<UITransform>();
     registry->prepare<UITransformEvents>();
     registry->prepare<UIRenderable>();
+    registry->prepare<UIText>();
 
-    // Construct Test Panel
-    entt::entity panel = registry->create();
-    UIElement& uiElement = registry->assign<UIElement>(panel);
-    UITransform& transform = registry->assign<UITransform>(panel);
-    transform.position = vec2(50, 50);
-    transform.size = vec2(100, 100);
-    transform.depth = 0;
-    transform.isDirty = true;
+    {
+        // Construct Test Panel
+        entt::entity panel = registry->create();
+        UIElement& uiElement = registry->assign<UIElement>(panel);
+        UITransform& transform = registry->assign<UITransform>(panel);
+        transform.position = vec2(50, 50);
+        transform.size = vec2(100, 100);
+        transform.depth = 0;
+        transform.isDirty = true;
 
-    UITransformEvents& transformEvents = registry->assign<UITransformEvents>(panel);
-    UIRenderable& renderable = registry->assign<UIRenderable>(panel);
-    renderable.texture = "Data/textures/NovusUIPanel.png";
+        UITransformEvents& transformEvents = registry->assign<UITransformEvents>(panel);
+        UIRenderable& renderable = registry->assign<UIRenderable>(panel);
+        renderable.texture = "Data/textures/NovusUIPanel.png";
+    }
+
+    {
+        // Construct Test Text
+        entt::entity label = registry->create();
+        UIElement& uiElement = registry->assign<UIElement>(label);
+        UITransform& transform = registry->assign<UITransform>(label);
+        transform.position = vec2(100, 500);
+        transform.size = vec2(100, 100);
+        transform.depth = 0;
+        transform.isDirty = true;
+
+        UITransformEvents& transformEvents = registry->assign<UITransformEvents>(label);
+        UIText& text = registry->assign<UIText>(label);
+        text.text = "HELLO ECS WORLD!";
+        text.fontPath = "Data/fonts/Ubuntu/Ubuntu-Regular.ttf";
+        text.fontSize = 200.f;
+    }
 }
 
 void UIRenderer::Update(f32 deltaTime)
@@ -114,6 +135,97 @@ void UIRenderer::Update(f32 deltaTime)
             constantBuffer->resource.color = renderable.color;
             constantBuffer->Apply(0);
             constantBuffer->Apply(1);
+
+            transform.isDirty = false;
+        });
+
+    auto textView = registry->view<UITransform, UIText>();
+    textView.each([this](const auto, UITransform& transform, UIText& text)
+        {
+            if (!transform.isDirty)
+                return;
+
+            text.font = Renderer::Font::GetFont(_renderer, text.fontPath, text.fontSize);
+
+            size_t textLengthWithoutSpaces = std::count_if(text.text.begin(), text.text.end(), [](char c)
+                {
+                    return c != ' ';
+                });
+
+            size_t glyphCount = text.models.size();
+            if (glyphCount < textLengthWithoutSpaces)
+            {
+                text.models.resize(textLengthWithoutSpaces);
+                for (size_t i = glyphCount; i < textLengthWithoutSpaces; i++)
+                {
+                    text.models[i] = Renderer::ModelID::Invalid();
+                }
+            }
+            if (text.textures.size() < textLengthWithoutSpaces)
+            {
+                text.textures.resize(textLengthWithoutSpaces);                
+                for (size_t i = glyphCount; i < textLengthWithoutSpaces; i++)
+                {
+                    text.textures[i] = Renderer::TextureID::Invalid();
+                }
+            }
+
+            size_t glyph = 0;
+            vec3 currentPosition = vec3(transform.position.x, transform.position.y, transform.depth);
+            for (char character : text.text)
+            {
+                if (character == ' ')
+                {
+                    currentPosition.x += text.fontSize * 0.15f;
+                    continue;
+                }
+
+                Renderer::FontChar fontChar = text.font->GetChar(character);
+
+                const vec3& pos = currentPosition + vec3(fontChar.xOffset, fontChar.yOffset, 0);
+                const vec2& size = vec2(fontChar.width, fontChar.height);
+
+                Renderer::PrimitiveModelDesc primitiveModelDesc;
+                primitiveModelDesc.debugName = "Text " + character;
+
+                CalculateVertices(pos, size, primitiveModelDesc.vertices);
+
+                Renderer::ModelID& modelID = text.models[glyph];
+
+                // If the primitive model hasn't been created yet, create it
+                if (modelID == Renderer::ModelID::Invalid())
+                {
+                    // Indices
+                    primitiveModelDesc.indices.push_back(0);
+                    primitiveModelDesc.indices.push_back(1);
+                    primitiveModelDesc.indices.push_back(2);
+                    primitiveModelDesc.indices.push_back(1);
+                    primitiveModelDesc.indices.push_back(3);
+                    primitiveModelDesc.indices.push_back(2);
+
+                    modelID = _renderer->CreatePrimitiveModel(primitiveModelDesc);
+                }
+                else // Otherwise we just update the already existing primitive model
+                {
+                    _renderer->UpdatePrimitiveModel(modelID, primitiveModelDesc);
+                }
+
+                text.textures[glyph] = fontChar.texture;
+
+                currentPosition.x += fontChar.advance;
+                glyph++;
+            }
+
+            // Create constant buffer if necessary
+            if (text.constantBuffer == nullptr)
+            {
+                text.constantBuffer = _renderer->CreateConstantBuffer<UIText::TextConstantBuffer>();
+            }
+            text.constantBuffer->resource.textColor = text.color;
+            text.constantBuffer->resource.outlineColor = text.outlineColor;
+            text.constantBuffer->resource.outlineWidth = text.outlineWidth;
+            text.constantBuffer->Apply(0);
+            text.constantBuffer->Apply(1);
 
             transform.isDirty = false;
         });
@@ -232,27 +344,28 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
             commandList.BeginPipeline(pipeline);
 
-            // Draw all the labels
-            for (auto label : uiElementRegistry->GetLabels())
-            {
-                commandList.PushMarker("Label", Color(0.0f, 0.1f, 0.0f));
-
-                // Set constant buffer
-                commandList.SetConstantBuffer(0, label->GetConstantBuffer()->GetGPUResource(frameIndex));
-
-                // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
-                u32 glyphs = label->GetGlyphCount();
-                for (u32 i = 0; i < glyphs; i++)
+            auto textView = registry->view<UITransform, UIText>();
+            textView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIText& text)
                 {
-                    // Set texture-sampler pair
-                    commandList.SetTextureSampler(1, label->_textures[i], _linearSampler);
+                    commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
 
-                    // Draw
-                    commandList.Draw(label->_models[i]);
-                }
+                    // Set constant buffer
+                    commandList.SetConstantBuffer(0, text.constantBuffer->GetGPUResource(frameIndex));
 
-                commandList.PopMarker();
-            }
+                    // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
+                    size_t glyphs = text.models.size();
+                    for (u32 i = 0; i < glyphs; i++)
+                    {
+                        // Set texture-sampler pair
+                        commandList.SetTextureSampler(1, text.textures[i], _linearSampler);
+
+                        // Draw
+                        commandList.Draw(text.models[i]);
+                    }
+
+                    commandList.PopMarker();
+                });
+
             commandList.EndPipeline(pipeline);
         });
 }
