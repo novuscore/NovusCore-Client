@@ -49,49 +49,6 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _focusedField(nullptr)
     std::vector<entt::entity> entityIds(10000);
     registry->create(entityIds.begin(), entityIds.end());
     entityPool.entityIdPool.enqueue_bulk(entityIds.begin(), 10000);
-
-
-    {
-        // Construct Test Panel
-        UIElementData panel;
-        entityPool.entityIdPool.try_dequeue(panel.entityId);
-        panel.type = UIElementData::UIElementType::UITYPE_PANEL;
-        addElementQueue.elementPool.enqueue(panel);
-        
-        /*entt::entity panel;
-        entityPool.entityIdPool.try_dequeue(panel);
-        UITransform& transform = registry->assign<UITransform>(panel);
-        transform.position = vec2(50, 50);
-        transform.size = vec2(100, 100);
-        transform.depth = 0;
-        transform.isDirty = true;
-
-        UITransformEvents& transformEvents = registry->assign<UITransformEvents>(panel);
-        UIRenderable& renderable = registry->assign<UIRenderable>(panel);
-        renderable.texture = "Data/textures/NovusUIPanel.png";*/
-    }
-
-    {
-        // Construct Test Text
-        UIElementData text;
-        entityPool.entityIdPool.try_dequeue(text.entityId);
-        text.type = UIElementData::UIElementType::UITYPE_TEXT;
-        addElementQueue.elementPool.enqueue(text);
-
-        /*entt::entity label;
-        entityPool.entityIdPool.try_dequeue(label);
-        UITransform& transform = registry->assign<UITransform>(label);
-        transform.position = vec2(100, 500);
-        transform.size = vec2(100, 100);
-        transform.depth = 0;
-        transform.isDirty = true;
-
-        UITransformEvents& transformEvents = registry->assign<UITransformEvents>(label);
-        UIText& text = registry->assign<UIText>(label);
-        text.text = "HELLO ECS WORLD!";
-        text.fontPath = "Data/fonts/Ubuntu/Ubuntu-Regular.ttf";
-        text.fontSize = 200.f;*/
-    }
 }
 
 void UIRenderer::Update(f32 deltaTime)
