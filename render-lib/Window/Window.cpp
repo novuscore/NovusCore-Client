@@ -47,8 +47,6 @@ bool Window::Init(u32 width, u32 height)
     }
     glfwSetWindowUserPointer(_window, this);
 
-
-
     return true;
 }
 

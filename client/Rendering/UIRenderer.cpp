@@ -8,7 +8,9 @@
 #include "../UI/Widget/Label.h"
 #include "../UI/Widget/Button.h"
 #include "../UI/Widget/InputField.h"
-#include "../ECS/Components/UI/UIElement.h"
+
+#include "../ECS/Components/UI/UIEntityPoolSingleton.h"
+#include "../ECS/Components/UI/UIAddElementQueueSingleton.h"
 #include "../ECS/Components/UI/UITransform.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
 #include "../ECS/Components/UI/UIRenderable.h"
@@ -36,17 +38,28 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _focusedField(nullptr)
     inputManager->RegisterCharInputCallback("UI Char Input Cheker"_h, std::bind(&UIRenderer::OnCharInput, this, std::placeholders::_1, std::placeholders::_2));
 
     entt::registry* registry = ServiceLocator::GetUIRegistry();
-
-    registry->prepare<UIElement>();
     registry->prepare<UITransform>();
     registry->prepare<UITransformEvents>();
     registry->prepare<UIRenderable>();
     registry->prepare<UIText>();
 
+    // Preallocate Entity Ids
+    UIEntityPoolSingleton& entityPool = registry->set<UIEntityPoolSingleton>();
+    UIAddElementQueueSingleton& addElementQueue = registry->set<UIAddElementQueueSingleton>();
+    std::vector<entt::entity> entityIds(10000);
+    registry->create(entityIds.begin(), entityIds.end());
+    entityPool.entityIdPool.enqueue_bulk(entityIds.begin(), 10000);
+
+
     {
         // Construct Test Panel
-        entt::entity panel = registry->create();
-        UIElement& uiElement = registry->assign<UIElement>(panel);
+        UIElementData panel;
+        entityPool.entityIdPool.try_dequeue(panel.entityId);
+        panel.type = UIElementData::UIElementType::UITYPE_PANEL;
+        addElementQueue.elementPool.enqueue(panel);
+        
+        /*entt::entity panel;
+        entityPool.entityIdPool.try_dequeue(panel);
         UITransform& transform = registry->assign<UITransform>(panel);
         transform.position = vec2(50, 50);
         transform.size = vec2(100, 100);
@@ -55,13 +68,18 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _focusedField(nullptr)
 
         UITransformEvents& transformEvents = registry->assign<UITransformEvents>(panel);
         UIRenderable& renderable = registry->assign<UIRenderable>(panel);
-        renderable.texture = "Data/textures/NovusUIPanel.png";
+        renderable.texture = "Data/textures/NovusUIPanel.png";*/
     }
 
     {
         // Construct Test Text
-        entt::entity label = registry->create();
-        UIElement& uiElement = registry->assign<UIElement>(label);
+        UIElementData text;
+        entityPool.entityIdPool.try_dequeue(text.entityId);
+        text.type = UIElementData::UIElementType::UITYPE_TEXT;
+        addElementQueue.elementPool.enqueue(text);
+
+        /*entt::entity label;
+        entityPool.entityIdPool.try_dequeue(label);
         UITransform& transform = registry->assign<UITransform>(label);
         transform.position = vec2(100, 500);
         transform.size = vec2(100, 100);
@@ -72,7 +90,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _focusedField(nullptr)
         UIText& text = registry->assign<UIText>(label);
         text.text = "HELLO ECS WORLD!";
         text.fontPath = "Data/fonts/Ubuntu/Ubuntu-Regular.ttf";
-        text.fontSize = 200.f;
+        text.fontSize = 200.f;*/
     }
 }
 
@@ -144,6 +162,12 @@ void UIRenderer::Update(f32 deltaTime)
         {
             if (!transform.isDirty)
                 return;
+
+            if (text.fontPath.length() == 0)
+            {
+                transform.isDirty = false;
+                return;
+            }
 
             text.font = Renderer::Font::GetFont(_renderer, text.fontPath, text.fontSize);
 
@@ -318,6 +342,9 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             auto renderableView = registry->view<UITransform, UIRenderable>();
             renderableView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIRenderable& renderable)
                 {
+                    if (!renderable.constantBuffer)
+                        return;
+
                     commandList.PushMarker("Renderable", Color(0.0f, 0.1f, 0.0f));
 
                     // Set constant buffer
@@ -347,6 +374,9 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             auto textView = registry->view<UITransform, UIText>();
             textView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIText& text)
                 {
+                    if (!text.constantBuffer)
+                        return;
+
                     commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
 
                     // Set constant buffer

@@ -13,6 +13,8 @@
 #include "../UI/Widget/Button.h"
 #include "../UI/Widget/InputField.h"
 
+#include "Classes/UI/asPanel.h"
+
 thread_local asIScriptEngine* ScriptEngine::_scriptEngine = nullptr;
 thread_local asIScriptContext* ScriptEngine::_scriptContext = nullptr;
 thread_local std::string ScriptEngine::_scriptCurrentObjectName = "";
@@ -100,11 +102,13 @@ void ScriptEngine::RegisterFunctions()
     ColorUtil::RegisterType();
 
     Player::RegisterType();
-    UI::Widget::RegisterType();
+    UI::asPanel::RegisterType();
+    
+    /*UI::Widget::RegisterType();
     UI::Panel::RegisterType();
     UI::Label::RegisterType();
     UI::Button::RegisterType();
-    UI::InputField::RegisterType();
+    UI::InputField::RegisterType();*/
 
     ScriptEngine::RegisterScriptFunction("void Print(string msg)", asFUNCTION(ScriptEngine::Print));
 }

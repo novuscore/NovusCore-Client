@@ -8,12 +8,14 @@
 
 // Component Singletons
 #include "ECS/Components/Singletons/TimeSingleton.h"
+#include "ECS/Components/Singletons/ScriptSingleton.h"
 #include "ECS/Components/Network/ConnectionSingleton.h"
 
 // Components
 
 // Systems
 #include "ECS/Systems/Network/ConnectionSystems.h"
+#include "ECS/Systems/UI/AddElementSystem.h"
 
 // Handlers
 #include "Network/Handlers/Client/GeneralHandlers.h"
@@ -74,17 +76,18 @@ void EngineLoop::Run()
     _updateFramework.uiRegistry.create();
     SetupUpdateFramework();
 
-    std::string scriptPath = "./Data/scripts";
-    ScriptHandler::LoadScriptDirectory(scriptPath);
-
     TimeSingleton& timeSingleton = _updateFramework.gameRegistry.set<TimeSingleton>();
+    ScriptSingleton& scriptSingleton = _updateFramework.gameRegistry.set<ScriptSingleton>();
     ConnectionSingleton& connectionSingleton = _updateFramework.gameRegistry.set<ConnectionSingleton>();
     connectionSingleton.connection = _network.client;
 
     Timer timer;
-    f32 targetDelta = 1.0f / 30.0f;
+    f32 targetDelta = 1.0f / 240.0f;
 
     _clientRenderer = new ClientRenderer();
+
+    std::string scriptPath = "./Data/scripts";
+    ScriptHandler::LoadScriptDirectory(scriptPath);
 
     _network.client->Connect("127.0.0.1", 3724);
 
@@ -185,7 +188,26 @@ void EngineLoop::SetupUpdateFramework()
         {
             ZoneScopedNC("ConnectionUpdateSystem::Update", tracy::Color::Blue2)
                 ConnectionUpdateSystem::Update(gameRegistry);
+            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
         });
+
+    // AddElementSystem
+    tf::Task addElementSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+        {
+            ZoneScopedNC("AddElementSystem::Update", tracy::Color::Blue2)
+                AddElementSystem::Update(uiRegistry);
+            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+        });
+    addElementSystemTask.gather(connectionUpdateSystemTask);
+
+    // ScriptSingletonTask
+    tf::Task ScriptSingletonTask = framework.emplace([&uiRegistry, &gameRegistry]()
+        {
+            ZoneScopedNC("ScriptSingletonTask::Update", tracy::Color::Blue2)
+            gameRegistry.ctx<ScriptSingleton>().ExecuteTransactions();
+            gameRegistry.ctx<ScriptSingleton>().ResetCompletedSystems();
+        });
+    ScriptSingletonTask.gather(addElementSystemTask);
 }
 void EngineLoop::SetMessageHandler()
 {
