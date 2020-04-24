@@ -95,107 +95,6 @@ void UIRenderer::Update(f32 deltaTime)
         }
     }
 
-    for (auto label : uiElementRegistry->GetLabels()) // TODO: Store labels in a better manner than this
-    {
-        if (label->IsDirty())
-        {
-            // (Re)load font
-            label->_font = Renderer::Font::GetFont(_renderer, label->GetFontPath(), label->GetFontSize());
-
-            // Grow arrays if necessary
-            const std::string& text = label->GetText();
-
-            size_t textLength = text.size();
-            size_t textLengthWithoutSpaces = std::count_if(text.begin(), text.end(), [](char c)
-            {
-                return c != ' ';
-            });
-
-            size_t glyphCount = label->_models.size();
-
-            if (label->_models.size() < textLengthWithoutSpaces)
-            {
-                label->_models.resize(textLengthWithoutSpaces);
-                for (size_t i = glyphCount; i < textLengthWithoutSpaces; i++)
-                {
-                    label->_models[i] = Renderer::ModelID::Invalid();
-                }
-            }
-            if (label->_textures.size() < textLengthWithoutSpaces)
-            {
-                label->_textures.resize(textLengthWithoutSpaces);
-                for (size_t i = glyphCount; i < textLengthWithoutSpaces; i++)
-                {
-                    label->_textures[i] = Renderer::TextureID::Invalid();
-                }
-            }
-
-            size_t glyph = 0;
-            vec3 currentPosition = vec3(label->GetScreenPosition(), 0);
-            for (size_t i = 0; i < textLength; i++)
-            {
-                char character = text[i];
-
-                // If we encounter a space we just advance currentPosition and continue
-                if (character == ' ')
-                {
-                    currentPosition.x += label->GetFontSize() * 0.15f;
-                    continue;
-                }
-
-                Renderer::FontChar& fontChar = label->_font->GetChar(character);
-
-                const vec3& pos = currentPosition + vec3(fontChar.xOffset, fontChar.yOffset, 0);
-                const vec2& size = vec2(fontChar.width, fontChar.height);
-
-                Renderer::PrimitiveModelDesc primitiveModelDesc;
-                primitiveModelDesc.debugName = "Label " + character;
-
-                CalculateVertices(pos, size, primitiveModelDesc.vertices);
-
-                Renderer::ModelID modelID = label->_models[glyph];
-
-                // If the primitive model hasn't been created yet, create it
-                if (modelID == Renderer::ModelID::Invalid())
-                {
-                    // Indices
-                    primitiveModelDesc.indices.push_back(0);
-                    primitiveModelDesc.indices.push_back(1);
-                    primitiveModelDesc.indices.push_back(2);
-                    primitiveModelDesc.indices.push_back(1);
-                    primitiveModelDesc.indices.push_back(3);
-                    primitiveModelDesc.indices.push_back(2);
-
-                    label->_models[glyph] = _renderer->CreatePrimitiveModel(primitiveModelDesc);
-                }
-                else // Otherwise we just update the already existing primitive model
-                {
-                    _renderer->UpdatePrimitiveModel(modelID, primitiveModelDesc);
-                }
-
-                label->_textures[glyph] = fontChar.texture;
-
-                currentPosition.x += fontChar.advance;
-                glyph++;
-            }
-
-            // Create constant buffer if necessary
-            auto constantBuffer = label->GetConstantBuffer();
-            if (constantBuffer == nullptr)
-            {
-                constantBuffer = _renderer->CreateConstantBuffer<UI::Label::LabelConstantBuffer>();
-                label->SetConstantBuffer(constantBuffer);
-            }
-            constantBuffer->resource.textColor = label->GetColor();
-            constantBuffer->resource.outlineColor = label->GetOutlineColor();
-            constantBuffer->resource.outlineWidth = label->GetOutlineWidth();
-            constantBuffer->Apply(0);
-            constantBuffer->Apply(1);
-
-            label->ResetDirty();
-        }
-    }
-
     for (auto button : uiElementRegistry->GetButtons()) // TODO: Store panels in a better manner than this
     {
         if (button->IsDirty())
@@ -313,6 +212,107 @@ void UIRenderer::Update(f32 deltaTime)
             constantBuffer->Apply(1);
 
             inputField->ResetDirty();
+        }
+    }
+
+    for (auto label : uiElementRegistry->GetLabels()) // TODO: Store labels in a better manner than this
+    {
+        if (label->IsDirty())
+        {
+            // (Re)load font
+            label->_font = Renderer::Font::GetFont(_renderer, label->GetFontPath(), label->GetFontSize());
+
+            // Grow arrays if necessary
+            const std::string& text = label->GetText();
+
+            size_t textLength = text.size();
+            size_t textLengthWithoutSpaces = std::count_if(text.begin(), text.end(), [](char c)
+                {
+                    return c != ' ';
+                });
+
+            size_t glyphCount = label->_models.size();
+
+            if (label->_models.size() < textLengthWithoutSpaces)
+            {
+                label->_models.resize(textLengthWithoutSpaces);
+                for (size_t i = glyphCount; i < textLengthWithoutSpaces; i++)
+                {
+                    label->_models[i] = Renderer::ModelID::Invalid();
+                }
+            }
+            if (label->_textures.size() < textLengthWithoutSpaces)
+            {
+                label->_textures.resize(textLengthWithoutSpaces);
+                for (size_t i = glyphCount; i < textLengthWithoutSpaces; i++)
+                {
+                    label->_textures[i] = Renderer::TextureID::Invalid();
+                }
+            }
+
+            size_t glyph = 0;
+            vec3 currentPosition = vec3(label->GetScreenPosition(), 0);
+            for (size_t i = 0; i < textLength; i++)
+            {
+                char character = text[i];
+
+                // If we encounter a space we just advance currentPosition and continue
+                if (character == ' ')
+                {
+                    currentPosition.x += label->GetFontSize() * 0.15f;
+                    continue;
+                }
+
+                Renderer::FontChar& fontChar = label->_font->GetChar(character);
+
+                const vec3& pos = currentPosition + vec3(fontChar.xOffset, fontChar.yOffset, 0);
+                const vec2& size = vec2(fontChar.width, fontChar.height);
+
+                Renderer::PrimitiveModelDesc primitiveModelDesc;
+                primitiveModelDesc.debugName = "Label " + character;
+
+                CalculateVertices(pos, size, primitiveModelDesc.vertices);
+
+                Renderer::ModelID modelID = label->_models[glyph];
+
+                // If the primitive model hasn't been created yet, create it
+                if (modelID == Renderer::ModelID::Invalid())
+                {
+                    // Indices
+                    primitiveModelDesc.indices.push_back(0);
+                    primitiveModelDesc.indices.push_back(1);
+                    primitiveModelDesc.indices.push_back(2);
+                    primitiveModelDesc.indices.push_back(1);
+                    primitiveModelDesc.indices.push_back(3);
+                    primitiveModelDesc.indices.push_back(2);
+
+                    label->_models[glyph] = _renderer->CreatePrimitiveModel(primitiveModelDesc);
+                }
+                else // Otherwise we just update the already existing primitive model
+                {
+                    _renderer->UpdatePrimitiveModel(modelID, primitiveModelDesc);
+                }
+
+                label->_textures[glyph] = fontChar.texture;
+
+                currentPosition.x += fontChar.advance;
+                glyph++;
+            }
+
+            // Create constant buffer if necessary
+            auto constantBuffer = label->GetConstantBuffer();
+            if (constantBuffer == nullptr)
+            {
+                constantBuffer = _renderer->CreateConstantBuffer<UI::Label::LabelConstantBuffer>();
+                label->SetConstantBuffer(constantBuffer);
+            }
+            constantBuffer->resource.textColor = label->GetColor();
+            constantBuffer->resource.outlineColor = label->GetOutlineColor();
+            constantBuffer->resource.outlineWidth = label->GetOutlineWidth();
+            constantBuffer->Apply(0);
+            constantBuffer->Apply(1);
+
+            label->ResetDirty();
         }
     }
 }
@@ -516,7 +516,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             continue;
 
         const vec2& size = panel->GetSize();
-        const vec2& pos = panel->GetPosition();
+        const vec2& pos = panel->GetScreenPosition();
 
         if ((mouseX > pos.x && mouseX < pos.x + size.x) &&
             (mouseY > pos.y && mouseY < pos.y + size.y))
@@ -555,7 +555,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             continue;
 
         const vec2& size = button->GetSize();
-        const vec2& pos = button->GetPosition();
+        const vec2& pos = button->GetScreenPosition();
 
         if ((mouseX > pos.x && mouseX < pos.x + size.x) &&
             (mouseY > pos.y && mouseY < pos.y + size.y))
@@ -569,19 +569,21 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         }
     }
 
-    //Unfocus field if we clicked.
+    //Focus/Unfocus field if we clicked.
     if (keybind->state)
     {
+        //Unfocus existing field.
         if (_focusedField)
         {
             _focusedField->OnSubmit();
             _focusedField = nullptr;
         }
 
+        //Focus new field.
         for (auto inputField : uiElementRegistry->GetInputFields())
         {
             const vec2& size = inputField->GetSize();
-            const vec2& pos = inputField->GetPosition();
+            const vec2& pos = inputField->GetScreenPosition();
 
             if ((mouseX > pos.x && mouseX < pos.x + size.x) &&
                 (mouseY > pos.y && mouseY < pos.y + size.y))
@@ -673,7 +675,6 @@ bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
     _focusedField->AddText(input);
 
     return true;
-
 }
 
 void UIRenderer::CreatePermanentResources()
