@@ -6,7 +6,7 @@
 namespace UI
 {
     InputField::InputField(const vec2& pos, const vec2& size) : Widget(pos, size)
-        , _color(1.0f,1.0f,1.0f, 1.0f), _pointerIndex(0), _onSubmitCallback(nullptr), _onEnterCallback(nullptr)
+        , _color(1.0f,1.0f,1.0f, 1.0f), _enabled(true), _pointerIndex(0), _onSubmitCallback(nullptr), _onEnterCallback(nullptr)
     {
         _label = new Label(pos, size);
         _label->SetParent(this);
@@ -29,6 +29,9 @@ namespace UI
             r = ScriptEngine::RegisterScriptClassFunction("void SetText(string text)", asMETHOD(InputField, SetText)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetTextColor(Color col)", asMETHOD(InputField, SetTextColor)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("string GetText()", asMETHOD(InputField, GetText)); assert(r >= 0);
+
+            r = ScriptEngine::RegisterScriptClassFunction("bool IsEnabled()", asMETHOD(InputField, IsEnabled)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetEnabled(bool enabled)", asMETHOD(InputField, SetEnabled)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptFunctionDef("void OnInputFieldCallback(InputField@ inputField)"); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void OnSubmit(OnInputFieldCallback@ cb)", asMETHOD(InputField, SetOnSubmit)); assert(r >= 0);
@@ -113,6 +116,11 @@ namespace UI
         _label->SetColor(color);
     }
     
+    void InputField::SetEnabled(bool enabled)
+    {
+        _enabled = enabled;
+    }
+
     void InputField::SetOnSubmit(asIScriptFunction* function)
     {
         _onSubmitCallback = function;

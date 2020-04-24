@@ -36,6 +36,9 @@ namespace UI
         void SetFont(const std::string& fontPath, f32 fontSize);
         void SetTextColor(const Color& color);
 
+        const bool IsEnabled() const { return _enabled; }
+        void SetEnabled(bool enabled);
+
         void SetOnSubmit(asIScriptFunction* function);
         void OnSubmit();
 
@@ -50,6 +53,8 @@ namespace UI
 
     private:
         Color _color;
+
+        bool _enabled;
 
         Label* _label;
 

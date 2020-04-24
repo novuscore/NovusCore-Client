@@ -582,6 +582,10 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         //Focus new field.
         for (auto inputField : uiElementRegistry->GetInputFields())
         {
+            //Only focus active fields.
+            if (!inputField->IsEnabled())
+                continue;
+
             const vec2& size = inputField->GetSize();
             const vec2& pos = inputField->GetScreenPosition();
 
