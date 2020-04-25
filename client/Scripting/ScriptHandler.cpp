@@ -10,7 +10,6 @@
 
 #include "ScriptEngine.h"
 #include "Classes/Player.h"
-#include "../Rendering/UIElementRegistry.h"
 
 // NovusCore functions
 
@@ -21,8 +20,6 @@ std::string ScriptHandler::_scriptFolder = "";
 
 void ScriptHandler::ReloadScripts()
 {
-    UIElementRegistry::Instance()->Clear();
-
     NC_LOG_MESSAGE("Reloading scripts...");
 
     if (_scriptFolder != "")

@@ -7,11 +7,6 @@
 #include "Classes/Math/Math.h"
 #include "Classes/Math/ColorUtil.h"
 #include "Classes/Player.h"
-#include "../UI/Widget/Widget.h"
-#include "../UI/Widget/Panel.h"
-#include "../UI/Widget/Label.h"
-#include "../UI/Widget/Button.h"
-#include "../UI/Widget/InputField.h"
 
 #include "Classes/UI/asPanel.h"
 

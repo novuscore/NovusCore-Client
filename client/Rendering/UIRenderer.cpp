@@ -1,13 +1,7 @@
 #include "UIRenderer.h"
 #include "Camera.h"
-#include "UIElementRegistry.h"
 
 #include "../Utils/ServiceLocator.h"
-#include "../UI/Widget/Widget.h"
-#include "../UI/Widget/Panel.h"
-#include "../UI/Widget/Label.h"
-#include "../UI/Widget/Button.h"
-#include "../UI/Widget/InputField.h"
 
 #include "../ECS/Components/UI/UIEntityPoolSingleton.h"
 #include "../ECS/Components/UI/UIAddElementQueueSingleton.h"
@@ -26,7 +20,7 @@
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
 
-UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _focusedField(nullptr)
+UIRenderer::UIRenderer(Renderer::Renderer* renderer)
 {
     _renderer = renderer;
     CreatePermanentResources();
@@ -53,8 +47,6 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _focusedField(nullptr)
 
 void UIRenderer::Update(f32 deltaTime)
 {
-    UIElementRegistry* uiElementRegistry = UIElementRegistry::Instance();
-
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     auto renderableView = registry->view<UITransform, UIRenderable>();
     renderableView.each([this](const auto, UITransform& transform, UIRenderable& renderable)
@@ -215,7 +207,6 @@ void UIRenderer::Update(f32 deltaTime)
 void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex)
 {
     // UI Pass
-    UIElementRegistry* uiElementRegistry = UIElementRegistry::Instance();
 
     struct UIPassData
     {
@@ -229,7 +220,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 
             return true; // Return true from setup to enable this pass, return false to disable it
         },
-        [&, uiElementRegistry](UIPassData& data, Renderer::CommandList& commandList) // Execute
+        [&](UIPassData& data, Renderer::CommandList& commandList) // Execute
         {
             Renderer::GraphicsPipelineDesc pipelineDesc;
             renderGraph->InitializePipelineDesc(pipelineDesc);
@@ -359,130 +350,69 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 
 bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 {
-    UIElementRegistry* uiElementRegistry = UIElementRegistry::Instance();
     InputManager* inputManager = ServiceLocator::GetInputManager();
     f32 mouseX = inputManager->GetMousePositionX();
     f32 mouseY = inputManager->GetMousePositionY();
+    bool consumeClick = false;
 
-    for (auto panel : uiElementRegistry->GetPanels()) // TODO: Store panels in a better manner than this
-    {
-        if (!panel->IsClickable() && !panel->IsDraggable())
-            continue;
-
-        const vec2& size = panel->GetSize();
-        const vec2& pos = panel->GetScreenPosition();
-
-        if ((mouseX > pos.x && mouseX < pos.x + size.x) &&
-            (mouseY > pos.y && mouseY < pos.y + size.y))
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
+    auto eventView = registry->view<UITransform, UITransformEvents>();
+    eventView.each([this, mouseX, mouseY, &consumeClick, keybind](const entt::entity entityId, UITransform& transform, UITransformEvents& events)
         {
-            if (keybind->state)
-            {
-                if (panel->IsDraggable())
-                    panel->BeingDrag(vec2(mouseX - pos.x, mouseY - pos.y));
-            }
-            else
-            {
-                if (panel->IsClickable())
-                {
-                    if (!panel->DidDrag())
-                        panel->OnClick();
-                }
-            }
+            if (!events.flags)
+                return;
 
-            return true;
-        }
-
-        if (!keybind->state)
-        {
-            if (panel->IsDraggable())
-            {
-                panel->EndDrag();
-
-                return true;
-            }
-        }
-    }
-
-    for (auto button : uiElementRegistry->GetButtons()) // TODO: Store buttons in a better manner than this
-    {
-        if (!button->IsClickable())
-            continue;
-
-        const vec2& size = button->GetSize();
-        const vec2& pos = button->GetScreenPosition();
-
-        if ((mouseX > pos.x && mouseX < pos.x + size.x) &&
-            (mouseY > pos.y && mouseY < pos.y + size.y))
-        {
-            if (keybind->state)
-            {
-                button->OnClick();
-
-                return true;
-            }
-        }
-    }
-
-    //Focus/Unfocus field if we clicked.
-    if (keybind->state)
-    {
-        //Unfocus existing field.
-        if (_focusedField)
-        {
-            _focusedField->OnSubmit();
-            _focusedField = nullptr;
-        }
-
-        //Focus new field.
-        for (auto inputField : uiElementRegistry->GetInputFields())
-        {
-            //Only focus active fields.
-            if (!inputField->IsEnabled())
-                continue;
-
-            const vec2& size = inputField->GetSize();
-            const vec2& pos = inputField->GetScreenPosition();
+            const vec2& size = transform.size;
+            const vec2& pos = transform.position + transform.localPosition;
 
             if ((mouseX > pos.x && mouseX < pos.x + size.x) &&
                 (mouseY > pos.y && mouseY < pos.y + size.y))
             {
-                _focusedField = inputField;
+                if (keybind->state)
+                {
+                    if (events.IsDraggable())
+                    {
+                        //panel->BeingDrag(vec2(mouseX - pos.x, mouseY - pos.y));
+                    }
+                }
+                else
+                {
+                    if (events.IsClickable())
+                    {
+                        //if (!panel->DidDrag())
 
-                return true;
+                        // TODO: We need to get the panel somehow (I've tried storing a pointer to the asPanel object from CreatePanel, but that seems to get corrupted somehow)
+                        events.OnClick(nullptr);
+                    }
+                }
+
+                consumeClick = true;
+                return;
             }
-        }
-    }
 
-    return false;
+            if (!keybind->state)
+            {
+                if (events.IsDraggable())
+                {
+                    //panel->EndDrag();
+
+                    consumeClick = true;
+                    return;
+                }
+            }
+
+        });
+
+    return consumeClick;
 }
 
 void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
-{
-    UIElementRegistry* uiElementRegistry = UIElementRegistry::Instance();
-
-    for (auto panel : uiElementRegistry->GetPanels()) // TODO: Store panels in a better manner than this
-    {
-        if (!panel->IsDraggable())
-            continue;
-
-        if (!panel->IsDragging())
-            continue;
-
-        if (!panel->DidDrag())
-            panel->SetDidDrag();
-
-        const vec2& deltaDragPosition = panel->GetDeltaDragPosition();
-        const vec2& size = panel->GetSize();
-        vec2 newPosition(x - deltaDragPosition.x, y - deltaDragPosition.y);
-
-        panel->SetPosition(newPosition, 0);
-        panel->SetDirty();
-    }
+{ 
 }
 
 bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
 {
-    if (!_focusedField)
+    /*if (!_focusedField)
         return false;
 
     if (action == GLFW_PRESS)
@@ -519,20 +449,20 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
             break;
         }
     }
-
-    return true;
+    */
+    return false;
 }
 
 bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
 {
-    if (!_focusedField)
+    /*if (!_focusedField)
         return false;
 
     std::string input = "";
     input.append(1, (char)unicodeKey);
-    _focusedField->AddText(input);
+    _focusedField->AddText(input);*/
 
-    return true;
+    return false;
 }
 
 void UIRenderer::CreatePermanentResources()

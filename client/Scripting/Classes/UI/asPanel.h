@@ -13,16 +13,54 @@ namespace UI
     public:
         static void RegisterType();
 
-        vec2 GetPosition();
-        void SetPosition(vec2& position);
-        vec2 GetLocalPosition();
-        void SetLocalPosition(vec2& localPosition);
-        vec2 GetAnchor();
-        void SetAnchor(vec2& anchor);
-        vec2 GetSize();
-        void SetSize(vec2& size);
-        u16 GetDepth();
-        void SetDepth(u16& depth);
+        // Transform Functions
+        const vec2 GetPosition() const
+        {
+            return transform.position;
+        }
+        void SetPosition(const vec2& position);
+        const vec2 GetLocalPosition() const
+        {
+            return transform.localPosition;
+        }
+        void SetLocalPosition(const vec2& localPosition);
+        const vec2 GetAnchor() const
+        {
+            return transform.anchor;
+        }
+        void SetAnchor(const vec2& anchor);
+        const vec2 GetSize() const
+        {
+            return transform.size;
+        }
+        void SetSize(const vec2& size);
+        const u16 GetDepth() const
+        {
+            return transform.depth;
+        }
+        void SetDepth(const u16& depth);
+
+        // TransformEvents Functions
+        void SetEventFlag(const UITransformEventsFlags flags) { events.SetFlag(flags); }
+        void UnsetEventFlag(const UITransformEventsFlags flags) { events.UnsetFlag(flags); }
+        const bool IsClickable() const { return events.IsClickable(); }
+        const bool IsDraggable() const { return events.IsDraggable(); }
+        const bool IsFocusable() const { return events.IsFocusable(); }
+        void SetOnClickCallback(asIScriptFunction* callback);
+        void SetOnDragCallback(asIScriptFunction* callback);
+        void SetOnFocusCallback(asIScriptFunction* callback);
+
+        // Renderable Functions
+        const std::string& GetTexture() const
+        {
+            return renderable.texture;
+        }
+        void SetTexture(const std::string& texture);
+        const Color GetColor() const
+        {
+            return renderable.color;
+        }
+        void SetColor(const Color& color);
 
     private:
         static asPanel* CreatePanel();

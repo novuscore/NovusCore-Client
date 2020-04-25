@@ -13,11 +13,6 @@ namespace Renderer
     class Renderer;
 }
 
-namespace UI
-{
-    class InputField;
-}
-
 class Window;
 class Keybind;
 class UIRenderer
@@ -44,5 +39,5 @@ private:
 
     Renderer::SamplerID _linearSampler;
 
-    UI::InputField* _focusedField;
+    //entt::entity _focusedField;
 };
