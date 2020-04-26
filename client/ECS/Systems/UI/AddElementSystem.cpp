@@ -25,6 +25,7 @@ void AddElementSystem::Update(entt::registry& registry)
         {
             UITransformEvents& events = registry.assign<UITransformEvents>(element.entityId);
             events.asObject = element.asObject;
+
             registry.assign<UIRenderable>(element.entityId);
         }
     }

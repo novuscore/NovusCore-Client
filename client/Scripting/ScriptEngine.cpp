@@ -8,6 +8,7 @@
 #include "Classes/Math/ColorUtil.h"
 #include "Classes/Player.h"
 
+#include "Classes/UI/asUITransform.h"
 #include "Classes/UI/asPanel.h"
 #include "Classes/UI/asLabel.h"
 
@@ -98,6 +99,7 @@ void ScriptEngine::RegisterFunctions()
     ColorUtil::RegisterType();
 
     Player::RegisterType();
+    UI::asUITransform::RegisterType();
     UI::asPanel::RegisterType();
     UI::asLabel::RegisterType();
     
