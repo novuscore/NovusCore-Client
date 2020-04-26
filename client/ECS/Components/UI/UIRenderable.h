@@ -5,17 +5,19 @@
 struct UIRenderable
 {
 public:
-    struct PanelConstantBuffer
+    struct RenderableConstantBuffer
     {
         Color color; // 16 bytes
 
         u8 padding[240] = {};
     };
-    UIRenderable() : texture(), textureID(Renderer::TextureID::Invalid()), modelID(Renderer::ModelID::Invalid()), color(1, 1, 1, 1) { }
+    UIRenderable() : texture(), textureID(Renderer::TextureID::Invalid()), modelID(Renderer::ModelID::Invalid()), color(1, 1, 1, 1), constantBuffer(nullptr), isDirty(true) { }
 
     std::string texture;
     Renderer::TextureID textureID;
     Renderer::ModelID modelID;
     Color color;
-    Renderer::ConstantBuffer<PanelConstantBuffer>* constantBuffer = nullptr;
+    Renderer::ConstantBuffer<RenderableConstantBuffer>* constantBuffer;
+
+    bool isDirty;
 };

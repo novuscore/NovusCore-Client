@@ -16,7 +16,6 @@ void AddElementSystem::Update(entt::registry& registry)
     while (uiAddElementQueueSingleton.elementPool.try_dequeue(element))
     {
         registry.assign<UITransform>(element.entityId);
-        registry.assign<UITransformEvents>(element.entityId);
 
         if (element.type == UIElementData::UIElementType::UITYPE_TEXT)
         {
@@ -24,6 +23,8 @@ void AddElementSystem::Update(entt::registry& registry)
         }
         else
         {
+            UITransformEvents& events = registry.assign<UITransformEvents>(element.entityId);
+            events.asObject = element.asObject;
             registry.assign<UIRenderable>(element.entityId);
         }
     }

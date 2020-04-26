@@ -44,26 +44,26 @@ namespace UI
 
     void asPanel::SetPosition(const vec2& position)
     {
-        transform.position = position;
+        _transform.position = position;
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = entityId;
+        entt::entity entId = _entityId;
 
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([position, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UITransform& transform = uiRegistry->get<UITransform>(entId);
+                UITransform& _transform = uiRegistry->get<UITransform>(entId);
 
-                transform.isDirty = true;
-                transform.position = position;
+                _transform.isDirty = true;
+                _transform.position = position;
             });
     }
     void asPanel::SetLocalPosition(const vec2& localPosition)
     {
-        transform.localPosition = localPosition;
+        _transform.localPosition = localPosition;
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = entityId;
+        entt::entity entId = _entityId;
 
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([localPosition, entId]()
             {
@@ -76,10 +76,10 @@ namespace UI
     }
     void asPanel::SetAnchor(const vec2& anchor)
     {
-        transform.anchor = anchor;
+        _transform.anchor = anchor;
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = entityId;
+        entt::entity entId = _entityId;
 
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([anchor, entId]()
             {
@@ -92,10 +92,10 @@ namespace UI
     }
     void asPanel::SetSize(const vec2& size)
     {
-        transform.size = size;
+        _transform.size = size;
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = entityId;
+        entt::entity entId = _entityId;
 
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([size, entId]()
             {
@@ -108,26 +108,28 @@ namespace UI
     }
     void asPanel::SetDepth(const u16& depth)
     {
-        transform.depth = depth;
+        _transform.depth = depth;
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = entityId;
+        entt::entity entId = _entityId;
 
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([depth, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& transform = uiRegistry->get<UITransform>(entId);
+
+                transform.isDirty = true;
                 transform.depth = depth;
             });
     }
 
     void asPanel::SetOnClickCallback(asIScriptFunction* callback)
     {
-        events.onClickCallback = callback;
-        events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        _events.onClickCallback = callback;
+        _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = entityId;
+        entt::entity entId = _entityId;
 
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
             {
@@ -140,11 +142,11 @@ namespace UI
 
     void asPanel::SetOnDragCallback(asIScriptFunction* callback)
     {
-        events.onDraggedCallback = callback;
-        events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
+        _events.onDraggedCallback = callback;
+        _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = entityId;
+        entt::entity entId = _entityId;
 
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
             {
@@ -157,11 +159,11 @@ namespace UI
 
     void asPanel::SetOnFocusCallback(asIScriptFunction* callback)
     {
-        events.onFocusedCallback = callback;
-        events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+        _events.onFocusedCallback = callback;
+        _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = entityId;
+        entt::entity entId = _entityId;
 
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
             {
@@ -174,35 +176,33 @@ namespace UI
 
     void asPanel::SetTexture(const std::string& texture)
     {
-        renderable.texture = texture;
+        _renderable.texture = texture;
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = entityId;
+        entt::entity entId = _entityId;
 
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([texture, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UITransform& transform = uiRegistry->get<UITransform>(entId);
                 UIRenderable& renderable = uiRegistry->get<UIRenderable>(entId);
 
-                transform.isDirty = true;
+                renderable.isDirty = true;
                 renderable.texture = texture;
             });
     }
     void asPanel::SetColor(const Color& color)
     {
-        renderable.color = color;
+        _renderable.color = color;
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = entityId;
+        entt::entity entId = _entityId;
 
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([color, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UITransform& transform = uiRegistry->get<UITransform>(entId);
                 UIRenderable& renderable = uiRegistry->get<UIRenderable>(entId);
 
-                transform.isDirty = true;
+                renderable.isDirty = true;
                 renderable.color = color;
             });
     }
@@ -217,7 +217,9 @@ namespace UI
         elementData.type = UIElementData::UIElementType::UITYPE_PANEL;
 
         asPanel* panel = new asPanel();
-        panel->entityId = elementData.entityId;
+        panel->_entityId = elementData.entityId;
+
+        elementData.asObject = panel;
 
         addElementQueue.elementPool.enqueue(elementData);
         return panel;

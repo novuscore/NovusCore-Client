@@ -9,6 +9,7 @@
 #include "Classes/Player.h"
 
 #include "Classes/UI/asPanel.h"
+#include "Classes/UI/asLabel.h"
 
 thread_local asIScriptEngine* ScriptEngine::_scriptEngine = nullptr;
 thread_local asIScriptContext* ScriptEngine::_scriptContext = nullptr;
@@ -98,6 +99,7 @@ void ScriptEngine::RegisterFunctions()
 
     Player::RegisterType();
     UI::asPanel::RegisterType();
+    UI::asLabel::RegisterType();
     
     /*UI::Widget::RegisterType();
     UI::Panel::RegisterType();

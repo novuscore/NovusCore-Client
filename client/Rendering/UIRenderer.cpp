@@ -5,6 +5,7 @@
 
 #include "../ECS/Components/UI/UIEntityPoolSingleton.h"
 #include "../ECS/Components/UI/UIAddElementQueueSingleton.h"
+#include "../ECS/Components/UI/UIDataSingleton.h"
 #include "../ECS/Components/UI/UITransform.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
 #include "../ECS/Components/UI/UIRenderable.h"
@@ -43,6 +44,9 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
     std::vector<entt::entity> entityIds(10000);
     registry->create(entityIds.begin(), entityIds.end());
     entityPool.entityIdPool.enqueue_bulk(entityIds.begin(), 10000);
+
+    // Register UI data singleton.
+    registry->set<UIDataSingleton>();
 }
 
 void UIRenderer::Update(f32 deltaTime)
@@ -51,65 +55,72 @@ void UIRenderer::Update(f32 deltaTime)
     auto renderableView = registry->view<UITransform, UIRenderable>();
     renderableView.each([this](const auto, UITransform& transform, UIRenderable& renderable)
         {
-            if (!transform.isDirty)
+            if (!transform.isDirty && !renderable.isDirty)
                 return;
 
-            if (renderable.texture.length() == 0)
+            //TODO Update child positions.
+
+            if (renderable.isDirty)
             {
+                if (renderable.texture.length() == 0)
+                {
+                    renderable.isDirty = false;
+                    return;
+                }
+
+                // (Re)load texture
+                renderable.textureID = ReloadTexture(renderable.texture);
+
+                // Create constant buffer if necessary
+                auto constantBuffer = renderable.constantBuffer;
+                if (constantBuffer == nullptr)
+                {
+                    constantBuffer = _renderer->CreateConstantBuffer<UIRenderable::RenderableConstantBuffer>();
+                    renderable.constantBuffer = constantBuffer;
+                }
+                constantBuffer->resource.color = renderable.color;
+                constantBuffer->Apply(0);
+                constantBuffer->Apply(1);
+
+                renderable.isDirty = false;
+            }
+
+            if (transform.isDirty)
+            {
+                Renderer::PrimitiveModelDesc primitiveModelDesc;
+
+                // Update vertex buffer
+                const vec3& pos = vec3(transform.position.x, transform.position.y, transform.depth);
+                const vec2& size = transform.size;
+
+                CalculateVertices(pos, size, primitiveModelDesc.vertices);
+
+                // If the primitive model hasn't been created yet, create it
+                if (renderable.modelID == Renderer::ModelID::Invalid())
+                {
+                    // Indices
+                    primitiveModelDesc.indices.push_back(0);
+                    primitiveModelDesc.indices.push_back(1);
+                    primitiveModelDesc.indices.push_back(2);
+                    primitiveModelDesc.indices.push_back(1);
+                    primitiveModelDesc.indices.push_back(3);
+                    primitiveModelDesc.indices.push_back(2);
+
+                    renderable.modelID = _renderer->CreatePrimitiveModel(primitiveModelDesc);
+                }
+                else // Otherwise we just update the already existing primitive model
+                {
+                    _renderer->UpdatePrimitiveModel(renderable.modelID, primitiveModelDesc);
+                }
+
                 transform.isDirty = false;
-                return;
             }
-
-            // (Re)load texture
-            renderable.textureID = ReloadTexture(renderable.texture);
-
-            // Update position depending on parents etc
-            // TODO
-
-            Renderer::PrimitiveModelDesc primitiveModelDesc;
-
-            // Update vertex buffer
-            const vec3& pos = vec3(transform.position.x, transform.position.y, transform.depth);
-            const vec2& size = transform.size;
-
-            CalculateVertices(pos, size, primitiveModelDesc.vertices);
-
-            // If the primitive model hasn't been created yet, create it
-            if (renderable.modelID == Renderer::ModelID::Invalid())
-            {
-                // Indices
-                primitiveModelDesc.indices.push_back(0);
-                primitiveModelDesc.indices.push_back(1);
-                primitiveModelDesc.indices.push_back(2);
-                primitiveModelDesc.indices.push_back(1);
-                primitiveModelDesc.indices.push_back(3);
-                primitiveModelDesc.indices.push_back(2);
-
-                renderable.modelID = _renderer->CreatePrimitiveModel(primitiveModelDesc);
-            }
-            else // Otherwise we just update the already existing primitive model
-            {
-                _renderer->UpdatePrimitiveModel(renderable.modelID, primitiveModelDesc);
-            }
-
-            // Create constant buffer if necessary
-            auto constantBuffer = renderable.constantBuffer;
-            if (constantBuffer == nullptr)
-            {
-                constantBuffer = _renderer->CreateConstantBuffer<UIRenderable::PanelConstantBuffer>();
-                renderable.constantBuffer = constantBuffer;
-            }
-            constantBuffer->resource.color = renderable.color;
-            constantBuffer->Apply(0);
-            constantBuffer->Apply(1);
-
-            transform.isDirty = false;
         });
 
     auto textView = registry->view<UITransform, UIText>();
     textView.each([this](const auto, UITransform& transform, UIText& text)
         {
-            if (!transform.isDirty)
+            if (!transform.isDirty && !text.isDirty)
                 return;
 
             if (text.fontPath.length() == 0)
@@ -201,6 +212,7 @@ void UIRenderer::Update(f32 deltaTime)
             text.constantBuffer->Apply(1);
 
             transform.isDirty = false;
+            text.isDirty = false;
         });
 }
 
@@ -288,21 +300,21 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             // Draw all the panels
             entt::registry* registry = ServiceLocator::GetUIRegistry();
             auto renderableView = registry->view<UITransform, UIRenderable>();
-            renderableView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIRenderable& renderable)
+            renderableView.each([this, &commandList, frameIndex](const auto, UITransform& _transform, UIRenderable& _renderable)
                 {
-                    if (!renderable.constantBuffer)
+                    if (!_renderable.constantBuffer)
                         return;
 
                     commandList.PushMarker("Renderable", Color(0.0f, 0.1f, 0.0f));
 
                     // Set constant buffer
-                    commandList.SetConstantBuffer(0, renderable.constantBuffer->GetGPUResource(frameIndex));
+                    commandList.SetConstantBuffer(0, _renderable.constantBuffer->GetGPUResource(frameIndex));
 
                     // Set texture-sampler pair
-                    commandList.SetTextureSampler(1, renderable.textureID, _linearSampler);
+                    commandList.SetTextureSampler(1, _renderable.textureID, _linearSampler);
 
                     // Draw
-                    commandList.Draw(renderable.modelID);
+                    commandList.Draw(_renderable.modelID);
 
                     commandList.PopMarker();
                 });
@@ -320,25 +332,25 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             commandList.BeginPipeline(pipeline);
 
             auto textView = registry->view<UITransform, UIText>();
-            textView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIText& text)
+            textView.each([this, &commandList, frameIndex](const auto, UITransform& _transform, UIText& _text)
                 {
-                    if (!text.constantBuffer)
+                    if (!_text.constantBuffer)
                         return;
 
                     commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
 
                     // Set constant buffer
-                    commandList.SetConstantBuffer(0, text.constantBuffer->GetGPUResource(frameIndex));
+                    commandList.SetConstantBuffer(0, _text.constantBuffer->GetGPUResource(frameIndex));
 
                     // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
-                    size_t glyphs = text.models.size();
+                    size_t glyphs = _text.models.size();
                     for (u32 i = 0; i < glyphs; i++)
                     {
                         // Set texture-sampler pair
-                        commandList.SetTextureSampler(1, text.textures[i], _linearSampler);
+                        commandList.SetTextureSampler(1, _text.textures[i], _linearSampler);
 
                         // Draw
-                        commandList.Draw(text.models[i]);
+                        commandList.Draw(_text.models[i]);
                     }
 
                     commandList.PopMarker();
@@ -353,57 +365,55 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
     InputManager* inputManager = ServiceLocator::GetInputManager();
     f32 mouseX = inputManager->GetMousePositionX();
     f32 mouseY = inputManager->GetMousePositionY();
-    bool consumeClick = false;
 
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     auto eventView = registry->view<UITransform, UITransformEvents>();
-    eventView.each([this, mouseX, mouseY, &consumeClick, keybind](const entt::entity entityId, UITransform& transform, UITransformEvents& events)
+    for (auto entity : eventView)
+    {
+        auto& events = eventView.get<UITransformEvents>(entity);
+        if (!events.flags)
+            continue;
+
+        auto& transform = eventView.get<UITransform>(entity);
+        const vec2& size = transform.size;
+        const vec2& pos = transform.position + transform.localPosition;
+
+        if ((mouseX > pos.x && mouseX < pos.x + size.x) &&
+            (mouseY > pos.y && mouseY < pos.y + size.y))
         {
-            if (!events.flags)
-                return;
-
-            const vec2& size = transform.size;
-            const vec2& pos = transform.position + transform.localPosition;
-
-            if ((mouseX > pos.x && mouseX < pos.x + size.x) &&
-                (mouseY > pos.y && mouseY < pos.y + size.y))
-            {
-                if (keybind->state)
-                {
-                    if (events.IsDraggable())
-                    {
-                        //panel->BeingDrag(vec2(mouseX - pos.x, mouseY - pos.y));
-                    }
-                }
-                else
-                {
-                    if (events.IsClickable())
-                    {
-                        //if (!panel->DidDrag())
-
-                        // TODO: We need to get the panel somehow (I've tried storing a pointer to the asPanel object from CreatePanel, but that seems to get corrupted somehow)
-                        events.OnClick(nullptr);
-                    }
-                }
-
-                consumeClick = true;
-                return;
-            }
-
-            if (!keybind->state)
+            if (keybind->state)
             {
                 if (events.IsDraggable())
                 {
-                    //panel->EndDrag();
+                    //panel->BeingDrag(vec2(mouseX - pos.x, mouseY - pos.y));
+                }
+            }
+            else
+            {
+                if (events.IsClickable())
+                {
+                    //if (!panel->DidDrag())
 
-                    consumeClick = true;
-                    return;
+                    // TODO: We need to get the panel somehow (I've tried storing a pointer to the asPanel object from CreatePanel, but that seems to get corrupted somehow)
+                    events.OnClick(events.asObject);
                 }
             }
 
-        });
+            return true;
+        }
 
-    return consumeClick;
+        if (!keybind->state)
+        {
+            if (events.IsDraggable())
+            {
+                //panel->EndDrag();
+
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)

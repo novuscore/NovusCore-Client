@@ -10,11 +10,12 @@ struct UIElementData
         UITYPE_PANEL,
         UITYPE_TEXT,
         UITYPE_BUTTON,
-        UITYPE_INPUT
+        UITYPE_INPUTFIELD
     };
 
     entt::entity entityId;
     UIElementType type;
+    void* asObject;
 };
 
 struct UIAddElementQueueSingleton

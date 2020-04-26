@@ -16,12 +16,13 @@ enum UITransformEventsFlags
 struct UITransformEvents
 {
 public:
-    UITransformEvents() : flags(), onClickCallback(nullptr), onDraggedCallback(nullptr), onFocusedCallback(nullptr) { }
+    UITransformEvents() : flags(), onClickCallback(nullptr), onDraggedCallback(nullptr), onFocusedCallback(nullptr), asObject(nullptr){ }
 
     u8 flags;
     asIScriptFunction* onClickCallback;
     asIScriptFunction* onDraggedCallback;
     asIScriptFunction* onFocusedCallback;
+    void* asObject;
 
     // Usually Components do not store logic, however this is an exception
 private:
@@ -31,7 +32,7 @@ private:
         {
             context->Prepare(callback);
             {
-                context->SetArgObject(0, this);
+                context->SetArgObject(0, thisPtr);
             }
             context->Execute();
         }
