@@ -168,10 +168,19 @@ namespace UI
         if(!transform.children.size())
             return;
 
+        UIDataSingleton& uiSingleton = registry->ctx<UIDataSingleton>();
+
         for (UITransform::UIChild& child : transform.children)
         {
             UITransform& uiChildTransform = registry->get<UITransform>(entt::entity(child.entity));
             uiChildTransform.position = position;
+
+            //Apply position updates to asObject too.
+            auto iterator = uiSingleton.entityToAsObject.find(entt::entity(child.entity));
+            if (iterator != uiSingleton.entityToAsObject.end())
+            {
+                iterator->second->_transform.position = position;
+            }
 
             if (uiChildTransform.children.size())
             {
