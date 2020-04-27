@@ -7,6 +7,8 @@
 
 namespace UI
 {
+    asLabel::asLabel(entt::entity entityId) : asUITransform(entityId, UIElementData::UIElementType::UITYPE_TEXT) { }
+    
     void asLabel::RegisterType()
     {
         i32 r = ScriptEngine::RegisterScriptClass("Label", 0, asOBJ_REF | asOBJ_NOCOUNT);
@@ -121,8 +123,7 @@ namespace UI
         entityPool.entityIdPool.try_dequeue(elementData.entityId);
         elementData.type = UIElementData::UIElementType::UITYPE_TEXT;
 
-        asLabel* label = new asLabel();
-        label->_entityId = elementData.entityId;
+        asLabel* label = new asLabel(elementData.entityId);
 
         elementData.asObject = label;
 

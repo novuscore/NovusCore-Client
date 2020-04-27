@@ -1,9 +1,16 @@
 #include "asUITransform.h"
 #include "../../../Utils/ServiceLocator.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
+#include "../../../ECS/Components/UI/UIDataSingleton.h"
 
 namespace UI
 {
+    asUITransform::asUITransform(entt::entity entityId, UIElementData::UIElementType elementType) : _entityId(entityId), _elementType(elementType)
+    {
+        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+        UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
+        uiDataSingleton.entityToAsObject[entityId] = this;
+    }
 
     void asUITransform::SetPosition(const vec2& position)
     {
@@ -69,7 +76,7 @@ namespace UI
             });
     }
 
-    void asUITransform::SetDepth(const u16& depth)
+    void asUITransform::SetDepth(const u16 depth)
     {
         _transform.depth = depth;
 
@@ -83,6 +90,76 @@ namespace UI
 
                 uiTransform.isDirty = true;
                 uiTransform.depth = depth;
+            });
+    }
+
+    void asUITransform::SetParent(asUITransform* parent)
+    {
+        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+
+        // Remove old parent.
+        if (_transform.parent)
+        {
+            UITransform& parentTransform = uiRegistry->get<UITransform>(entt::entity(_transform.parent));
+
+            //Keep same absolute position.
+            _transform.position = (parentTransform.position + parentTransform.localPosition) - (_transform.position + _transform.localPosition);
+            _transform.localPosition = vec2(0, 0);
+        }
+
+        // Set new parent.
+        _transform.parent = entt::to_integer(parent->_entityId);
+
+        UITransform& newParentTransform = parent->_transform;
+        // Recalculate new position.
+        _transform.localPosition = newParentTransform.position + newParentTransform.localPosition - _transform.position;
+        _transform.position = newParentTransform.position + newParentTransform.localPosition;
+
+
+        // Transaction.
+        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity entId = _entityId;
+        UIElementData::UIElementType elementType = _elementType;
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([parent, entId, elementType]()
+            {
+                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+                UITransform& transform = uiRegistry->get<UITransform>(entId);
+
+                //Remove old parent.
+                if (transform.parent)
+                {
+                    UITransform& parentTransform = uiRegistry->get<UITransform>(entt::entity(transform.parent));
+
+                    //Remove from parents children.
+                    auto position = parentTransform.children.begin();
+                    for (position; position < parentTransform.children.end(); position++)
+                    {
+                        if (position->entity == entt::to_integer(entId))
+                            break;
+                    }
+                    if (position != parentTransform.children.end())
+                        parentTransform.children.erase(position);
+
+                    //Keep same absolute position.
+                    transform.position = (parentTransform.position + parentTransform.localPosition) - (transform.position + transform.localPosition);
+                    transform.localPosition = vec2(0, 0);
+                }
+
+                //Set new parent.
+                transform.parent = entt::to_integer(parent->GetEntityId());
+
+                UITransform& newParentTransform = uiRegistry->get<UITransform>(entt::entity(parent->GetEntityId()));
+
+                //Recalculate new positon.
+                transform.localPosition = newParentTransform.position + newParentTransform.localPosition - transform.position;
+                transform.position = newParentTransform.position + newParentTransform.localPosition;
+
+                //Add this to parent's children.
+                UITransform::UIChild thisChild;
+                thisChild.entity = entt::to_integer(entId);
+                thisChild.type = elementType;
+
+                newParentTransform.children.push_back(thisChild);
             });
     }
 

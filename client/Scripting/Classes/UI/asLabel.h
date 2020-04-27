@@ -11,6 +11,8 @@ namespace UI
     class asLabel : public asUITransform
     {
     public:
+        asLabel(entt::entity entityId);
+
         static void RegisterType();
 
         //Text Functions

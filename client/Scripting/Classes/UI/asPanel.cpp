@@ -7,22 +7,13 @@
 
 namespace UI
 {
+    asPanel::asPanel(entt::entity entityId) : asUITransform(entityId, UIElementData::UIElementType::UITYPE_PANEL) { }
+
     void asPanel::RegisterType()
     {
         i32 r = ScriptEngine::RegisterScriptClass("Panel", 0, asOBJ_REF | asOBJ_NOCOUNT);
+        r = ScriptEngine::RegisterScriptInheritance<asUITransform, asPanel>("UITransform");
         r = ScriptEngine::RegisterScriptFunction("Panel@ CreatePanel()", asFUNCTION(asPanel::CreatePanel)); assert(r >= 0);
-
-        // Transform Functions
-        r = ScriptEngine::RegisterScriptClassFunction("vec2 GetPosition()", asMETHOD(asPanel, GetPosition)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetPosition(vec2 pos)", asMETHOD(asPanel, SetPosition)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("vec2 GetLocalPosition()", asMETHOD(asPanel, GetLocalPosition)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetLocalPosition(vec2 localPosition)", asMETHOD(asPanel, SetLocalPosition)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("vec2 GetAnchor()", asMETHOD(asPanel, GetAnchor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetAnchor(vec2 anchor)", asMETHOD(asPanel, SetAnchor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("vec2 GetSize()", asMETHOD(asPanel, GetSize)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetSize(vec2 size)", asMETHOD(asPanel, SetSize)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("float GetDepth()", asMETHOD(asPanel, GetDepth)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetDepth(float depth)", asMETHOD(asPanel, SetDepth)); assert(r >= 0);
 
         // TransformEvents Functions
         r = ScriptEngine::RegisterScriptClassFunction("void SetEventFlag(int8 flags)", asMETHOD(asPanel, SetEventFlag)); assert(r >= 0);
@@ -40,87 +31,6 @@ namespace UI
         r = ScriptEngine::RegisterScriptClassFunction("void SetTexture(string Texture)", asMETHOD(asPanel, SetTexture)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("Color GetColor()", asMETHOD(asPanel, GetColor)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetColor(Color color)", asMETHOD(asPanel, SetColor)); assert(r >= 0);
-    }
-
-    void asPanel::SetPosition(const vec2& position)
-    {
-        _transform.position = position;
-
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = _entityId;
-
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([position, entId]()
-            {
-                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UITransform& _transform = uiRegistry->get<UITransform>(entId);
-
-                _transform.isDirty = true;
-                _transform.position = position;
-            });
-    }
-    void asPanel::SetLocalPosition(const vec2& localPosition)
-    {
-        _transform.localPosition = localPosition;
-
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = _entityId;
-
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([localPosition, entId]()
-            {
-                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UITransform& transform = uiRegistry->get<UITransform>(entId);
-
-                transform.isDirty = true;
-                transform.localPosition = localPosition;
-            });
-    }
-    void asPanel::SetAnchor(const vec2& anchor)
-    {
-        _transform.anchor = anchor;
-
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = _entityId;
-
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([anchor, entId]()
-            {
-                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UITransform& transform = uiRegistry->get<UITransform>(entId);
-
-                transform.isDirty = true;
-                transform.anchor = anchor;
-            });
-    }
-    void asPanel::SetSize(const vec2& size)
-    {
-        _transform.size = size;
-
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = _entityId;
-
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([size, entId]()
-            {
-                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UITransform& transform = uiRegistry->get<UITransform>(entId);
-
-                transform.isDirty = true;
-                transform.size = size;
-            });
-    }
-    void asPanel::SetDepth(const u16& depth)
-    {
-        _transform.depth = depth;
-
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = _entityId;
-
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([depth, entId]()
-            {
-                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UITransform& transform = uiRegistry->get<UITransform>(entId);
-
-                transform.isDirty = true;
-                transform.depth = depth;
-            });
     }
 
     void asPanel::SetOnClickCallback(asIScriptFunction* callback)
@@ -206,6 +116,7 @@ namespace UI
                 renderable.color = color;
             });
     }
+
     asPanel* asPanel::CreatePanel()
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
@@ -216,8 +127,7 @@ namespace UI
         entityPool.entityIdPool.try_dequeue(elementData.entityId);
         elementData.type = UIElementData::UIElementType::UITYPE_PANEL;
 
-        asPanel* panel = new asPanel();
-        panel->_entityId = elementData.entityId;
+        asPanel* panel = new asPanel(elementData.entityId);
 
         elementData.asObject = panel;
 

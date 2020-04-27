@@ -5,40 +5,16 @@
 #include "../../../ECS/Components/UI/UITransform.h"
 #include "../../../ECS/Components/UI/UITransformEvents.h"
 #include "../../../ECS/Components/UI/UIRenderable.h"
+#include "asUITransform.h"
 
 namespace UI
 {
-    class asPanel
+    class asPanel : public asUITransform
     {
     public:
-        static void RegisterType();
+        asPanel(entt::entity entityId);
 
-        // Transform Functions
-        const vec2 GetPosition() const
-        {
-            return _transform.position;
-        }
-        void SetPosition(const vec2& position);
-        const vec2 GetLocalPosition() const
-        {
-            return _transform.localPosition;
-        }
-        void SetLocalPosition(const vec2& localPosition);
-        const vec2 GetAnchor() const
-        {
-            return _transform.anchor;
-        }
-        void SetAnchor(const vec2& anchor);
-        const vec2 GetSize() const
-        {
-            return _transform.size;
-        }
-        void SetSize(const vec2& size);
-        const u16 GetDepth() const
-        {
-            return _transform.depth;
-        }
-        void SetDepth(const u16& depth);
+        static void RegisterType();
 
         // TransformEvents Functions
         void SetEventFlag(const UITransformEventsFlags flags) { _events.SetFlag(flags); }
@@ -66,8 +42,6 @@ namespace UI
         static asPanel* CreatePanel();
 
     private:
-        entt::entity _entityId;
-        UITransform _transform;
         UITransformEvents _events;
         UIRenderable _renderable;
     };

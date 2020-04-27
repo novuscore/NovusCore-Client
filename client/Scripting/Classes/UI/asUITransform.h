@@ -10,6 +10,8 @@ namespace UI
     class asUITransform
     {
     public:
+        asUITransform(entt::entity entityId, UIElementData::UIElementType elementType);
+
         static void RegisterType()
         {
             i32 r = ScriptEngine::RegisterScriptClass("UITransform", 0, asOBJ_REF | asOBJ_NOCOUNT);
@@ -33,6 +35,18 @@ namespace UI
             r = ScriptEngine::RegisterScriptClassFunction("void SetSize(vec2 size)", asMETHOD(T, SetSize)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("float GetDepth()", asMETHOD(T, GetDepth)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetDepth(float depth)", asMETHOD(T, SetDepth)); assert(r >= 0);
+
+            r = ScriptEngine::RegisterScriptClassFunction("void SetParent(UITransform@ parent)", asMETHOD(T, SetParent)); assert(r >= 0);
+        }
+
+        virtual const entt::entity GetEntityId() const
+        {
+            return _entityId;
+        }
+
+        virtual const UIElementData::UIElementType GetEntityType() const
+        {
+            return _elementType;
         }
 
         // Transform Functions
@@ -66,13 +80,18 @@ namespace UI
         {
             return _transform.depth;
         }
-        virtual void SetDepth(const u16& depth);
+        virtual void SetDepth(const u16 depth);
+
+        virtual void SetParent(asUITransform* parent);
 
     private:
         static void UpdateChildren(entt::registry* registry, UITransform& transform, vec2 position);
 
     protected:
         entt::entity _entityId;
+        UIElementData::UIElementType _elementType;
+
         UITransform _transform;
+
     };
 }
