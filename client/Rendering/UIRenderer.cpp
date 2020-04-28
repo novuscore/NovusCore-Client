@@ -51,14 +51,18 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
 
 void UIRenderer::Update(f32 deltaTime)
 {
+    //Calculates min bounds postion including the anchor.
+    static auto CalculatePositionWithAnchor = [](const UITransform& transform)
+    {
+        return vec2(transform.position.x - (transform.anchor.x * transform.size.x), transform.position.y - (transform.anchor.y * transform.size.y));
+    };
+
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     auto renderableView = registry->view<UITransform, UIRenderable>();
     renderableView.each([this](const auto, UITransform& transform, UIRenderable& renderable)
         {
             if (!transform.isDirty && !renderable.isDirty)
                 return;
-
-            //TODO Update child positions.
 
             if (renderable.isDirty)
             {
@@ -90,7 +94,7 @@ void UIRenderer::Update(f32 deltaTime)
                 Renderer::PrimitiveModelDesc primitiveModelDesc;
 
                 // Update vertex buffer
-                const vec3& pos = vec3(transform.position.x, transform.position.y, transform.depth);
+                const vec3& pos = vec3(CalculatePositionWithAnchor(transform), transform.depth);
                 const vec2& size = transform.size;
 
                 CalculateVertices(pos, size, primitiveModelDesc.vertices);
@@ -155,7 +159,7 @@ void UIRenderer::Update(f32 deltaTime)
             }
 
             size_t glyph = 0;
-            vec3 currentPosition = vec3(transform.position.x, transform.position.y, transform.depth);
+            vec3 currentPosition = vec3(CalculatePositionWithAnchor(transform), transform.depth);
             for (char character : text.text)
             {
                 if (character == ' ')

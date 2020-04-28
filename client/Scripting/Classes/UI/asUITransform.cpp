@@ -174,8 +174,9 @@ namespace UI
         {
             UITransform& uiChildTransform = registry->get<UITransform>(entt::entity(child.entity));
             uiChildTransform.position = position;
+            uiChildTransform.isDirty = true;
 
-            //Apply position updates to asObject too.
+            //Apply position updates to asObject.
             auto iterator = uiSingleton.entityToAsObject.find(entt::entity(child.entity));
             if (iterator != uiSingleton.entityToAsObject.end())
             {
