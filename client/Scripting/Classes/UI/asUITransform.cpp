@@ -21,6 +21,10 @@ namespace UI
         else
             _transform.position = position;
 
+        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+        //UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
+        //UpdateChildrenPositionInAngelScript(uiDataSingleton, _transform, position);
+
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
 
@@ -29,7 +33,7 @@ namespace UI
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& uiTransform = uiRegistry->get<UITransform>(entId);
 
-                uiTransform.isDirty = true;        
+                uiTransform.isDirty = true;      
                 if (hasParent)
                     uiTransform.localPosition = position;
                 else
@@ -37,7 +41,7 @@ namespace UI
 
                 if (uiTransform.children.size())
                 {
-                    UpdateChildren(uiRegistry, uiTransform, position);
+                    UpdateChildrenPosition(uiRegistry, uiTransform, position);
                 }
             });
     }
@@ -100,10 +104,8 @@ namespace UI
         // Remove old parent.
         if (_transform.parent)
         {
-            UITransform& parentTransform = uiRegistry->get<UITransform>(entt::entity(_transform.parent));
-
             //Keep same absolute position.
-            _transform.position = (parentTransform.position + parentTransform.localPosition) - (_transform.position + _transform.localPosition);
+            _transform.position = _transform.position + _transform.localPosition;
             _transform.localPosition = vec2(0, 0);
         }
 
@@ -112,9 +114,15 @@ namespace UI
 
         UITransform& newParentTransform = parent->_transform;
         // Recalculate new position.
-        _transform.localPosition = newParentTransform.position + newParentTransform.localPosition - _transform.position;
+        const vec2 deltaPosition = (newParentTransform.position + newParentTransform.localPosition) - _transform.position;
         _transform.position = newParentTransform.position + newParentTransform.localPosition;
+        _transform.localPosition = deltaPosition;
 
+        //Add ourselves to parents angelscript object children
+        UITransform::UIChild thisChild;
+        thisChild.entity = entt::to_integer(_entityId);
+        thisChild.type = _elementType;
+        parent->_transform.children.push_back(thisChild);
 
         // Transaction.
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
@@ -137,11 +145,12 @@ namespace UI
                         if (position->entity == entt::to_integer(entId))
                             break;
                     }
+
                     if (position != parentTransform.children.end())
                         parentTransform.children.erase(position);
 
                     //Keep same absolute position.
-                    transform.position = (parentTransform.position + parentTransform.localPosition) - (transform.position + transform.localPosition);
+                    transform.position = transform.position + transform.localPosition;
                     transform.localPosition = vec2(0, 0);
                 }
 
@@ -151,8 +160,9 @@ namespace UI
                 UITransform& newParentTransform = uiRegistry->get<UITransform>(entt::entity(parent->GetEntityId()));
 
                 //Recalculate new positon.
-                transform.localPosition = newParentTransform.position + newParentTransform.localPosition - transform.position;
+                const vec2 deltaPosition = (newParentTransform.position + newParentTransform.localPosition) - transform.position;
                 transform.position = newParentTransform.position + newParentTransform.localPosition;
+                transform.localPosition = deltaPosition;
 
                 //Add this to parent's children.
                 UITransform::UIChild thisChild;
@@ -163,30 +173,36 @@ namespace UI
             });
     }
 
-    void asUITransform::UpdateChildren(entt::registry* registry, UITransform& transform, vec2 position)
+    void asUITransform::UpdateChildrenPosition(entt::registry* uiRegistry, UITransform& parent, vec2 position)
     {
-        if(!transform.children.size())
-            return;
-
-        UIDataSingleton& uiSingleton = registry->ctx<UIDataSingleton>();
-
-        for (UITransform::UIChild& child : transform.children)
+        for (UITransform::UIChild& child : parent.children)
         {
-            UITransform& uiChildTransform = registry->get<UITransform>(entt::entity(child.entity));
+            UITransform& uiChildTransform = uiRegistry->get<UITransform>(entt::entity(child.entity));
             uiChildTransform.position = position;
             uiChildTransform.isDirty = true;
 
-            //Apply position updates to asObject.
-            auto iterator = uiSingleton.entityToAsObject.find(entt::entity(child.entity));
-            if (iterator != uiSingleton.entityToAsObject.end())
-            {
-                iterator->second->_transform.position = position;
-            }
-
             if (uiChildTransform.children.size())
             {
-                UpdateChildren(registry, uiChildTransform, uiChildTransform.position + uiChildTransform.localPosition);
+                UpdateChildrenPosition(uiRegistry, uiChildTransform, uiChildTransform.position + uiChildTransform.localPosition);
             }
+        }
+    }
+    void asUITransform::UpdateChildrenPositionInAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent, vec2 position)
+    {
+        for (UITransform::UIChild& child : parent.children)
+        {
+            auto iterator = uiDataSingleton.entityToAsObject.find(entt::entity(child.entity));
+            if (iterator != uiDataSingleton.entityToAsObject.end())
+            {
+                asUITransform* asChild = iterator->getSecond();
+                asChild->_transform.position = position;
+
+                if (asChild->_transform.children.size())
+                {
+                    UpdateChildrenPositionInAngelScript(uiDataSingleton, asChild->_transform, asChild->_transform.position + asChild->_transform.localPosition);
+                }
+            }
+
         }
     }
 }

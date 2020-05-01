@@ -4,6 +4,7 @@
 
 #include "../../ScriptEngine.h"
 #include "../../../ECS/Components/UI/UITransform.h"
+#include "../../../ECS/Components/UI/UIDataSingleton.h"
 
 namespace UI
 {
@@ -85,7 +86,9 @@ namespace UI
         virtual void SetParent(asUITransform* parent);
 
     private:
-        static void UpdateChildren(entt::registry* registry, UITransform& transform, vec2 position);
+        static void UpdateChildrenPosition(entt::registry* uiRegistry, UITransform& parent, vec2 position);
+
+        static void UpdateChildrenPositionInAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent, vec2 position);
 
     protected:
         entt::entity _entityId;

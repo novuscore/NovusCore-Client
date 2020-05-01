@@ -46,7 +46,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
     entityPool.entityIdPool.enqueue_bulk(entityIds.begin(), 10000);
 
     // Register UI data singleton.
-    registry->set<UIDataSingleton>();
+    registry->set<UI::UIDataSingleton>();
 }
 
 void UIRenderer::Update(f32 deltaTime)
@@ -54,7 +54,9 @@ void UIRenderer::Update(f32 deltaTime)
     //Calculates min bounds postion including the anchor.
     static auto CalculatePositionWithAnchor = [](const UITransform& transform)
     {
-        return vec2(transform.position.x - (transform.anchor.x * transform.size.x), transform.position.y - (transform.anchor.y * transform.size.y));
+        const vec2 screenPosition = transform.position + transform.localPosition;
+
+        return vec2(screenPosition.x - (transform.anchor.x * transform.size.x), screenPosition.y - (transform.anchor.y * transform.size.y));
     };
 
     entt::registry* registry = ServiceLocator::GetUIRegistry();
