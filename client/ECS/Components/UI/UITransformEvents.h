@@ -26,38 +26,38 @@ public:
 
     // Usually Components do not store logic, however this is an exception
 private:
-    void _OnEvent(void* thisPtr, asIScriptFunction* callback)
+    void _OnEvent(asIScriptFunction* callback)
     {
         asIScriptContext* context = ScriptEngine::GetScriptContext();
         {
             context->Prepare(callback);
             {
-                context->SetArgObject(0, thisPtr);
+                context->SetArgObject(0, asObject);
             }
             context->Execute();
         }
     }
 public:
-    void OnClick(void* thisPtr)
+    void OnClick()
     {
         if (!onClickCallback)
             return;
         
-        _OnEvent(thisPtr, onClickCallback);
+        _OnEvent(onClickCallback);
     }
-    void OnDragged(void* thisPtr)
+    void OnDragged()
     {
         if (!onDraggedCallback)
             return;
         
-        _OnEvent(thisPtr, onDraggedCallback);
+        _OnEvent(onDraggedCallback);
     }    
-    void OnFocused(void* thisPtr)
+    void OnFocused()
     {
         if (!onFocusedCallback)
             return;
         
-        _OnEvent(thisPtr, onFocusedCallback);
+        _OnEvent(onFocusedCallback);
     }
 
     void SetFlag(const UITransformEventsFlags inFlags) { flags |= inFlags; }

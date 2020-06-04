@@ -397,8 +397,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
                 {
                     //if (!panel->DidDrag())
 
-                    // TODO: We need to get the panel somehow (I've tried storing a pointer to the asPanel object from CreatePanel, but that seems to get corrupted somehow)
-                    events.OnClick(events.asObject);
+                    events.OnClick();
                 }
             }
 
