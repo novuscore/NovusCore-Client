@@ -15,15 +15,14 @@ namespace UI
     void asUITransform::SetPosition(const vec2& position)
     {
         bool hasParent = _transform.parent;
-
         if (hasParent)
             _transform.localPosition = position;
         else
             _transform.position = position;
 
         entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-        //UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
-        //UpdateChildrenPositionInAngelScript(uiDataSingleton, _transform, position);
+        UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
+        UpdateChildrenPositionInAngelScript(uiDataSingleton, _transform, position);
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
@@ -58,8 +57,8 @@ namespace UI
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& uiTransform = uiRegistry->get<UITransform>(entId);
 
-                uiTransform.isDirty = true;
                 uiTransform.anchor = anchor;
+                uiTransform.isDirty = true;
             });
     }
 
@@ -75,8 +74,8 @@ namespace UI
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& uiTransform = uiRegistry->get<UITransform>(entId);
 
-                uiTransform.isDirty = true;
                 uiTransform.size = size;
+                uiTransform.isDirty = true;
             });
     }
 
@@ -92,8 +91,8 @@ namespace UI
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& uiTransform = uiRegistry->get<UITransform>(entId);
 
-                uiTransform.isDirty = true;
                 uiTransform.depth = depth;
+                uiTransform.isDirty = true;
             });
     }
 
@@ -110,17 +109,17 @@ namespace UI
         }
 
         // Set new parent.
-        _transform.parent = entt::to_integer(parent->_entityId);
+        _transform.parent = entt::to_integral(parent->_entityId);
 
         UITransform& newParentTransform = parent->_transform;
-        // Recalculate new position.
-        const vec2 deltaPosition = (newParentTransform.position + newParentTransform.localPosition) - _transform.position;
+
+        //Recalculate new local positon whilst keeping absolute position.
+        _transform.localPosition = (newParentTransform.position + newParentTransform.localPosition) - _transform.position;
         _transform.position = newParentTransform.position + newParentTransform.localPosition;
-        _transform.localPosition = deltaPosition;
 
         //Add ourselves to parents angelscript object children
         UITransform::UIChild thisChild;
-        thisChild.entity = entt::to_integer(_entityId);
+        thisChild.entity = entt::to_integral(_entityId);
         thisChild.type = _elementType;
         parent->_transform.children.push_back(thisChild);
 
@@ -136,18 +135,16 @@ namespace UI
                 //Remove old parent.
                 if (transform.parent)
                 {
-                    UITransform& parentTransform = uiRegistry->get<UITransform>(entt::entity(transform.parent));
+                    UITransform& oldParentTransform = uiRegistry->get<UITransform>(entt::entity(transform.parent));
 
                     //Remove from parents children.
-                    auto position = parentTransform.children.begin();
-                    for (position; position < parentTransform.children.end(); position++)
-                    {
-                        if (position->entity == entt::to_integer(entId))
-                            break;
-                    }
+                    auto position = std::find_if(oldParentTransform.children.begin(), oldParentTransform.children.end(), [entId](UITransform::UIChild& uiChild)
+                        {
+                            return uiChild.entity == entt::to_integral(entId);
+                        });
 
-                    if (position != parentTransform.children.end())
-                        parentTransform.children.erase(position);
+                    if (position != oldParentTransform.children.end())
+                        oldParentTransform.children.erase(position);
 
                     //Keep same absolute position.
                     transform.position = transform.position + transform.localPosition;
@@ -155,22 +152,22 @@ namespace UI
                 }
 
                 //Set new parent.
-                transform.parent = entt::to_integer(parent->GetEntityId());
+                transform.parent = entt::to_integral(parent->GetEntityId());
 
                 UITransform& newParentTransform = uiRegistry->get<UITransform>(entt::entity(parent->GetEntityId()));
 
-                //Recalculate new positon.
-                const vec2 deltaPosition = (newParentTransform.position + newParentTransform.localPosition) - transform.position;
+                //Recalculate new local positon whilst keeping absolute position.
+                transform.localPosition = (newParentTransform.position + newParentTransform.localPosition) - transform.position;
                 transform.position = newParentTransform.position + newParentTransform.localPosition;
-                transform.localPosition = deltaPosition;
 
                 //Add this to parent's children.
-                UITransform::UIChild thisChild;
-                thisChild.entity = entt::to_integer(entId);
-                thisChild.type = elementType;
+                UITransform::UIChild thisAsChild;
+                thisAsChild.entity = entt::to_integral(entId);
+                thisAsChild.type = elementType;
 
-                newParentTransform.children.push_back(thisChild);
+                newParentTransform.children.push_back(thisAsChild);
             });
+        //Transaction End.
     }
 
     void asUITransform::UpdateChildrenPosition(entt::registry* uiRegistry, UITransform& parent, vec2 position)

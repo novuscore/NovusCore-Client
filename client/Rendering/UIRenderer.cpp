@@ -7,6 +7,7 @@
 #include "../ECS/Components/UI/UIAddElementQueueSingleton.h"
 #include "../ECS/Components/UI/UIDataSingleton.h"
 #include "../ECS/Components/UI/UITransform.h"
+#include "../ECS/Components/UI/UITransformUtils.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
 #include "../ECS/Components/UI/UIRenderable.h"
 #include "../ECS/Components/UI/UIText.h"
@@ -51,14 +52,6 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
 
 void UIRenderer::Update(f32 deltaTime)
 {
-    //Calculates min bounds postion including the anchor.
-    static auto CalculatePositionWithAnchor = [](const UITransform& transform)
-    {
-        const vec2 screenPosition = transform.position + transform.localPosition;
-
-        return vec2(screenPosition.x - (transform.anchor.x * transform.size.x), screenPosition.y - (transform.anchor.y * transform.size.y));
-    };
-
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     auto renderableView = registry->view<UITransform, UIRenderable>();
     renderableView.each([this](const auto, UITransform& transform, UIRenderable& renderable)
@@ -96,7 +89,7 @@ void UIRenderer::Update(f32 deltaTime)
                 Renderer::PrimitiveModelDesc primitiveModelDesc;
 
                 // Update vertex buffer
-                const vec3& pos = vec3(CalculatePositionWithAnchor(transform), transform.depth);
+                const vec3& pos = vec3(UITransformUtils::GetMinBounds(transform), transform.depth);
                 const vec2& size = transform.size;
 
                 CalculateVertices(pos, size, primitiveModelDesc.vertices);
@@ -161,7 +154,7 @@ void UIRenderer::Update(f32 deltaTime)
             }
 
             size_t glyph = 0;
-            vec3 currentPosition = vec3(CalculatePositionWithAnchor(transform), transform.depth);
+            vec3 currentPosition = vec3(UITransformUtils::GetMinBounds(transform), transform.depth);
             for (char character : text.text)
             {
                 if (character == ' ')
@@ -314,7 +307,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                     commandList.PushMarker("Renderable", Color(0.0f, 0.1f, 0.0f));
 
                     // Set constant buffer
-                    commandList.SetConstantBuffer(0, _renderable.constantBuffer->GetGPUResource(frameIndex));
+                    commandList.SetConstantBuffer(0, _renderable.constantBuffer->GetGPUResource(frameIndex), frameIndex);
 
                     // Set texture-sampler pair
                     commandList.SetTextureSampler(1, _renderable.textureID, _linearSampler);
@@ -346,7 +339,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                     commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
 
                     // Set constant buffer
-                    commandList.SetConstantBuffer(0, _text.constantBuffer->GetGPUResource(frameIndex));
+                    commandList.SetConstantBuffer(0, _text.constantBuffer->GetGPUResource(frameIndex), frameIndex);
 
                     // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
                     size_t glyphs = _text.models.size();
@@ -381,11 +374,11 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             continue;
 
         auto& transform = eventView.get<UITransform>(entity);
-        const vec2& size = transform.size;
-        const vec2& pos = transform.position + transform.localPosition;
+        const vec2 minBounds = UITransformUtils::GetMinBounds(transform);
+        const vec2 maxBounds = UITransformUtils::GetMaxBounds(transform);
 
-        if ((mouseX > pos.x && mouseX < pos.x + size.x) &&
-            (mouseY > pos.y && mouseY < pos.y + size.y))
+        if ((mouseX > minBounds.x && mouseX < maxBounds.x) &&
+            (mouseY > minBounds.y && mouseY < maxBounds.y))
         {
             if (keybind->state)
             {

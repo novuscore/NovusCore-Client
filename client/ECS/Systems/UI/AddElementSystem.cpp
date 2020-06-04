@@ -12,7 +12,7 @@ void AddElementSystem::Update(entt::registry& registry)
 
     ZoneScopedNC("AddElementSystem::Update", tracy::Color::Blue)
 
-        UIElementData element;
+    UIElementData element;
     while (uiAddElementQueueSingleton.elementPool.try_dequeue(element))
     {
         registry.assign<UITransform>(element.entityId);

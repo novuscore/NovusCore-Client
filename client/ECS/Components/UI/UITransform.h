@@ -1,6 +1,20 @@
 #pragma once
 #include <NovusTypes.h>
-#include "UIAddElementQueueSingleton.h"
+
+struct UIElementData
+{
+    enum class UIElementType
+    {
+        UITYPE_PANEL,
+        UITYPE_TEXT,
+        UITYPE_BUTTON,
+        UITYPE_INPUTFIELD
+    };
+
+    entt::entity entityId;
+    UIElementType type;
+    void* asObject;
+};
 
 struct UITransform
 {
