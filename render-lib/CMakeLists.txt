@@ -9,14 +9,13 @@ set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${ROOT_FOLDER}/libs)
 
 find_assign_files(${RENDER_LIB_FILES})
 
-include_directories(../../dep/glfw/include)
-
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} PRIVATE Vulkan::Vulkan)
 target_link_libraries(${PROJECT_NAME} PUBLIC
 	asio::asio
 	common::common
 	glfw ${GLFW_LIBRARIES}
     Vulkan::Vulkan
+    gli::gli
 )
 add_dependencies(${PROJECT_NAME} shaders)
 

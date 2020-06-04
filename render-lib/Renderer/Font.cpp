@@ -85,7 +85,6 @@ namespace Renderer
         DataTextureDesc textureDesc;
         textureDesc.width = fontChar.width;
         textureDesc.height = fontChar.height;
-        textureDesc.pixelSize = sizeof(i8);
         textureDesc.format = IMAGE_FORMAT_R8_UNORM;
         textureDesc.data = fontChar.data;
         textureDesc.debugName = desc.path + " " + character;

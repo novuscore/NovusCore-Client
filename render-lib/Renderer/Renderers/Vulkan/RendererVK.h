@@ -18,7 +18,7 @@ namespace Renderer
     class RendererVK : public Renderer
     {
     public:
-        RendererVK();
+        RendererVK(TextureDesc& debugTexture);
 
         void InitWindow(Window* window) override;
         void Deinit() override;
@@ -36,10 +36,13 @@ namespace Renderer
         void UpdatePrimitiveModel(ModelID model, PrimitiveModelDesc& desc) override;
 
         TextureID CreateDataTexture(DataTextureDesc& desc) override;
+        TextureArrayID CreateTextureArray(TextureArrayDesc& desc) override;
 
         // Loading
         ModelID LoadModel(ModelDesc& desc) override;
+
         TextureID LoadTexture(TextureDesc& desc) override;
+        TextureID LoadTextureIntoArray(TextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) override;
 
         VertexShaderID LoadShader(VertexShaderDesc& desc) override;
         PixelShaderID LoadShader(PixelShaderDesc& desc) override;
@@ -51,6 +54,7 @@ namespace Renderer
         void Clear(CommandListID commandListID, ImageID image, Color color) override;
         void Clear(CommandListID commandListID, DepthImageID image, DepthClearFlags clearFlags, f32 depth, u8 stencil) override;
         void Draw(CommandListID commandListID, ModelID model) override;
+        void DrawInstanced(CommandListID commandList, ModelID model, u32 count) override;
         void PopMarker(CommandListID commandListID) override;
         void PushMarker(CommandListID commandListID, Color color, std::string name) override;
         void SetConstantBuffer(CommandListID commandListID, u32 slot, void* gpuResource, size_t frameIndex) override;
@@ -59,7 +63,9 @@ namespace Renderer
         void SetPipeline(CommandListID commandListID, ComputePipelineID pipeline) override;
         void SetScissorRect(CommandListID commandListID, ScissorRect scissorRect) override;
         void SetViewport(CommandListID commandListID, Viewport viewport) override;
-        void SetTextureSampler(CommandListID commandListID, u32 slot, TextureID textureID, SamplerID samplerID) override;
+        void SetSampler(CommandListID commandListID, u32 slot, SamplerID samplerID) override;
+        void SetTexture(CommandListID commandList, u32 slot, TextureID texture) override;
+        void SetTextureArray(CommandListID commandList, u32 slot, TextureArrayID textureArray) override;
 
         // Non-commandlist based present functions
         void Present(Window* window, ImageID image) override;

@@ -21,8 +21,8 @@ namespace Renderer
             ImageID CreateImage(RenderDeviceVK* device, const ImageDesc& desc);
             DepthImageID CreateDepthImage(RenderDeviceVK* device, const DepthImageDesc& desc);
 
-            const ImageDesc& GetDescriptor(const ImageID id);
-            const DepthImageDesc& GetDescriptor(const DepthImageID id);
+            const ImageDesc& GetImageDesc(const ImageID id);
+            const DepthImageDesc& GetDepthImageDesc(const DepthImageID id);
 
             VkImage GetImage(const ImageID id);
             VkImageView GetColorView(const ImageID id);

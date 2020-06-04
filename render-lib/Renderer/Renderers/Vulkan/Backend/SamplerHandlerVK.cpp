@@ -27,6 +27,118 @@ namespace Renderer
             // Check the cache
             size_t nextID;
             u64 samplerHash = CalculateSamplerHash(desc);
+            if (TryFindExistingSampler(samplerHash, nextID))
+            {
+                return SamplerID(static_cast<type>(nextID));
+            }
+            nextID = _samplers.size();
+
+            // Make sure we haven't exceeded the limit of the SamplerID type, if this hits you need to change type of SamplerID to something bigger
+            assert(nextID < SamplerID::MaxValue());
+
+            Sampler sampler;
+            sampler.samplerHash = samplerHash;
+            sampler.desc = desc;
+
+            // Create sampler
+            VkSamplerCreateInfo samplerInfo = {};
+            samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+            samplerInfo.magFilter = ToVkFilterMag(desc.filter);
+            samplerInfo.minFilter = ToVkFilterMin(desc.filter);
+            samplerInfo.addressModeU = ToVkSamplerAddressMode(desc.addressU);
+            samplerInfo.addressModeV = ToVkSamplerAddressMode(desc.addressV);
+            samplerInfo.addressModeW = ToVkSamplerAddressMode(desc.addressW);
+            samplerInfo.anisotropyEnable = ToAnisotropyEnabled(desc.filter);
+            samplerInfo.maxAnisotropy = static_cast<f32>(desc.maxAnisotropy);
+            samplerInfo.borderColor = ToVkBorderColor(desc.borderColor);
+            samplerInfo.unnormalizedCoordinates = VK_FALSE;
+            samplerInfo.compareEnable = desc.comparisonFunc != ComparisonFunc::COMPARISON_FUNC_ALWAYS;
+            samplerInfo.compareOp = ToVkCompareOp(desc.comparisonFunc);
+            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            samplerInfo.mipLodBias = desc.mipLODBias;
+            samplerInfo.minLod = desc.minLOD;
+            samplerInfo.maxLod = desc.maxLOD;
+
+            if (vkCreateSampler(device->_device, &samplerInfo, nullptr, &sampler.sampler) != VK_SUCCESS)
+            {
+                NC_LOG_FATAL("Failed to create sampler!");
+            }
+
+            // Create descriptor set layout
+            VkDescriptorSetLayoutBinding descriptorLayout = {};
+            descriptorLayout.binding = 0;
+            descriptorLayout.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+            descriptorLayout.descriptorCount = 1;
+            descriptorLayout.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            descriptorLayout.pImmutableSamplers = NULL;
+
+            VkDescriptorSetLayoutCreateInfo descriptorLayoutInfo = {};
+            descriptorLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            descriptorLayoutInfo.pNext = NULL;
+            descriptorLayoutInfo.bindingCount = 1;
+            descriptorLayoutInfo.pBindings = &descriptorLayout;
+
+            if (vkCreateDescriptorSetLayout(device->_device, &descriptorLayoutInfo, NULL, &sampler.descriptorSetLayout) != VK_SUCCESS)
+            {
+                NC_LOG_FATAL("Failed to create descriptor set layout for sampler!");
+            }
+
+            // Create descriptor pool
+            VkDescriptorPoolSize poolSize = {};
+            poolSize.type = VK_DESCRIPTOR_TYPE_SAMPLER;
+            poolSize.descriptorCount = 1;
+
+            VkDescriptorPoolCreateInfo poolInfo = {};
+            poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            poolInfo.poolSizeCount = 1;
+            poolInfo.pPoolSizes = &poolSize;
+            poolInfo.maxSets = 1;
+
+            if (vkCreateDescriptorPool(device->_device, &poolInfo, nullptr, &sampler.descriptorPool) != VK_SUCCESS)
+            {
+                NC_LOG_FATAL("Failed to create descriptor pool for sampler!");
+            }
+
+            // Create descriptor set
+            VkDescriptorSetAllocateInfo allocInfo;
+            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            allocInfo.pNext = NULL;
+            allocInfo.descriptorPool = sampler.descriptorPool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = &sampler.descriptorSetLayout;
+
+            if (vkAllocateDescriptorSets(device->_device, &allocInfo, &sampler.descriptorSet) != VK_SUCCESS)
+            {
+                NC_LOG_FATAL("Failed to create descriptor set for sampler!");
+            }
+
+            VkDescriptorImageInfo descriptorInfo = {};
+            descriptorInfo.sampler = sampler.sampler;
+
+            VkWriteDescriptorSet descriptorWrite;
+            descriptorWrite = {};
+            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite.pNext = NULL;
+            descriptorWrite.dstSet = sampler.descriptorSet;
+            descriptorWrite.descriptorCount = 1;
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+            descriptorWrite.pImageInfo = &descriptorInfo;
+            descriptorWrite.dstArrayElement = 0;
+            descriptorWrite.dstBinding = 0;
+
+            vkUpdateDescriptorSets(device->_device, 1, &descriptorWrite, 0, NULL);
+
+            _samplers.push_back(sampler);
+            return SamplerID(static_cast<type>(nextID));
+        }
+
+        /*SamplerID SamplerHandlerVK::CreateSampler(RenderDeviceVK* device, const SamplerDesc& desc)
+        {
+            using type = type_safe::underlying_type<SamplerID>;
+
+            // Check the cache
+            size_t nextID;
+            u64 samplerHash = CalculateSamplerHash(desc);
             if (TryFindExistingSamplerContainer(samplerHash, nextID))
             {
                 return SamplerID(static_cast<type>(nextID));
@@ -65,9 +177,9 @@ namespace Renderer
 
             _samplerContainers.push_back(samplerContainer);
             return SamplerID(static_cast<type>(nextID));
-        }
+        }*/
 
-        VkDescriptorSet SamplerHandlerVK::GetCombinedSampler(RenderDeviceVK* device, TextureHandlerVK* textureHandler, PipelineHandlerVK* pipelineHandler, const SamplerID samplerID, const u32 slot, const TextureID textureID, const GraphicsPipelineID pipelineID)
+        /*VkDescriptorSet SamplerHandlerVK::GetCombinedSampler(RenderDeviceVK* device, TextureHandlerVK* textureHandler, PipelineHandlerVK* pipelineHandler, const SamplerID samplerID, const u32 slot, const TextureID textureID, const GraphicsPipelineID pipelineID)
         {
             SamplerContainer& samplerContainer = _samplerContainers[static_cast<_SamplerID>(samplerID)];
 
@@ -126,29 +238,54 @@ namespace Renderer
             }
 
             return combinedSampler.descriptorSet;
-        }
+        }*/
 
-        const SamplerDesc& SamplerHandlerVK::GetSamplerDesc(const SamplerID id)
+        VkDescriptorSet SamplerHandlerVK::GetDescriptorSet(const SamplerID samplerID)
         {
             using type = type_safe::underlying_type<SamplerID>;
 
             // Lets make sure this id exists
-            assert(_samplerContainers.size() > static_cast<type>(id));
-            return _samplerContainers[static_cast<type>(id)].desc;
+            assert(_samplers.size() > static_cast<type>(samplerID));
+            return _samplers[static_cast<type>(samplerID)].descriptorSet;
         }
 
-        u64 SamplerHandlerVK::CalculateSamplerHash(const Sampler& desc)
+        const SamplerDesc& SamplerHandlerVK::GetSamplerDesc(const SamplerID samplerID)
+        {
+            using type = type_safe::underlying_type<SamplerID>;
+
+            // Lets make sure this id exists
+            assert(_samplers.size() > static_cast<type>(samplerID));
+            return _samplers[static_cast<type>(samplerID)].desc;
+        }
+
+        u64 SamplerHandlerVK::CalculateSamplerHash(const SamplerDesc& desc)
         {
             return XXHash64::hash(&desc, sizeof(desc), 0);
         }
 
-        bool SamplerHandlerVK::TryFindExistingSamplerContainer(u64 descHash, size_t& id)
+        /*bool SamplerHandlerVK::TryFindExistingSamplerContainer(u64 descHash, size_t& id)
         {
             id = 0;
 
             for (auto& samplerContainer : _samplerContainers)
             {
                 if (descHash == samplerContainer.samplerHash)
+                {
+                    return true;
+                }
+                id++;
+            }
+
+            return false;
+        }*/
+
+        bool SamplerHandlerVK::TryFindExistingSampler(u64 descHash, size_t& id)
+        {
+            id = 0;
+
+            for (auto& sampler : _samplers)
+            {
+                if (descHash == sampler.samplerHash)
                 {
                     return true;
                 }

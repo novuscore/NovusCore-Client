@@ -8,6 +8,7 @@
 #include "Rendering/ClientRenderer.h"
 
 // Component Singletons
+#include "ECS/Components/Singletons/MapSingleton.h"
 #include "ECS/Components/Singletons/TimeSingleton.h"
 #include "ECS/Components/Singletons/ScriptSingleton.h"
 #include "ECS/Components/Network/ConnectionSingleton.h"
@@ -79,6 +80,7 @@ void EngineLoop::Run()
 
     MapLoader::Load(_updateFramework.gameRegistry);
 
+    MapSingleton& mapSingleton = _updateFramework.gameRegistry.set<MapSingleton>();
     TimeSingleton& timeSingleton = _updateFramework.gameRegistry.set<TimeSingleton>();
     ScriptSingleton& scriptSingleton = _updateFramework.gameRegistry.set<ScriptSingleton>();
     ConnectionSingleton& connectionSingleton = _updateFramework.gameRegistry.set<ConnectionSingleton>();

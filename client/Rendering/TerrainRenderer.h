@@ -6,6 +6,7 @@
 #include <Renderer/Descriptors/ImageDesc.h>
 #include <Renderer/Descriptors/DepthImageDesc.h>
 #include <Renderer/Descriptors/TextureDesc.h>
+#include <Renderer/Descriptors/TextureArrayDesc.h>
 #include <Renderer/Descriptors/ModelDesc.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
 #include <Renderer/ConstantBuffer.h>
@@ -44,6 +45,7 @@ private:
     std::vector<Renderer::ModelID> _chunkModels;
     std::vector<Renderer::InstanceData> _chunkModelInstances;
 
+    Renderer::TextureArrayID _terrainTextureArray;
     Renderer::TextureID _terrainTexture;
     Renderer::SamplerID _linearSampler;
 };

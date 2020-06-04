@@ -21,3 +21,4 @@
 # SOFTWARE.
 
 add_subdirectory(glfw)
+add_subdirectory(gli)

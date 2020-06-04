@@ -14,6 +14,7 @@ namespace Renderer
         static void ClearDepthImage(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void Draw(Renderer* renderer, CommandListID commandList, const void* data);
+        static void DrawInstanced(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void PopMarker(Renderer* renderer, CommandListID commandList, const void* data);
         static void PushMarker(Renderer* renderer, CommandListID commandList, const void* data);
@@ -25,6 +26,8 @@ namespace Renderer
 
         static void SetScissorRect(Renderer* renderer, CommandListID commandList, const void* data);
         static void SetViewport(Renderer* renderer, CommandListID commandList, const void* data);
-        static void SetTextureSampler(Renderer* renderer, CommandListID commandList, const void* data);
+        static void SetSampler(Renderer* renderer, CommandListID commandList, const void* data);
+        static void SetTexture(Renderer* renderer, CommandListID commandList, const void* data);
+        static void SetTextureArray(Renderer* renderer, CommandListID commandList, const void* data);
     };
 }

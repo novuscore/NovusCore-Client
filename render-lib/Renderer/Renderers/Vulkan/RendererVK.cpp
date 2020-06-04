@@ -18,7 +18,7 @@
 
 namespace Renderer
 {
-    RendererVK::RendererVK()
+    RendererVK::RendererVK(TextureDesc& debugTexture)
         : _device(new Backend::RenderDeviceVK())
     {
         _device->Init();
@@ -29,6 +29,8 @@ namespace Renderer
         _pipelineHandler = new Backend::PipelineHandlerVK();
         _commandListHandler = new Backend::CommandListHandlerVK();
         _samplerHandler = new Backend::SamplerHandlerVK();
+
+        _textureHandler->LoadDebugTexture(_device, debugTexture);
     }
 
     void RendererVK::InitWindow(Window* window)
@@ -91,6 +93,11 @@ namespace Renderer
         return _textureHandler->CreateDataTexture(_device, desc);
     }
 
+    TextureArrayID RendererVK::CreateTextureArray(TextureArrayDesc& desc)
+    {
+        return _textureHandler->CreateTextureArray(_device, desc);
+    }
+
     ModelID RendererVK::LoadModel(ModelDesc& desc)
     {
         return _modelHandler->LoadModel(_device, desc);
@@ -99,6 +106,11 @@ namespace Renderer
     TextureID RendererVK::LoadTexture(TextureDesc& desc)
     {
         return _textureHandler->LoadTexture(_device, desc);
+    }
+
+    TextureID RendererVK::LoadTextureIntoArray(TextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex)
+    {
+        return _textureHandler->LoadTextureIntoArray(_device, desc, textureArray, arrayIndex);
     }
 
     VertexShaderID RendererVK::LoadShader(VertexShaderDesc& desc)
@@ -208,6 +220,24 @@ namespace Renderer
         // Draw
         u32 numIndices = _modelHandler->GetNumIndices(modelID);
         vkCmdDrawIndexed(commandBuffer, numIndices, 1, 0, 0, 0);
+    }
+
+    void RendererVK::DrawInstanced(CommandListID commandListID, ModelID modelID, u32 count)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        // Bind vertex buffer
+        VkBuffer vertexBuffer = _modelHandler->GetVertexBuffer(modelID);
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, offsets);
+
+        // Bind index buffer
+        VkBuffer indexBuffer = _modelHandler->GetIndexBuffer(modelID);
+        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+        // Draw
+        u32 numIndices = _modelHandler->GetNumIndices(modelID);
+        vkCmdDrawIndexed(commandBuffer, numIndices, count, 0, 0, 0);
     }
 
     void RendererVK::PopMarker(CommandListID commandListID)
@@ -347,16 +377,40 @@ namespace Renderer
         
     }
 
-    void RendererVK::SetTextureSampler(CommandListID commandListID, u32 slot, TextureID textureID, SamplerID samplerID)
+    void RendererVK::SetSampler(CommandListID commandListID, u32 slot, SamplerID samplerID)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
         GraphicsPipelineID graphicsPipelineID = _commandListHandler->GetBoundGraphicsPipeline(commandListID);
         VkPipelineLayout pipelineLayout = _pipelineHandler->GetPipelineLayout(graphicsPipelineID);
 
-        VkDescriptorSet combinedSamplerDescriptor = _samplerHandler->GetCombinedSampler(_device, _textureHandler, _pipelineHandler, samplerID, slot, textureID, graphicsPipelineID);
+        VkDescriptorSet samplerDescriptor = _samplerHandler->GetDescriptorSet(samplerID);
 
         // Bind descriptor set
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, slot, 1, &combinedSamplerDescriptor, 0, nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, slot, 1, &samplerDescriptor, 0, nullptr);
+    }
+
+    void RendererVK::SetTexture(CommandListID commandListID, u32 slot, TextureID textureID)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+        GraphicsPipelineID graphicsPipelineID = _commandListHandler->GetBoundGraphicsPipeline(commandListID);
+        VkPipelineLayout pipelineLayout = _pipelineHandler->GetPipelineLayout(graphicsPipelineID);
+
+        VkDescriptorSet textureDescriptor = _textureHandler->GetDescriptorSet(textureID);
+
+        // Bind descriptor set
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, slot, 1, &textureDescriptor, 0, nullptr);
+    }
+
+    void RendererVK::SetTextureArray(CommandListID commandListID, u32 slot, TextureArrayID textureArrayID)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+        GraphicsPipelineID graphicsPipelineID = _commandListHandler->GetBoundGraphicsPipeline(commandListID);
+        VkPipelineLayout pipelineLayout = _pipelineHandler->GetPipelineLayout(graphicsPipelineID);
+
+        VkDescriptorSet textureArrayDescriptor = _textureHandler->GetDescriptorSet(textureArrayID);
+
+        // Bind descriptor set
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, slot, 1, &textureArrayDescriptor, 0, nullptr);
     }
 
     void RendererVK::Present(Window* window, ImageID imageID)

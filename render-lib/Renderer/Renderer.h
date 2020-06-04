@@ -18,6 +18,7 @@
 #include "Descriptors/ComputeShaderDesc.h"
 #include "Descriptors/ImageDesc.h"
 #include "Descriptors/TextureDesc.h"
+#include "Descriptors/TextureArrayDesc.h"
 #include "Descriptors/DepthImageDesc.h"
 #include "Descriptors/ModelDesc.h"
 #include "Descriptors/SamplerDesc.h"
@@ -60,10 +61,13 @@ namespace Renderer
         virtual void UpdatePrimitiveModel(ModelID model, PrimitiveModelDesc& desc) = 0;
 
         virtual TextureID CreateDataTexture(DataTextureDesc& desc) = 0;
+        virtual TextureArrayID CreateTextureArray(TextureArrayDesc& desc) = 0;
 
         // Loading
         virtual ModelID LoadModel(ModelDesc& desc) = 0;
+
         virtual TextureID LoadTexture(TextureDesc& desc) = 0;
+        virtual TextureID LoadTextureIntoArray(TextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) = 0;
 
         virtual VertexShaderID LoadShader(VertexShaderDesc& desc) = 0;
         virtual PixelShaderID LoadShader(PixelShaderDesc& desc) = 0;
@@ -75,6 +79,7 @@ namespace Renderer
         virtual void Clear(CommandListID commandList, ImageID image, Color color) = 0;
         virtual void Clear(CommandListID commandList, DepthImageID image, DepthClearFlags clearFlags, f32 depth, u8 stencil) = 0;
         virtual void Draw(CommandListID commandList, ModelID model) = 0;
+        virtual void DrawInstanced(CommandListID commandList, ModelID model, u32 count) = 0;
         virtual void PopMarker(CommandListID commandList) = 0;
         virtual void PushMarker(CommandListID commandList, Color color, std::string name) = 0;
         virtual void SetConstantBuffer(CommandListID commandListID, u32 slot, void* gpuResource, size_t frameIndex) = 0;
@@ -83,7 +88,9 @@ namespace Renderer
         virtual void SetPipeline(CommandListID commandList, ComputePipelineID pipeline) = 0;
         virtual void SetScissorRect(CommandListID commandList, ScissorRect scissorRect) = 0;
         virtual void SetViewport(CommandListID commandList, Viewport viewport) = 0;
-        virtual void SetTextureSampler(CommandListID commandList, u32 slot, TextureID texture, SamplerID sampler) = 0;
+        virtual void SetSampler(CommandListID commandList, u32 slot, SamplerID sampler) = 0;
+        virtual void SetTexture(CommandListID commandList, u32 slot, TextureID texture) = 0;
+        virtual void SetTextureArray(CommandListID commandList, u32 slot, TextureArrayID textureArray) = 0;
 
         // Non-commandlist based present functions
         virtual void Present(Window* window, ImageID image) = 0;

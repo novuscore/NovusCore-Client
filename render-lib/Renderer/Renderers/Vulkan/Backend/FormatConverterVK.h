@@ -103,35 +103,35 @@ namespace Renderer
                 switch (format)
                 {
                     // 4 bytes per component
-                    case INPUT_FORMAT_R32G32B32A32_FLOAT:   return 16;
-                    case INPUT_FORMAT_R32G32B32A32_UINT:    return 16;
-                    case INPUT_FORMAT_R32G32B32A32_SINT:    return 16;
-                    case INPUT_FORMAT_R32G32B32_FLOAT:      return 12;
-                    case INPUT_FORMAT_R32G32B32_UINT:       return 12;
-                    case INPUT_FORMAT_R32G32B32_SINT:       return 12;
-                    case INPUT_FORMAT_R32G32_FLOAT:         return 8;
-                    case INPUT_FORMAT_R32G32_UINT:          return 8;
-                    case INPUT_FORMAT_R32G32_SINT:          return 8;
-                    case INPUT_FORMAT_R32_FLOAT:            return 4;
-                    case INPUT_FORMAT_R32_UINT:             return 4;
-                    case INPUT_FORMAT_R32_SINT:             return 4;
+                case INPUT_FORMAT_R32G32B32A32_FLOAT:   return 16;
+                case INPUT_FORMAT_R32G32B32A32_UINT:    return 16;
+                case INPUT_FORMAT_R32G32B32A32_SINT:    return 16;
+                case INPUT_FORMAT_R32G32B32_FLOAT:      return 12;
+                case INPUT_FORMAT_R32G32B32_UINT:       return 12;
+                case INPUT_FORMAT_R32G32B32_SINT:       return 12;
+                case INPUT_FORMAT_R32G32_FLOAT:         return 8;
+                case INPUT_FORMAT_R32G32_UINT:          return 8;
+                case INPUT_FORMAT_R32G32_SINT:          return 8;
+                case INPUT_FORMAT_R32_FLOAT:            return 4;
+                case INPUT_FORMAT_R32_UINT:             return 4;
+                case INPUT_FORMAT_R32_SINT:             return 4;
                     // 2 bytes per component
-                    case INPUT_FORMAT_R16G16B16A16_FLOAT:   return 8;
-                    case INPUT_FORMAT_R16G16B16A16_UINT:    return 8;
-                    case INPUT_FORMAT_R16G16B16A16_SINT:    return 8;
-                    case INPUT_FORMAT_R16G16_FLOAT:         return 4;
-                    case INPUT_FORMAT_R16G16_UINT:          return 4;
-                    case INPUT_FORMAT_R16G16_SINT:          return 4;
-                    case INPUT_FORMAT_R16_FLOAT:            return 2;
-                    case INPUT_FORMAT_R16_UINT:             return 2;
-                    case INPUT_FORMAT_R16_SINT:             return 2;
+                case INPUT_FORMAT_R16G16B16A16_FLOAT:   return 8;
+                case INPUT_FORMAT_R16G16B16A16_UINT:    return 8;
+                case INPUT_FORMAT_R16G16B16A16_SINT:    return 8;
+                case INPUT_FORMAT_R16G16_FLOAT:         return 4;
+                case INPUT_FORMAT_R16G16_UINT:          return 4;
+                case INPUT_FORMAT_R16G16_SINT:          return 4;
+                case INPUT_FORMAT_R16_FLOAT:            return 2;
+                case INPUT_FORMAT_R16_UINT:             return 2;
+                case INPUT_FORMAT_R16_SINT:             return 2;
                     // 1 byte per component
-                    case INPUT_FORMAT_R8G8B8A8_UINT:        return 4;
-                    case INPUT_FORMAT_R8G8B8A8_SINT:        return 4;
-                    case INPUT_FORMAT_R8G8_UINT:            return 2;
-                    case INPUT_FORMAT_R8G8_SINT:            return 2;
-                    case INPUT_FORMAT_R8_UINT:              return 1;
-                    case INPUT_FORMAT_R8_SINT:              return 1;
+                case INPUT_FORMAT_R8G8B8A8_UINT:        return 4;
+                case INPUT_FORMAT_R8G8B8A8_SINT:        return 4;
+                case INPUT_FORMAT_R8G8_UINT:            return 2;
+                case INPUT_FORMAT_R8G8_SINT:            return 2;
+                case INPUT_FORMAT_R8_UINT:              return 1;
+                case INPUT_FORMAT_R8_SINT:              return 1;
                 default:
                     NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more input formats?");
                 }
@@ -144,35 +144,35 @@ namespace Renderer
                 switch (format)
                 {
                     // 4 bytes per component
-                    case InputFormat::INPUT_FORMAT_R32G32B32A32_FLOAT:   return VK_FORMAT_R32G32B32A32_SFLOAT;
-                    case InputFormat::INPUT_FORMAT_R32G32B32A32_UINT:    return VK_FORMAT_R32G32B32A32_UINT;
-                    case InputFormat::INPUT_FORMAT_R32G32B32A32_SINT:    return VK_FORMAT_R32G32B32A32_SINT;
-                    case InputFormat::INPUT_FORMAT_R32G32B32_FLOAT:      return VK_FORMAT_R32G32B32_SFLOAT;
-                    case InputFormat::INPUT_FORMAT_R32G32B32_UINT:       return VK_FORMAT_R32G32B32_UINT;
-                    case InputFormat::INPUT_FORMAT_R32G32B32_SINT:       return VK_FORMAT_R32G32B32_SINT;
-                    case InputFormat::INPUT_FORMAT_R32G32_FLOAT:         return VK_FORMAT_R32G32_SFLOAT;
-                    case InputFormat::INPUT_FORMAT_R32G32_UINT:          return VK_FORMAT_R32G32_UINT;
-                    case InputFormat::INPUT_FORMAT_R32G32_SINT:          return VK_FORMAT_R32G32_SINT;
-                    case InputFormat::INPUT_FORMAT_R32_FLOAT:            return VK_FORMAT_R32_SFLOAT;
-                    case InputFormat::INPUT_FORMAT_R32_UINT:             return VK_FORMAT_R32_UINT;
-                    case InputFormat::INPUT_FORMAT_R32_SINT:             return VK_FORMAT_R32_SINT;
+                case InputFormat::INPUT_FORMAT_R32G32B32A32_FLOAT:   return VK_FORMAT_R32G32B32A32_SFLOAT;
+                case InputFormat::INPUT_FORMAT_R32G32B32A32_UINT:    return VK_FORMAT_R32G32B32A32_UINT;
+                case InputFormat::INPUT_FORMAT_R32G32B32A32_SINT:    return VK_FORMAT_R32G32B32A32_SINT;
+                case InputFormat::INPUT_FORMAT_R32G32B32_FLOAT:      return VK_FORMAT_R32G32B32_SFLOAT;
+                case InputFormat::INPUT_FORMAT_R32G32B32_UINT:       return VK_FORMAT_R32G32B32_UINT;
+                case InputFormat::INPUT_FORMAT_R32G32B32_SINT:       return VK_FORMAT_R32G32B32_SINT;
+                case InputFormat::INPUT_FORMAT_R32G32_FLOAT:         return VK_FORMAT_R32G32_SFLOAT;
+                case InputFormat::INPUT_FORMAT_R32G32_UINT:          return VK_FORMAT_R32G32_UINT;
+                case InputFormat::INPUT_FORMAT_R32G32_SINT:          return VK_FORMAT_R32G32_SINT;
+                case InputFormat::INPUT_FORMAT_R32_FLOAT:            return VK_FORMAT_R32_SFLOAT;
+                case InputFormat::INPUT_FORMAT_R32_UINT:             return VK_FORMAT_R32_UINT;
+                case InputFormat::INPUT_FORMAT_R32_SINT:             return VK_FORMAT_R32_SINT;
                     // 2 bytes per component
-                    case InputFormat::INPUT_FORMAT_R16G16B16A16_FLOAT:   return VK_FORMAT_R16G16B16A16_SFLOAT;
-                    case InputFormat::INPUT_FORMAT_R16G16B16A16_UINT:    return VK_FORMAT_R16G16B16A16_UINT;
-                    case InputFormat::INPUT_FORMAT_R16G16B16A16_SINT:    return VK_FORMAT_R16G16B16A16_SINT;
-                    case InputFormat::INPUT_FORMAT_R16G16_FLOAT:         return VK_FORMAT_R16G16_SFLOAT;
-                    case InputFormat::INPUT_FORMAT_R16G16_UINT:          return VK_FORMAT_R16G16_UINT;
-                    case InputFormat::INPUT_FORMAT_R16G16_SINT:          return VK_FORMAT_R16G16_SINT;
-                    case InputFormat::INPUT_FORMAT_R16_FLOAT:            return VK_FORMAT_R16_SFLOAT;
-                    case InputFormat::INPUT_FORMAT_R16_UINT:             return VK_FORMAT_R16_UINT;
-                    case InputFormat::INPUT_FORMAT_R16_SINT:             return VK_FORMAT_R16_SINT;
+                case InputFormat::INPUT_FORMAT_R16G16B16A16_FLOAT:   return VK_FORMAT_R16G16B16A16_SFLOAT;
+                case InputFormat::INPUT_FORMAT_R16G16B16A16_UINT:    return VK_FORMAT_R16G16B16A16_UINT;
+                case InputFormat::INPUT_FORMAT_R16G16B16A16_SINT:    return VK_FORMAT_R16G16B16A16_SINT;
+                case InputFormat::INPUT_FORMAT_R16G16_FLOAT:         return VK_FORMAT_R16G16_SFLOAT;
+                case InputFormat::INPUT_FORMAT_R16G16_UINT:          return VK_FORMAT_R16G16_UINT;
+                case InputFormat::INPUT_FORMAT_R16G16_SINT:          return VK_FORMAT_R16G16_SINT;
+                case InputFormat::INPUT_FORMAT_R16_FLOAT:            return VK_FORMAT_R16_SFLOAT;
+                case InputFormat::INPUT_FORMAT_R16_UINT:             return VK_FORMAT_R16_UINT;
+                case InputFormat::INPUT_FORMAT_R16_SINT:             return VK_FORMAT_R16_SINT;
                     // 1 byte per component
-                    case InputFormat::INPUT_FORMAT_R8G8B8A8_UINT:        return VK_FORMAT_R8G8B8A8_UINT;
-                    case InputFormat::INPUT_FORMAT_R8G8B8A8_SINT:        return VK_FORMAT_R8G8B8A8_SINT;
-                    case InputFormat::INPUT_FORMAT_R8G8_UINT:            return VK_FORMAT_R8G8_UINT;
-                    case InputFormat::INPUT_FORMAT_R8G8_SINT:            return VK_FORMAT_R8G8_SINT;
-                    case InputFormat::INPUT_FORMAT_R8_UINT:              return VK_FORMAT_R8_UINT;
-                    case InputFormat::INPUT_FORMAT_R8_SINT:              return VK_FORMAT_R8_SINT;
+                case InputFormat::INPUT_FORMAT_R8G8B8A8_UINT:        return VK_FORMAT_R8G8B8A8_UINT;
+                case InputFormat::INPUT_FORMAT_R8G8B8A8_SINT:        return VK_FORMAT_R8G8B8A8_SINT;
+                case InputFormat::INPUT_FORMAT_R8G8_UINT:            return VK_FORMAT_R8G8_UINT;
+                case InputFormat::INPUT_FORMAT_R8G8_SINT:            return VK_FORMAT_R8G8_SINT;
+                case InputFormat::INPUT_FORMAT_R8_UINT:              return VK_FORMAT_R8_UINT;
+                case InputFormat::INPUT_FORMAT_R8_SINT:              return VK_FORMAT_R8_SINT;
                 default:
                     NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more input formats?");
                 }
@@ -184,8 +184,8 @@ namespace Renderer
             {
                 switch (fillMode)
                 {
-                    case FillMode::FILL_MODE_SOLID:     return VK_POLYGON_MODE_FILL;
-                    case FillMode::FILL_MODE_WIREFRAME: return VK_POLYGON_MODE_LINE;
+                case FillMode::FILL_MODE_SOLID:     return VK_POLYGON_MODE_FILL;
+                case FillMode::FILL_MODE_WIREFRAME: return VK_POLYGON_MODE_LINE;
                 default:
                     NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more fillmodes?");
                 }
@@ -197,9 +197,9 @@ namespace Renderer
             {
                 switch (cullMode)
                 {
-                    case CullMode::CULL_MODE_NONE: return VK_CULL_MODE_NONE;
-                    case CullMode::CULL_MODE_FRONT: return VK_CULL_MODE_FRONT_BIT;
-                    case CullMode::CULL_MODE_BACK: return VK_CULL_MODE_BACK_BIT;
+                case CullMode::CULL_MODE_NONE: return VK_CULL_MODE_NONE;
+                case CullMode::CULL_MODE_FRONT: return VK_CULL_MODE_FRONT_BIT;
+                case CullMode::CULL_MODE_BACK: return VK_CULL_MODE_BACK_BIT;
                 default:
                     NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more cullmodes?");
                 }
@@ -211,8 +211,8 @@ namespace Renderer
             {
                 switch (frontFaceState)
                 {
-                    case FrontFaceState::FRONT_FACE_STATE_CLOCKWISE:        return VK_FRONT_FACE_CLOCKWISE;
-                    case FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE: return VK_FRONT_FACE_COUNTER_CLOCKWISE;
+                case FrontFaceState::FRONT_FACE_STATE_CLOCKWISE:        return VK_FRONT_FACE_CLOCKWISE;
+                case FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE: return VK_FRONT_FACE_COUNTER_CLOCKWISE;
                 default:
                     NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more frontface states?");
                 }
@@ -224,23 +224,23 @@ namespace Renderer
             {
                 switch (blendMode)
                 {
-                    case BlendMode::BLEND_MODE_ZERO:                return VK_BLEND_FACTOR_ZERO;
-                    case BlendMode::BLEND_MODE_ONE:                 return VK_BLEND_FACTOR_ONE;
-                    case BlendMode::BLEND_MODE_SRC_COLOR:           return VK_BLEND_FACTOR_SRC_COLOR;
-                    case BlendMode::BLEND_MODE_INV_SRC_COLOR:       return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
-                    case BlendMode::BLEND_MODE_SRC_ALPHA:           return VK_BLEND_FACTOR_SRC_ALPHA;
-                    case BlendMode::BLEND_MODE_INV_SRC_ALPHA:       return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-                    case BlendMode::BLEND_MODE_DEST_ALPHA:          return VK_BLEND_FACTOR_DST_ALPHA;
-                    case BlendMode::BLEND_MODE_INV_DEST_ALPHA:      return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
-                    case BlendMode::BLEND_MODE_DEST_COLOR:          return VK_BLEND_FACTOR_DST_COLOR;
-                    case BlendMode::BLEND_MODE_INV_DEST_COLOR:      return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-                    case BlendMode::BLEND_MODE_SRC_ALPHA_SAT:       return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
-                    case BlendMode::BLEND_MODE_BLEND_FACTOR:        return VK_BLEND_FACTOR_CONSTANT_COLOR;
-                    case BlendMode::BLEND_MODE_INV_BLEND_FACTOR:    return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
-                    case BlendMode::BLEND_MODE_SRC1_COLOR:          return VK_BLEND_FACTOR_SRC1_COLOR;
-                    case BlendMode::BLEND_MODE_INV_SRC1_COLOR:      return VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
-                    case BlendMode::BLEND_MODE_SRC1_ALPHA:          return VK_BLEND_FACTOR_SRC1_ALPHA;
-                    case BlendMode::BLEND_MODE_INV_SRC1_ALPHA:      return VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
+                case BlendMode::BLEND_MODE_ZERO:                return VK_BLEND_FACTOR_ZERO;
+                case BlendMode::BLEND_MODE_ONE:                 return VK_BLEND_FACTOR_ONE;
+                case BlendMode::BLEND_MODE_SRC_COLOR:           return VK_BLEND_FACTOR_SRC_COLOR;
+                case BlendMode::BLEND_MODE_INV_SRC_COLOR:       return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+                case BlendMode::BLEND_MODE_SRC_ALPHA:           return VK_BLEND_FACTOR_SRC_ALPHA;
+                case BlendMode::BLEND_MODE_INV_SRC_ALPHA:       return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                case BlendMode::BLEND_MODE_DEST_ALPHA:          return VK_BLEND_FACTOR_DST_ALPHA;
+                case BlendMode::BLEND_MODE_INV_DEST_ALPHA:      return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+                case BlendMode::BLEND_MODE_DEST_COLOR:          return VK_BLEND_FACTOR_DST_COLOR;
+                case BlendMode::BLEND_MODE_INV_DEST_COLOR:      return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+                case BlendMode::BLEND_MODE_SRC_ALPHA_SAT:       return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
+                case BlendMode::BLEND_MODE_BLEND_FACTOR:        return VK_BLEND_FACTOR_CONSTANT_COLOR;
+                case BlendMode::BLEND_MODE_INV_BLEND_FACTOR:    return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
+                case BlendMode::BLEND_MODE_SRC1_COLOR:          return VK_BLEND_FACTOR_SRC1_COLOR;
+                case BlendMode::BLEND_MODE_INV_SRC1_COLOR:      return VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
+                case BlendMode::BLEND_MODE_SRC1_ALPHA:          return VK_BLEND_FACTOR_SRC1_ALPHA;
+                case BlendMode::BLEND_MODE_INV_SRC1_ALPHA:      return VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
                 default:
                     NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more blend modes?");
                 }
@@ -252,11 +252,11 @@ namespace Renderer
             {
                 switch (blendOp)
                 {
-                    case BlendOp::BLEND_OP_ADD:             return VK_BLEND_OP_ADD;
-                    case BlendOp::BLEND_OP_SUBTRACT:        return VK_BLEND_OP_SUBTRACT;
-                    case BlendOp::BLEND_OP_REV_SUBTRACT:    return VK_BLEND_OP_REVERSE_SUBTRACT;
-                    case BlendOp::BLEND_OP_MIN:             return VK_BLEND_OP_MIN;
-                    case BlendOp::BLEND_OP_MAX:             return VK_BLEND_OP_MAX;
+                case BlendOp::BLEND_OP_ADD:             return VK_BLEND_OP_ADD;
+                case BlendOp::BLEND_OP_SUBTRACT:        return VK_BLEND_OP_SUBTRACT;
+                case BlendOp::BLEND_OP_REV_SUBTRACT:    return VK_BLEND_OP_REVERSE_SUBTRACT;
+                case BlendOp::BLEND_OP_MIN:             return VK_BLEND_OP_MIN;
+                case BlendOp::BLEND_OP_MAX:             return VK_BLEND_OP_MAX;
                 default:
                     NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more blend ops?");
                 }
@@ -309,18 +309,18 @@ namespace Renderer
 
             static inline VkCompareOp ToVkCompareOp(const ComparisonFunc comparisonFunc)
             {
-                switch(comparisonFunc)
+                switch (comparisonFunc)
                 {
-                    case ComparisonFunc::COMPARISON_FUNC_NEVER:         return VK_COMPARE_OP_NEVER;
-                    case ComparisonFunc::COMPARISON_FUNC_LESS:          return VK_COMPARE_OP_LESS;
-                    case ComparisonFunc::COMPARISON_FUNC_EQUAL:         return VK_COMPARE_OP_EQUAL;
-                    case ComparisonFunc::COMPARISON_FUNC_LESS_EQUAL:    return VK_COMPARE_OP_LESS_OR_EQUAL;
-                    case ComparisonFunc::COMPARISON_FUNC_GREATER:       return VK_COMPARE_OP_GREATER;
-                    case ComparisonFunc::COMPARISON_FUNC_NOT_EQUAL:     return VK_COMPARE_OP_NOT_EQUAL;
-                    case ComparisonFunc::COMPARISON_FUNC_GREATER_EQUAL: return VK_COMPARE_OP_GREATER_OR_EQUAL;
-                    case ComparisonFunc::COMPARISON_FUNC_ALWAYS:        return VK_COMPARE_OP_ALWAYS;
-                    default:
-                        NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more comparison ops?");
+                case ComparisonFunc::COMPARISON_FUNC_NEVER:         return VK_COMPARE_OP_NEVER;
+                case ComparisonFunc::COMPARISON_FUNC_LESS:          return VK_COMPARE_OP_LESS;
+                case ComparisonFunc::COMPARISON_FUNC_EQUAL:         return VK_COMPARE_OP_EQUAL;
+                case ComparisonFunc::COMPARISON_FUNC_LESS_EQUAL:    return VK_COMPARE_OP_LESS_OR_EQUAL;
+                case ComparisonFunc::COMPARISON_FUNC_GREATER:       return VK_COMPARE_OP_GREATER;
+                case ComparisonFunc::COMPARISON_FUNC_NOT_EQUAL:     return VK_COMPARE_OP_NOT_EQUAL;
+                case ComparisonFunc::COMPARISON_FUNC_GREATER_EQUAL: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+                case ComparisonFunc::COMPARISON_FUNC_ALWAYS:        return VK_COMPARE_OP_ALWAYS;
+                default:
+                    NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more comparison ops?");
                 }
 
                 return VK_COMPARE_OP_NEVER;
@@ -328,18 +328,18 @@ namespace Renderer
 
             static inline VkStencilOp ToVkStencilOp(const StencilOp stencilOp)
             {
-                switch(stencilOp)
+                switch (stencilOp)
                 {
-                    case StencilOp::STENCIL_OP_KEEP: return VK_STENCIL_OP_KEEP;
-                    case StencilOp::STENCIL_OP_ZERO: return VK_STENCIL_OP_ZERO;
-                    case StencilOp::STENCIL_OP_REPLACE: return VK_STENCIL_OP_REPLACE;
-                    case StencilOp::STENCIL_OP_INCR_SAT: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
-                    case StencilOp::STENCIL_OP_DECR_SAT: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
-                    case StencilOp::STENCIL_OP_INVERT: return VK_STENCIL_OP_INVERT;
-                    case StencilOp::STENCIL_OP_INCR: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
-                    case StencilOp::STENCIL_OP_DECR: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
-                    default:
-                        NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more stencil ops?");
+                case StencilOp::STENCIL_OP_KEEP: return VK_STENCIL_OP_KEEP;
+                case StencilOp::STENCIL_OP_ZERO: return VK_STENCIL_OP_ZERO;
+                case StencilOp::STENCIL_OP_REPLACE: return VK_STENCIL_OP_REPLACE;
+                case StencilOp::STENCIL_OP_INCR_SAT: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+                case StencilOp::STENCIL_OP_DECR_SAT: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+                case StencilOp::STENCIL_OP_INVERT: return VK_STENCIL_OP_INVERT;
+                case StencilOp::STENCIL_OP_INCR: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+                case StencilOp::STENCIL_OP_DECR: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+                default:
+                    NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more stencil ops?");
                 }
 
                 return VK_STENCIL_OP_KEEP;

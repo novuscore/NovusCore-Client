@@ -72,7 +72,7 @@ namespace Renderer
             for (int i = 0; i < numAttachments; i++)
             {
                 ImageID imageID = desc.MutableResourceToImageID(desc.renderTargets[i]);
-                const ImageDesc& imageDesc = imageHandler->GetDescriptor(imageID);
+                const ImageDesc& imageDesc = imageHandler->GetImageDesc(imageID);
                 attachments[i].format = FormatConverterVK::ToVkFormat(imageDesc.format);
                 attachments[i].samples = FormatConverterVK::ToVkSampleCount(imageDesc.sampleCount);
                 attachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -95,7 +95,7 @@ namespace Renderer
             if (desc.depthStencil != RenderPassMutableResource::Invalid())
             {
                 DepthImageID depthImageID = desc.MutableResourceToDepthImageID(desc.depthStencil);
-                const DepthImageDesc& imageDesc = imageHandler->GetDescriptor(depthImageID);
+                const DepthImageDesc& imageDesc = imageHandler->GetDepthImageDesc(depthImageID);
 
                 u32 attachmentSlot = numAttachments++;
                 

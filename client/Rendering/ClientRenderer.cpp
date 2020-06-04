@@ -57,7 +57,10 @@ ClientRenderer::ClientRenderer()
     glfwSetMouseButtonCallback(_window->GetWindow(), mouse_callback);
     glfwSetCursorPosCallback(_window->GetWindow(), cursor_position_callback);
 
-    _renderer = new Renderer::RendererVK();
+    Renderer::TextureDesc debugTexture;
+    debugTexture.path = "Data/textures/DebugTexture.bmp";
+    
+    _renderer = new Renderer::RendererVK(debugTexture);
     _renderer->InitWindow(_window);
 
     CreatePermanentResources();
@@ -301,8 +304,9 @@ void ClientRenderer::Render()
             // Set view constant buffer
             commandList.SetConstantBuffer(0, _viewConstantBuffer->GetGPUResource(_frameIndex), _frameIndex);
 
-            // Set texture-sampler pair
-            commandList.SetTextureSampler(2, _cubeTexture, _linearSampler);
+            // Set sampler and texture
+            commandList.SetSampler(2, _linearSampler);
+            commandList.SetTexture(3, _cubeTexture);
 
             // Render main layer
             Renderer::RenderLayer& mainLayer = _renderer->GetRenderLayer(MAIN_RENDER_LAYER);

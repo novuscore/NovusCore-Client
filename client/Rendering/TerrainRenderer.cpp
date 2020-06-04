@@ -57,11 +57,11 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
 
             // Shaders
             Renderer::VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "Data/shaders/test.vert.spv";
+            vertexShaderDesc.path = "Data/shaders/terrain.vert.spv";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
             Renderer::PixelShaderDesc pixelShaderDesc;
-            pixelShaderDesc.path = "Data/shaders/test.frag.spv";
+            pixelShaderDesc.path = "Data/shaders/terrain.frag.spv";
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
             // Constant buffers  TODO: Improve on this, if I set state 0 and 3 it won't work etc...
@@ -124,8 +124,10 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             // Set view constant buffer
             commandList.SetConstantBuffer(0, viewConstantBuffer.GetGPUResource(frameIndex), frameIndex);
 
-            // Set texture-sampler pair
-            commandList.SetTextureSampler(2, _terrainTexture, _linearSampler);
+            // Set sampler and texture
+            commandList.SetSampler(2, _linearSampler);
+            commandList.SetTextureArray(3, _terrainTextureArray);
+            //commandList.SetTexture(3, _terrainTexture);
 
             // Render main layer
             Renderer::RenderLayer& mainLayer = _renderer->GetRenderLayer("Terrain"_h);
@@ -141,7 +143,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                     commandList.SetConstantBuffer(1, instance->GetGPUResource(frameIndex), frameIndex);
 
                     // Draw
-                    commandList.Draw(modelID);
+                    commandList.DrawInstanced(modelID, Terrain::MAP_CELLS_PER_CHUNK);
                 }
             }
             commandList.EndPipeline(pipeline);
@@ -158,11 +160,18 @@ void TerrainRenderer::CreatePermanentResources()
     Terrain::Map& map = mapSingleton.maps[0];
     LoadChunksAround(map, ivec2(31, 49), 5);
 
-    // Texture
-    Renderer::TextureDesc textureDesc;
-    textureDesc.path = "Data/textures/debug.jpg";
+    // Create texture array
+    Renderer::TextureArrayDesc textureSetDesc;
+    textureSetDesc.size = 4096;
 
-    _terrainTexture = _renderer->LoadTexture(textureDesc);
+    _terrainTextureArray = _renderer->CreateTextureArray(textureSetDesc);
+
+    // Create texture inside of texture set
+    Renderer::TextureDesc textureDesc;
+    textureDesc.path = "Data/textures/debug.dds";
+
+    u32 arrayIndex;
+    _terrainTexture = _renderer->LoadTextureIntoArray(textureDesc, _terrainTextureArray, arrayIndex);
 
     // Sampler
     Renderer::SamplerDesc samplerDesc;
@@ -195,13 +204,28 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
     chunkVertices.resize(numVertices);
 
     std::vector<u32>& chunkIndices = chunkModelDesc.indices;
-    const size_t numIndices = Terrain::MAP_CELLS_PER_CHUNK * Terrain::CELL_TOTAL_GRID_SIZE * 4 * 3;
+    const size_t numIndices = Terrain::CELL_TOTAL_GRID_SIZE * 4 * 3;
     chunkIndices.reserve(numIndices);
+
+    std::vector<u32> textureIds;
 
     // Loop over all the cells in the chunk
     for (int i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i++)
     {
         Terrain::Cell& cell = chunk.cells[i];
+
+        for (auto layer : cell.layers)
+        {
+            if (layer.textureId == Terrain::LayerData::TextureIdInvalid)
+            {
+                break;
+            }
+
+            if (std::find(textureIds.begin(), textureIds.end(), layer.textureId) == textureIds.end())
+            {
+                textureIds.push_back(layer.textureId);
+            }
+        }
 
         const f32 cellPosX = static_cast<f32>(i % Terrain::MAP_CELLS_PER_CHUNK_SIDE) * Terrain::CELL_SIZE;
         const f32 cellPosZ = static_cast<f32>(i / Terrain::MAP_CELLS_PER_CHUNK_SIDE) * Terrain::CELL_SIZE;
@@ -223,59 +247,67 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
 
                 chunkVertices[vertex + cellOffset].pos = vec3(vertexPosX + cellPosX, vertexPosY, vertexPosZ + cellPosZ);
 
-                f32 u = 1.0f - static_cast<f32>(row) / static_cast<f32>(Terrain::CELL_TOTAL_GRID_SIDE);
-                f32 v = (static_cast<f32>(col) / static_cast<f32>(rowLength));
+                f32 u = static_cast<f32>(vertex % 17);
+                f32 v = Math::Floor(static_cast<f32>(vertex) / 17.0f);
 
-                chunkVertices[vertex + cellOffset].texCoord = vec2(u, v); // TODO: Actual texcoords for terrain
+                // Handle UV offsets for the inner array
+                if (u > 8.01f) 
+                {
+                    v = v + 0.5f;
+                    u = u - 8.5f;
+                }
+
+                chunkVertices[vertex + cellOffset].texCoord = vec2(u, v);
                 chunkVertices[vertex + cellOffset].normal = vec3(0.0f, 1.0f, 0.0f); // TODO: Actual normals for  terrain
 
                 vertex++;
             }
         }
+    }
 
-        // Indices
-        for (i32 row = 0; row < Terrain::CELL_INNER_GRID_SIDE; row++)
+    // Indices
+    for (i32 row = 0; row < Terrain::CELL_INNER_GRID_SIDE; row++)
+    {
+        for (i32 col = 0; col < Terrain::CELL_INNER_GRID_SIDE; col++)
         {
-            for (i32 col = 0; col < Terrain::CELL_INNER_GRID_SIDE; col++)
-            {
-                i32 baseVertex = (row * Terrain::CELL_TOTAL_GRID_SIDE + col) + static_cast<i32>(cellOffset);
+            i32 baseVertex = (row * Terrain::CELL_TOTAL_GRID_SIDE + col);
 
-                //1     2
-                //   0
-                //3     4
+            //1     2
+            //   0
+            //3     4
 
-                i32 topLeftVertex = baseVertex;
-                i32 topRightVertex = baseVertex + 1;
-                i32 bottomLeftVertex = baseVertex + Terrain::CELL_TOTAL_GRID_SIDE;
-                i32 bottomRightVertex = baseVertex + Terrain::CELL_TOTAL_GRID_SIDE + 1;
-                i32 centerVertex = baseVertex + Terrain::CELL_OUTER_GRID_SIDE;
+            i32 topLeftVertex = baseVertex;
+            i32 topRightVertex = baseVertex + 1;
+            i32 bottomLeftVertex = baseVertex + Terrain::CELL_TOTAL_GRID_SIDE;
+            i32 bottomRightVertex = baseVertex + Terrain::CELL_TOTAL_GRID_SIDE + 1;
+            i32 centerVertex = baseVertex + Terrain::CELL_OUTER_GRID_SIDE;
 
-                // Up triangle
-                chunkIndices.push_back(centerVertex);
-                chunkIndices.push_back(topLeftVertex);
-                chunkIndices.push_back(topRightVertex);
-                
-                // Left triangle
-                chunkIndices.push_back(centerVertex);
-                chunkIndices.push_back(bottomLeftVertex);
-                chunkIndices.push_back(topLeftVertex);
+            // Up triangle
+            chunkIndices.push_back(centerVertex);
+            chunkIndices.push_back(topLeftVertex);
+            chunkIndices.push_back(topRightVertex);
 
-                // Down triangle
-                chunkIndices.push_back(centerVertex);
-                chunkIndices.push_back(bottomRightVertex);
-                chunkIndices.push_back(bottomLeftVertex);
+            // Left triangle
+            chunkIndices.push_back(centerVertex);
+            chunkIndices.push_back(bottomLeftVertex);
+            chunkIndices.push_back(topLeftVertex);
 
-                // Right triangle
-                chunkIndices.push_back(centerVertex);
-                chunkIndices.push_back(topRightVertex);
-                chunkIndices.push_back(bottomRightVertex);
-            }
+            // Down triangle
+            chunkIndices.push_back(centerVertex);
+            chunkIndices.push_back(bottomRightVertex);
+            chunkIndices.push_back(bottomLeftVertex);
+
+            // Right triangle
+            chunkIndices.push_back(centerVertex);
+            chunkIndices.push_back(topRightVertex);
+            chunkIndices.push_back(bottomRightVertex);
         }
     }
 
     Renderer::ModelID chunkModel = _renderer->CreatePrimitiveModel(chunkModelDesc);
     _chunkModels.push_back(chunkModel);
 
+    // Load all the textures, and combine them into a texture array
     Renderer::InstanceData chunkInstance;
     chunkInstance.Init(_renderer);
     

@@ -1,7 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
 #include "../Descriptors/ModelDesc.h"
-#include "../InstanceData.h"
 
 namespace Renderer
 {

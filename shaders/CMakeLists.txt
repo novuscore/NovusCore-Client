@@ -9,8 +9,9 @@ else()
 endif()
 
 file(GLOB_RECURSE GLSL_SOURCE_FILES
+  "*.geom"
+  "*.vert"
   "*.frag"
-	"*.vert"
 	"*.comp"
     )
 

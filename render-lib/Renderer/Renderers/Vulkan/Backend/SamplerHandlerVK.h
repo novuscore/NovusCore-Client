@@ -4,7 +4,6 @@
 #include <vulkan/vulkan.h>
 #include <robin_hood.h>
 
-#include "../../../Descriptors/TextureDesc.h"
 #include "../../../Descriptors/SamplerDesc.h"
 #include "../../../Descriptors/GraphicsPipelineDesc.h"
 
@@ -24,31 +23,32 @@ namespace Renderer
 
             SamplerID CreateSampler(RenderDeviceVK* device, const SamplerDesc& desc);
 
-            VkDescriptorSet GetCombinedSampler(RenderDeviceVK* device, TextureHandlerVK* textureHandler, PipelineHandlerVK* pipelineHandler, const SamplerID samplerID, const u32 slot, const TextureID textureID, const GraphicsPipelineID pipelineID);
+            //VkDescriptorSet GetCombinedSampler(RenderDeviceVK* device, TextureHandlerVK* textureHandler, PipelineHandlerVK* pipelineHandler, const SamplerID samplerID, const u32 slot, const TextureID textureID, const GraphicsPipelineID pipelineID);
+
+            VkDescriptorSet GetDescriptorSet(const SamplerID samplerID);
 
             const SamplerDesc& GetSamplerDesc(const SamplerID samplerID);
 
         private:
-            struct CombinedSampler
-            {
-                VkDescriptorPool descriptorPool = NULL;
-                VkDescriptorSet descriptorSet;
-            };
 
             using _SamplerID = type_safe::underlying_type<SamplerID>;
-            using _TextureID = type_safe::underlying_type<TextureID>;
-            struct SamplerContainer
+            struct Sampler
             {
                 u64 samplerHash;
                 SamplerDesc desc;
 
                 VkSampler sampler;
-                robin_hood::unordered_map<_TextureID, CombinedSampler> combinedSamplers;
+
+                VkDescriptorSetLayout descriptorSetLayout;
+                VkDescriptorPool descriptorPool = NULL;
+                VkDescriptorSet descriptorSet;
             };
 
         private:
-            u64 CalculateSamplerHash(const Sampler& desc);
-            bool TryFindExistingSamplerContainer(u64 descHash, size_t& id);
+            u64 CalculateSamplerHash(const SamplerDesc& desc);
+            //bool TryFindExistingSamplerContainer(u64 descHash, size_t& id);
+
+            bool TryFindExistingSampler(u64 descHash, size_t& id);
 
             VkFilter ToVkFilterMag(SamplerFilter filter);
             VkFilter ToVkFilterMin(SamplerFilter filter);
@@ -58,7 +58,9 @@ namespace Renderer
             VkCompareOp ToVkCompareOp(ComparisonFunc func);
 
         private:
-            std::vector<SamplerContainer> _samplerContainers;
+            //std::vector<SamplerContainer> _samplerContainers;
+
+            std::vector<Sampler> _samplers;
         };
     }
 }

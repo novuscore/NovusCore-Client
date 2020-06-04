@@ -1,7 +1,7 @@
 /*
     MIT License
 
-    Copyright (c) 2018-2019 NovusCore
+    Copyright (c) 2018-2020 NovusCore
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -58,6 +58,13 @@ namespace Terrain
         u32 layers;
         f32 liquidHeight = 0;
     };
+    
+    struct LayerData
+    {
+        static const u32 TextureIdInvalid = 9999;
+
+        u32 textureId = TextureIdInvalid;
+    };
 
     struct Cell
     {
@@ -68,6 +75,8 @@ namespace Terrain
         LiquidData liquidData;
 
         u16 hole = 0;
+
+        LayerData layers[4];
     };
 #pragma pack(pop)
 }

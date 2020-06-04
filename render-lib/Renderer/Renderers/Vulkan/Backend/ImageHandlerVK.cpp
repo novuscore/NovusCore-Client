@@ -219,7 +219,7 @@ namespace Renderer
             return DepthImageID(static_cast<type>(nextHandle));
         }
 
-        const ImageDesc& ImageHandlerVK::GetDescriptor(const ImageID id)
+        const ImageDesc& ImageHandlerVK::GetImageDesc(const ImageID id)
         {
             using type = type_safe::underlying_type<ImageID>;
 
@@ -228,7 +228,7 @@ namespace Renderer
             return _images[static_cast<type>(id)].desc;
         }
 
-        const DepthImageDesc& ImageHandlerVK::GetDescriptor(const DepthImageID id)
+        const DepthImageDesc& ImageHandlerVK::GetDepthImageDesc(const DepthImageID id)
         {
             using type = type_safe::underlying_type<DepthImageID>;
 

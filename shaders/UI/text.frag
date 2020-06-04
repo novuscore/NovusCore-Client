@@ -9,7 +9,8 @@ layout(set = 0, binding = 0) uniform SharedUniformBufferObject
 	float outlineWidth;
 } textUbo;
 
-layout(set = 1, binding = 0) uniform sampler2D texSampler;
+layout(set = 1, binding = 0) uniform sampler _sampler;
+layout(set = 2, binding = 0) uniform texture2D _texture;
 
 layout(location = 0) in vec2 fragTexCoord;
 
@@ -17,7 +18,7 @@ layout(location = 0) out vec4 outColor;
 
 void main() 
 {
-	float distance = texture(texSampler, fragTexCoord).r;
+	float distance = texture(sampler2D(_texture, _sampler), fragTexCoord).r;
 	float smoothWidth = fwidth(distance);
 	float alpha = smoothstep(0.5 - smoothWidth, 0.5 + smoothWidth, distance);
 	vec3 rgb = vec3(alpha) * textUbo.textColor.rgb;

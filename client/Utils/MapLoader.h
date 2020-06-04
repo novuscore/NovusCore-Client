@@ -27,7 +27,13 @@
 #include <entt.hpp>
 #include <vector>
 
-#include "../Gameplay/Map/Map.h"
+//#include "../Gameplay/Map/Map.h"
+
+class StringTable;
+namespace Terrain
+{
+    struct Chunk;
+}
 
 class MapLoader
 {
@@ -36,5 +42,5 @@ public:
     static bool Load(entt::registry& registry);
 
 private:
-    static bool ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk);
+    static bool ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk, StringTable& stringTable);
 };

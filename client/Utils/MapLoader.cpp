@@ -10,7 +10,7 @@
 bool MapLoader::Load(entt::registry& registry)
 {
     //size_t test = sizeof(NovusAdt);
-    std::filesystem::path absolutePath = std::filesystem::absolute("Data/maps");
+    std::filesystem::path absolutePath = std::filesystem::absolute("Data/extracted/maps");
     if (!std::filesystem::is_directory(absolutePath))
     {
         NC_LOG_ERROR("Failed to find maps folder");
@@ -35,7 +35,8 @@ bool MapLoader::Load(entt::registry& registry)
         }
 
         Terrain::Chunk chunk;
-        if (!ExtractChunkData(chunkFile, chunk))
+        StringTable stringTable;
+        if (!ExtractChunkData(chunkFile, chunk, stringTable))
         {
             NC_LOG_ERROR("Failed to load all maps");
             return false;
@@ -62,6 +63,7 @@ bool MapLoader::Load(entt::registry& registry)
 
         int chunkId = x + (y * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
         mapSingleton.maps[mapId].chunks[chunkId] = chunk;
+        mapSingleton.maps[mapId].stringTables[chunkId].CopyFrom(stringTable);
 
         loadedChunks++;
     }
@@ -76,12 +78,13 @@ bool MapLoader::Load(entt::registry& registry)
     return true;
 }
 
-bool MapLoader::ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk)
+bool MapLoader::ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk, StringTable& stringTable)
 {
     ByteBuffer buffer(nullptr, reader.Length());
     reader.Read(buffer, buffer.Size);
 
     buffer.Get<Terrain::Chunk>(chunk);
+    stringTable.Deserialize(buffer);
 
     return true;
 }

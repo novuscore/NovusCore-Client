@@ -17,6 +17,11 @@ namespace Renderer
         std::string path;
     };
 
+    struct InstancedModelDesc
+    {
+        std::string path;
+    };
+
     struct PrimitiveModelDesc
     {
         std::vector<Vertex> vertices;
@@ -27,4 +32,6 @@ namespace Renderer
 
     // Lets strong-typedef an ID type with the underlying type of u16
     STRONG_TYPEDEF(ModelID, u16);
+    STRONG_TYPEDEF(InstancedModelID, u16);
+
 }

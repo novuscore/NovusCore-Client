@@ -14,7 +14,7 @@ namespace Renderer
     {
         i32 width = 0;
         i32 height = 0;
-        i32 pixelSize;
+
         ImageFormat format;
         
         u8* data = nullptr;

@@ -25,6 +25,7 @@
 #include <NovusTypes.h>
 #include <robin_hood.h>
 #include <limits>
+#include <Containers/StringTable.h>
 #include "Chunk.h"
 
 // First of all, forget every naming convention wowdev.wiki uses, it's extremely confusing.
@@ -40,6 +41,7 @@ namespace Terrain
         u16 id;
         std::string name;
         robin_hood::unordered_map<u16, Chunk> chunks;
+        robin_hood::unordered_map<u16, StringTable> stringTables;
         robin_hood::unordered_map<u16, std::vector<u32>> playersInChunks;
 
         /*f32 GetHeight(Vector2& pos);
