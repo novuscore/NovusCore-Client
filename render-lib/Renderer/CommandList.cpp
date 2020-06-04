@@ -69,11 +69,12 @@ namespace Renderer
         command->viewport.maxDepth = maxDepth;
     }
 
-    void CommandList::SetConstantBuffer(u32 slot, void* gpuResource)
+    void CommandList::SetConstantBuffer(u32 slot, void* gpuResource, size_t frameIndex)
     {
         Commands::SetConstantBuffer* command = AddCommand<Commands::SetConstantBuffer>();
         command->slot = slot;
         command->gpuResource = gpuResource;
+        command->frameIndex = frameIndex;
     }
 
     void CommandList::SetTextureSampler(u32 slot, TextureID texture, SamplerID sampler)
@@ -102,6 +103,7 @@ namespace Renderer
 
     void CommandList::Draw(ModelID modelID)
     {
+        assert(modelID != ModelID::Invalid());
         Commands::Draw* command = AddCommand<Commands::Draw>();
         command->model = modelID;
     }

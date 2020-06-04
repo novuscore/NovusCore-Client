@@ -53,7 +53,7 @@ namespace Renderer
         void Draw(CommandListID commandListID, ModelID model) override;
         void PopMarker(CommandListID commandListID) override;
         void PushMarker(CommandListID commandListID, Color color, std::string name) override;
-        void SetConstantBuffer(CommandListID commandListID, u32 slot, void* gpuResource) override;
+        void SetConstantBuffer(CommandListID commandListID, u32 slot, void* gpuResource, size_t frameIndex) override;
         void BeginPipeline(CommandListID commandListID, GraphicsPipelineID pipeline) override;
         void EndPipeline(CommandListID commandListID, GraphicsPipelineID pipeline) override;
         void SetPipeline(CommandListID commandListID, ComputePipelineID pipeline) override;

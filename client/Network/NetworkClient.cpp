@@ -36,7 +36,7 @@ void NetworkClient::HandleConnect()
 {
     /* Send Initial Packet */
 
-    std::shared_ptr<ByteBuffer> buffer = ByteBuffer::Borrow<256>();
+    std::shared_ptr<ByteBuffer> buffer = ByteBuffer::Borrow<512>();
     ClientLogonChallenge logonChallenge;
     logonChallenge.majorVersion = 3;
     logonChallenge.patchVersion = 3;
@@ -46,10 +46,16 @@ void NetworkClient::HandleConnect()
     logonChallenge.gameName = "WoW";
     logonChallenge.username = username;
 
+    // If StartAuthentication fails, it means A failed to generate and thus we cannot connect
+    if (!srp.StartAuthentication())
+        return;
+
     buffer->PutU16(Opcode::CMSG_LOGON_CHALLENGE);
     buffer->PutU16(0);
 
-    u16 payloadSize = logonChallenge.Serialize(buffer);
+    u16 payloadSize = logonChallenge.Serialize(buffer) + static_cast<u16>(srp.aBuffer->Size);
+    buffer->PutBytes(srp.aBuffer->GetDataPointer(), srp.aBuffer->Size);
+
     buffer->Put<u16>(payloadSize, 2);
     Send(buffer.get());
 

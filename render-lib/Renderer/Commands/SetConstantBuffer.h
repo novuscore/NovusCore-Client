@@ -12,6 +12,7 @@ namespace Renderer
 
             u32 slot = 0;
             void* gpuResource = nullptr;
+            size_t frameIndex = 0;
         };
     }
 }

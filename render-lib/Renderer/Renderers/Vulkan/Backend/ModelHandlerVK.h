@@ -48,14 +48,14 @@ namespace Renderer
             {
                 i32 indexType;
                 std::vector<Vertex> vertices;
-                std::vector<i16> indices;
+                std::vector<u32> indices;
             };
 
         private:
             void LoadFromFile(const ModelDesc& desc, TempModelData& data);
             void InitializeModel(RenderDeviceVK* device, Model& model, const TempModelData& data);
             void UpdateVertices(RenderDeviceVK* device, Model& model, const std::vector<Vertex>& vertices);
-            void UpdateIndices(RenderDeviceVK* device, Model& model, const std::vector<i16>& indices);
+            void UpdateIndices(RenderDeviceVK* device, Model& model, const std::vector<u32>& indices);
 
         private:
             std::vector<Model> _models;

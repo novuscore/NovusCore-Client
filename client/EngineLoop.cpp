@@ -4,6 +4,7 @@
 #include <tracy/Tracy.hpp>
 #include "Utils/ServiceLocator.h"
 #include "Network/MessageHandler.h"
+#include "Utils/MapLoader.h"
 #include "Rendering/ClientRenderer.h"
 
 // Component Singletons
@@ -75,6 +76,8 @@ void EngineLoop::Run()
     _updateFramework.gameRegistry.create();
     _updateFramework.uiRegistry.create();
     SetupUpdateFramework();
+
+    MapLoader::Load(_updateFramework.gameRegistry);
 
     TimeSingleton& timeSingleton = _updateFramework.gameRegistry.set<TimeSingleton>();
     ScriptSingleton& scriptSingleton = _updateFramework.gameRegistry.set<ScriptSingleton>();

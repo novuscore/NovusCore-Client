@@ -79,9 +79,9 @@ namespace Renderer
 
             VkDeviceSize bufferSize = size;
 
-            for (int i = 0; i < Backend::ConstantBufferBackendVK::FRAME_BUFFER_COUNT; i++)
+            for (int i = 0; i < cbBackend->uniformBuffers.Num; i++)
             {
-                CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, cbBackend->uniformBuffers[i], cbBackend->uniformBuffersMemory[i]);
+                CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, cbBackend->uniformBuffers.Get(i), cbBackend->uniformBuffersMemory.Get(i));
             }
 
             _constantBufferBackends.push_back(cbBackend);
@@ -486,8 +486,8 @@ namespace Renderer
                 dependency.dstSubpass = 0;
                 dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
                 dependency.srcAccessMask = 0;
-                dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-                dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;// | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+                dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;// | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
                 VkRenderPassCreateInfo renderPassInfo = {};
                 renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -1057,6 +1057,7 @@ namespace Renderer
                     break;
                 case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
                     imageBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                    srcFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
                     break;
                 case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
                     imageBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
@@ -1083,6 +1084,7 @@ namespace Renderer
                     break;
                 case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
                     imageBarrier.dstAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                    dstFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
                     break;
                 case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
                     imageBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;

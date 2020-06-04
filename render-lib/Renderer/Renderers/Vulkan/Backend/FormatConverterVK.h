@@ -306,6 +306,44 @@ namespace Renderer
 
                 return VK_LOGIC_OP_CLEAR;
             }
+
+            static inline VkCompareOp ToVkCompareOp(const ComparisonFunc comparisonFunc)
+            {
+                switch(comparisonFunc)
+                {
+                    case ComparisonFunc::COMPARISON_FUNC_NEVER:         return VK_COMPARE_OP_NEVER;
+                    case ComparisonFunc::COMPARISON_FUNC_LESS:          return VK_COMPARE_OP_LESS;
+                    case ComparisonFunc::COMPARISON_FUNC_EQUAL:         return VK_COMPARE_OP_EQUAL;
+                    case ComparisonFunc::COMPARISON_FUNC_LESS_EQUAL:    return VK_COMPARE_OP_LESS_OR_EQUAL;
+                    case ComparisonFunc::COMPARISON_FUNC_GREATER:       return VK_COMPARE_OP_GREATER;
+                    case ComparisonFunc::COMPARISON_FUNC_NOT_EQUAL:     return VK_COMPARE_OP_NOT_EQUAL;
+                    case ComparisonFunc::COMPARISON_FUNC_GREATER_EQUAL: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+                    case ComparisonFunc::COMPARISON_FUNC_ALWAYS:        return VK_COMPARE_OP_ALWAYS;
+                    default:
+                        NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more comparison ops?");
+                }
+
+                return VK_COMPARE_OP_NEVER;
+            }
+
+            static inline VkStencilOp ToVkStencilOp(const StencilOp stencilOp)
+            {
+                switch(stencilOp)
+                {
+                    case StencilOp::STENCIL_OP_KEEP: return VK_STENCIL_OP_KEEP;
+                    case StencilOp::STENCIL_OP_ZERO: return VK_STENCIL_OP_ZERO;
+                    case StencilOp::STENCIL_OP_REPLACE: return VK_STENCIL_OP_REPLACE;
+                    case StencilOp::STENCIL_OP_INCR_SAT: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+                    case StencilOp::STENCIL_OP_DECR_SAT: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+                    case StencilOp::STENCIL_OP_INVERT: return VK_STENCIL_OP_INVERT;
+                    case StencilOp::STENCIL_OP_INCR: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+                    case StencilOp::STENCIL_OP_DECR: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+                    default:
+                        NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more stencil ops?");
+                }
+
+                return VK_STENCIL_OP_KEEP;
+            }
         };
     }
 }

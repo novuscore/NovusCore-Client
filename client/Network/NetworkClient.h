@@ -3,6 +3,7 @@
 #include <vector>
 
 #include <Utils/DebugHandler.h>
+#include <Utils/srp.h>
 
 enum BuildType
 {
@@ -66,16 +67,16 @@ struct ClientLogonChallenge
 struct ServerLogonChallenge
 {
     u8 status;
-    u8 B[128];
-    u8 s[8];
+    u8 B[256];
+    u8 s[4];
 
     void Deserialize(std::shared_ptr<ByteBuffer> buffer)
     {
         buffer->GetU8(status);
         if (status == 0)
         {
-            buffer->GetBytes(B, 128);
-            buffer->GetBytes(s, 8);
+            buffer->GetBytes(B, sizeof(B));
+            buffer->GetBytes(s, sizeof(s));
         }
     }
 };
@@ -88,9 +89,18 @@ struct ClientLogonResponse
     {
         u16 size = static_cast<u16>(buffer->WrittenData);
 
-        buffer->PutBytes(M1, 32);
+        buffer->PutBytes(M1, sizeof(M1));
 
         return static_cast<u16>(buffer->WrittenData) - size;
+    }
+}; 
+struct ServerLogonResponse
+{
+    u8 HAMK[32];
+
+    void Deserialize(std::shared_ptr<ByteBuffer> buffer)
+    {
+        buffer->GetBytes(HAMK, sizeof(HAMK));
     }
 };
 #pragma pack(pop)
@@ -99,7 +109,7 @@ class NetworkClient
 {
 public:
     using tcp = asio::ip::tcp;
-    NetworkClient(tcp::socket* socket)
+    NetworkClient(tcp::socket* socket) : srp(username, password)
     {
         _baseSocket = new BaseSocket(socket, std::bind(&NetworkClient::HandleRead, this), std::bind(&NetworkClient::HandleDisconnect, this));
     }
@@ -118,6 +128,8 @@ public:
 
     std::string username = "test";
     std::string password = "test";
+
+    SRPUser srp;
 private:
     BaseSocket* _baseSocket;
 };

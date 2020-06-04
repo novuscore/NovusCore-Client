@@ -77,7 +77,7 @@ namespace Renderer
         virtual void Draw(CommandListID commandList, ModelID model) = 0;
         virtual void PopMarker(CommandListID commandList) = 0;
         virtual void PushMarker(CommandListID commandList, Color color, std::string name) = 0;
-        virtual void SetConstantBuffer(CommandListID commandList, u32 slot, void* gpuResource) = 0;
+        virtual void SetConstantBuffer(CommandListID commandListID, u32 slot, void* gpuResource, size_t frameIndex) = 0;
         virtual void BeginPipeline(CommandListID commandList, GraphicsPipelineID pipeline) = 0;
         virtual void EndPipeline(CommandListID commandList, GraphicsPipelineID pipeline) = 0;
         virtual void SetPipeline(CommandListID commandList, ComputePipelineID pipeline) = 0;

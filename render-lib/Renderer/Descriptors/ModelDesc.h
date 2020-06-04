@@ -20,7 +20,7 @@ namespace Renderer
     struct PrimitiveModelDesc
     {
         std::vector<Vertex> vertices;
-        std::vector<i16> indices;
+        std::vector<u32> indices;
 
         std::string debugName;
     };

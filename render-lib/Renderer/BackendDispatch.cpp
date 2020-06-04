@@ -43,7 +43,7 @@ namespace Renderer
     void BackendDispatch::SetConstantBuffer(Renderer* renderer, CommandListID commandList, const void* data)
     {
         const Commands::SetConstantBuffer* actualData = static_cast<const Commands::SetConstantBuffer*>(data);
-        renderer->SetConstantBuffer(commandList, actualData->slot, actualData->gpuResource);
+        renderer->SetConstantBuffer(commandList, actualData->slot, actualData->gpuResource, actualData->frameIndex);
     }
 
     void BackendDispatch::BeginGraphicsPipeline(Renderer* renderer, CommandListID commandList, const void* data)

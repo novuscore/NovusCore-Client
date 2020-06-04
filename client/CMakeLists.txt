@@ -22,5 +22,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 	taskflow::taskflow
 	angelscript::angelscript
 )
-
+target_precompile_headers(${PROJECT_NAME} PRIVATE "pch.h")
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

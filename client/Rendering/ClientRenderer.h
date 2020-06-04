@@ -6,8 +6,9 @@
 #include <Renderer/Descriptors/TextureDesc.h>
 #include <Renderer/Descriptors/ModelDesc.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
-#include <Renderer/ConstantBuffer.h>
 #include <Renderer/InstanceData.h>
+
+#include "ViewConstantBuffer.h"
 
 namespace Renderer
 {
@@ -19,25 +20,10 @@ namespace Memory
     class StackAllocator;
 }
 
-struct ViewConstantBuffer
-{
-    mat4x4 viewMatrix; // 64 bytes
-    mat4x4 projMatrix; // 64 bytes
-
-    u8 padding[128] = {};
-};
-
-struct ModelConstantBuffer
-{
-    vec4 colorMultiplier; // 16 bytes
-    mat4x4 modelMatrix; // 64 bytes
-
-    u8 padding[176] = {};
-};
-
 class Window;
 class Camera;
 class UIRenderer;
+class TerrainRenderer;
 class InputManager;
 
 class ClientRenderer
@@ -71,8 +57,8 @@ private:
     Renderer::SamplerID _linearSampler;
 
     Renderer::ConstantBuffer<ViewConstantBuffer>* _viewConstantBuffer;
-    Renderer::ConstantBuffer<ModelConstantBuffer>* _modelConstantBuffer;
 
     // Sub renderers
     UIRenderer* _uiRenderer;
+    TerrainRenderer* _terrainRenderer;
 };

@@ -8,9 +8,9 @@ namespace Renderer
         void ConstantBufferBackendVK::Apply(u32 frameIndex, void* data, size_t size)
         {
             void* destData;
-            vkMapMemory(device->_device, uniformBuffersMemory[frameIndex], 0, size, 0, &destData);
+            vkMapMemory(device->_device, uniformBuffersMemory.Get(frameIndex), 0, size, 0, &destData);
             memcpy(destData, data, size);
-            vkUnmapMemory(device->_device, uniformBuffersMemory[frameIndex]);
+            vkUnmapMemory(device->_device, uniformBuffersMemory.Get(frameIndex));
         }
 
         void* ConstantBufferBackendVK::GetGPUResource(u32 frameIndex)

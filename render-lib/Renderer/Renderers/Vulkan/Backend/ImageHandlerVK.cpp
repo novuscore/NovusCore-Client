@@ -129,7 +129,7 @@ namespace Renderer
 
         DepthImageID ImageHandlerVK::CreateDepthImage(RenderDeviceVK* device, const DepthImageDesc& desc)
         {
-            size_t nextHandle = _images.size();
+            size_t nextHandle = _depthImages.size();
 
             // Make sure we haven't exceeded the limit of the DepthImageID type, if this hits you need to change type of DepthImageID to something bigger
             assert(nextHandle < DepthImageID::MaxValue());
@@ -210,6 +210,9 @@ namespace Renderer
             }
 
             DebugMarkerUtilVK::SetObjectName(device->_device, (u64)image.depthView, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, desc.debugName.c_str());
+
+            // Transition image from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+            device->TransitionImageLayout(image.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
             _depthImages.push_back(image);
 

@@ -54,31 +54,33 @@ namespace Renderer
             pipeline.desc = desc;
             pipeline.cacheDescHash = cacheDescHash;
 
-            // -- Get number of rendertargets --
+            // -- Get number of render targets and attachments --
             u8 numRenderTargets = 0;
+            u8 numAttachments = 0;
             for (int i = 0; i < MAX_RENDER_TARGETS; i++)
             {
                 if (desc.renderTargets[i] == RenderPassMutableResource::Invalid())
                     break;
 
                 numRenderTargets++;
+                numAttachments++;
             }
 
             // -- Create Render Pass --
-            std::vector<VkAttachmentDescription> colorAttachments(numRenderTargets);
-            std::vector< VkAttachmentReference> colorAttachmentRefs(numRenderTargets);
-            for (int i = 0; i < numRenderTargets; i++)
+            std::vector<VkAttachmentDescription> attachments(numAttachments);
+            std::vector< VkAttachmentReference> colorAttachmentRefs(numAttachments);
+            for (int i = 0; i < numAttachments; i++)
             {
                 ImageID imageID = desc.MutableResourceToImageID(desc.renderTargets[i]);
                 const ImageDesc& imageDesc = imageHandler->GetDescriptor(imageID);
-                colorAttachments[i].format = FormatConverterVK::ToVkFormat(imageDesc.format);
-                colorAttachments[i].samples = FormatConverterVK::ToVkSampleCount(imageDesc.sampleCount);
-                colorAttachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-                colorAttachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-                colorAttachments[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                colorAttachments[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                colorAttachments[i].initialLayout = VK_IMAGE_LAYOUT_GENERAL;
-                colorAttachments[i].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+                attachments[i].format = FormatConverterVK::ToVkFormat(imageDesc.format);
+                attachments[i].samples = FormatConverterVK::ToVkSampleCount(imageDesc.sampleCount);
+                attachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+                attachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                attachments[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                attachments[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                attachments[i].initialLayout = VK_IMAGE_LAYOUT_GENERAL;
+                attachments[i].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
 
                 colorAttachmentRefs[i].attachment = i;
                 colorAttachmentRefs[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -86,8 +88,35 @@ namespace Renderer
 
             VkSubpassDescription subpass = {};
             subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-            subpass.colorAttachmentCount = numRenderTargets;
+            subpass.colorAttachmentCount = numAttachments;
             subpass.pColorAttachments = colorAttachmentRefs.data();
+
+            // If we have a depthstencil, add an attachment for that
+            if (desc.depthStencil != RenderPassMutableResource::Invalid())
+            {
+                DepthImageID depthImageID = desc.MutableResourceToDepthImageID(desc.depthStencil);
+                const DepthImageDesc& imageDesc = imageHandler->GetDescriptor(depthImageID);
+
+                u32 attachmentSlot = numAttachments++;
+                
+                VkAttachmentDescription depthDescription = {};
+                depthDescription.format = FormatConverterVK::ToVkFormat(imageDesc.format);
+                depthDescription.samples = FormatConverterVK::ToVkSampleCount(imageDesc.sampleCount);
+                depthDescription.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+                depthDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                depthDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                depthDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                depthDescription.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                depthDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+                attachments.push_back(depthDescription);
+
+                VkAttachmentReference depthDescriptionRef = {};
+                depthDescriptionRef.attachment = attachmentSlot;
+                depthDescriptionRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+                subpass.pDepthStencilAttachment = &depthDescriptionRef;
+            }
 
             VkSubpassDependency dependency = {};
             dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -99,8 +128,8 @@ namespace Renderer
 
             VkRenderPassCreateInfo renderPassInfo = {};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-            renderPassInfo.attachmentCount = numRenderTargets;
-            renderPassInfo.pAttachments = colorAttachments.data();
+            renderPassInfo.attachmentCount = numAttachments;
+            renderPassInfo.pAttachments = attachments.data();
             renderPassInfo.subpassCount = 1;
             renderPassInfo.pSubpasses = &subpass;
             renderPassInfo.dependencyCount = 1;
@@ -112,29 +141,25 @@ namespace Renderer
             }
 
             // -- Create Framebuffer --
-            u8 numAttachments = numRenderTargets;
-            if (desc.depthStencil != RenderPassMutableResource::Invalid())
-                numAttachments++;
-
-            std::vector<VkImageView> attachments(numAttachments);
+            std::vector<VkImageView> attachmentViews(numAttachments);
             // Add all color rendertargets as attachments
             for (int i = 0; i < numRenderTargets; i++)
             {
                 ImageID imageID = desc.MutableResourceToImageID(desc.renderTargets[i]);
-                attachments[i] = imageHandler->GetColorView(imageID);
+                attachmentViews[i] = imageHandler->GetColorView(imageID);
             }
             // Add depthstencil as attachment
             if (desc.depthStencil != RenderPassMutableResource::Invalid())
             {
                 DepthImageID depthImageID = desc.MutableResourceToDepthImageID(desc.depthStencil);
-                attachments[numRenderTargets] = imageHandler->GetDepthView(depthImageID);
+                attachmentViews[numRenderTargets] = imageHandler->GetDepthView(depthImageID);
             }
 
             VkFramebufferCreateInfo framebufferInfo = {};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             framebufferInfo.renderPass = pipeline.renderPass;
             framebufferInfo.attachmentCount = numAttachments;
-            framebufferInfo.pAttachments = attachments.data();
+            framebufferInfo.pAttachments = attachmentViews.data();
             framebufferInfo.width = static_cast<u32>(desc.states.viewport.width);
             framebufferInfo.height = static_cast<u32>(desc.states.viewport.height);
             framebufferInfo.layers = 1;
@@ -145,12 +170,20 @@ namespace Renderer
             }
             
             // -- Create Descriptor Set Layout from reflected SPIR-V --
-            const ShaderBinary* shaderBinaries[2] = { shaderHandler->GetSPIRV(desc.states.vertexShader), shaderHandler->GetSPIRV(desc.states.pixelShader) };
+            std::vector<const ShaderBinary*> shaderBinaries;
+            if (desc.states.vertexShader != VertexShaderID::Invalid())
+            {
+                shaderBinaries.push_back(shaderHandler->GetSPIRV(desc.states.vertexShader));
+            }
+            if (desc.states.pixelShader != PixelShaderID::Invalid())
+            {
+                shaderBinaries.push_back(shaderHandler->GetSPIRV(desc.states.pixelShader));
+            }
 
-            for (int i = 0; i < 2; i++)
+            for (auto& shaderBinary : shaderBinaries)
             {
                 SpvReflectShaderModule reflectModule = {};
-                SpvReflectResult result = spvReflectCreateShaderModule(shaderBinaries[i]->size(), shaderBinaries[i]->data(), &reflectModule);
+                SpvReflectResult result = spvReflectCreateShaderModule(shaderBinary->size(), shaderBinary->data(), &reflectModule);
 
                 if (result != SPV_REFLECT_RESULT_SUCCESS)
                 {
@@ -213,22 +246,29 @@ namespace Renderer
                 }
             }
 
-            // -- Create shader stage infos --
-            VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
-            vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-            vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+            std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+            if (desc.states.vertexShader != VertexShaderID::Invalid())
+            {
+                VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
+                vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+                vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 
-            vertShaderStageInfo.module = shaderHandler->GetShaderModule(desc.states.vertexShader);
-            vertShaderStageInfo.pName = "main";
+                vertShaderStageInfo.module = shaderHandler->GetShaderModule(desc.states.vertexShader);
+                vertShaderStageInfo.pName = "main";
 
-            VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
-            fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-            fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+                shaderStages.push_back(vertShaderStageInfo);
+            }
+            if (desc.states.pixelShader != PixelShaderID::Invalid())
+            {
+                VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
+                fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+                fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-            fragShaderStageInfo.module = shaderHandler->GetShaderModule(desc.states.pixelShader);
-            fragShaderStageInfo.pName = "main";
+                fragShaderStageInfo.module = shaderHandler->GetShaderModule(desc.states.pixelShader);
+                fragShaderStageInfo.pName = "main";
 
-            VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+                shaderStages.push_back(fragShaderStageInfo);
+            }
 
             // Calculate stride
             u8 numAttributes = 0;
@@ -317,6 +357,35 @@ namespace Renderer
             multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
             multisampling.alphaToOneEnable = VK_FALSE; // Optional
 
+            // -- DepthStencil --
+            VkPipelineDepthStencilStateCreateInfo depthStencil = {};
+            depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+            depthStencil.depthTestEnable = desc.states.depthStencilState.depthEnable;
+            depthStencil.depthWriteEnable = desc.states.depthStencilState.depthWriteEnable;
+            depthStencil.depthCompareOp = FormatConverterVK::ToVkCompareOp(desc.states.depthStencilState.depthFunc);
+            //depthStencil.depthBoundsTestEnable = desc.states.depthStencilState;
+            //depthStencil.minDepthBounds = 0.0f;
+            //depthStencil.maxDepthBounds = 1.0f;
+            depthStencil.stencilTestEnable = desc.states.depthStencilState.stencilEnable;
+
+            depthStencil.front = {};
+            depthStencil.front.failOp = FormatConverterVK::ToVkStencilOp(desc.states.depthStencilState.frontFace.stencilFailOp);
+            depthStencil.front.passOp = FormatConverterVK::ToVkStencilOp(desc.states.depthStencilState.frontFace.stencilPassOp);
+            depthStencil.front.depthFailOp = FormatConverterVK::ToVkStencilOp(desc.states.depthStencilState.frontFace.stencilDepthFailOp);
+            depthStencil.front.compareOp = FormatConverterVK::ToVkCompareOp(desc.states.depthStencilState.frontFace.stencilFunc);
+            //depthStencil.front.compareMask;
+            //depthStencil.front.writeMask;
+            //depthStencil.front.reference;
+
+            depthStencil.back = {};
+            depthStencil.back.failOp = FormatConverterVK::ToVkStencilOp(desc.states.depthStencilState.backFace.stencilFailOp);
+            depthStencil.back.passOp = FormatConverterVK::ToVkStencilOp(desc.states.depthStencilState.backFace.stencilPassOp);
+            depthStencil.back.depthFailOp = FormatConverterVK::ToVkStencilOp(desc.states.depthStencilState.backFace.stencilDepthFailOp);
+            depthStencil.back.compareOp = FormatConverterVK::ToVkCompareOp(desc.states.depthStencilState.backFace.stencilFunc);
+            //depthStencil.back.compareMask;
+            //depthStencil.back.writeMask;
+            //depthStencil.back.reference;
+
             // -- Blenders --
             std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments(numRenderTargets);
             
@@ -357,14 +426,14 @@ namespace Renderer
 
             VkGraphicsPipelineCreateInfo pipelineInfo = {};
             pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-            pipelineInfo.stageCount = 2;
-            pipelineInfo.pStages = shaderStages;
+            pipelineInfo.stageCount = static_cast<u32>(shaderStages.size());
+            pipelineInfo.pStages = shaderStages.data();
             pipelineInfo.pVertexInputState = &vertexInputInfo;
             pipelineInfo.pInputAssemblyState = &inputAssembly;
             pipelineInfo.pViewportState = &viewportState;
             pipelineInfo.pRasterizationState = &rasterizer;
             pipelineInfo.pMultisampleState = &multisampling;
-            pipelineInfo.pDepthStencilState = nullptr; // Optional
+            pipelineInfo.pDepthStencilState = &depthStencil;
             pipelineInfo.pColorBlendState = &colorBlending;
             pipelineInfo.pDynamicState = nullptr; // Optional
             pipelineInfo.layout = pipeline.pipelineLayout;

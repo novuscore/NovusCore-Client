@@ -40,7 +40,7 @@ namespace Renderer
 
         void SetScissorRect(u32 left, u32 right, u32 top, u32 bottom);
         void SetViewport(f32 topLeftX, f32 topLeftY, f32 width, f32 height, f32 minDepth, f32 maxDepth);
-        void SetConstantBuffer(u32 slot, void* gpuResource);
+        void SetConstantBuffer(u32 slot, void* gpuResource, size_t frameIndex);
         void SetTextureSampler(u32 slot, TextureID texture, SamplerID sampler);
 
         void Clear(ImageID imageID, Color color);

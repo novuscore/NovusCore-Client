@@ -179,7 +179,7 @@ namespace Renderer
 
             for (u32 i = 0; i < indexCount; i++)
             {
-                if (!buffer->GetI16(data.indices[i]))
+                if (!buffer->GetU32(data.indices[i]))
                 {
                     NC_LOG_FATAL("Model file %s failed to read index %u", desc.path.c_str(), i);
                 }
@@ -251,7 +251,7 @@ namespace Renderer
             vkFreeMemory(device->_device, stagingBufferMemory, nullptr);
         }
 
-        void ModelHandlerVK::UpdateIndices(RenderDeviceVK* device, Model& model, const std::vector<i16>& indices)
+        void ModelHandlerVK::UpdateIndices(RenderDeviceVK* device, Model& model, const std::vector<u32>& indices)
         {
             VkBuffer stagingBuffer;
             VkDeviceMemory stagingBufferMemory;
