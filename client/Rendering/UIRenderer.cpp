@@ -299,22 +299,22 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             // Draw all the panels
             entt::registry* registry = ServiceLocator::GetUIRegistry();
             auto renderableView = registry->view<UITransform, UIRenderable>();
-            renderableView.each([this, &commandList, frameIndex](const auto, UITransform& _transform, UIRenderable& _renderable)
+            renderableView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIRenderable& renderable)
                 {
-                    if (!_renderable.constantBuffer)
+                    if (!renderable.constantBuffer)
                         return;
 
                     commandList.PushMarker("Renderable", Color(0.0f, 0.1f, 0.0f));
 
                     // Set constant buffer
-                    commandList.SetConstantBuffer(0, _renderable.constantBuffer->GetGPUResource(frameIndex), frameIndex);
+                    commandList.SetConstantBuffer(0, renderable.constantBuffer->GetGPUResource(frameIndex), frameIndex);
 
                     // Set Texture and sampler
-                    commandList.SetTexture(1, _renderable.textureID);
+                    commandList.SetTexture(1, renderable.textureID);
                     commandList.SetSampler(2, _linearSampler);
 
                     // Draw
-                    commandList.Draw(_renderable.modelID);
+                    commandList.Draw(renderable.modelID);
 
                     commandList.PopMarker();
                 });
@@ -332,28 +332,28 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             commandList.BeginPipeline(pipeline);
 
             auto textView = registry->view<UITransform, UIText>();
-            textView.each([this, &commandList, frameIndex](const auto, UITransform& _transform, UIText& _text)
+            textView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIText& text)
                 {
-                    if (!_text.constantBuffer)
+                    if (!text.constantBuffer)
                         return;
 
                     commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
 
                     // Set constant buffer
-                    commandList.SetConstantBuffer(0, _text.constantBuffer->GetGPUResource(frameIndex), frameIndex);
+                    commandList.SetConstantBuffer(0, text.constantBuffer->GetGPUResource(frameIndex), frameIndex);
 
                     // Set sampler
                     commandList.SetSampler(1, _linearSampler);
 
                     // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
-                    size_t glyphs = _text.models.size();
+                    size_t glyphs = text.models.size();
                     for (u32 i = 0; i < glyphs; i++)
                     {
                         // Set texture
-                        commandList.SetTexture(2, _text.textures[i]);
+                        commandList.SetTexture(2, text.textures[i]);
 
                         // Draw
-                        commandList.Draw(_text.models[i]);
+                        commandList.Draw(text.models[i]);
                     }
 
                     commandList.PopMarker();
