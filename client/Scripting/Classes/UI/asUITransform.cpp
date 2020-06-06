@@ -2,6 +2,7 @@
 #include "../../../Utils/ServiceLocator.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
 #include "../../../ECS/Components/UI/UIDataSingleton.h"
+#include "../../../ECS/Components/UI/UITransformUtils.h"
 
 namespace UI
 {
@@ -111,14 +112,7 @@ namespace UI
             {
                 UITransform& oldParentTransform = entityToAsObjectIterator->getSecond()->_transform;
 
-                entt::entity entId = _entityId;
-                auto position = std::find_if(oldParentTransform.children.begin(), oldParentTransform.children.end(), [entId](UITransform::UIChild& uiChild)
-                    {
-                        return uiChild.entity == entt::to_integral(entId);
-                    });
-
-                if (position != oldParentTransform.children.end())
-                    oldParentTransform.children.erase(position);
+                UITransformUtils::RemoveChild(oldParentTransform, _entityId);
             }
 
             //Keep same absolute position.
@@ -131,24 +125,21 @@ namespace UI
 
         UITransform& newParentTransform = parent->_transform;
 
-        //Recalculate new local positon whilst keeping absolute position.
+        //Recalculate new local position whilst keeping absolute position.
         _transform.localPosition = (newParentTransform.position + newParentTransform.localPosition) - _transform.position;
         _transform.position = newParentTransform.position + newParentTransform.localPosition;
 
         //Add ourselves to parents angelscript object children
-        UITransform::UIChild thisChild;
-        thisChild.entity = entt::to_integral(_entityId);
-        thisChild.type = _elementType;
-        parent->_transform.children.push_back(thisChild);
+        UITransformUtils::AddChild(newParentTransform, _entityId, _elementType);
 
         // Transaction.
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = _entityId;
+        entt::entity entityId = _entityId;
         UIElementData::UIElementType elementType = _elementType;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([parent, entId, elementType]()
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([parent, entityId, elementType]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UITransform& transform = uiRegistry->get<UITransform>(entId);
+                UITransform& transform = uiRegistry->get<UITransform>(entityId);
 
                 //Remove old parent.
                 if (transform.parent)
@@ -156,13 +147,7 @@ namespace UI
                     UITransform& oldParentTransform = uiRegistry->get<UITransform>(entt::entity(transform.parent));
 
                     //Remove from parents children.
-                    auto position = std::find_if(oldParentTransform.children.begin(), oldParentTransform.children.end(), [entId](UITransform::UIChild& uiChild)
-                        {
-                            return uiChild.entity == entt::to_integral(entId);
-                        });
-
-                    if (position != oldParentTransform.children.end())
-                        oldParentTransform.children.erase(position);
+                    UITransformUtils::RemoveChild(oldParentTransform, entityId);
 
                     //Keep same absolute position.
                     transform.position = transform.position + transform.localPosition;
@@ -179,11 +164,7 @@ namespace UI
                 transform.position = newParentTransform.position + newParentTransform.localPosition;
 
                 //Add this to parent's children.
-                UITransform::UIChild thisAsChild;
-                thisAsChild.entity = entt::to_integral(entId);
-                thisAsChild.type = elementType;
-
-                newParentTransform.children.push_back(thisAsChild);
+                UITransformUtils::AddChild(newParentTransform, entityId, elementType);
             });
         //Transaction End.
     }
