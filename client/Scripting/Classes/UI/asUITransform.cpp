@@ -45,19 +45,19 @@ namespace UI
             });
     }
 
-    void asUITransform::SetAnchor(const vec2& anchor)
+    void asUITransform::SetLocalAnchor(const vec2& localAnchor)
     {
-        _transform.anchor = anchor;
+        _transform.localAnchor = localAnchor;
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
 
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([anchor, entId]()
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([localAnchor, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& uiTransform = uiRegistry->get<UITransform>(entId);
 
-                uiTransform.anchor = anchor;
+                uiTransform.localAnchor = localAnchor;
                 uiTransform.isDirty = true;
             });
     }
@@ -103,6 +103,24 @@ namespace UI
         // Remove old parent.
         if (_transform.parent)
         {
+            UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
+
+            //Find parent transform as object.
+            auto entityToAsObjectIterator = uiDataSingleton.entityToAsObject.find(entt::entity(_transform.parent));
+            if (entityToAsObjectIterator != uiDataSingleton.entityToAsObject.end())
+            {
+                UITransform& oldParentTransform = entityToAsObjectIterator->getSecond()->_transform;
+
+                entt::entity entId = _entityId;
+                auto position = std::find_if(oldParentTransform.children.begin(), oldParentTransform.children.end(), [entId](UITransform::UIChild& uiChild)
+                    {
+                        return uiChild.entity == entt::to_integral(entId);
+                    });
+
+                if (position != oldParentTransform.children.end())
+                    oldParentTransform.children.erase(position);
+            }
+
             //Keep same absolute position.
             _transform.position = _transform.position + _transform.localPosition;
             _transform.localPosition = vec2(0, 0);

@@ -25,7 +25,7 @@ struct UITransform
     };
 
 public:
-    UITransform() : position(), localPosition(), anchor(), size(), depth(), parent(), children(), isDirty(false) 
+    UITransform() : position(), localPosition(), anchor(), localAnchor(), size(), depth(), parent(), children(), isDirty(false) 
     { 
         children.reserve(8);
     }
@@ -33,6 +33,7 @@ public:
     vec2 position;
     vec2 localPosition;
     vec2 anchor;
+    vec2 localAnchor;
     vec2 size;
     u16 depth;
     u32 parent;

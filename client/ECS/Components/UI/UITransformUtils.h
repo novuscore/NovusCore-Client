@@ -13,13 +13,13 @@ namespace UITransformUtils
     {
         const vec2 screenPosition = GetScreenPosition(transform);
 
-        return vec2(screenPosition.x - (transform.anchor.x * transform.size.x), screenPosition.y - (transform.anchor.y * transform.size.y));
+        return vec2(screenPosition.x - (transform.localAnchor.x * transform.size.x), screenPosition.y - (transform.localAnchor.y * transform.size.y));
     };
 
     vec2 GetMaxBounds(const UITransform& transform)
     {
         const vec2 screenPosition = GetScreenPosition(transform);
 
-        return vec2(screenPosition.x + (transform.anchor.x * transform.size.x), screenPosition.y + (transform.anchor.y * transform.size.y));
+        return vec2(screenPosition.x + (transform.localAnchor.x * transform.size.x), screenPosition.y + (transform.localAnchor.y * transform.size.y));
     }
 };
