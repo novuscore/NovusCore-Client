@@ -134,11 +134,12 @@ namespace UI
 
         // Transaction.
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity parentEntityId = parent->GetEntityId();
         entt::entity entityId = _entityId;
         UIElementData::UIElementType elementType = _elementType;
         vec2 newPosition = _transform.position;
         vec2 newLocalPosition = _transform.localPosition;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([parent, entityId, elementType, newPosition, newLocalPosition]()
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([parentEntityId, entityId, elementType, newPosition, newLocalPosition]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& transform = uiRegistry->get<UITransform>(entityId);
@@ -153,15 +154,14 @@ namespace UI
                 }
 
                 //Set new parent.
-                transform.parent = entt::to_integral(parent->GetEntityId());
-
-                UITransform& newParentTransform = uiRegistry->get<UITransform>(entt::entity(parent->GetEntityId()));
+                transform.parent = entt::to_integral(parentEntityId);
 
                 //Apply calculated new positions
                 transform.position = newPosition;
                 transform.localPosition = newLocalPosition;
 
                 //Add this to parent's children.
+                UITransform& newParentTransform = uiRegistry->get<UITransform>(parentEntityId);
                 UITransformUtils::AddChild(newParentTransform, entityId, elementType);
             });
         //Transaction End.
