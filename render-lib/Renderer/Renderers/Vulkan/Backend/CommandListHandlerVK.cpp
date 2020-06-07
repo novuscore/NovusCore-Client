@@ -87,10 +87,17 @@ namespace Renderer
                 submitInfo.pSignalSemaphores = &commandList.signalSemaphore;
             }
 
-            vkQueueSubmit(device->_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+            VkFence fence;
+            VkFenceCreateInfo create_info{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+
+            vkCreateFence(device->_device, &create_info, nullptr, &fence);
+
+            vkQueueSubmit(device->_graphicsQueue, 1, &submitInfo, fence);
             
             // Do syncing stuff
-            vkQueueWaitIdle(device->_graphicsQueue);
+            vkWaitForFences(device->_device, 1, &fence, VK_TRUE, 1000000);
+
+            vkDestroyFence(device->_device, fence, nullptr);
 
             commandList.waitSemaphore = NULL;
             commandList.signalSemaphore = NULL;
