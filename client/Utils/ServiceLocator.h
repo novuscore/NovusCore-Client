@@ -7,6 +7,10 @@
 class MessageHandler;
 class Window;
 class InputManager;
+namespace Renderer
+{
+    class Renderer;
+}
 class ServiceLocator
 {
 public:
@@ -30,6 +34,12 @@ public:
         assert(_mainInputQueue == nullptr);
         _mainInputQueue = mainInputQueue;
     }
+    static Renderer::Renderer* GetRenderer() 
+    {
+        assert(_mainInputQueue != nullptr);
+        return _mainInputQueue; 
+    }
+    static void SetRenderer(Renderer::Renderer* renderer);
 
 private:
     ServiceLocator() { }
@@ -39,4 +49,5 @@ private:
     static Window* _window;
     static InputManager* _inputManager;
     static moodycamel::ConcurrentQueue<Message>* _mainInputQueue;
+    static Renderer::Renderer* _renderer;
 };

@@ -126,7 +126,7 @@ public:
 
     BaseSocket* GetBaseSocket() { return _baseSocket; }
 
-    std::string username = "test";
+    std::string username = "nix1";
     std::string password = "test";
 
     SRPUser srp;
