@@ -29,7 +29,7 @@ namespace UI
         const f32 GetOutlineWidth() const { return _text.outlineWidth; }
 
         void SetFont(std::string fontPath, f32 fontSize);
-    private:
+
         static asLabel* CreateLabel();
 
     private:

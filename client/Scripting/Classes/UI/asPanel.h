@@ -38,7 +38,6 @@ namespace UI
         }
         void SetColor(const Color& color);
 
-    private:
         static asPanel* CreatePanel();
 
     private:

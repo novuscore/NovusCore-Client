@@ -36,8 +36,8 @@ public:
     }
     static Renderer::Renderer* GetRenderer() 
     {
-        assert(_mainInputQueue != nullptr);
-        return _mainInputQueue; 
+        assert(_renderer != nullptr);
+        return _renderer;
     }
     static void SetRenderer(Renderer::Renderer* renderer);
 

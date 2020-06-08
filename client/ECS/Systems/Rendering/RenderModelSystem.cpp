@@ -32,7 +32,7 @@ void RenderModelSystem::Update(entt::registry& registry)
             }
 
             // This registers the model to be rendered THIS frame.
-            mainLayer.RegisterModel(model.modelId, model.instanceData);
-            depthLayer.RegisterModel(model.modelId, model.instanceData);
+            mainLayer.RegisterModel(model.modelId, &model.instanceData);
+            depthLayer.RegisterModel(model.modelId, &model.instanceData);
         });
 }
