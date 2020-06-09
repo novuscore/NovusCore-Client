@@ -45,6 +45,7 @@ namespace UI
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransformEvents& events = uiRegistry->get<UITransformEvents>(entId);
+
                 events.onClickCallback = callback;
                 events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
             });
@@ -62,6 +63,7 @@ namespace UI
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransformEvents& events = uiRegistry->get<UITransformEvents>(entId);
+
                 events.onDraggedCallback = callback;
                 events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
             });
@@ -79,6 +81,7 @@ namespace UI
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransformEvents& events = uiRegistry->get<UITransformEvents>(entId);
+
                 events.onFocusedCallback = callback;
                 events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
             });

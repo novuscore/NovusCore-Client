@@ -309,9 +309,9 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                     // Set constant buffer
                     commandList.SetConstantBuffer(0, renderable.constantBuffer->GetGPUResource(frameIndex), frameIndex);
 
-                    // Set Texture and sampler
-                    commandList.SetTexture(1, renderable.textureID);
-                    commandList.SetSampler(2, _linearSampler);
+                    // Set Sampler and texture.
+                    commandList.SetSampler(1, _linearSampler);
+                    commandList.SetTexture(2, renderable.textureID);
 
                     // Draw
                     commandList.Draw(renderable.modelID);
