@@ -104,11 +104,10 @@ namespace UI
 
     void asUITransform::SetParent(asUITransform* parent)
     {
-        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-
         // Remove old parent.
         if (_transform.parent)
         {
+            entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
             UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
 
             //Find parent transform as object.
@@ -128,17 +127,17 @@ namespace UI
         // Set new parent.
         _transform.parent = entt::to_integral(parent->_entityId);
 
+        //Calculate origin.
         UITransform& newParentTransform = parent->_transform;
-        vec2 NewOrigin = UITransformUtils::GetMinBounds(newParentTransform);
+        vec2 NewOrigin = UITransformUtils::GetMinBounds(newParentTransform) + (newParentTransform.size * _transform.anchor);
 
         //Recalculate new local position whilst keeping absolute position.
         _transform.localPosition = (NewOrigin + newParentTransform.localPosition) - _transform.position;
         _transform.position = NewOrigin + newParentTransform.localPosition;
 
-        //Add ourselves to parents angelscript object children
+        //Add ourselves to parent's angelscript object children
         UITransformUtils::AddChild(newParentTransform, _entityId, _elementType);
 
-        // Transaction.
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity parentEntityId = parent->GetEntityId();
         entt::entity entityId = _entityId;
@@ -170,7 +169,6 @@ namespace UI
                 UITransform& newParentTransform = uiRegistry->get<UITransform>(parentEntityId);
                 UITransformUtils::AddChild(newParentTransform, entityId, elementType);
             });
-        //Transaction End.
     }
 
     const vec2 asUITransform::GetMinBound() const
