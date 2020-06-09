@@ -92,9 +92,9 @@ namespace UI
         const vec2 GetMaxBound() const;
 
     private:
-        static void UpdateChildrenPosition(entt::registry* uiRegistry, UITransform& parent, vec2 position);
+        static void UpdateChildrenPosition(entt::registry* uiRegistry, UITransform& parent);
 
-        static void UpdateChildrenPositionInAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent, vec2 position);
+        static void UpdateChildrenPositionInAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent);
 
     protected:
         entt::entity _entityId;

@@ -23,11 +23,10 @@ namespace UI
 
         entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
         UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
-        UpdateChildrenPositionInAngelScript(uiDataSingleton, _transform, UITransformUtils::GetMinBounds(_transform));
+        UpdateChildrenPositionInAngelScript(uiDataSingleton, _transform);
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([position, hasParent, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
@@ -39,10 +38,7 @@ namespace UI
                 else
                     uiTransform.position = position;
 
-                if (uiTransform.children.size())
-                {
-                    UpdateChildrenPosition(uiRegistry, uiTransform, UITransformUtils::GetMinBounds(uiTransform));
-                }
+                UpdateChildrenPosition(uiRegistry, uiTransform);
             });
     }
 
@@ -52,7 +48,7 @@ namespace UI
 
         entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
         UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
-        UpdateChildrenPositionInAngelScript(uiDataSingleton, _transform, UITransformUtils::GetMinBounds(_transform));
+        UpdateChildrenPositionInAngelScript(uiDataSingleton, _transform);
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
@@ -64,10 +60,7 @@ namespace UI
                 uiTransform.localAnchor = localAnchor;
                 uiTransform.isDirty = true;
                 
-                if (uiTransform.children.size())
-                {
-                    UpdateChildrenPosition(uiRegistry, uiTransform, UITransformUtils::GetMinBounds(uiTransform));
-                }
+                UpdateChildrenPosition(uiRegistry, uiTransform);
             });
     }
 
@@ -75,10 +68,9 @@ namespace UI
     {
         _transform.size = size;
 
-
         entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
         UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
-        UpdateChildrenPositionInAngelScript(uiDataSingleton, _transform, UITransformUtils::GetMinBounds(_transform));
+        UpdateChildrenPositionInAngelScript(uiDataSingleton, _transform);
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
@@ -90,10 +82,7 @@ namespace UI
                 uiTransform.size = size;
                 uiTransform.isDirty = true;
                 
-                if (uiTransform.children.size())
-                {
-                    UpdateChildrenPosition(uiRegistry, uiTransform, UITransformUtils::GetMinBounds(uiTransform));
-                }
+                UpdateChildrenPosition(uiRegistry, uiTransform);
             });
     }
 
@@ -103,7 +92,6 @@ namespace UI
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([depth, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
@@ -195,21 +183,21 @@ namespace UI
         return UITransformUtils::GetMaxBounds(_transform);
     }
 
-    void asUITransform::UpdateChildrenPosition(entt::registry* uiRegistry, UITransform& parent, vec2 position)
+    void asUITransform::UpdateChildrenPosition(entt::registry* uiRegistry, UITransform& parent)
     {
         for (UITransform::UIChild& child : parent.children)
         {
             UITransform& uiChildTransform = uiRegistry->get<UITransform>(entt::entity(child.entity));
-            uiChildTransform.position = position;
+
+            vec2 AnchorAdjustedPosition = UITransformUtils::GetMinBounds(parent) + (parent.size * uiChildTransform.anchor);
+            uiChildTransform.position = AnchorAdjustedPosition;
             uiChildTransform.isDirty = true;
 
-            if (uiChildTransform.children.size())
-            {
-                UpdateChildrenPosition(uiRegistry, uiChildTransform, UITransformUtils::GetMinBounds(uiChildTransform) + uiChildTransform.localPosition);
-            }
+            UpdateChildrenPosition(uiRegistry, uiChildTransform);
         }
     }
-    void asUITransform::UpdateChildrenPositionInAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent, vec2 position)
+
+    void asUITransform::UpdateChildrenPositionInAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent)
     {
         for (UITransform::UIChild& child : parent.children)
         {
@@ -217,11 +205,13 @@ namespace UI
             if (iterator != uiDataSingleton.entityToAsObject.end())
             {
                 asUITransform* asChild = iterator->getSecond();
-                asChild->_transform.position = position;
+
+                vec2 AnchorAdjustedPosition = UITransformUtils::GetMinBounds(parent) + (parent.size * asChild->_transform.anchor);
+                asChild->_transform.position = AnchorAdjustedPosition;
 
                 if (asChild->_transform.children.size())
                 {
-                    UpdateChildrenPositionInAngelScript(uiDataSingleton, asChild->_transform, UITransformUtils::GetMinBounds(asChild->_transform) + asChild->_transform.localPosition);
+                    UpdateChildrenPositionInAngelScript(uiDataSingleton, asChild->_transform);
                 }
             }
 
