@@ -38,6 +38,9 @@ namespace UI
             r = ScriptEngine::RegisterScriptClassFunction("void SetDepth(float depth)", asMETHOD(T, SetDepth)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("void SetParent(UITransform@ parent)", asMETHOD(T, SetParent)); assert(r >= 0);
+
+            r = ScriptEngine::RegisterScriptClassFunction("vec2 GetMinBound()", asMETHOD(T, GetMinBound)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("vec2 GetMaxBound()", asMETHOD(T, GetMaxBound)); assert(r >= 0);
         }
 
         virtual const entt::entity GetEntityId() const
@@ -84,6 +87,9 @@ namespace UI
         virtual void SetDepth(const u16 depth);
 
         virtual void SetParent(asUITransform* parent);
+
+        const vec2 GetMinBound() const;
+        const vec2 GetMaxBound() const;
 
     private:
         static void UpdateChildrenPosition(entt::registry* uiRegistry, UITransform& parent, vec2 position);

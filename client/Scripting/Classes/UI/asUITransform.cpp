@@ -167,6 +167,16 @@ namespace UI
         //Transaction End.
     }
 
+    const vec2 asUITransform::GetMinBound() const
+    {
+        return UITransformUtils::GetMinBounds(_transform);
+    }
+
+    const vec2 asUITransform::GetMaxBound() const
+    {
+        return UITransformUtils::GetMaxBounds(_transform);
+    }
+
     void asUITransform::UpdateChildrenPosition(entt::registry* uiRegistry, UITransform& parent, vec2 position)
     {
         for (UITransform::UIChild& child : parent.children)

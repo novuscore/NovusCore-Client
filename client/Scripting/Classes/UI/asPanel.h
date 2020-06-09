@@ -27,16 +27,17 @@ namespace UI
         void SetOnFocusCallback(asIScriptFunction* callback);
 
         // Renderable Functions
+        void SetTexture(const std::string& texture);
         const std::string& GetTexture() const
         {
             return _renderable.texture;
         }
-        void SetTexture(const std::string& texture);
+
+        void SetColor(const Color& color);
         const Color GetColor() const
         {
             return _renderable.color;
         }
-        void SetColor(const Color& color);
 
         static asPanel* CreatePanel();
 

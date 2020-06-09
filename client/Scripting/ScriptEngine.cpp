@@ -11,6 +11,7 @@
 #include "Classes/UI/asUITransform.h"
 #include "Classes/UI/asPanel.h"
 #include "Classes/UI/asLabel.h"
+#include "Classes/UI/asButton.h"
 
 thread_local asIScriptEngine* ScriptEngine::_scriptEngine = nullptr;
 thread_local asIScriptContext* ScriptEngine::_scriptContext = nullptr;
@@ -102,6 +103,7 @@ void ScriptEngine::RegisterFunctions()
     UI::asUITransform::RegisterType();
     UI::asPanel::RegisterType();
     UI::asLabel::RegisterType();
+    UI::asButton::RegisterType();
     
     /*UI::Widget::RegisterType();
     UI::Panel::RegisterType();
