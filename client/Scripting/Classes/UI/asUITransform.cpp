@@ -23,7 +23,7 @@ namespace UI
 
         entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
         UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
-        UpdateChildrenPositionInAngelScript(uiDataSingleton, _transform, position);
+        UpdateChildrenPositionInAngelScript(uiDataSingleton, _transform, UITransformUtils::GetMinBounds(_transform));
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
@@ -41,7 +41,7 @@ namespace UI
 
                 if (uiTransform.children.size())
                 {
-                    UpdateChildrenPosition(uiRegistry, uiTransform, position);
+                    UpdateChildrenPosition(uiRegistry, uiTransform, UITransformUtils::GetMinBounds(uiTransform));
                 }
             });
     }
@@ -50,9 +50,12 @@ namespace UI
     {
         _transform.localAnchor = localAnchor;
 
+        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+        UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
+        UpdateChildrenPositionInAngelScript(uiDataSingleton, _transform, UITransformUtils::GetMinBounds(_transform));
+
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([localAnchor, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
@@ -60,6 +63,11 @@ namespace UI
 
                 uiTransform.localAnchor = localAnchor;
                 uiTransform.isDirty = true;
+                
+                if (uiTransform.children.size())
+                {
+                    UpdateChildrenPosition(uiRegistry, uiTransform, UITransformUtils::GetMinBounds(uiTransform));
+                }
             });
     }
 
@@ -67,9 +75,13 @@ namespace UI
     {
         _transform.size = size;
 
+
+        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+        UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
+        UpdateChildrenPositionInAngelScript(uiDataSingleton, _transform, UITransformUtils::GetMinBounds(_transform));
+
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([size, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
@@ -77,6 +89,11 @@ namespace UI
 
                 uiTransform.size = size;
                 uiTransform.isDirty = true;
+                
+                if (uiTransform.children.size())
+                {
+                    UpdateChildrenPosition(uiRegistry, uiTransform, UITransformUtils::GetMinBounds(uiTransform));
+                }
             });
     }
 
@@ -124,10 +141,11 @@ namespace UI
         _transform.parent = entt::to_integral(parent->_entityId);
 
         UITransform& newParentTransform = parent->_transform;
+        vec2 NewOrigin = UITransformUtils::GetMinBounds(newParentTransform);
 
         //Recalculate new local position whilst keeping absolute position.
-        _transform.localPosition = (newParentTransform.position + newParentTransform.localPosition) - _transform.position;
-        _transform.position = newParentTransform.position + newParentTransform.localPosition;
+        _transform.localPosition = (NewOrigin + newParentTransform.localPosition) - _transform.position;
+        _transform.position = NewOrigin + newParentTransform.localPosition;
 
         //Add ourselves to parents angelscript object children
         UITransformUtils::AddChild(newParentTransform, _entityId, _elementType);
@@ -187,7 +205,7 @@ namespace UI
 
             if (uiChildTransform.children.size())
             {
-                UpdateChildrenPosition(uiRegistry, uiChildTransform, uiChildTransform.position + uiChildTransform.localPosition);
+                UpdateChildrenPosition(uiRegistry, uiChildTransform, UITransformUtils::GetMinBounds(uiChildTransform) + uiChildTransform.localPosition);
             }
         }
     }
@@ -203,7 +221,7 @@ namespace UI
 
                 if (asChild->_transform.children.size())
                 {
-                    UpdateChildrenPositionInAngelScript(uiDataSingleton, asChild->_transform, asChild->_transform.position + asChild->_transform.localPosition);
+                    UpdateChildrenPositionInAngelScript(uiDataSingleton, asChild->_transform, UITransformUtils::GetMinBounds(asChild->_transform) + asChild->_transform.localPosition);
                 }
             }
 
