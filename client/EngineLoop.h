@@ -29,7 +29,6 @@
 #include <taskflow/taskflow.hpp>
 #include <entt.hpp>
 #include <asio/io_service.hpp>
-#include "Network/NetworkClient.h"
 
 namespace tf
 {
@@ -44,6 +43,7 @@ struct FrameworkRegistryPair
     tf::Taskflow taskflow;
 };
 
+class NetworkClient;
 struct NetworkPair
 {
     std::shared_ptr<NetworkClient> client;

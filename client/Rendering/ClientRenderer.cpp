@@ -62,6 +62,7 @@ ClientRenderer::ClientRenderer()
     
     _renderer = new Renderer::RendererVK(debugTexture);
     _renderer->InitWindow(_window);
+    ServiceLocator::SetRenderer(_renderer);
 
     CreatePermanentResources();
     _uiRenderer = new UIRenderer(_renderer);

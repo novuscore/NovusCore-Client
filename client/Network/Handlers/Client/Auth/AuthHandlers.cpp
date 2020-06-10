@@ -1,8 +1,10 @@
 #include "AuthHandlers.h"
-#include "../../../MessageHandler.h"
-#include "../../../NetworkClient.h"
-#include "../../../NetworkPacket.h"
+#include <Networking/NetworkPacket.h>
+#include <Networking/MessageHandler.h>
+#include <Networking/NetworkClient.h>
 #include <Utils/ByteBuffer.h>
+#include "../../../../Utils/ServiceLocator.h"
+#include "../../../../ECS/Components/Network/AuthenticationSingleton.h"
 
 // @TODO: Remove Temporary Includes when they're no longer needed
 #include <Utils/DebugHandler.h>
@@ -20,8 +22,11 @@ bool Client::AuthHandlers::HandshakeHandler(std::shared_ptr<NetworkClient> clien
     NC_LOG_MESSAGE("Received SMSG_LOGON_CHALLENGE");
     NC_LOG_MESSAGE("Status (%u)", logonChallenge.status);
 
+    entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+    AuthenticationSingleton& authenticationSingleton = gameRegistry->ctx<AuthenticationSingleton>();
+
     // If "ProcessChallenge" fails, we have either hit a bad memory allocation or a SRP-6a safety check, thus we should close the connection
-    if (!client->srp.ProcessChallenge(logonChallenge.s, logonChallenge.B))
+    if (!authenticationSingleton.srp.ProcessChallenge(logonChallenge.s, logonChallenge.B))
     {
         client->Close(asio::error::no_data);
         return true;
@@ -30,7 +35,7 @@ bool Client::AuthHandlers::HandshakeHandler(std::shared_ptr<NetworkClient> clien
     std::shared_ptr<ByteBuffer> buffer = ByteBuffer::Borrow<36>();
     ClientLogonResponse clientResponse;
 
-    std::memcpy(clientResponse.M1, client->srp.M, 32);
+    std::memcpy(clientResponse.M1, authenticationSingleton.srp.M, 32);
 
     buffer->PutU16(Opcode::CMSG_LOGON_RESPONSE);
     buffer->PutU16(0);
@@ -47,7 +52,10 @@ bool Client::AuthHandlers::HandshakeResponseHandler(std::shared_ptr<NetworkClien
     ServerLogonResponse logonResponse;
     logonResponse.Deserialize(packet->payload);
 
-    if (!client->srp.VerifySession(logonResponse.HAMK))
+    entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+    AuthenticationSingleton& authenticationSingleton = gameRegistry->ctx<AuthenticationSingleton>();
+
+    if (!authenticationSingleton.srp.VerifySession(logonResponse.HAMK))
     {
         NC_LOG_WARNING("Unsuccessful Login");
         client->Close(asio::error::no_permission);
@@ -55,5 +63,12 @@ bool Client::AuthHandlers::HandshakeResponseHandler(std::shared_ptr<NetworkClien
     }
 
     NC_LOG_SUCCESS("Successful Login");
+
+    // Send CMSG_CONNECTED (This will be changed in the future)
+    std::shared_ptr<ByteBuffer> buffer = ByteBuffer::Borrow<128>();
+    buffer->PutU16(Opcode::CMSG_CONNECTED);
+    buffer->PutU16(0);
+    client->Send(buffer.get());
+
     return true;
 }

@@ -3,21 +3,27 @@
 #include <Utils/Timer.h>
 #include <tracy/Tracy.hpp>
 #include "Utils/ServiceLocator.h"
-#include "Network/MessageHandler.h"
+#include "Utils/EntityUtils.h"
+#include <Networking/MessageHandler.h>
 #include "Utils/MapLoader.h"
 #include "Rendering/ClientRenderer.h"
+#include <Renderer/Renderer.h>
 
 // Component Singletons
 #include "ECS/Components/Singletons/MapSingleton.h"
 #include "ECS/Components/Singletons/TimeSingleton.h"
 #include "ECS/Components/Singletons/ScriptSingleton.h"
 #include "ECS/Components/Network/ConnectionSingleton.h"
+#include "ECS/Components/Network/AuthenticationSingleton.h"
+#include "ECS/Components/Rendering/Model.h"
+#include "ECS/Components/Transform.h"
 
 // Components
 
 // Systems
 #include "ECS/Systems/Network/ConnectionSystems.h"
 #include "ECS/Systems/UI/AddElementSystem.h"
+#include "ECS/Systems/Rendering/RenderModelSystem.h"
 
 // Handlers
 #include "Network/Handlers/Client/GeneralHandlers.h"
@@ -84,6 +90,7 @@ void EngineLoop::Run()
     TimeSingleton& timeSingleton = _updateFramework.gameRegistry.set<TimeSingleton>();
     ScriptSingleton& scriptSingleton = _updateFramework.gameRegistry.set<ScriptSingleton>();
     ConnectionSingleton& connectionSingleton = _updateFramework.gameRegistry.set<ConnectionSingleton>();
+    AuthenticationSingleton& authenticationSingleton = _updateFramework.gameRegistry.set<AuthenticationSingleton>();
     connectionSingleton.connection = _network.client;
 
     Timer timer;
@@ -93,7 +100,10 @@ void EngineLoop::Run()
 
     std::string scriptPath = "./Data/scripts";
     ScriptHandler::LoadScriptDirectory(scriptPath);
-
+    
+    _network.client->SetReadHandler(std::bind(&ConnectionUpdateSystem::HandleRead, std::placeholders::_1));
+    _network.client->SetConnectHandler(std::bind(&ConnectionUpdateSystem::HandleConnect, std::placeholders::_1));
+    _network.client->SetDisconnectHandler(std::bind(&ConnectionUpdateSystem::HandleConnect, std::placeholders::_1));
     _network.client->Connect("127.0.0.1", 3724);
 
     while (true)
@@ -205,6 +215,15 @@ void EngineLoop::SetupUpdateFramework()
         });
     addElementSystemTask.gather(connectionUpdateSystemTask);
 
+    // RenderModelSystem
+    tf::Task renderModelSystemTask = framework.emplace([this, &gameRegistry]()
+        {
+            ZoneScopedNC("RenderModelSystem::Update", tracy::Color::Blue2)
+                RenderModelSystem::Update(gameRegistry, _clientRenderer);
+            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+        });
+    renderModelSystemTask.gather(addElementSystemTask);
+
     // ScriptSingletonTask
     tf::Task ScriptSingletonTask = framework.emplace([&uiRegistry, &gameRegistry]()
         {
@@ -212,7 +231,7 @@ void EngineLoop::SetupUpdateFramework()
             gameRegistry.ctx<ScriptSingleton>().ExecuteTransactions();
             gameRegistry.ctx<ScriptSingleton>().ResetCompletedSystems();
         });
-    ScriptSingletonTask.gather(addElementSystemTask);
+    ScriptSingletonTask.gather(renderModelSystemTask);
 }
 void EngineLoop::SetMessageHandler()
 {

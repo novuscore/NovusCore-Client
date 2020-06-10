@@ -1,8 +1,9 @@
 #pragma once
-#include <entt.hpp>
+#include <entity/fwd.hpp>
 
+class ClientRenderer;
 class RenderModelSystem
 {
 public:
-    static void Update(entt::registry& registry);
+    static void Update(entt::registry& registry, ClientRenderer* clientRenderer);
 };

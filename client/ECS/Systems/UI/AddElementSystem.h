@@ -1,5 +1,5 @@
 #pragma once
-#include <entt.hpp>
+#include <entity/fwd.hpp>
 
 class AddElementSystem
 {

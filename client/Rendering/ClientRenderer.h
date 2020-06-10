@@ -35,6 +35,8 @@ public:
     void Update(f32 deltaTime);
     void Render();
 
+    u8 GetFrameIndex() { return _frameIndex; }
+
 private:
     void CreatePermanentResources();
 

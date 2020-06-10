@@ -1,10 +1,11 @@
 #include "AddElementSystem.h"
+#include <entt.hpp>
+#include <tracy/Tracy.hpp>
 #include "../../Components/UI/UIAddElementQueueSingleton.h"
 #include "../../Components/UI/UITransform.h"
 #include "../../Components/UI/UITransformEvents.h"
 #include "../../Components/UI/UIRenderable.h"
 #include "../../Components/UI/UIText.h"
-#include <tracy/Tracy.hpp>
 
 void AddElementSystem::Update(entt::registry& registry)
 {
