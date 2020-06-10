@@ -16,6 +16,7 @@ namespace UI
 
         _label = asLabel::CreateLabel();
         _label->SetParent(this);
+        _label->SetAnchor(vec2(0.5, 0.5));
     }
     
     void asButton::RegisterType()

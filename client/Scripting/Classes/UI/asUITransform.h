@@ -68,6 +68,12 @@ namespace UI
         }
         virtual void SetPosition(const vec2& position);
         
+        virtual const vec2 GetAnchor() const
+        {
+            return _transform.anchor;
+        }
+        virtual void SetAnchor(const vec2& anchor);
+
         virtual const vec2 GetLocalAnchor() const
         {
             return _transform.localAnchor;
@@ -92,9 +98,9 @@ namespace UI
         const vec2 GetMaxBound() const;
 
     private:
-        static void UpdateChildrenPosition(entt::registry* uiRegistry, UITransform& parent);
+        static void UpdateChildPositions(entt::registry* uiRegistry, UITransform& parent);
 
-        static void UpdateChildrenPositionInAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent);
+        static void UpdateChildPositionsInAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent);
 
     protected:
         entt::entity _entityId;
