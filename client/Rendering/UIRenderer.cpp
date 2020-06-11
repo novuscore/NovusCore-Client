@@ -393,6 +393,20 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             }
             else
             {
+                //If the widget we clicked on isn't the same as the focused one then clear the focus.
+                if (_focusedWidget != entity)
+                {
+                    _focusedWidget = entt::entity();
+                }
+
+                //Focus this widget if it is focusable.
+                if (events.IsFocusable())
+                {
+                    _focusedWidget = entity;
+
+                    events.OnFocused();
+                }
+    
                 if (events.IsClickable())
                 {
                     //if (!panel->DidDrag())
@@ -414,6 +428,9 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             }
         }
     }
+
+    //Unfocus widget. Clicking on anything but the focused widget should unfocus the original one.
+    _focusedWidget = entt::entity();
 
     return false;
 }

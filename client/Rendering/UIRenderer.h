@@ -39,5 +39,5 @@ private:
 
     Renderer::SamplerID _linearSampler;
 
-    //entt::entity _focusedField;
+    entt::entity _focusedWidget;
 };

@@ -287,6 +287,7 @@ void EngineLoop::SetupUpdateFramework()
             gameRegistry.ctx<ScriptSingleton>().ExecuteTransactions();
             gameRegistry.ctx<ScriptSingleton>().ResetCompletedSystems();
         });
+    ScriptSingletonTask.gather(addElementSystemTask);
     ScriptSingletonTask.gather(renderModelSystemTask);
 }
 void EngineLoop::SetMessageHandler()
