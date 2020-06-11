@@ -281,14 +281,14 @@ void EngineLoop::SetupUpdateFramework()
     renderModelSystemTask.gather(movementSystemTask);
 
     // ScriptSingletonTask
-    tf::Task ScriptSingletonTask = framework.emplace([&uiRegistry, &gameRegistry]()
+    tf::Task scriptSingletonTask = framework.emplace([&uiRegistry, &gameRegistry]()
         {
             ZoneScopedNC("ScriptSingletonTask::Update", tracy::Color::Blue2)
             gameRegistry.ctx<ScriptSingleton>().ExecuteTransactions();
             gameRegistry.ctx<ScriptSingleton>().ResetCompletedSystems();
         });
-    ScriptSingletonTask.gather(addElementSystemTask);
-    ScriptSingletonTask.gather(renderModelSystemTask);
+    scriptSingletonTask.gather(addElementSystemTask);
+    scriptSingletonTask.gather(renderModelSystemTask);
 }
 void EngineLoop::SetMessageHandler()
 {

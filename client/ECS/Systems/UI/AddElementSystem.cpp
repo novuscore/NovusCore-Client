@@ -16,18 +16,25 @@ void AddElementSystem::Update(entt::registry& registry)
     UIElementData element;
     while (uiAddElementQueueSingleton.elementPool.try_dequeue(element))
     {
-        registry.assign<UITransform>(element.entityId);
+        UITransform& transform = registry.assign<UITransform>(element.entityId);
+        transform.type = element.type;
 
-        if (element.type == UIElementData::UIElementType::UITYPE_TEXT)
+        switch (element.type)
         {
+        case UIElementData::UIElementType::UITYPE_TEXT:
             registry.assign<UIText>(element.entityId);
+            break;
+        case UIElementData::UIElementType::UITYPE_PANEL:
+            registry.assign<UIRenderable>(element.entityId);
+            break;
+        default:
+            break;
         }
-        else
+
+        if (element.type != UIElementData::UIElementType::UITYPE_TEXT)
         {
             UITransformEvents& events = registry.assign<UITransformEvents>(element.entityId);
             events.asObject = element.asObject;
-
-            registry.assign<UIRenderable>(element.entityId);
         }
     }
 }

@@ -396,7 +396,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
                 //If the widget we clicked on isn't the same as the focused one then clear the focus.
                 if (_focusedWidget != entity)
                 {
-                    _focusedWidget = entt::entity();
+                    _focusedWidget = entt::null;
                 }
 
                 //Focus this widget if it is focusable.
@@ -430,7 +430,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
     }
 
     //Unfocus widget. Clicking on anything but the focused widget should unfocus the original one.
-    _focusedWidget = entt::entity();
+    _focusedWidget = entt::null;
 
     return false;
 }
@@ -441,44 +441,21 @@ void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
 
 bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
 {
-    /*if (!_focusedField)
-        return false;
-
-    if (action == GLFW_PRESS)
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
+    
+    if (_focusedWidget != entt::null)
     {
-        switch (key)
+        UITransform& transform = registry->get<UITransform>(_focusedWidget);
+        UITransformEvents& events = registry->get<UITransformEvents>(_focusedWidget);
+
+        if (transform.type == UIElementData::UIElementType::UITYPE_INPUTFIELD)
         {
-        case GLFW_KEY_ESCAPE:
-            _focusedField->OnSubmit();
-            _focusedField = nullptr;
-            break;
-
-        case GLFW_KEY_ENTER:
-            _focusedField->OnEnter();
-            _focusedField = nullptr;
-            break;
-
-        case GLFW_KEY_BACKSPACE:
-            _focusedField->RemovePreviousCharacter();
-            break;
-
-        case GLFW_KEY_DELETE:
-            _focusedField->RemoveNextCharacter();
-            break;
-
-        case GLFW_KEY_LEFT:
-            _focusedField->MovePointerLeft();
-            break;
-
-        case GLFW_KEY_RIGHT:
-            _focusedField->MovePointerRight();
-            break;
-
-        default:
-            break;
+            
         }
+
+        return true;
     }
-    */
+
     return false;
 }
 

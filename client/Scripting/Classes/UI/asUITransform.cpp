@@ -53,9 +53,8 @@ namespace UI
         if (entityToAsObjectIterator != uiDataSingleton.entityToAsObject.end())
         {
             UITransform& parent = entityToAsObjectIterator->getSecond()->_transform;
-            vec2 NewOrigin = UITransformUtils::GetMinBounds(parent) + (parent.size * _transform.anchor);
 
-            _transform.position = NewOrigin;
+            _transform.position = UITransformUtils::GetAnchorPosition(parent, _transform.anchor);
         }
 
         UpdateChildPositionsInAngelScript(uiDataSingleton, _transform);
@@ -73,9 +72,8 @@ namespace UI
                 if (uiTransform.parent)
                 {
                     UITransform& parent = uiRegistry->get<UITransform>(entId);
-                    vec2 NewOrigin = UITransformUtils::GetMinBounds(parent) + (parent.size * uiTransform.anchor);
 
-                    uiTransform.position = NewOrigin;
+                    uiTransform.position = UITransformUtils::GetAnchorPosition(parent, uiTransform.anchor);
                 }
 
                 UpdateChildPositions(uiRegistry, uiTransform);
@@ -169,7 +167,7 @@ namespace UI
 
         //Calculate origin.
         UITransform& newParentTransform = parent->_transform;
-        vec2 NewOrigin = UITransformUtils::GetMinBounds(newParentTransform) + (newParentTransform.size * _transform.anchor);
+        vec2 NewOrigin = UITransformUtils::GetAnchorPosition(newParentTransform, _transform.anchor);
 
         //Recalculate new local position whilst keeping absolute position.
         _transform.localPosition = (NewOrigin + newParentTransform.localPosition) - _transform.position;
@@ -227,8 +225,7 @@ namespace UI
         {
             UITransform& uiChildTransform = uiRegistry->get<UITransform>(entt::entity(child.entity));
 
-            vec2 AnchorAdjustedPosition = UITransformUtils::GetMinBounds(parent) + (parent.size * uiChildTransform.anchor);
-            uiChildTransform.position = AnchorAdjustedPosition;
+            uiChildTransform.position = UITransformUtils::GetAnchorPosition(parent, uiChildTransform.anchor);
             uiChildTransform.isDirty = true;
 
             UpdateChildPositions(uiRegistry, uiChildTransform);
@@ -244,8 +241,7 @@ namespace UI
             {
                 asUITransform* asChild = iterator->getSecond();
 
-                vec2 AnchorAdjustedPosition = UITransformUtils::GetMinBounds(parent) + (parent.size * asChild->_transform.anchor);
-                asChild->_transform.position = AnchorAdjustedPosition;
+                asChild->_transform.position = UITransformUtils::GetAnchorPosition(parent, asChild->_transform.anchor);
 
                 if (asChild->_transform.children.size())
                 {
