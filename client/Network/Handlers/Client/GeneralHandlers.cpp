@@ -16,6 +16,7 @@ void Client::GeneralHandlers::Setup(MessageHandler* messageHandler)
     messageHandler->SetMessageHandler(Opcode::SMSG_CREATE_PLAYER, Client::GeneralHandlers::SMSG_CREATE_PLAYER);
     messageHandler->SetMessageHandler(Opcode::SMSG_CREATE_ENTITY, Client::GeneralHandlers::SMSG_CREATE_ENTITY);
     messageHandler->SetMessageHandler(Opcode::SMSG_UPDATE_ENTITY, Client::GeneralHandlers::SMSG_UPDATE_ENTITY);
+    messageHandler->SetMessageHandler(Opcode::SMSG_DELETE_ENTITY, Client::GeneralHandlers::SMSG_DELETE_ENTITY);
 }
 
 bool Client::GeneralHandlers::SMSG_CREATE_PLAYER(std::shared_ptr<NetworkClient> networkClient, NetworkPacket* packet)
@@ -90,5 +91,20 @@ bool Client::GeneralHandlers::SMSG_UPDATE_ENTITY(std::shared_ptr<NetworkClient> 
     packet->payload->Get(transform.scale);
     transform.isDirty = true;
 
+    return true;
+}
+
+bool Client::GeneralHandlers::SMSG_DELETE_ENTITY(std::shared_ptr<NetworkClient> networkClient, NetworkPacket* packet)
+{
+    entt::registry* registry = ServiceLocator::GetGameRegistry();
+    LocalplayerSingleton& localplayerSingleton = registry->ctx<LocalplayerSingleton>();
+
+    entt::entity entityId = entt::null;
+    packet->payload->Get(entityId);
+
+    if (localplayerSingleton.entity == entityId)
+        return true;
+
+    registry->destroy(entityId);
     return true;
 }

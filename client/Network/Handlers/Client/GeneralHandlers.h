@@ -13,5 +13,6 @@ namespace Client
         static bool SMSG_CREATE_PLAYER(std::shared_ptr<NetworkClient>, NetworkPacket*);
         static bool SMSG_CREATE_ENTITY(std::shared_ptr<NetworkClient>, NetworkPacket*);
         static bool SMSG_UPDATE_ENTITY(std::shared_ptr<NetworkClient>, NetworkPacket*);
+        static bool SMSG_DELETE_ENTITY(std::shared_ptr<NetworkClient>, NetworkPacket*);
     };
 }
