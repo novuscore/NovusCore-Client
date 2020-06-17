@@ -42,7 +42,54 @@ namespace UI
 
     void asInputField::AppendInput(const std::string& Input)
     {
-        _label->SetText(_label->GetText() + Input);
+        std::string newString = _label->GetText();
+        if (_pointerIndex == _label->GetText().length())
+        {
+            newString += Input;
+        }
+        else
+        {
+            newString.insert((size_t)_pointerIndex, Input);
+        }
+
+        _label->SetText(newString);
+
+        _pointerIndex += Input.length();
+    }
+
+    void asInputField::RemovePreviousCharacter()
+    {
+        if (!_label->GetText().empty() && _pointerIndex > 0)
+        {
+            std::string newString = _label->GetText();
+
+            _label->SetText(newString.erase(_pointerIndex - 1, 1));
+
+            MovePointerLeft();
+        }
+    }
+
+    void asInputField::RemoveNextCharacter()
+    {
+        if (_label->GetText().length() > _pointerIndex)
+        {
+            std::string newString = _label->GetText();
+            newString.erase(_pointerIndex, 1);
+
+            _label->SetText(newString);
+        }
+    }
+
+    void asInputField::MovePointerLeft()
+    {
+        _pointerIndex = _pointerIndex > 0 ? _pointerIndex - 1 : 0;
+        NC_LOG_MESSAGE("PointerIndex: %d, Length: %d", _pointerIndex, _label->GetText().length());
+    }
+
+    void asInputField::MovePointerRight()
+    {
+        _pointerIndex = _pointerIndex + 1 > _label->GetText().length() ? _pointerIndex : _pointerIndex + 1;
+        NC_LOG_MESSAGE("PointerIndex: %d, Length: %d", _pointerIndex, _label->GetText().length());
     }
 
     void asInputField::SetSize(const vec2& size)
@@ -92,6 +139,8 @@ namespace UI
     void asInputField::SetText(const std::string& text)
     {
         _label->SetText(text);
+
+        _pointerIndex = _label->GetText().length();
     }
     const std::string& asInputField::GetText() const
     {

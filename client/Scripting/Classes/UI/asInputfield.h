@@ -26,6 +26,13 @@ namespace UI
             AppendInput(input);
         }
 
+        void RemovePreviousCharacter();
+        void RemoveNextCharacter();
+
+        void MovePointerLeft();
+        void MovePointerRight();
+
+
         //Transform Functions.
         virtual void SetSize(const vec2& size);
 
@@ -54,6 +61,7 @@ namespace UI
     private:
         asLabel* _label;
 
+        size_t _pointerIndex;
         UITransformEvents _events;
     };
 }

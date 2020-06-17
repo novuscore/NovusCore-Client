@@ -140,7 +140,7 @@ void UIRenderer::Update(f32 deltaTime)
                 });
 
             size_t glyphCount = text.models.size();
-            if (glyphCount < textLengthWithoutSpaces)
+            if (glyphCount != textLengthWithoutSpaces)
             {
                 text.models.resize(textLengthWithoutSpaces);
                 for (size_t i = glyphCount; i < textLengthWithoutSpaces; i++)
@@ -148,9 +148,9 @@ void UIRenderer::Update(f32 deltaTime)
                     text.models[i] = Renderer::ModelID::Invalid();
                 }
             }
-            if (text.textures.size() < textLengthWithoutSpaces)
+            if (text.textures.size() != textLengthWithoutSpaces)
             {
-                text.textures.resize(textLengthWithoutSpaces);                
+                text.textures.resize(textLengthWithoutSpaces);
                 for (size_t i = glyphCount; i < textLengthWithoutSpaces; i++)
                 {
                     text.textures[i] = Renderer::TextureID::Invalid();
@@ -323,7 +323,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                     commandList.PopMarker();
                 });
             commandList.EndPipeline(pipeline);
-           
+
             // Draw text
             vertexShaderDesc.path = "Data/shaders/text.vert.spv";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
@@ -384,15 +384,15 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 
         _focusedWidget = entt::null;
     }
-    
+
     auto eventView = registry->view<UITransform, UITransformEvents>();
     for (auto entity : eventView)
     {
-        auto& events = eventView.get<UITransformEvents>(entity);
+        UITransformEvents& events = eventView.get<UITransformEvents>(entity);
         if (!events.flags)
             continue;
 
-        auto& transform = eventView.get<UITransform>(entity);
+        UITransform& transform = eventView.get<UITransform>(entity);
         const vec2 minBounds = UITransformUtils::GetMinBounds(transform);
         const vec2 maxBounds = UITransformUtils::GetMaxBounds(transform);
 
@@ -420,7 +420,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 
                     events.OnFocused();
                 }
-    
+
                 if (events.IsClickable())
                 {
                     //if (!panel->DidDrag())
@@ -447,24 +447,55 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 }
 
 void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
-{ 
+{
 }
 
 bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
 {
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
-    
-    if (_focusedWidget != entt::null)
+    if (_focusedWidget == entt::null)
+        return false;
+
+    if (action == GLFW_RELEASE)
     {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
         UITransform& transform = registry->get<UITransform>(_focusedWidget);
+        UITransformEvents& events = registry->get<UITransformEvents>(_focusedWidget);
+
 
         if (transform.type == UIElementData::UIElementType::UITYPE_INPUTFIELD)
         {
-            return true;
+            UI::asInputField* inputField = reinterpret_cast<UI::asInputField*>(transform.asObject);
+
+            switch (key)
+            {
+            case GLFW_KEY_ESCAPE:
+                events.OnUnFocused();
+                _focusedWidget = entt::null;
+                break;
+
+            case GLFW_KEY_BACKSPACE:
+                inputField->RemovePreviousCharacter();
+                break;
+
+            case GLFW_KEY_DELETE:
+                inputField->RemoveNextCharacter();
+                break;
+
+            case GLFW_KEY_LEFT:
+                inputField->MovePointerLeft();
+                break;
+
+            case GLFW_KEY_RIGHT:
+                inputField->MovePointerRight();
+                break;
+
+            default:
+                break;
+            }
         }
     }
 
-    return false;
+    return true;
 }
 
 bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
