@@ -25,7 +25,7 @@ struct UITransform
     };
 
 public:
-    UITransform() : position(), localPosition(), anchor(), localAnchor(), size(), depth(), parent(), children(), type(), isDirty(false) 
+    UITransform() : position(), localPosition(), anchor(), localAnchor(), size(), depth(), parent(), children(), type(), isDirty(false), asObject(nullptr)
     { 
         children.reserve(8);
     }
@@ -38,6 +38,7 @@ public:
     u16 depth;
     u32 parent;
     std::vector<UIChild> children;
+    void* asObject;
 
     UIElementData::UIElementType type;
     bool isDirty;

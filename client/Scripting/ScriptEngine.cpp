@@ -105,7 +105,7 @@ void ScriptEngine::RegisterFunctions()
     UI::asPanel::RegisterType();
     UI::asLabel::RegisterType();
     UI::asButton::RegisterType();
-    UI::asInputfield::RegisterType();
+    UI::asInputField::RegisterType();
 
     ScriptEngine::RegisterScriptFunction("void Print(string msg)", asFUNCTION(ScriptEngine::Print));
 }

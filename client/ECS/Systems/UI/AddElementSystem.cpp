@@ -18,6 +18,7 @@ void AddElementSystem::Update(entt::registry& registry)
     {
         UITransform& transform = registry.assign<UITransform>(element.entityId);
         transform.type = element.type;
+        transform.asObject = element.asObject;
 
         switch (element.type)
         {

@@ -12,6 +12,8 @@
 #include "../ECS/Components/UI/UIRenderable.h"
 #include "../ECS/Components/UI/UIText.h"
 
+#include "../Scripting/Classes/UI/asInputfield.h"
+
 #include <Renderer/Renderer.h>
 #include <Renderer/Renderers/Vulkan/RendererVK.h>
 #include <Renderer/Descriptors/FontDesc.h>
@@ -48,6 +50,8 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
 
     // Register UI data singleton.
     registry->set<UI::UIDataSingleton>();
+
+    _focusedWidget = entt::null;
 }
 
 void UIRenderer::Update(f32 deltaTime)
@@ -370,6 +374,17 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
     f32 mouseY = inputManager->GetMousePositionY();
 
     entt::registry* registry = ServiceLocator::GetUIRegistry();
+
+    //Unfocus last focused widget.
+    entt::entity lastFocusedWidget = _focusedWidget;
+    if (_focusedWidget != entt::null)
+    {
+        auto& events = registry->get<UITransformEvents>(_focusedWidget);
+        events.OnUnFocused();
+
+        _focusedWidget = entt::null;
+    }
+    
     auto eventView = registry->view<UITransform, UITransformEvents>();
     for (auto entity : eventView)
     {
@@ -384,6 +399,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         if ((mouseX > minBounds.x && mouseX < maxBounds.x) &&
             (mouseY > minBounds.y && mouseY < maxBounds.y))
         {
+
             if (keybind->state)
             {
                 if (events.IsDraggable())
@@ -393,11 +409,9 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             }
             else
             {
-                //If the widget we clicked on isn't the same as the focused one then clear the focus.
-                if (_focusedWidget != entity)
-                {
-                    _focusedWidget = entt::null;
-                }
+                //Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it.
+                if (lastFocusedWidget == entity)
+                    continue;
 
                 //Focus this widget if it is focusable.
                 if (events.IsFocusable())
@@ -429,9 +443,6 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         }
     }
 
-    //Unfocus widget. Clicking on anything but the focused widget should unfocus the original one.
-    _focusedWidget = entt::null;
-
     return false;
 }
 
@@ -446,14 +457,11 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
     if (_focusedWidget != entt::null)
     {
         UITransform& transform = registry->get<UITransform>(_focusedWidget);
-        UITransformEvents& events = registry->get<UITransformEvents>(_focusedWidget);
 
         if (transform.type == UIElementData::UIElementType::UITYPE_INPUTFIELD)
         {
-            
+            return true;
         }
-
-        return true;
     }
 
     return false;
@@ -461,12 +469,21 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
 
 bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
 {
-    /*if (!_focusedField)
-        return false;
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
 
-    std::string input = "";
-    input.append(1, (char)unicodeKey);
-    _focusedField->AddText(input);*/
+    if (_focusedWidget != entt::null)
+    {
+        UITransform& transform = registry->get<UITransform>(_focusedWidget);
+
+        if (transform.type == UIElementData::UIElementType::UITYPE_INPUTFIELD)
+        {
+            UI::asInputField* inputField = reinterpret_cast<UI::asInputField*>(transform.asObject);
+
+            inputField->AppendInput((char)unicodeKey);
+        }
+
+        return true;
+    }
 
     return false;
 }

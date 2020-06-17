@@ -9,41 +9,51 @@
 
 namespace UI
 {
-    asInputfield::asInputfield(entt::entity entityId) : asUITransform(entityId, UIElementData::UIElementType::UITYPE_INPUTFIELD) 
+    asInputField::asInputField(entt::entity entityId) : asUITransform(entityId, UIElementData::UIElementType::UITYPE_INPUTFIELD) 
     {
-        _panel = asPanel::CreatePanel();
-        _panel->SetParent(this);
-
         _label = asLabel::CreateLabel();
         _label->SetParent(this);
         _label->SetAnchor(vec2(0, 1));
     }
 
-    void asInputfield::RegisterType()
+    void asInputField::RegisterType()
     {
-        i32 r = ScriptEngine::RegisterScriptClass("Inputfield", 0, asOBJ_REF | asOBJ_NOCOUNT);
-        r = ScriptEngine::RegisterScriptInheritance<asUITransform, asInputfield>("UITransform");
-        r = ScriptEngine::RegisterScriptFunction("Inputfield@ CreateInputfield()", asFUNCTION(asInputfield::CreateInputfield)); assert(r >= 0);
+        i32 r = ScriptEngine::RegisterScriptClass("InputField", 0, asOBJ_REF | asOBJ_NOCOUNT);
+        r = ScriptEngine::RegisterScriptInheritance<asUITransform, asInputField>("UITransform");
+        r = ScriptEngine::RegisterScriptFunction("InputField@ CreateInputField()", asFUNCTION(asInputField::CreateInputField)); assert(r >= 0);
 
         // TransformEvents Functions
-        r = ScriptEngine::RegisterScriptClassFunction("void SetEventFlag(int8 flags)", asMETHOD(asInputfield, SetEventFlag)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void UnsetEventFlag(int8 flags)", asMETHOD(asInputfield, UnsetEventFlag)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("bool IsFocusable()", asMETHOD(asInputfield, IsFocusable)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptFunctionDef("void InputfieldEventCallback(Inputfield@ inputfield)"); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void OnFocused(InputfieldEventCallback@ cb)", asMETHOD(asInputfield, SetOnFocusCallback)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("bool IsFocusable()", asMETHOD(asInputField, IsFocusable)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptFunctionDef("void InputFieldEventCallback(InputField@ inputfield)"); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void OnFocus(InputFieldEventCallback@ cb)", asMETHOD(asInputField, SetOnFocusCallback)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void OnLostFocus(InputFieldEventCallback@ cb)", asMETHOD(asInputField, SetOnUnFocusCallback)); assert(r >= 0);
 
+        //Label Functions
+        r = ScriptEngine::RegisterScriptClassFunction("void SetText(string text)", asMETHOD(asInputField, SetText)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("string GetText()", asMETHOD(asInputField, GetText)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetTextColor(Color color)", asMETHOD(asInputField, SetTextColor)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("Color GetTextColor()", asMETHOD(asInputField, GetTextColor)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineColor(Color color)", asMETHOD(asInputField, SetTextOutlineColor)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("Color GetOutlineColor()", asMETHOD(asInputField, GetTextOutlineColor)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineWidth(float width)", asMETHOD(asInputField, SetTextOutlineWidth)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("float GetOutlineWidth()", asMETHOD(asInputField, GetTextOutlineWidth)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetFont(string fontPath, float fontSize)", asMETHOD(asInputField, SetTextFont)); assert(r >= 0);
     }
 
-    void asInputfield::SetSize(const vec2& size)
+    void asInputField::AppendInput(const std::string& Input)
+    {
+        _label->SetText(_label->GetText() + Input);
+    }
+
+    void asInputField::SetSize(const vec2& size)
     {
         asUITransform::SetSize(size);
 
         //This should be replaced by a system for filling parent size.
-        _panel->SetSize(size);
         _label->SetSize(size);
     }
 
-    void asInputfield::SetOnFocusCallback(asIScriptFunction* callback)
+    void asInputField::SetOnFocusCallback(asIScriptFunction* callback)
     {
         _events.onFocusedCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
@@ -61,7 +71,66 @@ namespace UI
             });
     }
 
-    asInputfield* asInputfield::CreateInputfield()
+    void asInputField::SetOnUnFocusCallback(asIScriptFunction* callback)
+    {
+        _events.onUnFocusedCallback = callback;
+        _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+
+        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity entId = _entityId;
+
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
+            {
+                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+                UITransformEvents& events = uiRegistry->get<UITransformEvents>(entId);
+
+                events.onUnFocusedCallback = callback;
+                events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+            });
+    }
+
+    void asInputField::SetText(const std::string& text)
+    {
+        _label->SetText(text);
+    }
+    const std::string& asInputField::GetText() const
+    {
+        return _label->GetText();
+    }
+
+    void asInputField::SetTextColor(const Color& color)
+    {
+        _label->SetColor(color);
+    }
+    const Color& asInputField::GetTextColor() const
+    {
+        return _label->GetColor();
+    }
+
+    void asInputField::SetTextOutlineColor(const Color& outlineColor)
+    {
+        _label->SetOutlineColor(outlineColor);
+    }
+    const Color& asInputField::GetTextOutlineColor() const
+    {
+        return _label->GetOutlineColor();
+    }
+
+    void asInputField::SetTextOutlineWidth(f32 outlineWidth)
+    {
+        _label->SetOutlineWidth(outlineWidth);
+    }
+    const f32 asInputField::GetTextOutlineWidth() const
+    {
+        return _label->GetOutlineWidth();
+    }
+
+    void asInputField::SetTextFont(std::string fontPath, f32 fontSize)
+    {
+        _label->SetFont(fontPath, fontSize);
+    }
+
+    asInputField* asInputField::CreateInputField()
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
@@ -71,7 +140,7 @@ namespace UI
         entityPool.entityIdPool.try_dequeue(elementData.entityId);
         elementData.type = UIElementData::UIElementType::UITYPE_INPUTFIELD;
 
-        asInputfield* inputfield = new asInputfield(elementData.entityId);
+        asInputField* inputfield = new asInputField(elementData.entityId);
 
         elementData.asObject = inputfield;
 

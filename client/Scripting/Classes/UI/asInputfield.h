@@ -10,27 +10,49 @@ namespace UI
     class asLabel;
     class asPanel;
 
-    class asInputfield : public asUITransform
+    class asInputField : public asUITransform
     {
     public:
-        asInputfield(entt::entity entityId);
+        asInputField(entt::entity entityId);
 
         static void RegisterType();
+
+        //InputField Functions
+        void AppendInput(const std::string& Input);
+        void AppendInput(const char Input) 
+        {
+            std::string input = "";
+            input.append(1, Input);
+            AppendInput(input);
+        }
 
         //Transform Functions.
         virtual void SetSize(const vec2& size);
 
         // TransformEvents Functions
-        void SetEventFlag(const UITransformEventsFlags flags) { _events.SetFlag(flags); }
-        void UnsetEventFlag(const UITransformEventsFlags flags) { _events.UnsetFlag(flags); }
         const bool IsFocusable() const { return _events.IsFocusable(); }
         void SetOnFocusCallback(asIScriptFunction* callback);
+        void SetOnUnFocusCallback(asIScriptFunction* callback);
 
-        static asInputfield* CreateInputfield();
+        //Label Functions
+        void SetText(const std::string& text);
+        const std::string& GetText() const;
+
+        void SetTextColor(const Color& color);
+        const Color& GetTextColor() const;
+
+        void SetTextOutlineColor(const Color& outlineColor);
+        const Color& GetTextOutlineColor() const;
+
+        void SetTextOutlineWidth(f32 outlineWidth);
+        const f32 GetTextOutlineWidth() const;
+
+        void SetTextFont(std::string fontPath, f32 fontSize);
+
+        static asInputField* CreateInputField();
 
     private:
         asLabel* _label;
-        asPanel* _panel;
 
         UITransformEvents _events;
     };
