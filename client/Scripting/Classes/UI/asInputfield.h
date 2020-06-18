@@ -2,8 +2,10 @@
 #include <NovusTypes.h>
 #include <entt.hpp>
 
-#include "../../../ECS/Components/UI/UITransformEvents.h"
 #include "asUITransform.h"
+
+#include "../../../ECS/Components/UI/UITransformEvents.h"
+#include "../../../ECS/Components/UI/UIInputField.h"
 
 namespace UI
 {
@@ -18,12 +20,12 @@ namespace UI
         static void RegisterType();
 
         //InputField Functions
-        void AppendInput(const std::string& Input);
-        void AppendInput(const char Input) 
+        void AppendInput(const std::string& input);
+        void AppendInput(const char input) 
         {
-            std::string input = "";
-            input.append(1, Input);
-            AppendInput(input);
+            std::string strInput = "";
+            strInput.append(1, input);
+            AppendInput(strInput);
         }
 
         void RemovePreviousCharacter();
@@ -32,6 +34,7 @@ namespace UI
         void MovePointerLeft();
         void MovePointerRight();
 
+        void SetWriteHeadPosition(u32 position);
 
         //Transform Functions.
         virtual void SetSize(const vec2& size);
@@ -61,7 +64,7 @@ namespace UI
     private:
         asLabel* _label;
 
-        size_t _pointerIndex;
         UITransformEvents _events;
+        UIInputField _inputField;
     };
 }

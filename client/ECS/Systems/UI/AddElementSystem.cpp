@@ -6,6 +6,7 @@
 #include "../../Components/UI/UITransformEvents.h"
 #include "../../Components/UI/UIRenderable.h"
 #include "../../Components/UI/UIText.h"
+#include "../../Components/UI/UIInputField.h"
 
 void AddElementSystem::Update(entt::registry& registry)
 {
@@ -28,6 +29,12 @@ void AddElementSystem::Update(entt::registry& registry)
         case UIElementData::UIElementType::UITYPE_PANEL:
             registry.assign<UIRenderable>(element.entityId);
             break;
+        case UIElementData::UIElementType::UITYPE_INPUTFIELD:
+        {
+            UIInputField& inputField = registry.assign<UIInputField>(element.entityId);
+            inputField.asObject = element.asObject;
+            break;
+        }
         default:
             break;
         }

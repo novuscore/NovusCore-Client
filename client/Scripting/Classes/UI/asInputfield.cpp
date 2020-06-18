@@ -9,11 +9,10 @@
 
 namespace UI
 {
-    asInputField::asInputField(entt::entity entityId) : asUITransform(entityId, UIElementData::UIElementType::UITYPE_INPUTFIELD) 
+    asInputField::asInputField(entt::entity entityId) : asUITransform(entityId, UIElementData::UIElementType::UITYPE_INPUTFIELD)
     {
         _label = asLabel::CreateLabel();
         _label->SetParent(this);
-        _label->SetAnchor(vec2(0, 1));
     }
 
     void asInputField::RegisterType()
@@ -43,53 +42,72 @@ namespace UI
     void asInputField::AppendInput(const std::string& Input)
     {
         std::string newString = _label->GetText();
-        if (_pointerIndex == _label->GetText().length())
+        if (_inputField.writeHeadIndex == _label->GetText().length())
         {
             newString += Input;
         }
         else
         {
-            newString.insert((size_t)_pointerIndex, Input);
+            newString.insert(_inputField.writeHeadIndex, Input);
         }
 
         _label->SetText(newString);
 
-        _pointerIndex += Input.length();
+        SetWriteHeadPosition(_inputField.writeHeadIndex + static_cast<u32>(Input.length()));
     }
 
     void asInputField::RemovePreviousCharacter()
     {
-        if (!_label->GetText().empty() && _pointerIndex > 0)
-        {
-            std::string newString = _label->GetText();
+        if (_label->GetText().empty() || _inputField.writeHeadIndex <= 0)
+            return;
 
-            _label->SetText(newString.erase(_pointerIndex - 1, 1));
+        std::string newString = _label->GetText();
+        newString.erase(_inputField.writeHeadIndex - 1, 1);
 
-            MovePointerLeft();
-        }
+        _label->SetText(newString);
+
+        MovePointerLeft();
     }
 
     void asInputField::RemoveNextCharacter()
     {
-        if (_label->GetText().length() > _pointerIndex)
-        {
-            std::string newString = _label->GetText();
-            newString.erase(_pointerIndex, 1);
+        if (_label->GetText().length() <= _inputField.writeHeadIndex)
+            return;
 
-            _label->SetText(newString);
-        }
+        std::string newString = _label->GetText();
+        newString.erase(_inputField.writeHeadIndex, 1);
+
+        _label->SetText(newString);
     }
 
     void asInputField::MovePointerLeft()
     {
-        _pointerIndex = _pointerIndex > 0 ? _pointerIndex - 1 : 0;
-        NC_LOG_MESSAGE("PointerIndex: %d, Length: %d", _pointerIndex, _label->GetText().length());
+        SetWriteHeadPosition(_inputField.writeHeadIndex - 1);
     }
 
     void asInputField::MovePointerRight()
     {
-        _pointerIndex = _pointerIndex + 1 > _label->GetText().length() ? _pointerIndex : _pointerIndex + 1;
-        NC_LOG_MESSAGE("PointerIndex: %d, Length: %d", _pointerIndex, _label->GetText().length());
+        SetWriteHeadPosition(_inputField.writeHeadIndex + 1);
+    }
+
+    void asInputField::SetWriteHeadPosition(u32 position)
+    {
+        u32 clampedPosition = position > 0 ? (position <= _label->GetText().length() ? position : static_cast<u32>(_label->GetText().length())) : 0;
+
+        if (clampedPosition == position)
+            return;
+
+        _inputField.writeHeadIndex = clampedPosition;
+
+        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity entId = _entityId;
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([entId, clampedPosition]()
+            {
+                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+                UIInputField& inputField = uiRegistry->get<UIInputField>(entId);
+
+                inputField.writeHeadIndex = clampedPosition;
+            });
     }
 
     void asInputField::SetSize(const vec2& size)
@@ -140,7 +158,7 @@ namespace UI
     {
         _label->SetText(text);
 
-        _pointerIndex = _label->GetText().length();
+        SetWriteHeadPosition(static_cast<u32>(_label->GetText().length()));
     }
     const std::string& asInputField::GetText() const
     {

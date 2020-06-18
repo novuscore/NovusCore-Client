@@ -11,6 +11,7 @@
 #include "../ECS/Components/UI/UITransformEvents.h"
 #include "../ECS/Components/UI/UIRenderable.h"
 #include "../ECS/Components/UI/UIText.h"
+#include "../ECS/Components/UI/UIInputField.h"
 
 #include "../Scripting/Classes/UI/asInputfield.h"
 
@@ -128,7 +129,7 @@ void UIRenderer::Update(f32 deltaTime)
 
             if (text.fontPath.length() == 0)
             {
-                transform.isDirty = false;
+                text.isDirty = false;
                 return;
             }
 
@@ -157,8 +158,10 @@ void UIRenderer::Update(f32 deltaTime)
                 }
             }
 
-            size_t glyph = 0;
             vec3 currentPosition = vec3(UITransformUtils::GetMinBounds(transform), transform.depth);
+            currentPosition.y -= text.font->GetChar('A').yOffset * 1.15f; //TODO Get line height in a less hacky way. (This was done to make text anchors also be the top-left as other widgets)
+
+            size_t glyph = 0;
             for (char character : text.text)
             {
                 if (character == ' ')
@@ -369,11 +372,11 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 
 bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 {
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
+
     InputManager* inputManager = ServiceLocator::GetInputManager();
     f32 mouseX = inputManager->GetMousePositionX();
     f32 mouseY = inputManager->GetMousePositionY();
-
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
 
     //Unfocus last focused widget.
     entt::entity lastFocusedWidget = _focusedWidget;
@@ -385,35 +388,36 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         _focusedWidget = entt::null;
     }
 
+    //TODO IMPROVEMENT: Depth sorting widgets.
     auto eventView = registry->view<UITransform, UITransformEvents>();
     for (auto entity : eventView)
     {
-        UITransformEvents& events = eventView.get<UITransformEvents>(entity);
-        if (!events.flags)
-            continue;
-
-        UITransform& transform = eventView.get<UITransform>(entity);
+        const UITransform& transform = eventView.get<UITransform>(entity);
         const vec2 minBounds = UITransformUtils::GetMinBounds(transform);
         const vec2 maxBounds = UITransformUtils::GetMaxBounds(transform);
 
         if ((mouseX > minBounds.x && mouseX < maxBounds.x) &&
             (mouseY > minBounds.y && mouseY < maxBounds.y))
         {
+            UITransformEvents& events = eventView.get<UITransformEvents>(entity);
+
+            //Check if we have any events we can actually call else exit out early. It needs to still block clicking through though.
+            if (!events.flags)
+                return true;
+            
+            //Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it. But it still needs to block clicking through it.
+            if (lastFocusedWidget == entity)
+                return true;
 
             if (keybind->state)
             {
                 if (events.IsDraggable())
                 {
-                    //panel->BeingDrag(vec2(mouseX - pos.x, mouseY - pos.y));
+                    //TODO FEATURE: Dragging
                 }
             }
             else
             {
-                //Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it.
-                if (lastFocusedWidget == entity)
-                    continue;
-
-                //Focus this widget if it is focusable.
                 if (events.IsFocusable())
                 {
                     _focusedWidget = entity;
@@ -423,23 +427,11 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 
                 if (events.IsClickable())
                 {
-                    //if (!panel->DidDrag())
-
                     events.OnClick();
                 }
             }
 
             return true;
-        }
-
-        if (!keybind->state)
-        {
-            if (events.IsDraggable())
-            {
-                //panel->EndDrag();
-
-                return true;
-            }
         }
     }
 
@@ -448,6 +440,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 
 void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
 {
+    //TODO FEATURE: Handle Dragging
 }
 
 bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
@@ -461,10 +454,10 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
         UITransform& transform = registry->get<UITransform>(_focusedWidget);
         UITransformEvents& events = registry->get<UITransformEvents>(_focusedWidget);
 
-
         if (transform.type == UIElementData::UIElementType::UITYPE_INPUTFIELD)
         {
-            UI::asInputField* inputField = reinterpret_cast<UI::asInputField*>(transform.asObject);
+            UI::asInputField* inputFieldAS = reinterpret_cast<UI::asInputField*>(transform.asObject);
+            UIInputField& inputField = registry->get<UIInputField>(_focusedWidget);
 
             switch (key)
             {
@@ -474,21 +467,23 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
                 break;
 
             case GLFW_KEY_BACKSPACE:
-                inputField->RemovePreviousCharacter();
+                inputFieldAS->RemovePreviousCharacter();
                 break;
 
             case GLFW_KEY_DELETE:
-                inputField->RemoveNextCharacter();
+                inputFieldAS->RemoveNextCharacter();
                 break;
 
             case GLFW_KEY_LEFT:
-                inputField->MovePointerLeft();
+                inputFieldAS->MovePointerLeft();
                 break;
 
             case GLFW_KEY_RIGHT:
-                inputField->MovePointerRight();
+                inputFieldAS->MovePointerRight();
                 break;
-
+            case GLFW_KEY_ENTER:
+                inputField.OnSubmit();
+                break;
             default:
                 break;
             }
