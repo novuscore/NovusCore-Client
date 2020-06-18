@@ -4,7 +4,7 @@
 namespace Renderer
 {
     template <typename T>
-    struct ConstantBuffer
+    struct StorageBuffer
     {
         T resource;
 
@@ -39,7 +39,7 @@ namespace Renderer
         Backend::BufferBackend* backend = nullptr;
 
     protected:
-        ConstantBuffer() {}; // This has to be created through Renderer::CreateConstantBuffer<T>
+        StorageBuffer() {}; // This has to be created through Renderer::CreateStorageBuffer<T>
 
         friend class Renderer;
     };

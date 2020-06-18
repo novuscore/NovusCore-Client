@@ -33,7 +33,11 @@ namespace Renderer
             : _onSetup(onSetup)
             , _onExecute(onExecute)
         {
-            assert(name.length() < 16); // Max length of renderpass names is enforced to 15 chars since we have to store the string internally
+            if (name.length() >= 16)
+            {
+                NC_LOG_FATAL("We encountered a render pass name (%s) that is longer than 15 characters, we have this limit because we store the string internally and not on the heap.", name.c_str());
+            }
+
             strcpy_s(_name, name.c_str());
         }
 

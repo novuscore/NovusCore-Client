@@ -2,6 +2,7 @@
 #include <NovusTypes.h>
 #include <vector>
 #include <vulkan/vulkan.h>
+#include "vk_mem_alloc.h"
 
 #include "../../../Descriptors/TextureDesc.h"
 #include "../../../Descriptors/TextureArrayDesc.h"
@@ -23,8 +24,10 @@ namespace Renderer
             TextureID LoadTexture(RenderDeviceVK* device, const TextureDesc& desc);
             TextureID LoadTextureIntoArray(RenderDeviceVK* device, const TextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex);
 
-            TextureID CreateDataTexture(RenderDeviceVK* device, const DataTextureDesc& desc);
             TextureArrayID CreateTextureArray(RenderDeviceVK* device, const TextureArrayDesc& desc);
+
+            TextureID CreateDataTexture(RenderDeviceVK* device, const DataTextureDesc& desc);
+            TextureID CreateDataTextureIntoArray(RenderDeviceVK* device, const DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex);
 
             VkImageView GetImageView(const TextureID id);
             VkDescriptorSet GetDescriptorSet(const TextureID id);
@@ -33,12 +36,14 @@ namespace Renderer
         private:
             struct Texture
             {
+                u64 hash;
+
                 i32 width;
                 i32 height;
 
                 VkFormat format;
 
-                VkDeviceMemory memory;
+                VmaAllocation allocation;
                 VkImage image;
                 VkImageView imageView;
 
@@ -52,6 +57,7 @@ namespace Renderer
             struct TextureArray
             {
                 std::vector<TextureID> textures;
+                std::vector<u64> textureHashes;
 
                 VkDescriptorSetLayout descriptorSetLayout;
                 VkDescriptorPool descriptorPool;
@@ -59,6 +65,10 @@ namespace Renderer
             };
 
         private:
+            u64 CalculateDescHash(const TextureDesc& desc);
+            bool TryFindExistingTexture(u64 descHash, size_t& id);
+            bool TryFindExistingTextureInArray(TextureArrayID arrayID, u64 descHash, size_t& arrayIndex, TextureID& textureId);
+
             u8* ReadFile(const std::string& filename, i32& width, i32& height, VkFormat& format);
             void CreateTexture(RenderDeviceVK* device, Texture& texture, u8* pixels);
 

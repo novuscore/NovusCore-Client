@@ -311,7 +311,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                     commandList.PushMarker("Renderable", Color(0.0f, 0.1f, 0.0f));
 
                     // Set constant buffer
-                    commandList.SetConstantBuffer(0, renderable.constantBuffer->GetGPUResource(frameIndex), frameIndex);
+                    commandList.SetConstantBuffer(0, renderable.constantBuffer->GetDescriptor(frameIndex), frameIndex);
 
                     // Set Sampler and texture.
                     commandList.SetSampler(1, _linearSampler);
@@ -344,7 +344,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                     commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
 
                     // Set constant buffer
-                    commandList.SetConstantBuffer(0, text.constantBuffer->GetGPUResource(frameIndex), frameIndex);
+                    commandList.SetConstantBuffer(0, text.constantBuffer->GetDescriptor(frameIndex), frameIndex);
 
                     // Set sampler
                     commandList.SetSampler(1, _linearSampler);

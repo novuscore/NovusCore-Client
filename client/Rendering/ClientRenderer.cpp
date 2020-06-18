@@ -41,7 +41,8 @@ void cursor_position_callback(GLFWwindow* window, f64 x, f64 y)
 
 ClientRenderer::ClientRenderer()
 {
-    _camera = new Camera(vec3(16533.3320f, 0.0f, 26133.3320f));
+    _camera = new Camera(vec3(-8000.0f, 0.0f, 1600.0f)); // Goldshire
+    //_camera = new Camera(vec3(300.0f, 0.0f, -4700.0f)); // Razor Hill
     _window = new Window();
     _window->Init(WIDTH, HEIGHT);
     ServiceLocator::SetWindow(_window);
@@ -83,7 +84,6 @@ void ClientRenderer::Update(f32 deltaTime)
     _camera->Update(deltaTime);
     
     // Update the view matrix to match the new camera position
-    
     _viewConstantBuffer->resource.viewMatrix = _camera->GetViewMatrix();
     _viewConstantBuffer->Apply(_frameIndex);
 
@@ -185,7 +185,7 @@ void ClientRenderer::Render()
             commandList.BeginPipeline(pipeline);
 
             // Set view constant buffer
-            commandList.SetConstantBuffer(0, _viewConstantBuffer->GetGPUResource(_frameIndex), _frameIndex);
+            commandList.SetConstantBuffer(0, _viewConstantBuffer->GetDescriptor(_frameIndex), _frameIndex);
 
             // Render depth prepass layer
             Renderer::RenderLayer& layer = _renderer->GetRenderLayer(DEPTH_PREPASS_RENDER_LAYER);
@@ -200,7 +200,7 @@ void ClientRenderer::Render()
                     instance->Apply(_frameIndex);
 
                     // Set model constant buffer
-                    commandList.SetConstantBuffer(1, instance->GetGPUResource(_frameIndex), _frameIndex);
+                    commandList.SetConstantBuffer(1, instance->GetDescriptor(_frameIndex), _frameIndex);
 
                     // Draw
                     commandList.Draw(modelID);
@@ -209,6 +209,9 @@ void ClientRenderer::Render()
             commandList.EndPipeline(pipeline);
         });
     }
+
+    // Terrain depth prepass
+    _terrainRenderer->AddTerrainDepthPrepass(&renderGraph, _viewConstantBuffer, _mainDepth, _frameIndex);
 
     // Main Pass
     {
@@ -303,7 +306,7 @@ void ClientRenderer::Render()
             commandList.BeginPipeline(pipeline);
 
             // Set view constant buffer
-            commandList.SetConstantBuffer(0, _viewConstantBuffer->GetGPUResource(_frameIndex), _frameIndex);
+            commandList.SetConstantBuffer(0, _viewConstantBuffer->GetDescriptor(_frameIndex), _frameIndex);
 
             // Set sampler and texture
             commandList.SetSampler(2, _linearSampler);
@@ -320,7 +323,7 @@ void ClientRenderer::Render()
                 for (auto const& instance : instances)
                 {
                     // Set model constant buffer
-                    commandList.SetConstantBuffer(1, instance->GetGPUResource(_frameIndex), _frameIndex);
+                    commandList.SetConstantBuffer(1, instance->GetDescriptor(_frameIndex), _frameIndex);
 
                     // Draw
                     commandList.Draw(modelID);
@@ -330,7 +333,7 @@ void ClientRenderer::Render()
         });
     }
 
-    _terrainRenderer->AddTerrainPass(&renderGraph, *_viewConstantBuffer, _mainColor, _mainDepth, _frameIndex);
+    _terrainRenderer->AddTerrainPass(&renderGraph, _viewConstantBuffer, _mainColor, _mainDepth, _frameIndex);
     _uiRenderer->AddUIPass(&renderGraph, _mainColor, _frameIndex);
 
     renderGraph.Setup();

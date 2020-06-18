@@ -6,12 +6,12 @@ namespace Renderer
 {
     namespace Commands
     {
-        struct DrawInstanced
+        struct DrawBindless
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
 
-            ModelID model = ModelID::Invalid();
-            u32 count = 0;
+            u32 numVertices = 0;
+            u32 numInstances = 0;
         };
     }
 }

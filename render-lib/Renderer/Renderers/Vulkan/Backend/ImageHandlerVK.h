@@ -2,6 +2,7 @@
 #include <NovusTypes.h>
 #include <vector>
 #include <vulkan/vulkan.h>
+#include "vk_mem_alloc.h"
 
 #include "../../../Descriptors/ImageDesc.h"
 #include "../../../Descriptors/DepthImageDesc.h"
@@ -35,7 +36,7 @@ namespace Renderer
             {
                 ImageDesc desc;
 
-                VkDeviceMemory memory;
+                VmaAllocation allocation;
                 VkImage image;
                 VkImageView colorView;
             };
@@ -44,7 +45,7 @@ namespace Renderer
             {
                 DepthImageDesc desc;
 
-                VkDeviceMemory memory;
+                VmaAllocation allocation;
                 VkImage image;
                 VkImageView depthView;
             };

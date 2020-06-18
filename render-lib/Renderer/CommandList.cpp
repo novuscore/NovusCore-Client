@@ -69,11 +69,19 @@ namespace Renderer
         command->viewport.maxDepth = maxDepth;
     }
 
-    void CommandList::SetConstantBuffer(u32 slot, void* gpuResource, size_t frameIndex)
+    void CommandList::SetConstantBuffer(u32 slot, void* descriptor, size_t frameIndex)
     {
         Commands::SetConstantBuffer* command = AddCommand<Commands::SetConstantBuffer>();
         command->slot = slot;
-        command->gpuResource = gpuResource;
+        command->descriptor = descriptor;
+        command->frameIndex = frameIndex;
+    }
+
+    void CommandList::SetStorageBuffer(u32 slot, void* descriptor, size_t frameIndex)
+    {
+        Commands::SetStorageBuffer* command = AddCommand<Commands::SetStorageBuffer>();
+        command->slot = slot;
+        command->descriptor = descriptor;
         command->frameIndex = frameIndex;
     }
 
@@ -98,6 +106,26 @@ namespace Renderer
         command->textureArray = textureArray;
     }
 
+    void CommandList::SetVertexBuffer(u32 slot, ModelID model)
+    {
+        Commands::SetVertexBuffer* command = AddCommand<Commands::SetVertexBuffer>();
+        command->slot = slot;
+        command->modelID = model;
+    }
+
+    void CommandList::SetIndexBuffer(ModelID model)
+    {
+        Commands::SetIndexBuffer* command = AddCommand<Commands::SetIndexBuffer>();
+        command->modelID = model;
+    }
+
+    void CommandList::SetBuffer(u32 slot, void* buffer)
+    {
+        Commands::SetBuffer* command = AddCommand<Commands::SetBuffer>();
+        command->slot = slot;
+        command->buffer = buffer;
+    }
+
     void CommandList::Clear(ImageID imageID, Color color)
     {
         Commands::ClearImage* command = AddCommand<Commands::ClearImage>();                                                                                                       
@@ -120,12 +148,24 @@ namespace Renderer
         Commands::Draw* command = AddCommand<Commands::Draw>();
         command->model = modelID;
     }
-    void CommandList::DrawInstanced(ModelID modelID, u32 count)
+
+    void CommandList::DrawBindless(u32 numVertices, u32 numInstances)
+    {
+        assert(numVertices > 0);
+        assert(numInstances > 0);
+        Commands::DrawBindless* command = AddCommand<Commands::DrawBindless>();
+        command->numVertices = numVertices;
+        command->numInstances = numInstances;
+    }
+
+    void CommandList::DrawIndexedBindless(ModelID modelID, u32 numVertices, u32 numInstances)
     {
         assert(modelID != ModelID::Invalid());
-        assert(count > 0);
-        Commands::DrawInstanced* command = AddCommand<Commands::DrawInstanced>();
-        command->model = modelID;
-        command->count = count;
+        assert(numVertices > 0);
+        assert(numInstances > 0);
+        Commands::DrawIndexedBindless* command = AddCommand<Commands::DrawIndexedBindless>();
+        command->modelID = modelID;
+        command->numVertices = numVertices;
+        command->numInstances = numInstances;
     }
 }

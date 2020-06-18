@@ -14,7 +14,7 @@
 #include "Backend/SamplerHandlerVK.h"
 #include "Backend/SwapChainVK.h"
 #include "Backend/DebugMarkerUtilVK.h"
-#include "Backend/ConstantBufferVK.h"
+#include "Backend/BufferBackendVK.h"
 
 namespace Renderer
 {
@@ -88,14 +88,19 @@ namespace Renderer
         _modelHandler->UpdatePrimitiveModel(_device, model, desc);
     }
 
+    TextureArrayID RendererVK::CreateTextureArray(TextureArrayDesc& desc)
+    {
+        return _textureHandler->CreateTextureArray(_device, desc);
+    }
+
     TextureID RendererVK::CreateDataTexture(DataTextureDesc& desc)
     {
         return _textureHandler->CreateDataTexture(_device, desc);
     }
 
-    TextureArrayID RendererVK::CreateTextureArray(TextureArrayDesc& desc)
+    TextureID RendererVK::CreateDataTextureIntoArray(DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex)
     {
-        return _textureHandler->CreateTextureArray(_device, desc);
+        return _textureHandler->CreateDataTextureIntoArray(_device, desc, textureArray, arrayIndex);
     }
 
     ModelID RendererVK::LoadModel(ModelDesc& desc)
@@ -222,22 +227,24 @@ namespace Renderer
         vkCmdDrawIndexed(commandBuffer, numIndices, 1, 0, 0, 0);
     }
 
-    void RendererVK::DrawInstanced(CommandListID commandListID, ModelID modelID, u32 count)
+    void RendererVK::DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
-        // Bind vertex buffer
-        VkBuffer vertexBuffer = _modelHandler->GetVertexBuffer(modelID);
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, offsets);
+        // Draw
+        vkCmdDraw(commandBuffer, numVertices, numInstances, 0, 0);
+    }
+
+    void RendererVK::DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
         // Bind index buffer
         VkBuffer indexBuffer = _modelHandler->GetIndexBuffer(modelID);
         vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
         // Draw
-        u32 numIndices = _modelHandler->GetNumIndices(modelID);
-        vkCmdDrawIndexed(commandBuffer, numIndices, count, 0, 0, 0);
+        vkCmdDrawIndexed(commandBuffer, numVertices, numInstances, 0, 0, 0);
     }
 
     void RendererVK::PopMarker(CommandListID commandListID)
@@ -252,7 +259,7 @@ namespace Renderer
         Backend::DebugMarkerUtilVK::PushMarker(commandBuffer, color, name);
     }
 
-    void RendererVK::SetConstantBuffer(CommandListID commandListID, u32 slot, void* gpuResource, size_t frameIndex)
+    void RendererVK::SetConstantBuffer(CommandListID commandListID, u32 slot, void* descriptor, size_t frameIndex)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
         GraphicsPipelineID graphicsPipelineID = _commandListHandler->GetBoundGraphicsPipeline(commandListID);
@@ -261,46 +268,46 @@ namespace Renderer
         VkDescriptorSetLayout& descriptorSetLayout = _pipelineHandler->GetDescriptorSetLayout(graphicsPipelineID, slot);
         VkPipelineLayout pipelineLayout = _pipelineHandler->GetPipelineLayout(graphicsPipelineID);
 
-        Backend::ConstantBufferBackendVK* constantBuffer = static_cast<Backend::ConstantBufferBackendVK*>(gpuResource);
-
-        if (constantBuffer->descriptorPool == NULL)
+        // TODO: This is ugly, we really don't want to do this here, but without reflecting the descriptorSetLayout we need the user to provide it, how can we fix this?
+        Backend::BufferBackendVK* buffer = static_cast<Backend::BufferBackendVK*>(descriptor);
+        if (buffer->descriptorPool == NULL)
         {
             VkDescriptorPoolSize poolSize = {};
             poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            poolSize.descriptorCount = 1;
+            poolSize.descriptorCount = buffer->descriptorSet.Num+1;
 
             VkDescriptorPoolCreateInfo poolInfo = {};
             poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
             poolInfo.poolSizeCount = 1;
             poolInfo.pPoolSizes = &poolSize;
-            poolInfo.maxSets = constantBuffer->descriptorSet.Num;
+            poolInfo.maxSets = buffer->descriptorSet.Num;
 
-            if (vkCreateDescriptorPool(_device->_device, &poolInfo, nullptr, &constantBuffer->descriptorPool) != VK_SUCCESS)
+            if (vkCreateDescriptorPool(_device->_device, &poolInfo, nullptr, &buffer->descriptorPool) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create descriptor pool!");
             }
 
             VkDescriptorSetAllocateInfo allocInfo = {};
             allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            allocInfo.descriptorPool = constantBuffer->descriptorPool;
+            allocInfo.descriptorPool = buffer->descriptorPool;
             allocInfo.descriptorSetCount = 1;
             allocInfo.pSetLayouts = &descriptorSetLayout;
 
-            for (int i = 0; i < constantBuffer->descriptorSet.Num; i++)
+            for (int i = 0; i < buffer->descriptorSet.Num; i++)
             {
-                if (vkAllocateDescriptorSets(_device->_device, &allocInfo, &constantBuffer->descriptorSet.Get(i)) != VK_SUCCESS)
+                if (vkAllocateDescriptorSets(_device->_device, &allocInfo, &buffer->descriptorSet.Get(i)) != VK_SUCCESS)
                 {
                     NC_LOG_FATAL("Failed to allocate descriptor sets!");
                 }
 
                 VkDescriptorBufferInfo descriptorBufferInfo = {};
-                descriptorBufferInfo.buffer = constantBuffer->uniformBuffers.Get(i);
+                descriptorBufferInfo.buffer = buffer->buffers.Get(i);
                 descriptorBufferInfo.offset = 0;
-                descriptorBufferInfo.range = constantBuffer->bufferSize;
+                descriptorBufferInfo.range = buffer->bufferSize;
 
                 VkWriteDescriptorSet descriptorWrite = {};
                 descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                descriptorWrite.dstSet = constantBuffer->descriptorSet.Get(i);
+                descriptorWrite.dstSet = buffer->descriptorSet.Get(i);
                 descriptorWrite.dstBinding = 0;
                 descriptorWrite.dstArrayElement = 0;
                 descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -314,7 +321,72 @@ namespace Renderer
         }
 
         // Bind descriptor set
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, slot, 1, &constantBuffer->descriptorSet.Get(frameIndex), 0, nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, slot, 1, &buffer->descriptorSet.Get(frameIndex), 0, nullptr);
+    }
+
+    void RendererVK::SetStorageBuffer(CommandListID commandListID, u32 slot, void* descriptor, size_t frameIndex)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+        GraphicsPipelineID graphicsPipelineID = _commandListHandler->GetBoundGraphicsPipeline(commandListID);
+
+        Backend::DescriptorSetLayoutData& descriptorSetLayoutData = _pipelineHandler->GetDescriptorSetLayoutData(graphicsPipelineID, slot);
+        VkDescriptorSetLayout& descriptorSetLayout = _pipelineHandler->GetDescriptorSetLayout(graphicsPipelineID, slot);
+        VkPipelineLayout pipelineLayout = _pipelineHandler->GetPipelineLayout(graphicsPipelineID);
+
+        // TODO: This is ugly, we really don't want to do this here, but without reflecting the descriptorSetLayout we need the user to provide it, how can we fix this?
+        Backend::BufferBackendVK* buffer = static_cast<Backend::BufferBackendVK*>(descriptor);
+        if (buffer->descriptorPool == NULL)
+        {
+            VkDescriptorPoolSize poolSize = {};
+            poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            poolSize.descriptorCount = buffer->descriptorSet.Num+1;
+
+            VkDescriptorPoolCreateInfo poolInfo = {};
+            poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            poolInfo.poolSizeCount = 1;
+            poolInfo.pPoolSizes = &poolSize;
+            poolInfo.maxSets = buffer->descriptorSet.Num;
+
+            if (vkCreateDescriptorPool(_device->_device, &poolInfo, nullptr, &buffer->descriptorPool) != VK_SUCCESS)
+            {
+                NC_LOG_FATAL("Failed to create descriptor pool!");
+            }
+
+            VkDescriptorSetAllocateInfo allocInfo = {};
+            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            allocInfo.descriptorPool = buffer->descriptorPool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = &descriptorSetLayout;
+
+            for (int i = 0; i < buffer->descriptorSet.Num; i++)
+            {
+                if (vkAllocateDescriptorSets(_device->_device, &allocInfo, &buffer->descriptorSet.Get(i)) != VK_SUCCESS)
+                {
+                    NC_LOG_FATAL("Failed to allocate descriptor sets!");
+                }
+
+                VkDescriptorBufferInfo descriptorBufferInfo = {};
+                descriptorBufferInfo.buffer = buffer->buffers.Get(i);
+                descriptorBufferInfo.offset = 0;
+                descriptorBufferInfo.range = buffer->bufferSize;
+
+                VkWriteDescriptorSet descriptorWrite = {};
+                descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrite.dstSet = buffer->descriptorSet.Get(i);
+                descriptorWrite.dstBinding = 0;
+                descriptorWrite.dstArrayElement = 0;
+                descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                descriptorWrite.descriptorCount = 1;
+                descriptorWrite.pBufferInfo = &descriptorBufferInfo;
+                descriptorWrite.pImageInfo = nullptr;
+                descriptorWrite.pTexelBufferView = nullptr;
+
+                vkUpdateDescriptorSets(_device->_device, 1, &descriptorWrite, 0, nullptr);
+            }
+        }
+
+        // Bind descriptor set
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, slot, 1, &buffer->descriptorSet.Get(frameIndex), 0, nullptr);
     }
 
     void RendererVK::BeginPipeline(CommandListID commandListID, GraphicsPipelineID pipelineID)
@@ -413,6 +485,35 @@ namespace Renderer
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, slot, 1, &textureArrayDescriptor, 0, nullptr);
     }
 
+    void RendererVK::SetVertexBuffer(CommandListID commandListID, u32 slot, ModelID modelID)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        // Bind vertex buffer
+        VkBuffer vertexBuffer = _modelHandler->GetVertexBuffer(modelID);
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(commandBuffer, slot, 1, &vertexBuffer, offsets);
+    }
+
+    void RendererVK::SetIndexBuffer(CommandListID commandListID, ModelID modelID)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        // Bind index buffer
+        VkBuffer indexBuffer = _modelHandler->GetIndexBuffer(modelID);
+        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    }
+
+    void RendererVK::SetBuffer(CommandListID commandListID, u32 slot, void* buffer)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        // Bind buffer
+        VkBuffer vkBuffer = *static_cast<VkBuffer*>(buffer);
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(commandBuffer, slot, 1, &vkBuffer, offsets);
+    }
+
     void RendererVK::Present(Window* window, ImageID imageID)
     {
         CommandListID commandListID = _commandListHandler->BeginCommandList(_device);
@@ -503,8 +604,8 @@ namespace Renderer
         
     }
 
-    Backend::ConstantBufferBackend* RendererVK::CreateConstantBufferBackend(size_t size)
+    Backend::BufferBackend* RendererVK::CreateBufferBackend(size_t size, Backend::BufferBackend::Type type)
     {
-        return _device->CreateConstantBufferBackend(size);
+        return _device->CreateBufferBackend(size, type);
     }
 }

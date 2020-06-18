@@ -5,7 +5,7 @@ namespace Renderer
 {
     namespace Commands
     {
-        struct SetConstantBuffer
+        struct SetStorageBuffer
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
 

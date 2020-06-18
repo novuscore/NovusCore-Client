@@ -4,7 +4,6 @@
 
 #include "../../../../Window/Window.h"
 #include "DebugMarkerUtilVK.h"
-#include "ConstantBufferVK.h"
 #include "SwapChainVK.h"
 #include "ShaderHandlerVK.h"
 #include "../../../Descriptors/VertexShaderDesc.h"
@@ -17,6 +16,8 @@
 #pragma warning(pop)
 #include <map>
 #include <set>
+
+#define NOVUSCORE_RENDERER_GPU_VALIDATION 1
 
 namespace Renderer
 {
@@ -32,7 +33,9 @@ namespace Renderer
         const std::vector<const char*> deviceExtensions =
         {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-            "VK_KHR_maintenance1"
+            //"VK_KHR_get_physical_device_properties2",
+            "VK_KHR_maintenance3",
+            "VK_EXT_descriptor_indexing"
         };
 
         RenderDeviceVK::~RenderDeviceVK()
@@ -71,21 +74,36 @@ namespace Renderer
             CreateBlitPipeline(shaderHandler, swapChain);
         }
 
-        ConstantBufferBackend* RenderDeviceVK::CreateConstantBufferBackend(size_t size)
+        BufferBackend* RenderDeviceVK::CreateBufferBackend(size_t size, Backend::BufferBackend::Type type)
         {
-            ConstantBufferBackendVK* cbBackend = new ConstantBufferBackendVK();
-            cbBackend->device = this;
-            cbBackend->bufferSize = size;
+            BufferBackendVK* backend = new BufferBackendVK();
+            backend->device = this;
+            backend->bufferSize = size;
 
             VkDeviceSize bufferSize = size;
 
-            for (int i = 0; i < cbBackend->uniformBuffers.Num; i++)
+            VkBufferUsageFlags flags = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+            if (type == Backend::BufferBackend::Type::TYPE_CONSTANT_BUFFER)
             {
-                CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, cbBackend->uniformBuffers.Get(i), cbBackend->uniformBuffersMemory.Get(i));
+                flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            }
+            else
+            {
+                flags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
             }
 
-            _constantBufferBackends.push_back(cbBackend);
-            return cbBackend;
+            for (int i = 0; i < backend->buffers.Num; i++)
+            {
+                CreateBuffer(bufferSize, flags, VMA_MEMORY_USAGE_CPU_TO_GPU, backend->buffers.Get(i), backend->allocations.Get(i));
+
+                char debugName[16];
+                snprintf(debugName, sizeof(debugName), "%s%i", "ConstantBuffer", i);
+                DebugMarkerUtilVK::SetObjectName(_device, (u64)backend->buffers.Get(i), VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, debugName);
+            }
+
+            _bufferBackends.push_back(backend);
+            return backend;
         }
 
         void RenderDeviceVK::FlushGPU()
@@ -129,6 +147,7 @@ namespace Renderer
             SetupDebugMessenger();
             PickPhysicalDevice();
             CreateLogicalDevice();
+            CreateAllocator();
             CreateCommandPool();
             CreateCommandBuffers();
 
@@ -150,6 +169,15 @@ namespace Renderer
             appInfo.pEngineName = "NovusCore";
             appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
             appInfo.apiVersion = VK_API_VERSION_1_0;
+
+#if NOVUSCORE_RENDERER_GPU_VALIDATION
+            VkValidationFeatureEnableEXT gpuValidationFeature = VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT;
+
+            VkValidationFeaturesEXT validationFeatures = {};
+            validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+            validationFeatures.enabledValidationFeatureCount = 1;
+            validationFeatures.pEnabledValidationFeatures = &gpuValidationFeature;
+#endif
 
             VkInstanceCreateInfo createInfo = {};
             createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -178,7 +206,14 @@ namespace Renderer
             createInfo.ppEnabledLayerNames = validationLayers.data();
 
             PopulateDebugMessengerCreateInfo(debugCreateInfo);
-            createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)& debugCreateInfo;
+
+#if NOVUSCORE_RENDERER_GPU_VALIDATION
+            createInfo.pNext = &validationFeatures;
+            validationFeatures.pNext = &debugCreateInfo;
+#else
+            createInfo.pNext = &debugCreateInfo;
+#endif
+            
 #else
             createInfo.enabledLayerCount = 0;
 
@@ -266,7 +301,8 @@ namespace Renderer
             std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };
 
             float queuePriority = 1.0f;
-            for (uint32_t queueFamily : uniqueQueueFamilies) {
+            for (uint32_t queueFamily : uniqueQueueFamilies) 
+            {
                 VkDeviceQueueCreateInfo queueCreateInfo = {};
                 queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
                 queueCreateInfo.queueFamilyIndex = queueFamily;
@@ -275,16 +311,28 @@ namespace Renderer
                 queueCreateInfos.push_back(queueCreateInfo);
             }
 
-            VkPhysicalDeviceFeatures deviceFeatures = {};
-            deviceFeatures.samplerAnisotropy = VK_TRUE;
+            //VkPhysicalDeviceFeatures deviceFeatures = {};
+            //deviceFeatures.samplerAnisotropy = VK_TRUE;
+
+            VkPhysicalDeviceDescriptorIndexingFeaturesEXT descriptorIndexingFeatures = {};
+            descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
+            descriptorIndexingFeatures.runtimeDescriptorArray = true;
+
+            VkPhysicalDeviceFeatures2 deviceFeatures = {};
+            deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+            deviceFeatures.features.samplerAnisotropy = VK_TRUE;
+            deviceFeatures.features.fragmentStoresAndAtomics = VK_TRUE;
+            deviceFeatures.features.vertexPipelineStoresAndAtomics = VK_TRUE;
+            deviceFeatures.pNext = &descriptorIndexingFeatures;
+
 
             VkDeviceCreateInfo createInfo = {};
             createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
             createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
             createInfo.pQueueCreateInfos = queueCreateInfos.data();
-
-            createInfo.pEnabledFeatures = &deviceFeatures;
+            createInfo.pEnabledFeatures = NULL; 
+            createInfo.pNext = &deviceFeatures;
 
             std::vector<const char*> enabledExtensions;
             for (const char* extension : deviceExtensions)
@@ -319,6 +367,16 @@ namespace Renderer
 
             vkGetDeviceQueue(_device, indices.graphicsFamily.value(), 0, &_graphicsQueue);
             vkGetDeviceQueue(_device, indices.presentFamily.value(), 0, &_presentQueue);
+        }
+
+        void RenderDeviceVK::CreateAllocator()
+        {
+            VmaAllocatorCreateInfo allocatorInfo = {};
+            allocatorInfo.physicalDevice = _physicalDevice;
+            allocatorInfo.device = _device;
+            allocatorInfo.instance = _instance;
+
+            vmaCreateAllocator(&allocatorInfo, &_allocator);
         }
 
         void RenderDeviceVK::CreateCommandPool()
@@ -891,6 +949,7 @@ namespace Renderer
 #if _DEBUG
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
+            extensions.push_back("VK_KHR_get_physical_device_properties2");
 
             return extensions;
         }
@@ -930,7 +989,7 @@ namespace Renderer
             vkFreeCommandBuffers(_device, _commandPool, 1, &commandBuffer);
         }
 
-        void RenderDeviceVK::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
+        void RenderDeviceVK::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, VkBuffer& buffer, VmaAllocation& allocation)
         {
             VkBufferCreateInfo bufferInfo = {};
             bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -938,42 +997,13 @@ namespace Renderer
             bufferInfo.usage = usage;
             bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-            if (vkCreateBuffer(_device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+            VmaAllocationCreateInfo allocInfo = {};
+            allocInfo.usage = memoryUsage;
+
+            if (vmaCreateBuffer(_allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create buffer!");
             }
-
-            VkMemoryRequirements memRequirements;
-            vkGetBufferMemoryRequirements(_device, buffer, &memRequirements);
-
-            VkMemoryAllocateInfo allocInfo = {};
-            allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            allocInfo.allocationSize = memRequirements.size;
-            allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
-
-            if (vkAllocateMemory(_device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
-            {
-                NC_LOG_FATAL("Failed to allocate buffer memory!");
-            }
-
-            vkBindBufferMemory(_device, buffer, bufferMemory, 0);
-        }
-
-        u32 RenderDeviceVK::FindMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties)
-        {
-            VkPhysicalDeviceMemoryProperties memProperties;
-            vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &memProperties);
-
-            for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
-            {
-                if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
-                {
-                    return i;
-                }
-            }
-
-            NC_LOG_FATAL("Failed to find suitable memory type!");
-            return 0;
         }
 
         void RenderDeviceVK::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)

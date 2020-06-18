@@ -69,28 +69,13 @@ namespace Renderer
             imageInfo.pQueueFamilyIndices = nullptr;
             imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-            if (vkCreateImage(device->_device, &imageInfo, nullptr, &image.image) != VK_SUCCESS)
+            VmaAllocationCreateInfo allocInfo = {};
+            allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+            if (vmaCreateImage(device->_allocator, &imageInfo, &allocInfo, &image.image, &image.allocation, nullptr) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create image!");
             }
-
-            DebugMarkerUtilVK::SetObjectName(device->_device, (u64)image.image, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, desc.debugName.c_str());
-
-            // Bind memory
-            VkMemoryRequirements memRequirements;
-            vkGetImageMemoryRequirements(device->_device, image.image, &memRequirements);
-
-            VkMemoryAllocateInfo allocInfo = {};
-            allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            allocInfo.allocationSize = memRequirements.size;
-            allocInfo.memoryTypeIndex = device->FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-            if (vkAllocateMemory(device->_device, &allocInfo, nullptr, &image.memory) != VK_SUCCESS) 
-            {
-                NC_LOG_FATAL("Failed to allocate image memory!");
-            }
-
-            vkBindImageMemory(device->_device, image.image, image.memory, 0);
 
             // Create Color View
             VkImageViewCreateInfo colorViewInfo = {};
@@ -164,28 +149,13 @@ namespace Renderer
             imageInfo.pQueueFamilyIndices = nullptr;
             imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-            if (vkCreateImage(device->_device, &imageInfo, nullptr, &image.image) != VK_SUCCESS)
+            VmaAllocationCreateInfo allocInfo = {};
+            allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+            if (vmaCreateImage(device->_allocator, &imageInfo, &allocInfo, &image.image, &image.allocation, nullptr) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create image!");
             }
-
-            DebugMarkerUtilVK::SetObjectName(device->_device, (u64)image.image, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, desc.debugName.c_str());
-
-            // Bind memory
-            VkMemoryRequirements memRequirements;
-            vkGetImageMemoryRequirements(device->_device, image.image, &memRequirements);
-
-            VkMemoryAllocateInfo allocInfo = {};
-            allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            allocInfo.allocationSize = memRequirements.size;
-            allocInfo.memoryTypeIndex = device->FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-            if (vkAllocateMemory(device->_device, &allocInfo, nullptr, &image.memory) != VK_SUCCESS)
-            {
-                NC_LOG_FATAL("Failed to allocate image memory!");
-            }
-
-            vkBindImageMemory(device->_device, image.image, image.memory, 0);
 
             // Create Depth View
             VkImageViewCreateInfo depthViewInfo = {};

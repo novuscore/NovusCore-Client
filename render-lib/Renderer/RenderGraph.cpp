@@ -52,7 +52,7 @@ namespace Renderer
         commandList.Execute();
     }
 
-    void RenderGraph::InitializePipelineDesc(GraphicsPipelineDesc& desc)
+    void RenderGraph::InitializePipelineDesc(GraphicsPipelineDesc& desc) const
     {
         desc.ResourceToImageID = [&](RenderPassResource resource) 
         {

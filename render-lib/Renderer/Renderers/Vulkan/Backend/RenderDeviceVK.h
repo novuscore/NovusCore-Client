@@ -3,6 +3,9 @@
 #include <vector>
 #include <optional>
 #include <vulkan/vulkan.h>
+#include "vk_mem_alloc.h"
+
+#include "BufferBackendVK.h"
 
 #include "../../../Descriptors/ImageDesc.h"
 #include "../../../Descriptors/DepthImageDesc.h"
@@ -14,8 +17,8 @@ namespace Renderer
 {
     namespace Backend
     {
-        struct ConstantBufferBackend;
-        struct ConstantBufferBackendVK;
+        struct BufferBackend;
+        struct BufferBackendVK;
         struct SwapChainVK;
         class ShaderHandlerVK;
 
@@ -38,7 +41,7 @@ namespace Renderer
             void Init();
             void InitWindow(ShaderHandlerVK* shaderHandler, Window* window);
 
-            ConstantBufferBackend* CreateConstantBufferBackend(size_t size);
+            BufferBackend* CreateBufferBackend(size_t size, Backend::BufferBackend::Type type);
 
             u32 GetFrameIndex() { return _frameIndex; }
             void EndFrame() { _frameIndex = (_frameIndex + 1) % FRAME_INDEX_COUNT; }
@@ -53,6 +56,7 @@ namespace Renderer
             void SetupDebugMessenger();
             void PickPhysicalDevice();
             void CreateLogicalDevice();
+            void CreateAllocator();
             void CreateCommandPool();
             void CreateCommandBuffers();
 
@@ -73,8 +77,7 @@ namespace Renderer
             VkCommandBuffer BeginSingleTimeCommands();
             void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
 
-            void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-            u32 FindMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties);
+            void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, VkBuffer& buffer, VmaAllocation& allocation);
             void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
             void CopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, u32 width, u32 height);
             void TransitionImageLayout(VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout);
@@ -96,11 +99,13 @@ namespace Renderer
             VkQueue _graphicsQueue = VK_NULL_HANDLE;
             VkQueue _presentQueue = VK_NULL_HANDLE;
 
-            std::vector<ConstantBufferBackendVK*> _constantBufferBackends;
+            std::vector<BufferBackendVK*> _bufferBackends;
             std::vector<SwapChainVK*> _swapChains;
 
+            VmaAllocator _allocator;
+
             friend class RendererVK;
-            friend struct ConstantBufferBackendVK;
+            friend struct BufferBackendVK;
             friend class ImageHandlerVK;
             friend class TextureHandlerVK;
             friend class ModelHandlerVK;

@@ -7,6 +7,7 @@
 #include "RenderLayer.h"
 #include "RenderPass.h"
 #include "ConstantBuffer.h"
+#include "StorageBuffer.h"
 #include "RenderStates.h"
 #include "Font.h"
 
@@ -51,18 +52,29 @@ namespace Renderer
         template <typename T>
         ConstantBuffer<T>* CreateConstantBuffer()
         {
-            ConstantBuffer<T>* constantBuffer = new ConstantBuffer<T>();
-            constantBuffer->backend = CreateConstantBufferBackend(constantBuffer->GetSize());
+            ConstantBuffer<T>* buffer = new ConstantBuffer<T>();
+            buffer->backend = CreateBufferBackend(buffer->GetSize(), Backend::BufferBackend::TYPE_CONSTANT_BUFFER);
 
-            return constantBuffer;
+            return buffer;
+        }
+
+        template <typename T>
+        StorageBuffer<T>* CreateStorageBuffer()
+        {
+            StorageBuffer<T>* buffer = new StorageBuffer<T>();
+            buffer->backend = CreateBufferBackend(buffer->GetSize(), Backend::BufferBackend::TYPE_STORAGE_BUFFER);
+
+            return buffer;
         }
 
         virtual ModelID CreatePrimitiveModel(PrimitiveModelDesc& desc) = 0;
         virtual void UpdatePrimitiveModel(ModelID model, PrimitiveModelDesc& desc) = 0;
 
-        virtual TextureID CreateDataTexture(DataTextureDesc& desc) = 0;
         virtual TextureArrayID CreateTextureArray(TextureArrayDesc& desc) = 0;
 
+        virtual TextureID CreateDataTexture(DataTextureDesc& desc) = 0;
+        virtual TextureID CreateDataTextureIntoArray(DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) = 0;
+        
         // Loading
         virtual ModelID LoadModel(ModelDesc& desc) = 0;
 
@@ -78,11 +90,13 @@ namespace Renderer
         virtual void EndCommandList(CommandListID commandList) = 0;
         virtual void Clear(CommandListID commandList, ImageID image, Color color) = 0;
         virtual void Clear(CommandListID commandList, DepthImageID image, DepthClearFlags clearFlags, f32 depth, u8 stencil) = 0;
-        virtual void Draw(CommandListID commandList, ModelID model) = 0;
-        virtual void DrawInstanced(CommandListID commandList, ModelID model, u32 count) = 0;
+        virtual void Draw(CommandListID commandList, ModelID modelID) = 0;
+        virtual void DrawBindless(CommandListID commandList, u32 numVertices, u32 numInstances) = 0;
+        virtual void DrawIndexedBindless(CommandListID commandList, ModelID modelID, u32 numVertices, u32 numInstances) = 0;
         virtual void PopMarker(CommandListID commandList) = 0;
         virtual void PushMarker(CommandListID commandList, Color color, std::string name) = 0;
-        virtual void SetConstantBuffer(CommandListID commandListID, u32 slot, void* gpuResource, size_t frameIndex) = 0;
+        virtual void SetConstantBuffer(CommandListID commandListID, u32 slot, void* descriptor, size_t frameIndex) = 0;
+        virtual void SetStorageBuffer(CommandListID commandListID, u32 slot, void* descriptor, size_t frameIndex) = 0;
         virtual void BeginPipeline(CommandListID commandList, GraphicsPipelineID pipeline) = 0;
         virtual void EndPipeline(CommandListID commandList, GraphicsPipelineID pipeline) = 0;
         virtual void SetPipeline(CommandListID commandList, ComputePipelineID pipeline) = 0;
@@ -91,6 +105,9 @@ namespace Renderer
         virtual void SetSampler(CommandListID commandList, u32 slot, SamplerID sampler) = 0;
         virtual void SetTexture(CommandListID commandList, u32 slot, TextureID texture) = 0;
         virtual void SetTextureArray(CommandListID commandList, u32 slot, TextureArrayID textureArray) = 0;
+        virtual void SetVertexBuffer(CommandListID commandList, u32 slot, ModelID modelID) = 0;
+        virtual void SetIndexBuffer(CommandListID commandList, ModelID modelID) = 0;
+        virtual void SetBuffer(CommandListID commandList, u32 slot, void* buffer) = 0;
 
         // Non-commandlist based present functions
         virtual void Present(Window* window, ImageID image) = 0;
@@ -99,7 +116,7 @@ namespace Renderer
     protected:
         Renderer() {}; // Pure virtual class, disallow creation of it
 
-        virtual Backend::ConstantBufferBackend* CreateConstantBufferBackend(size_t size) = 0;
+        virtual Backend::BufferBackend* CreateBufferBackend(size_t size, Backend::BufferBackend::Type type) = 0;
 
     protected:
         robin_hood::unordered_map<u32, RenderLayer> _renderLayers;

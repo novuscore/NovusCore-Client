@@ -14,6 +14,12 @@ namespace Renderer
         u8 padding[176] = {};
     };
 
+    struct InstanceDataBackend
+    {
+        ConstantBuffer<ModelCB>* cb = nullptr;
+        void* optional = nullptr;
+    };
+
     class InstanceData
     {
     public:
@@ -22,8 +28,24 @@ namespace Renderer
 
         void Init(Renderer* renderer);
         void Apply(u32 frameIndex);
-        void* GetGPUResource(u32 frameIndex);
+        void ApplyAll();
+        void* GetDescriptor(u32 frameIndex);
+        void* GetBuffer(u32 frameIndex);
+
+        template<typename T>
+        void SetOptional(T* optional)
+        {
+            _backend.optional = static_cast<void*>(optional);
+        }
+
+        template<typename T>
+        T* GetOptional()
+        {
+            return static_cast<T*>(_backend.optional);
+        }
+
     private:
+        InstanceDataBackend _backend;
         ConstantBuffer<ModelCB>* _cb = nullptr;
     };
 }

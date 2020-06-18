@@ -27,6 +27,7 @@
 #include <limits>
 
 #include "Cell.h"
+#include <Containers/StringTable.h>
 
 // First of all, forget every naming convention wowdev.wiki use, it's extremely confusing.
 // A Map (e.g. Eastern Kingdoms) consists of 64x64 Chunks which may or may not be used.
@@ -45,6 +46,7 @@ namespace Terrain
     constexpr u16 MAP_CELLS_PER_CHUNK = MAP_CELLS_PER_CHUNK_SIDE * MAP_CELLS_PER_CHUNK_SIDE;
 
     constexpr f32 MAP_CHUNK_SIZE = 533.3333f; // yards
+    constexpr f32 MAP_SIZE = MAP_CHUNK_SIZE * MAP_CHUNKS_PER_MAP_SIDE; // yards
 
 #pragma pack(push, 1)
     struct ChunkHeader
@@ -72,6 +74,11 @@ namespace Terrain
         HeightPlane maxHeight;
     };
 
+    struct AlphaMap
+    {
+        u8 alphaMap[4096] = { 0 }; // 4096 pixels per alpha map
+    };
+
     struct Chunk
     {
         ChunkHeader chunkHeader;
@@ -80,6 +87,7 @@ namespace Terrain
         HeightBox heightBox;
 
         Cell cells[MAP_CELLS_PER_CHUNK];
+        std::vector<AlphaMap> alphaMaps[MAP_CELLS_PER_CHUNK];
     };
 #pragma pack(pop)
 }

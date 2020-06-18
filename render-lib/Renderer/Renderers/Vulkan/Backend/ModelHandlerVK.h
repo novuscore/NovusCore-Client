@@ -3,6 +3,7 @@
 #include <NovusTypeHeader.h>
 #include <vector>
 #include <vulkan/vulkan.h>
+#include "vk_mem_alloc.h"
 
 #include "../../../Descriptors/ModelDesc.h"
 
@@ -34,11 +35,15 @@ namespace Renderer
             struct Model
             {
                 ModelDesc desc;
-                VkBuffer vertexBuffer;
-                VkDeviceMemory vertexBufferMemory;
-                VkBuffer indexBuffer;
-                VkDeviceMemory indexBufferMemory;
-                u32 numIndices;
+
+                VkBuffer vertexBuffer = VK_NULL_HANDLE;
+                VmaAllocation vertexBufferAllocation;
+
+                VkBuffer indexBuffer = VK_NULL_HANDLE;
+                VmaAllocation indexBufferAllocation;
+
+                u32 numVertices = 0;
+                u32 numIndices = 0;
 
                 std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
                 std::string debugName;

@@ -83,7 +83,30 @@ bool MapLoader::ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk, Stri
     ByteBuffer buffer(nullptr, reader.Length());
     reader.Read(buffer, buffer.Size);
 
-    buffer.Get<Terrain::Chunk>(chunk);
+    buffer.Get<Terrain::ChunkHeader>(chunk.chunkHeader);
+    buffer.Get<Terrain::HeightHeader>(chunk.heightHeader);
+    buffer.Get<Terrain::HeightBox>(chunk.heightBox);
+
+    for (u32 i = 0; i < 256; i++)
+    {
+        buffer.Get<Terrain::Cell>(chunk.cells[i]);
+
+        u32 numAlphaMaps;
+        buffer.Get<u32>(numAlphaMaps);
+
+        if (numAlphaMaps > 0)
+        {
+            chunk.alphaMaps[i].resize(numAlphaMaps);
+            for (u32 j = 0; j < numAlphaMaps; j++)
+            {
+                buffer.Get<Terrain::AlphaMap>(chunk.alphaMaps[i][j]);
+            }
+        }
+    }
+
+    //buffer.Get<Terrain::Chunk>(chunk);
+    
+    
     stringTable.Deserialize(buffer);
 
     return true;

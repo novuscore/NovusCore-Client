@@ -3,6 +3,8 @@
 
 #include "Commands/Clear.h"
 #include "Commands/Draw.h"
+#include "Commands/DrawBindless.h"
+#include "Commands/DrawIndexedBindless.h"
 #include "Commands/PopMarker.h"
 #include "Commands/PushMarker.h"
 #include "Commands/SetPipeline.h"
@@ -10,6 +12,9 @@
 #include "Commands/SetViewport.h"
 #include "Commands/SetSampler.h"
 #include "Commands/SetTextureArray.h"
+#include "Commands/SetVertexBuffer.h"
+#include "Commands/SetIndexBuffer.h"
+#include "Commands/SetBuffer.h"
 
 namespace Renderer
 {
@@ -30,10 +35,16 @@ namespace Renderer
         renderer->Draw(commandList, actualData->model);
     }
 
-    void BackendDispatch::DrawInstanced(Renderer * renderer, CommandListID commandList, const void* data)
+    void BackendDispatch::DrawBindless(Renderer * renderer, CommandListID commandList, const void* data)
     {
-        const Commands::DrawInstanced* actualData = static_cast<const Commands::DrawInstanced*>(data);
-        renderer->DrawInstanced(commandList, actualData->model, actualData->count);
+        const Commands::DrawBindless* actualData = static_cast<const Commands::DrawBindless*>(data);
+        renderer->DrawBindless(commandList, actualData->numVertices, actualData->numInstances);
+    }
+
+    void BackendDispatch::DrawIndexedBindless(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        const Commands::DrawIndexedBindless* actualData = static_cast<const Commands::DrawIndexedBindless*>(data);
+        renderer->DrawIndexedBindless(commandList, actualData->modelID, actualData->numVertices, actualData->numInstances);
     }
 
     void BackendDispatch::PopMarker(Renderer* renderer, CommandListID commandList, const void* /*data*/)
@@ -50,7 +61,13 @@ namespace Renderer
     void BackendDispatch::SetConstantBuffer(Renderer* renderer, CommandListID commandList, const void* data)
     {
         const Commands::SetConstantBuffer* actualData = static_cast<const Commands::SetConstantBuffer*>(data);
-        renderer->SetConstantBuffer(commandList, actualData->slot, actualData->gpuResource, actualData->frameIndex);
+        renderer->SetConstantBuffer(commandList, actualData->slot, actualData->descriptor, actualData->frameIndex);
+    }
+
+    void BackendDispatch::SetStorageBuffer(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        const Commands::SetStorageBuffer* actualData = static_cast<const Commands::SetStorageBuffer*>(data);
+        renderer->SetStorageBuffer(commandList, actualData->slot, actualData->descriptor, actualData->frameIndex);
     }
 
     void BackendDispatch::BeginGraphicsPipeline(Renderer* renderer, CommandListID commandList, const void* data)
@@ -99,5 +116,23 @@ namespace Renderer
     {
         const Commands::SetTextureArray* actualData = static_cast<const Commands::SetTextureArray*>(data);
         renderer->SetTextureArray(commandList, actualData->slot, actualData->textureArray);
+    }
+
+    void BackendDispatch::SetVertexBuffer(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        const Commands::SetVertexBuffer* actualData = static_cast<const Commands::SetVertexBuffer*>(data);
+        renderer->SetVertexBuffer(commandList, actualData->slot, actualData->modelID);
+    }
+
+    void BackendDispatch::SetIndexBuffer(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        const Commands::SetIndexBuffer* actualData = static_cast<const Commands::SetIndexBuffer*>(data);
+        renderer->SetIndexBuffer(commandList, actualData->modelID);
+    }
+
+    void BackendDispatch::SetBuffer(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        const Commands::SetBuffer* actualData = static_cast<const Commands::SetBuffer*>(data);
+        renderer->SetBuffer(commandList, actualData->slot, actualData->buffer);
     }
 }

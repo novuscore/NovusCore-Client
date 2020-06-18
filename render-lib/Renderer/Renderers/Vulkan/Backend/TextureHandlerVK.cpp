@@ -1,5 +1,6 @@
 #include "TextureHandlerVK.h"
 #include <Utils/DebugHandler.h>
+#include <Utils/XXHash64.h>
 #include <Utils/StringUtils.h>
 #include "RenderDeviceVK.h"
 #include "FormatConverterVK.h"
@@ -42,13 +43,23 @@ namespace Renderer
 
         TextureID TextureHandlerVK::LoadTexture(RenderDeviceVK* device, const TextureDesc& desc)
         {
+            using type = type_safe::underlying_type<TextureID>;
+
+            // Check the cache, we only want to do this for LOADED textures though, never CREATED data textures
+            size_t nextID;
+            u64 cacheDescHash = CalculateDescHash(desc);
+            if (TryFindExistingTexture(cacheDescHash, nextID))
+            {
+                return TextureID(static_cast<type>(nextID)); // We already loaded this texture
+            }
+
             size_t nextHandle = _textures.size();
 
             // Make sure we haven't exceeded the limit of the ImageID type, if this hits you need to change type of ImageID to something bigger
             assert(nextHandle < TextureID::MaxValue());
-            using type = type_safe::underlying_type<TextureID>;
-
+            
             Texture texture;
+            texture.hash = cacheDescHash;
             texture.debugName = desc.path;
 
             u8* pixels;
@@ -66,10 +77,25 @@ namespace Renderer
 
         TextureID TextureHandlerVK::LoadTextureIntoArray(RenderDeviceVK* device, const TextureDesc& desc, TextureArrayID textureArrayID, u32& arrayIndex)
         {
+            using type = type_safe::underlying_type<TextureID>;
+
+            TextureID textureID;
+
+            // Check the cache, we only want to do this for LOADED textures though, never CREATED data textures
+            size_t nextID;
+            u64 descHash = CalculateDescHash(desc);
+            assert(descHash != 0); // What are the odds? All data textures has a 0 hash so we don't wanna go ahead with this, figure out why this happens.
+            if (TryFindExistingTextureInArray(textureArrayID, descHash, nextID, textureID))
+            {
+                arrayIndex = static_cast<u32>(nextID);
+                return textureID; // This texture already exists in this array
+            }
+
+            // Otherwise load it
             using textureArrayType = type_safe::underlying_type<TextureArrayID>;
             assert(static_cast<textureArrayType>(textureArrayID) < _textureArrays.size());
 
-            TextureID textureID = LoadTexture(device, desc);
+            textureID = LoadTexture(device, desc);
 
             using textureType = type_safe::underlying_type<TextureID>;
             Texture& texture = _textures[static_cast<textureType>(textureID)];
@@ -77,6 +103,7 @@ namespace Renderer
             TextureArray& textureArray = _textureArrays[static_cast<textureArrayType>(textureArrayID)];
             arrayIndex = static_cast<u32>(textureArray.textures.size());
             textureArray.textures.push_back(textureID);
+            textureArray.textureHashes.push_back(descHash);
 
             VkDescriptorImageInfo descriptorInfo = {};
             descriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -95,31 +122,6 @@ namespace Renderer
             vkUpdateDescriptorSets(device->_device, 1, &descriptorWrite, 0, NULL);
 
             return textureID;
-        }
-
-        TextureID TextureHandlerVK::CreateDataTexture(RenderDeviceVK* device, const DataTextureDesc& desc)
-        {
-            assert(desc.width > 0);
-            assert(desc.height > 0);
-            assert(desc.data != nullptr);
-
-            size_t nextHandle = _textures.size();
-
-            // Make sure we haven't exceeded the limit of the TextureID type, if this hits you need to change type of ImageID to something bigger
-            assert(nextHandle < TextureID::MaxValue());
-            using type = type_safe::underlying_type<TextureID>;
-
-            Texture texture;
-            texture.debugName = desc.debugName;
-
-            texture.width = desc.width;
-            texture.height = desc.height;
-            texture.format = FormatConverterVK::ToVkFormat(desc.format);
-
-            CreateTexture(device, texture, desc.data);
-
-            _textures.push_back(texture);
-            return TextureID(static_cast<type>(nextHandle));
         }
 
         TextureArrayID TextureHandlerVK::CreateTextureArray(RenderDeviceVK* device, const TextureArrayDesc& desc)
@@ -157,7 +159,7 @@ namespace Renderer
             // Create descriptor pool
             VkDescriptorPoolSize poolSize = {};
             poolSize.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            poolSize.descriptorCount = 1;
+            poolSize.descriptorCount = desc.size;
 
             VkDescriptorPoolCreateInfo poolInfo = {};
             poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -209,6 +211,65 @@ namespace Renderer
             return TextureArrayID(static_cast<type>(nextHandle));
         }
 
+        TextureID TextureHandlerVK::CreateDataTexture(RenderDeviceVK* device, const DataTextureDesc& desc)
+        {
+            assert(desc.width > 0);
+            assert(desc.height > 0);
+            assert(desc.data != nullptr);
+
+            size_t nextHandle = _textures.size();
+
+            // Make sure we haven't exceeded the limit of the TextureID type, if this hits you need to change type of ImageID to something bigger
+            assert(nextHandle < TextureID::MaxValue());
+            using type = type_safe::underlying_type<TextureID>;
+
+            Texture texture;
+            texture.debugName = desc.debugName;
+
+            texture.width = desc.width;
+            texture.height = desc.height;
+            texture.format = FormatConverterVK::ToVkFormat(desc.format);
+
+            CreateTexture(device, texture, desc.data);
+
+            _textures.push_back(texture);
+            return TextureID(static_cast<type>(nextHandle));
+        }
+
+        TextureID TextureHandlerVK::CreateDataTextureIntoArray(RenderDeviceVK* device, const DataTextureDesc& desc, TextureArrayID textureArrayID, u32& arrayIndex)
+        {
+            using textureArrayType = type_safe::underlying_type<TextureArrayID>;
+            assert(static_cast<textureArrayType>(textureArrayID) < _textureArrays.size());
+
+            TextureID textureID = CreateDataTexture(device, desc);
+
+            using textureType = type_safe::underlying_type<TextureID>;
+            Texture& texture = _textures[static_cast<textureType>(textureID)];
+
+            TextureArray& textureArray = _textureArrays[static_cast<textureArrayType>(textureArrayID)];
+            arrayIndex = static_cast<u32>(textureArray.textures.size());
+            textureArray.textures.push_back(textureID);
+            textureArray.textureHashes.push_back(0);
+
+            VkDescriptorImageInfo descriptorInfo = {};
+            descriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            descriptorInfo.imageView = texture.imageView;
+
+            VkWriteDescriptorSet descriptorWrite = {};
+            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite.pNext = NULL;
+            descriptorWrite.dstSet = textureArray.descriptorSet;
+            descriptorWrite.descriptorCount = 1;
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            descriptorWrite.pImageInfo = &descriptorInfo;
+            descriptorWrite.dstArrayElement = arrayIndex;
+            descriptorWrite.dstBinding = 0;
+
+            vkUpdateDescriptorSets(device->_device, 1, &descriptorWrite, 0, NULL);
+
+            return textureID;
+        }
+
         VkImageView TextureHandlerVK::GetImageView(const TextureID id)
         {
             using type = type_safe::underlying_type<TextureID>;
@@ -234,6 +295,49 @@ namespace Renderer
             // Lets make sure this id exists
             assert(_textureArrays.size() > static_cast<type>(id));
             return _textureArrays[static_cast<type>(id)].descriptorSet;
+        }
+
+        u64 TextureHandlerVK::CalculateDescHash(const TextureDesc& desc)
+        {
+            u64 hash = XXHash64::hash(desc.path.c_str(), desc.path.size(), 0);
+            return hash;
+        }
+
+        bool TextureHandlerVK::TryFindExistingTexture(u64 descHash, size_t& id)
+        {
+            id = 0;
+
+            for (auto& texture : _textures)
+            {
+                if (descHash == texture.hash)
+                {
+                    return true;
+                }
+                id++;
+            }
+
+            return false;
+        }
+
+        bool TextureHandlerVK::TryFindExistingTextureInArray(TextureArrayID textureArrayID, u64 descHash, size_t& arrayIndex, TextureID& textureId)
+        {
+            using textureArrayType = type_safe::underlying_type<TextureArrayID>;
+
+            textureArrayType arrayID = static_cast<textureArrayType>(textureArrayID);
+            assert(arrayID < _textureArrays.size());
+
+            TextureArray& array = _textureArrays[arrayID];
+
+            for (arrayIndex = 0; arrayIndex < array.textureHashes.size(); arrayIndex++)
+            {
+                if (descHash == array.textureHashes[arrayIndex])
+                {
+                    textureId = array.textures[arrayIndex];
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         u8* TextureHandlerVK::ReadFile(const std::string& filename, i32& width, i32& height, VkFormat& format)
@@ -275,16 +379,16 @@ namespace Renderer
         {
             // Create staging buffer
             VkBuffer stagingBuffer;
-            VkDeviceMemory stagingBufferMemory;
+            VmaAllocation stagingBufferAllocation;
 
             VkDeviceSize imageSize = Math::RoofToInt(static_cast<f64>(texture.width) * static_cast<f64>(texture.height) * FormatTexelSize(texture.format));
 
-            device->CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+            device->CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer, stagingBufferAllocation);
 
             void* data;
-            vkMapMemory(device->_device, stagingBufferMemory, 0, imageSize, 0, &data);
+            vmaMapMemory(device->_allocator, stagingBufferAllocation, &data);
             memcpy(data, pixels, static_cast<size_t>(imageSize));
-            vkUnmapMemory(device->_device, stagingBufferMemory);
+            vmaUnmapMemory(device->_allocator, stagingBufferAllocation);
 
             delete[] pixels;
 
@@ -305,28 +409,15 @@ namespace Renderer
             imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
             imageInfo.flags = 0; // Optional
 
-            if (vkCreateImage(device->_device, &imageInfo, nullptr, &texture.image) != VK_SUCCESS)
+            VmaAllocationCreateInfo allocInfo = {};
+            allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+            if (vmaCreateImage(device->_allocator, &imageInfo, &allocInfo, &texture.image, &texture.allocation, nullptr) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create texture image!");
+                NC_LOG_FATAL("Failed to create image!");
             }
 
             DebugMarkerUtilVK::SetObjectName(device->_device, (u64)texture.image, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, texture.debugName.c_str());
-
-            // Allocate and bind memory
-            VkMemoryRequirements memRequirements;
-            vkGetImageMemoryRequirements(device->_device, texture.image, &memRequirements);
-
-            VkMemoryAllocateInfo allocInfo = {};
-            allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            allocInfo.allocationSize = memRequirements.size;
-            allocInfo.memoryTypeIndex = device->FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-            if (vkAllocateMemory(device->_device, &allocInfo, nullptr, &texture.memory) != VK_SUCCESS)
-            {
-                NC_LOG_FATAL("Failed to allocate texture image memory!");
-            }
-
-            vkBindImageMemory(device->_device, texture.image, texture.memory, 0);
 
             // Copy data from stagingBuffer into image
             device->TransitionImageLayout(texture.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);

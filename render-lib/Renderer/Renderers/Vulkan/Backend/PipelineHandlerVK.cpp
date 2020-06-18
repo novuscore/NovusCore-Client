@@ -270,41 +270,90 @@ namespace Renderer
                 shaderStages.push_back(fragShaderStageInfo);
             }
 
-            // Calculate stride
-            u8 numAttributes = 0;
-            u32 stride = 0;
+            // Now we need to create vertex input bindings, one (if necessary) for per-vertex data, one (if necessary) for per-instance data
+            u8 numVertexAttributes = 0;
+            u32 vertexStride = 0;
+
+            u8 numInstanceAttributes = 0;
+            u32 instanceStride = 0;
+
             for (auto& inputLayout : desc.states.inputLayouts)
             {
                 if (!inputLayout.enabled)
                     break;
 
-                numAttributes++;
-                stride += FormatConverterVK::ToByteSize(inputLayout.format);
+                if (inputLayout.inputClassification == Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX)
+                {
+                    numVertexAttributes++;
+                    vertexStride += FormatConverterVK::ToByteSize(inputLayout.format);
+                }
+                else
+                {
+                    numInstanceAttributes++;
+                    instanceStride += FormatConverterVK::ToByteSize(inputLayout.format);
+                }
             }
 
-            // -- Create binding description --
-            VkVertexInputBindingDescription bindingDescription = {};
-            bindingDescription.binding = 0;
-            bindingDescription.stride = stride;
-            bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+            // -- Create binding description(s) --
+            std::vector<VkVertexInputBindingDescription> inputBindingDescriptions;
 
-            // -- Create attribute descriptions --
-            std::vector<VkVertexInputAttributeDescription> attributeDescriptions(numAttributes);
-            u32 offset = 0;
-            for (int i = 0; i < numAttributes; i++)
+            u8 vertexBinding = 0;
+            if (numVertexAttributes > 0)
             {
-                attributeDescriptions[i].binding = 0;
-                attributeDescriptions[i].location = i;
-                attributeDescriptions[i].format = FormatConverterVK::ToVkFormat(desc.states.inputLayouts[i].format);
-                attributeDescriptions[i].offset = offset;
+                VkVertexInputBindingDescription bindingDescription = {};
+                bindingDescription.binding = static_cast<u32>(inputBindingDescriptions.size());
+                bindingDescription.stride = vertexStride;
+                bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-                offset += FormatConverterVK::ToByteSize(desc.states.inputLayouts[i].format);
+                inputBindingDescriptions.push_back(bindingDescription);
+            }
+
+            u8 instanceBinding = 0;
+            if (numInstanceAttributes > 0)
+            {
+                instanceBinding = static_cast<u8>(inputBindingDescriptions.size());
+
+                VkVertexInputBindingDescription bindingDescription = {};
+                bindingDescription.binding = instanceBinding;
+                bindingDescription.stride = instanceStride;
+                bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+
+                inputBindingDescriptions.push_back(bindingDescription);
+            }
+
+            std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+            attributeDescriptions.reserve(numVertexAttributes + numInstanceAttributes);
+
+            u8 attributeCounts[2] = { 0 };
+            u32 attributeOffsets[2] = { 0 };
+
+            for (auto& inputLayout : desc.states.inputLayouts)
+            {
+                if (!inputLayout.enabled)
+                    break;
+
+                bool isPerVertex = inputLayout.inputClassification == Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
+
+                u8 binding = (isPerVertex) ? vertexBinding : instanceBinding;
+
+                u8& attributeCount = attributeCounts[isPerVertex];
+                u32& attributeOffset = attributeOffsets[isPerVertex];
+                
+                VkVertexInputAttributeDescription attributeDescription;
+                attributeDescription.binding = binding;
+                attributeDescription.location = attributeCount++;
+                attributeDescription.format = FormatConverterVK::ToVkFormat(inputLayout.format);
+                attributeDescription.offset = attributeOffset;
+
+                attributeOffset += FormatConverterVK::ToByteSize(inputLayout.format);
+
+                attributeDescriptions.push_back(attributeDescription);
             }
 
             VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
             vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-            vertexInputInfo.vertexBindingDescriptionCount = 1;
-            vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+            vertexInputInfo.vertexBindingDescriptionCount = static_cast<u32>(inputBindingDescriptions.size());
+            vertexInputInfo.pVertexBindingDescriptions = inputBindingDescriptions.data();
             vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
             vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
