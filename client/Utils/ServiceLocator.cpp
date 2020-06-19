@@ -7,6 +7,7 @@ Window* ServiceLocator::_window = nullptr;
 InputManager* ServiceLocator::_inputManager = nullptr;
 Camera* ServiceLocator::_camera = nullptr;
 Renderer::Renderer* ServiceLocator::_renderer = nullptr;
+SceneManager* ServiceLocator::_sceneManager = nullptr;
 
 moodycamel::ConcurrentQueue<Message>* ServiceLocator::_mainInputQueue = nullptr;
 
@@ -43,8 +44,20 @@ void ServiceLocator::SetCamera(Camera* camera)
     _camera = camera;
 }
 
+void ServiceLocator::SetMainInputQueue(moodycamel::ConcurrentQueue<Message>* mainInputQueue)
+{
+    assert(_mainInputQueue == nullptr);
+    _mainInputQueue = mainInputQueue;
+}
+
 void ServiceLocator::SetRenderer(Renderer::Renderer* renderer)
 {
     assert(_renderer == nullptr);
     _renderer = renderer;
+}
+
+void ServiceLocator::SetSceneManager(SceneManager* sceneManager)
+{
+    assert(_sceneManager == nullptr);
+    _sceneManager = sceneManager;
 }

@@ -9,6 +9,7 @@
 #include "Rendering/ClientRenderer.h"
 #include "Rendering/Camera.h"
 #include <Renderer/Renderer.h>
+#include <SceneManager.h>
 
 // Component Singletons
 #include "ECS/Components/Singletons/MapSingleton.h"
@@ -16,11 +17,11 @@
 #include "ECS/Components/Singletons/ScriptSingleton.h"
 #include "ECS/Components/Network/ConnectionSingleton.h"
 #include "ECS/Components/Network/AuthenticationSingleton.h"
-#include "ECS/Components/Rendering/Model.h"
-#include "ECS/Components/Transform.h"
 #include "ECS/Components/LocalplayerSingleton.h"
 
 // Components
+#include "ECS/Components/Rendering/Model.h"
+#include "ECS/Components/Transform.h"
 
 // Systems
 #include "ECS/Systems/Network/ConnectionSystems.h"
@@ -53,9 +54,6 @@ void EngineLoop::Start()
 
     ServiceLocator::SetMainInputQueue(&_inputQueue);
 
-    // Setup Network Lib
-    InputQueue::SetInputQueue(&_inputQueue);
-
     std::thread threadRun = std::thread(&EngineLoop::Run, this);
     std::thread threadRunIoService = std::thread(&EngineLoop::RunIoService, this);
     threadRun.detach();
@@ -82,9 +80,22 @@ bool EngineLoop::TryGetMessage(Message& message)
     return _outputQueue.try_dequeue(message);
 }
 
+void LoginScreenLoaded(u32 sceneNameHash)
+{
+    NC_LOG_SUCCESS("Scene: LoginScreen was loaded");
+}
+
 void EngineLoop::Run()
 {
     _isRunning = true;
+
+    SceneManager* sceneManager = new SceneManager();
+    sceneManager->SetAvailableScenes({ "LoginScreen"_h, "CharacterSelection"_h, "CharacterCreation"_h });
+    sceneManager->RegisterSceneLoadedCallback("LoginScreen"_h, SceneCallback("Dummy Callback"_h, LoginScreenLoaded));
+    ServiceLocator::SetSceneManager(sceneManager);
+
+    // We want to push this to the end of the first frame so anything that runs during the first frame has time to set itself up
+    sceneManager->LoadScene("LoginScreen"_h);
 
     _updateFramework.gameRegistry.create();
     _updateFramework.uiRegistry.create();
@@ -105,7 +116,7 @@ void EngineLoop::Run()
     _clientRenderer = new ClientRenderer();
 
     // Bind Movement Keys
-    InputManager * inputManager = ServiceLocator::GetInputManager();
+    InputManager* inputManager = ServiceLocator::GetInputManager();
     inputManager->RegisterKeybind("Move Forward", GLFW_KEY_W, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
     inputManager->RegisterKeybind("Move Backward", GLFW_KEY_S, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
     inputManager->RegisterKeybind("Move Left", GLFW_KEY_A, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);

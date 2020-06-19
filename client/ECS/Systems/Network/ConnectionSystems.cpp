@@ -14,16 +14,14 @@ void ConnectionUpdateSystem::Update(entt::registry& registry)
 
     ZoneScopedNC("InternalPacketHandlerSystem::Update", tracy::Color::Blue)
 
-        NetworkPacket* packet;
+        std::shared_ptr<NetworkPacket> packet;
     while (connectionSingleton.packetQueue.try_dequeue(packet))
     {
-        if (!messageHandler->CallHandler(connectionSingleton.connection, packet))
+        if (!messageHandler->CallHandler(connectionSingleton.connection, packet.get()))
         {
             connectionSingleton.packetQueue.enqueue(packet);
             continue;
         }
-
-        delete packet;
     }
 }
 
@@ -48,7 +46,7 @@ void ConnectionUpdateSystem::HandleRead(BaseSocket* socket)
             return;
         }
 
-        NetworkPacket* packet = new NetworkPacket();
+        std::shared_ptr<NetworkPacket> packet = NetworkPacket::Borrow();
         {
             // Header
             {

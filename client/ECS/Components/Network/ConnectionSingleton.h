@@ -10,5 +10,5 @@ public:
     ConnectionSingleton() : packetQueue(256) { }
 
     std::shared_ptr<NetworkClient> connection;
-    moodycamel::ConcurrentQueue<NetworkPacket*> packetQueue;
+    moodycamel::ConcurrentQueue<std::shared_ptr<NetworkPacket>> packetQueue;
 };

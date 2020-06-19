@@ -17,6 +17,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 	render::render
 	network::network
 	input::input
+	scenemanager::scenemanager
 	glfw ${GLFW_LIBRARIES}
 	Entt::Entt
 	taskflow::taskflow
