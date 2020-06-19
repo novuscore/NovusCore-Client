@@ -11,8 +11,7 @@ namespace UI
 {
     asInputField::asInputField(entt::entity entityId) : asUITransform(entityId, UIElementData::UIElementType::UITYPE_INPUTFIELD)
     {
-        _label = asLabel::CreateLabel();
-        _label->SetParent(this);
+
     }
 
     void asInputField::RegisterType()
@@ -28,7 +27,7 @@ namespace UI
         r = ScriptEngine::RegisterScriptClassFunction("void OnLostFocus(InputFieldEventCallback@ cb)", asMETHOD(asInputField, SetOnUnFocusCallback)); assert(r >= 0);
 
         //Label Functions
-        r = ScriptEngine::RegisterScriptClassFunction("void SetText(string text)", asMETHOD(asInputField, SetText)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetText(string text, bool updateWriteHead = true)", asMETHOD(asInputField, SetText)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("string GetText()", asMETHOD(asInputField, GetText)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetTextColor(Color color)", asMETHOD(asInputField, SetTextColor)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("Color GetTextColor()", asMETHOD(asInputField, GetTextColor)); assert(r >= 0);
@@ -41,8 +40,8 @@ namespace UI
 
     void asInputField::AppendInput(const std::string& Input)
     {
-        std::string newString = _label->GetText();
-        if (_inputField.writeHeadIndex == _label->GetText().length())
+        std::string newString = GetText();
+        if (_inputField.writeHeadIndex == newString.length())
         {
             newString += Input;
         }
@@ -51,33 +50,33 @@ namespace UI
             newString.insert(_inputField.writeHeadIndex, Input);
         }
 
-        _label->SetText(newString);
+        SetText(newString, false);
 
         SetWriteHeadPosition(_inputField.writeHeadIndex + static_cast<u32>(Input.length()));
     }
 
     void asInputField::RemovePreviousCharacter()
     {
-        if (_label->GetText().empty() || _inputField.writeHeadIndex <= 0)
+        if (GetText().empty() || _inputField.writeHeadIndex <= 0)
             return;
 
-        std::string newString = _label->GetText();
+        std::string newString = GetText();
         newString.erase(_inputField.writeHeadIndex - 1, 1);
 
-        _label->SetText(newString);
+        SetText(newString, false);
 
         MovePointerLeft();
     }
 
     void asInputField::RemoveNextCharacter()
     {
-        if (_label->GetText().length() <= _inputField.writeHeadIndex)
+        if (GetText().length() <= _inputField.writeHeadIndex)
             return;
 
-        std::string newString = _label->GetText();
+        std::string newString = GetText();
         newString.erase(_inputField.writeHeadIndex, 1);
 
-        _label->SetText(newString);
+        SetText(newString, false);
     }
 
     void asInputField::MovePointerLeft()
@@ -92,9 +91,9 @@ namespace UI
 
     void asInputField::SetWriteHeadPosition(u32 position)
     {
-        u32 clampedPosition = position > 0 ? (position <= _label->GetText().length() ? position : static_cast<u32>(_label->GetText().length())) : 0;
+        u32 clampedPosition = position <= GetText().length() ? position : static_cast<u32>(GetText().length());
 
-        if (clampedPosition == position)
+        if (clampedPosition == _inputField.writeHeadIndex)
             return;
 
         _inputField.writeHeadIndex = clampedPosition;
@@ -108,14 +107,6 @@ namespace UI
 
                 inputField.writeHeadIndex = clampedPosition;
             });
-    }
-
-    void asInputField::SetSize(const vec2& size)
-    {
-        asUITransform::SetSize(size);
-
-        //This should be replaced by a system for filling parent size.
-        _label->SetSize(size);
     }
 
     void asInputField::SetOnFocusCallback(asIScriptFunction* callback)
@@ -154,47 +145,107 @@ namespace UI
             });
     }
 
-    void asInputField::SetText(const std::string& text)
+    void asInputField::SetText(const std::string& text, bool updateWriteHead)
     {
-        _label->SetText(text);
+        _text.text = text;
 
-        SetWriteHeadPosition(static_cast<u32>(_label->GetText().length()));
+        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity entId = _entityId;
+
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([text, entId]()
+            {
+                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+                UIText& uiText = uiRegistry->get<UIText>(entId);
+
+                uiText.text = text;
+                uiText.isDirty = true;
+            });
+
+        if(updateWriteHead)
+            SetWriteHeadPosition(static_cast<u32>(text.length()));
     }
     const std::string& asInputField::GetText() const
     {
-        return _label->GetText();
+        return _text.text;
     }
 
     void asInputField::SetTextColor(const Color& color)
     {
-        _label->SetColor(color);
+        _text.color = color;
+
+        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity entId = _entityId;
+
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([color, entId]()
+            {
+                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+                UIText& uiText = uiRegistry->get<UIText>(entId);
+
+                uiText.color = color;
+                uiText.isDirty = true;
+            });
     }
     const Color& asInputField::GetTextColor() const
     {
-        return _label->GetColor();
+        return _text.color;
     }
 
     void asInputField::SetTextOutlineColor(const Color& outlineColor)
     {
-        _label->SetOutlineColor(outlineColor);
+        _text.outlineColor = outlineColor;
+
+        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity entId = _entityId;
+
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([outlineColor, entId]()
+            {
+                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+                UIText& uiText = uiRegistry->get<UIText>(entId);
+
+                uiText.outlineColor = outlineColor;
+                uiText.isDirty = true;
+            });
     }
     const Color& asInputField::GetTextOutlineColor() const
     {
-        return _label->GetOutlineColor();
+        return _text.outlineColor;
     }
 
     void asInputField::SetTextOutlineWidth(f32 outlineWidth)
     {
-        _label->SetOutlineWidth(outlineWidth);
+        _text.outlineWidth = outlineWidth;
+
+        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity entId = _entityId;
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([outlineWidth, entId]()
+            {
+                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+                UIText& uiText = uiRegistry->get<UIText>(entId);
+
+                uiText.outlineWidth = outlineWidth;
+                uiText.isDirty = true;
+            });
     }
     const f32 asInputField::GetTextOutlineWidth() const
     {
-        return _label->GetOutlineWidth();
+        return _text.outlineWidth;
     }
 
     void asInputField::SetTextFont(std::string fontPath, f32 fontSize)
     {
-        _label->SetFont(fontPath, fontSize);
+        _text.fontPath = fontPath;
+
+        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity entId = _entityId;
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([fontPath, fontSize, entId]()
+            {
+                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+                UIText& uiText = uiRegistry->get<UIText>(entId);
+
+                uiText.fontPath = fontPath;
+                uiText.fontSize = fontSize;
+                uiText.isDirty = true;
+            });
     }
 
     asInputField* asInputField::CreateInputField()

@@ -6,6 +6,7 @@
 
 #include "../../../ECS/Components/UI/UITransformEvents.h"
 #include "../../../ECS/Components/UI/UIInputField.h"
+#include "../../../ECS/Components/UI/UIText.h"
 
 namespace UI
 {
@@ -36,16 +37,13 @@ namespace UI
 
         void SetWriteHeadPosition(u32 position);
 
-        //Transform Functions.
-        virtual void SetSize(const vec2& size);
-
         // TransformEvents Functions
         const bool IsFocusable() const { return _events.IsFocusable(); }
         void SetOnFocusCallback(asIScriptFunction* callback);
         void SetOnUnFocusCallback(asIScriptFunction* callback);
 
         //Label Functions
-        void SetText(const std::string& text);
+        void SetText(const std::string& text, bool updateWriteHead = true);
         const std::string& GetText() const;
 
         void SetTextColor(const Color& color);
@@ -62,9 +60,8 @@ namespace UI
         static asInputField* CreateInputField();
 
     private:
-        asLabel* _label;
-
         UITransformEvents _events;
+        UIText _text;
         UIInputField _inputField;
     };
 }

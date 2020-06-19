@@ -31,6 +31,7 @@ void AddElementSystem::Update(entt::registry& registry)
             break;
         case UIElementData::UIElementType::UITYPE_INPUTFIELD:
         {
+            registry.assign<UIText>(element.entityId);
             UIInputField& inputField = registry.assign<UIInputField>(element.entityId);
             inputField.asObject = element.asObject;
             break;
