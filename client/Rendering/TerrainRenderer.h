@@ -62,7 +62,6 @@ private:
     {
         Renderer::StorageBuffer<std::array<TerrainVertex, Terrain::NUM_VERTICES_PER_CHUNK>>* vertexBuffer = nullptr;
         Renderer::ConstantBuffer<std::array<TerrainChunkData, Terrain::MAP_CELLS_PER_CHUNK>>* chunkData = nullptr;
-        Renderer::TextureArrayID textureArray = Renderer::TextureArrayID::Invalid();
     };
 
 private:
@@ -72,8 +71,7 @@ private:
     std::vector<Renderer::InstanceData> _chunkModelInstances;
 
     Renderer::ConstantBuffer<std::array<u32, Terrain::MAP_CELLS_PER_CHUNK>>* _terrainInstanceIDs = nullptr;
-
-    Renderer::TextureArrayID _terrainTextureArray;
-    Renderer::TextureID _terrainTexture;
+    
+    Renderer::TextureArrayID _terrainTextureArray = Renderer::TextureArrayID::Invalid();
     Renderer::SamplerID _linearSampler;
 };

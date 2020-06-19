@@ -26,17 +26,22 @@ layout(location = 0) out vec4 outColor;
 
 void main() 
 {
-	vec2 uv = fragTexCoord.xy;// / 8.0f;
-	vec2 alphaUV = uv / 8.0f;
-	// DEBUG: Only render base layer
-	/*uint diffuse0ID = chunkDatas[fragInstanceID].diffuseIDs[0];
-	vec4 diffuse0 = texture(sampler2D(terrainTextures[diffuse0ID], terrainSampler), uv);
-	outColor = diffuse0;*/
+	// Our UVs currently go between 0 and 8, with wrapping. This is correct for terrain color textures
+	vec2 uv = fragTexCoord.xy;
 
-	
-	// WORK IN PROGRESS
+	// However, we have 1 alpha texture per chunk, so [0.0 .. 1.0] would be a range representing the whole chunk
+	// Since each instance is one cell, we'll need to convert our [0.0 .. 8.0] uv into [U .. U+1] where U is a multiple of 0.0625 (which we get from 1 divided by 16)
+	// We need to figure out the cells X and Y index to use to substitute U
+	vec2 cellIndex = uvec2(fragInstanceID % 16, fragInstanceID / 16);
+
+	// Now convert our UV
+	vec2 alphaUV = uv;
+	alphaUV /= 8.0; // From [0.0 .. 8.0] to [0.0 .. 1.0]
+	alphaUV /= 16.0; // From [0.0 .. 1.0] to [0.0 .. 0.0625]
+	alphaUV += cellIndex * 0.0625; // Offset the UVs depending on which cell this is rendering
+
 	outColor = vec4(0,0,0,0);
-	
+
 	// We have 4 uints per chunk for our diffuseIDs, this gives us a size and alignment of 16 bytes which is exactly what GPUs want
 	// However, we need a fifth uint for alphaID, so we decided to pack it into the LAST diffuseID, which gets split into two uint16s
 	// This is what it looks like
@@ -44,7 +49,6 @@ void main()
 	// [2222] diffuseIDs[1]
 	// [3333] diffuseIDs[2]
 	// [AA44] diffuseIDs[3] Alpha is read from the most significant bits, the fourth diffuseID read from the least 
-
 	uint diffuse0ID = chunkDatas[fragInstanceID].diffuseIDs[0];
 	uint diffuse1ID = chunkDatas[fragInstanceID].diffuseIDs[1];
 	uint diffuse2ID = chunkDatas[fragInstanceID].diffuseIDs[2];
