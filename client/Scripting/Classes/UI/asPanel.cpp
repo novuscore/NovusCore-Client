@@ -126,15 +126,14 @@ namespace UI
         UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
         UIAddElementQueueSingleton& addElementQueue = registry->ctx<UIAddElementQueueSingleton>();
 
-        UIElementData elementData;
-        entityPool.entityIdPool.try_dequeue(elementData.entityId);
-        elementData.type = UIElementData::UIElementType::UITYPE_PANEL;
+        entt::entity entityId;
+        entityPool.entityIdPool.try_dequeue(entityId);
 
-        asPanel* panel = new asPanel(elementData.entityId);
+        asPanel* panel = new asPanel(entityId);
 
-        elementData.asObject = panel;
-
+        UIElementData elementData{ entityId, UIElementData::UIElementType::UITYPE_PANEL, panel };
         addElementQueue.elementPool.enqueue(elementData);
+        
         return panel;
     }
 }

@@ -27,7 +27,7 @@ namespace UI
 
         //Label Functions
         void SetText(const std::string& text);
-        const std::string& GetText() const;
+        const std::string GetText() const;
 
         void SetTextColor(const Color& color);
         const Color& GetTextColor() const;

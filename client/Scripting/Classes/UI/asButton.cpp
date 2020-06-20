@@ -79,7 +79,7 @@ namespace UI
     {
         _label->SetText(text);
     }
-    const std::string& asButton::GetText() const
+    const std::string asButton::GetText() const
     {
         return _label->GetText();
     }
@@ -142,15 +142,14 @@ namespace UI
         UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
         UIAddElementQueueSingleton& addElementQueue = registry->ctx<UIAddElementQueueSingleton>();
 
-        UIElementData elementData;
-        entityPool.entityIdPool.try_dequeue(elementData.entityId);
-        elementData.type = UIElementData::UIElementType::UITYPE_BUTTON;
+        entt::entity entityId;
+        entityPool.entityIdPool.try_dequeue(entityId);
 
-        asButton* button = new asButton(elementData.entityId);
+        asButton* button = new asButton(entityId);
 
-        elementData.asObject = button;
-
+        UIElementData elementData { entityId, UIElementData::UIElementType::UITYPE_BUTTON, button };
         addElementQueue.elementPool.enqueue(elementData);
+
         return button;
     }
 }

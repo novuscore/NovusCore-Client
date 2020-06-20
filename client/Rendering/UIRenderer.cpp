@@ -404,7 +404,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             //Check if we have any events we can actually call else exit out early. It needs to still block clicking through though.
             if (!events.flags)
                 return true;
-            
+
             //Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it. But it still needs to block clicking through it.
             if (lastFocusedWidget == entity)
                 return true;
@@ -448,45 +448,47 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
     if (_focusedWidget == entt::null)
         return false;
 
-    if (action == GLFW_RELEASE)
+    if (action != GLFW_RELEASE)
+        return true;
+
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
+    UITransformEvents& events = registry->get<UITransformEvents>(_focusedWidget);
+
+    if (key == GLFW_KEY_ESCAPE)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UITransform& transform = registry->get<UITransform>(_focusedWidget);
-        UITransformEvents& events = registry->get<UITransformEvents>(_focusedWidget);
+        events.OnUnFocused();
+        _focusedWidget = entt::null;
 
-        if (transform.type == UIElementData::UIElementType::UITYPE_INPUTFIELD)
+        return true;
+    }
+
+    UITransform& transform = registry->get<UITransform>(_focusedWidget);
+    if (transform.type == UIElementData::UIElementType::UITYPE_INPUTFIELD)
+    {
+        UI::asInputField* inputFieldAS = reinterpret_cast<UI::asInputField*>(transform.asObject);
+        UIInputField& inputField = registry->get<UIInputField>(_focusedWidget);
+
+        switch (key)
         {
-            UI::asInputField* inputFieldAS = reinterpret_cast<UI::asInputField*>(transform.asObject);
-            UIInputField& inputField = registry->get<UIInputField>(_focusedWidget);
-
-            switch (key)
-            {
-            case GLFW_KEY_ESCAPE:
-                events.OnUnFocused();
-                _focusedWidget = entt::null;
-                break;
-
-            case GLFW_KEY_BACKSPACE:
-                inputFieldAS->RemovePreviousCharacter();
-                break;
-
-            case GLFW_KEY_DELETE:
-                inputFieldAS->RemoveNextCharacter();
-                break;
-
-            case GLFW_KEY_LEFT:
-                inputFieldAS->MovePointerLeft();
-                break;
-
-            case GLFW_KEY_RIGHT:
-                inputFieldAS->MovePointerRight();
-                break;
-            case GLFW_KEY_ENTER:
-                inputField.OnSubmit();
-                break;
-            default:
-                break;
-            }
+        case GLFW_KEY_BACKSPACE:
+            inputFieldAS->RemovePreviousCharacter();
+            break;
+        case GLFW_KEY_DELETE:
+            inputFieldAS->RemoveNextCharacter();
+            break;
+        case GLFW_KEY_LEFT:
+            inputFieldAS->MovePointerLeft();
+            break;
+        case GLFW_KEY_RIGHT:
+            inputFieldAS->MovePointerRight();
+            break;
+        case GLFW_KEY_ENTER:
+            inputField.OnSubmit();
+            events.OnUnFocused();
+            _focusedWidget = entt::null;
+            break;
+        default:
+            break;
         }
     }
 

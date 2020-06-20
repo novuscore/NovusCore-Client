@@ -95,7 +95,7 @@ namespace UI
             });
     }
 
-    void asLabel::SetFont(std::string fontPath, f32 fontSize)
+    void asLabel::SetFont(const std::string& fontPath, f32 fontSize)
     {
         _text.fontPath = fontPath;
 
@@ -119,15 +119,14 @@ namespace UI
         UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
         UIAddElementQueueSingleton& addElementQueue = registry->ctx<UIAddElementQueueSingleton>();
 
-        UIElementData elementData;
-        entityPool.entityIdPool.try_dequeue(elementData.entityId);
-        elementData.type = UIElementData::UIElementType::UITYPE_TEXT;
+        entt::entity entityId;
+        entityPool.entityIdPool.try_dequeue(entityId);
 
-        asLabel* label = new asLabel(elementData.entityId);
+        asLabel* label = new asLabel(entityId);
 
-        elementData.asObject = label;
-
+        UIElementData elementData { entityId, UIElementData::UIElementType::UITYPE_TEXT, label };
         addElementQueue.elementPool.enqueue(elementData);
+
         return label;
     }
 }

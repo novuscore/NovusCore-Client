@@ -9,9 +9,9 @@
 
 namespace UI
 {
-    asInputField::asInputField(entt::entity entityId) : asUITransform(entityId, UIElementData::UIElementType::UITYPE_INPUTFIELD)
-    {
-
+    asInputField::asInputField(entt::entity entityId) : asUITransform(entityId, UIElementData::UIElementType::UITYPE_INPUTFIELD) 
+    { 
+        SetFocusable(true);
     }
 
     void asInputField::RegisterType()
@@ -20,9 +20,13 @@ namespace UI
         r = ScriptEngine::RegisterScriptInheritance<asUITransform, asInputField>("UITransform");
         r = ScriptEngine::RegisterScriptFunction("InputField@ CreateInputField()", asFUNCTION(asInputField::CreateInputField)); assert(r >= 0);
 
+        r = ScriptEngine::RegisterScriptFunctionDef("void InputFieldEventCallback(InputField@ inputfield)"); assert(r >= 0);
+
+        // InputField Functions
+        r = ScriptEngine::RegisterScriptClassFunction("void OnSubmit(InputFieldEventCallback@ cb)", asMETHOD(asInputField, SetOnSubmitCallback)); assert(r >= 0);
+
         // TransformEvents Functions
         r = ScriptEngine::RegisterScriptClassFunction("bool IsFocusable()", asMETHOD(asInputField, IsFocusable)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptFunctionDef("void InputFieldEventCallback(InputField@ inputfield)"); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void OnFocus(InputFieldEventCallback@ cb)", asMETHOD(asInputField, SetOnFocusCallback)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void OnLostFocus(InputFieldEventCallback@ cb)", asMETHOD(asInputField, SetOnUnFocusCallback)); assert(r >= 0);
 
@@ -109,6 +113,42 @@ namespace UI
             });
     }
 
+    void asInputField::SetOnSubmitCallback(asIScriptFunction* callback)
+    {
+        _inputField.onSubmitCallback = callback;
+
+        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity entId = _entityId;
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
+            {
+                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+                UIInputField& inputField = uiRegistry->get<UIInputField>(entId);
+
+                inputField.onSubmitCallback = callback;
+            });
+    }
+
+    void asInputField::SetFocusable(bool focusable)
+    {
+        if (focusable)
+            _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+        else
+            _events.UnsetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+
+        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity entId = _entityId;
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([focusable, entId]()
+            {
+                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+                UITransformEvents& events = uiRegistry->get<UITransformEvents>(entId);
+
+                if (focusable)
+                    events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+                else
+                    events.UnsetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+            });
+    }
+
     void asInputField::SetOnFocusCallback(asIScriptFunction* callback)
     {
         _events.onFocusedCallback = callback;
@@ -116,7 +156,6 @@ namespace UI
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
@@ -164,10 +203,6 @@ namespace UI
         if(updateWriteHead)
             SetWriteHeadPosition(static_cast<u32>(text.length()));
     }
-    const std::string& asInputField::GetText() const
-    {
-        return _text.text;
-    }
 
     void asInputField::SetTextColor(const Color& color)
     {
@@ -184,10 +219,6 @@ namespace UI
                 uiText.color = color;
                 uiText.isDirty = true;
             });
-    }
-    const Color& asInputField::GetTextColor() const
-    {
-        return _text.color;
     }
 
     void asInputField::SetTextOutlineColor(const Color& outlineColor)
@@ -206,10 +237,6 @@ namespace UI
                 uiText.isDirty = true;
             });
     }
-    const Color& asInputField::GetTextOutlineColor() const
-    {
-        return _text.outlineColor;
-    }
 
     void asInputField::SetTextOutlineWidth(f32 outlineWidth)
     {
@@ -226,12 +253,8 @@ namespace UI
                 uiText.isDirty = true;
             });
     }
-    const f32 asInputField::GetTextOutlineWidth() const
-    {
-        return _text.outlineWidth;
-    }
 
-    void asInputField::SetTextFont(std::string fontPath, f32 fontSize)
+    void asInputField::SetTextFont(const std::string& fontPath, f32 fontSize)
     {
         _text.fontPath = fontPath;
 
@@ -254,15 +277,14 @@ namespace UI
         UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
         UIAddElementQueueSingleton& addElementQueue = registry->ctx<UIAddElementQueueSingleton>();
 
-        UIElementData elementData;
-        entityPool.entityIdPool.try_dequeue(elementData.entityId);
-        elementData.type = UIElementData::UIElementType::UITYPE_INPUTFIELD;
+        entt::entity entityId;
+        entityPool.entityIdPool.try_dequeue(entityId);
 
-        asInputField* inputfield = new asInputField(elementData.entityId);
+        asInputField* inputField = new asInputField(entityId);
 
-        elementData.asObject = inputfield;
-
+        UIElementData elementData { entityId, UIElementData::UIElementType::UITYPE_INPUTFIELD, inputField };
         addElementQueue.elementPool.enqueue(elementData);
-        return inputfield;
+
+        return inputField;
     }
 }

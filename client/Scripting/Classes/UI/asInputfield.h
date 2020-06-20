@@ -37,25 +37,28 @@ namespace UI
 
         void SetWriteHeadPosition(u32 position);
 
+        void SetOnSubmitCallback(asIScriptFunction* callback);
+
         // TransformEvents Functions
+        void SetFocusable(bool focusable);
         const bool IsFocusable() const { return _events.IsFocusable(); }
         void SetOnFocusCallback(asIScriptFunction* callback);
         void SetOnUnFocusCallback(asIScriptFunction* callback);
 
         //Label Functions
         void SetText(const std::string& text, bool updateWriteHead = true);
-        const std::string& GetText() const;
+        const std::string GetText() const { return _text.text; }
 
         void SetTextColor(const Color& color);
-        const Color& GetTextColor() const;
+        const Color& GetTextColor() const { return _text.color; }
 
         void SetTextOutlineColor(const Color& outlineColor);
-        const Color& GetTextOutlineColor() const;
+        const Color& GetTextOutlineColor() const { return _text.outlineColor; }
 
         void SetTextOutlineWidth(f32 outlineWidth);
-        const f32 GetTextOutlineWidth() const;
+        const f32 GetTextOutlineWidth() const { return _text.outlineWidth; }
 
-        void SetTextFont(std::string fontPath, f32 fontSize);
+        void SetTextFont(const std::string& fontPath, f32 fontSize);
 
         static asInputField* CreateInputField();
 
