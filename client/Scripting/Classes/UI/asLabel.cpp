@@ -33,7 +33,6 @@ namespace UI
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([text, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
@@ -50,7 +49,6 @@ namespace UI
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([color, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
@@ -67,7 +65,6 @@ namespace UI
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([outlineColor, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
@@ -84,7 +81,6 @@ namespace UI
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([outlineWidth, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
@@ -101,7 +97,6 @@ namespace UI
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([fontPath, fontSize, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();

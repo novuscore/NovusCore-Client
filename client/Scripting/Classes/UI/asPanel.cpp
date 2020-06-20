@@ -40,7 +40,6 @@ namespace UI
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
@@ -58,7 +57,6 @@ namespace UI
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
@@ -76,7 +74,6 @@ namespace UI
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
@@ -93,7 +90,6 @@ namespace UI
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([texture, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
@@ -109,7 +105,6 @@ namespace UI
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([color, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
