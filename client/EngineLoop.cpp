@@ -111,7 +111,7 @@ void EngineLoop::Run()
     connectionSingleton.connection = _network.client;
 
     Timer timer;
-    f32 targetDelta = 1.0f / 120.f;
+    f32 targetDelta = 1.0f / 60.f;
 
     _clientRenderer = new ClientRenderer();
 
