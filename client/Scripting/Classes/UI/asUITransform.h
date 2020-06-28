@@ -11,7 +11,7 @@ namespace UI
     class asUITransform
     {
     public:
-        asUITransform(entt::entity entityId, UIElementData::UIElementType elementType);
+        asUITransform(entt::entity entityId, UIElementType elementType);
 
         static void RegisterType()
         {
@@ -48,7 +48,7 @@ namespace UI
             return _entityId;
         }
 
-        virtual const UIElementData::UIElementType GetEntityType() const
+        virtual const UIElementType GetEntityType() const
         {
             return _elementType;
         }
@@ -104,7 +104,7 @@ namespace UI
 
     protected:
         entt::entity _entityId;
-        UIElementData::UIElementType _elementType;
+        UIElementType _elementType;
 
         UITransform _transform;
 

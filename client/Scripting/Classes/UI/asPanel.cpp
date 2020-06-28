@@ -7,7 +7,7 @@
 
 namespace UI
 {
-    asPanel::asPanel(entt::entity entityId) : asUITransform(entityId, UIElementData::UIElementType::UITYPE_PANEL) { }
+    asPanel::asPanel(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_PANEL) { }
 
     void asPanel::RegisterType()
     {
@@ -126,7 +126,7 @@ namespace UI
 
         asPanel* panel = new asPanel(entityId);
 
-        UIElementData elementData{ entityId, UIElementData::UIElementType::UITYPE_PANEL, panel };
+        UIElementData elementData{ entityId, UIElementType::UITYPE_PANEL, panel };
         addElementQueue.elementPool.enqueue(elementData);
         
         return panel;

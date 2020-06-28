@@ -7,7 +7,7 @@
 
 namespace UI
 {
-    asLabel::asLabel(entt::entity entityId) : asUITransform(entityId, UIElementData::UIElementType::UITYPE_TEXT) { }
+    asLabel::asLabel(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_TEXT) { }
     
     void asLabel::RegisterType()
     {
@@ -119,7 +119,7 @@ namespace UI
 
         asLabel* label = new asLabel(entityId);
 
-        UIElementData elementData { entityId, UIElementData::UIElementType::UITYPE_TEXT, label };
+        UIElementData elementData { entityId, UIElementType::UITYPE_TEXT, label };
         addElementQueue.elementPool.enqueue(elementData);
 
         return label;

@@ -383,7 +383,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
     if (_focusedWidget != entt::null)
     {
         auto& events = registry->get<UITransformEvents>(_focusedWidget);
-        events.OnUnFocused();
+        events.OnUnfocused();
 
         _focusedWidget = entt::null;
     }
@@ -401,11 +401,11 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         {
             UITransformEvents& events = eventView.get<UITransformEvents>(entity);
 
-            //Check if we have any events we can actually call else exit out early. It needs to still block clicking through though.
+            // Check if we have any events we can actually call else exit out early. It needs to still block clicking through though.
             if (!events.flags)
                 return true;
 
-            //Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it. But it still needs to block clicking through it.
+            // Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it. But it still needs to block clicking through it.
             if (lastFocusedWidget == entity)
                 return true;
 
@@ -456,14 +456,14 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
 
     if (key == GLFW_KEY_ESCAPE)
     {
-        events.OnUnFocused();
+        events.OnUnfocused();
         _focusedWidget = entt::null;
 
         return true;
     }
 
     UITransform& transform = registry->get<UITransform>(_focusedWidget);
-    if (transform.type == UIElementData::UIElementType::UITYPE_INPUTFIELD)
+    if (transform.type == UIElementType::UITYPE_INPUTFIELD)
     {
         UI::asInputField* inputFieldAS = reinterpret_cast<UI::asInputField*>(transform.asObject);
         UIInputField& inputField = registry->get<UIInputField>(_focusedWidget);
@@ -484,7 +484,7 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
             break;
         case GLFW_KEY_ENTER:
             inputField.OnSubmit();
-            events.OnUnFocused();
+            events.OnUnfocused();
             _focusedWidget = entt::null;
             break;
         default:
@@ -503,7 +503,7 @@ bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
     {
         UITransform& transform = registry->get<UITransform>(_focusedWidget);
 
-        if (transform.type == UIElementData::UIElementType::UITYPE_INPUTFIELD)
+        if (transform.type == UIElementType::UITYPE_INPUTFIELD)
         {
             UI::asInputField* inputField = reinterpret_cast<UI::asInputField*>(transform.asObject);
 

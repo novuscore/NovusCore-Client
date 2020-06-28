@@ -1,16 +1,18 @@
 #pragma once
 #include <NovusTypes.h>
 
+enum class UIElementType
+{
+    UITYPE_NONE,
+
+    UITYPE_PANEL,
+    UITYPE_TEXT,
+    UITYPE_BUTTON,
+    UITYPE_INPUTFIELD
+};
+
 struct UIElementData
 {
-    enum class UIElementType
-    {
-        UITYPE_PANEL,
-        UITYPE_TEXT,
-        UITYPE_BUTTON,
-        UITYPE_INPUTFIELD
-    };
-
     entt::entity entityId;
     UIElementType type;
     void* asObject;
@@ -21,11 +23,11 @@ struct UITransform
     struct UIChild
     {
         u32 entity;
-        UIElementData::UIElementType type;
+        UIElementType type;
     };
 
 public:
-    UITransform() : position(), localPosition(), anchor(), localAnchor(), size(), depth(), parent(), children(), type(), isDirty(false), asObject(nullptr)
+    UITransform() : position(), localPosition(), anchor(), localAnchor(), size(), depth(), parent(), children(), type(UIElementType::UITYPE_NONE), isDirty(false), asObject(nullptr)
     { 
         children.reserve(8);
     }
@@ -40,6 +42,6 @@ public:
     std::vector<UIChild> children;
     void* asObject;
 
-    UIElementData::UIElementType type;
+    UIElementType type;
     bool isDirty;
 };

@@ -9,7 +9,7 @@
 
 namespace UI
 {
-    asInputField::asInputField(entt::entity entityId) : asUITransform(entityId, UIElementData::UIElementType::UITYPE_INPUTFIELD) 
+    asInputField::asInputField(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_INPUTFIELD) 
     { 
         SetFocusable(true);
     }
@@ -168,7 +168,7 @@ namespace UI
 
     void asInputField::SetOnUnFocusCallback(asIScriptFunction* callback)
     {
-        _events.onUnFocusedCallback = callback;
+        _events.onUnfocusedCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
@@ -178,7 +178,7 @@ namespace UI
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransformEvents& events = uiRegistry->get<UITransformEvents>(entId);
 
-                events.onUnFocusedCallback = callback;
+                events.onUnfocusedCallback = callback;
                 events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
             });
     }
@@ -278,7 +278,7 @@ namespace UI
 
         asInputField* inputField = new asInputField(entityId);
 
-        UIElementData elementData { entityId, UIElementData::UIElementType::UITYPE_INPUTFIELD, inputField };
+        UIElementData elementData { entityId, UIElementType::UITYPE_INPUTFIELD, inputField };
         addElementQueue.elementPool.enqueue(elementData);
 
         return inputField;

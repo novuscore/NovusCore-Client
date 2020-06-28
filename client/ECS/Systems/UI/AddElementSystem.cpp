@@ -23,13 +23,13 @@ void AddElementSystem::Update(entt::registry& registry)
 
         switch (element.type)
         {
-        case UIElementData::UIElementType::UITYPE_TEXT:
+        case UIElementType::UITYPE_TEXT:
             registry.assign<UIText>(element.entityId);
             break;
-        case UIElementData::UIElementType::UITYPE_PANEL:
+        case UIElementType::UITYPE_PANEL:
             registry.assign<UIRenderable>(element.entityId);
             break;
-        case UIElementData::UIElementType::UITYPE_INPUTFIELD:
+        case UIElementType::UITYPE_INPUTFIELD:
         {
             registry.assign<UIText>(element.entityId);
             UIInputField& inputField = registry.assign<UIInputField>(element.entityId);
@@ -40,7 +40,7 @@ void AddElementSystem::Update(entt::registry& registry)
             break;
         }
 
-        if (element.type != UIElementData::UIElementType::UITYPE_TEXT)
+        if (element.type != UIElementType::UITYPE_TEXT)
         {
             UITransformEvents& events = registry.assign<UITransformEvents>(element.entityId);
             events.asObject = element.asObject;

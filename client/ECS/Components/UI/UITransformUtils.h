@@ -28,7 +28,7 @@ namespace UITransformUtils
         return GetMinBounds(transform) + (transform.size * anchor);
     }
 
-    inline static void AddChild(UITransform& transform, entt::entity childEntityId, UIElementData::UIElementType childElementType)
+    inline static void AddChild(UITransform& transform, entt::entity childEntityId, UIElementType childElementType)
     {
         UITransform::UIChild newChild;
         newChild.entity = entt::to_integral(childEntityId);

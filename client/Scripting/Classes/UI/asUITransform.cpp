@@ -6,7 +6,7 @@
 
 namespace UI
 {
-    asUITransform::asUITransform(entt::entity entityId, UIElementData::UIElementType elementType) : _entityId(entityId), _elementType(elementType)
+    asUITransform::asUITransform(entt::entity entityId, UIElementType elementType) : _entityId(entityId), _elementType(elementType)
     {
         entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
         UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
@@ -179,7 +179,7 @@ namespace UI
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity parentEntityId = parent->GetEntityId();
         entt::entity entityId = _entityId;
-        UIElementData::UIElementType elementType = _elementType;
+        UIElementType elementType = _elementType;
         vec2 newPosition = _transform.position;
         vec2 newLocalPosition = _transform.localPosition;
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([parentEntityId, entityId, elementType, newPosition, newLocalPosition]()

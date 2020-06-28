@@ -9,7 +9,7 @@
 
 namespace UI
 {
-    asButton::asButton(entt::entity entityId) : asUITransform(entityId, UIElementData::UIElementType::UITYPE_BUTTON) 
+    asButton::asButton(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_BUTTON) 
     {
         _panel = asPanel::CreatePanel();
         _panel->SetParent(this);
@@ -146,7 +146,7 @@ namespace UI
 
         asButton* button = new asButton(entityId);
 
-        UIElementData elementData { entityId, UIElementData::UIElementType::UITYPE_BUTTON, button };
+        UIElementData elementData { entityId, UIElementType::UITYPE_BUTTON, button };
         addElementQueue.elementPool.enqueue(elementData);
 
         return button;
