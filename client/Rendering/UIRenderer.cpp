@@ -413,7 +413,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             {
                 if (events.IsDraggable())
                 {
-                    //TODO FEATURE: Dragging
+                    // TODO FEATURE: Dragging
                 }
             }
             else
@@ -440,7 +440,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 
 void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
 {
-    //TODO FEATURE: Handle Dragging
+    // TODO FEATURE: Handle Dragging
 }
 
 bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
