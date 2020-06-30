@@ -7,6 +7,7 @@
 #include <Networking/MessageHandler.h>
 #include "Utils/MapLoader.h"
 #include "Rendering/ClientRenderer.h"
+#include "Rendering/UIRenderer.h"
 #include "Rendering/Camera.h"
 #include <Renderer/Renderer.h>
 #include <SceneManager.h>
@@ -18,6 +19,7 @@
 #include "ECS/Components/Network/ConnectionSingleton.h"
 #include "ECS/Components/Network/AuthenticationSingleton.h"
 #include "ECS/Components/LocalplayerSingleton.h"
+#include "ECS/Components/UI/UIDataSingleton.h"
 
 // Components
 #include "ECS/Components/Rendering/Model.h"
@@ -33,6 +35,9 @@
 #include "Network/Handlers/AuthSocket/AuthHandlers.h"
 #include "Network/Handlers/GameSocket/GameHandlers.h"
 #include "Scripting/ScriptHandler.h"
+
+// AngelScript
+#include "Scripting/Classes/UI/asUITransform.h"
 
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
@@ -238,6 +243,17 @@ bool EngineLoop::Update(f32 deltaTime)
         }
         else if (message.code == MSG_IN_RELOAD)
         {
+            entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+            UI::UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UI::UIDataSingleton>();
+            for (auto asObject : uiDataSingleton.entityToAsObject)
+            {
+                delete asObject.second;
+            }
+            uiDataSingleton.entityToAsObject.clear();
+            uiRegistry->clear();
+
+            _clientRenderer->GetUIRenderer()->InitRegistry();
+
             ScriptHandler::ReloadScripts();
         }
     }

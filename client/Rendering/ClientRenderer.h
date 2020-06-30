@@ -36,7 +36,7 @@ public:
     void Render();
 
     u8 GetFrameIndex() { return _frameIndex; }
-
+    UIRenderer* GetUIRenderer() { return _uiRenderer; }
 private:
     void CreatePermanentResources();
 

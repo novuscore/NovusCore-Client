@@ -36,6 +36,13 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
     inputManager->RegisterKeyboardInputCallback("UI Keyboard Input Checker"_h, std::bind(&UIRenderer::OnKeyboardInput, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
     inputManager->RegisterCharInputCallback("UI Char Input Cheker"_h, std::bind(&UIRenderer::OnCharInput, this, std::placeholders::_1, std::placeholders::_2));
 
+    InitRegistry();
+
+    _focusedWidget = entt::null;
+}
+
+void UIRenderer::InitRegistry()
+{
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     registry->prepare<UITransform>();
     registry->prepare<UITransformEvents>();
@@ -51,8 +58,6 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
 
     // Register UI data singleton.
     registry->set<UI::UIDataSingleton>();
-
-    _focusedWidget = entt::null;
 }
 
 void UIRenderer::Update(f32 deltaTime)

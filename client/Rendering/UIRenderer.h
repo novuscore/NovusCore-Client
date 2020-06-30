@@ -20,6 +20,8 @@ class UIRenderer
 public:
     UIRenderer(Renderer::Renderer* renderer);
 
+    void InitRegistry();
+
     void Update(f32 deltaTime);
     void AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex);
     bool OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind);
