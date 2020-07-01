@@ -306,7 +306,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             auto renderableView = registry->view<UITransform, UIRenderable, UIVisible>();
             renderableView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIRenderable& renderable)
                 {
-                    if (!renderable.constantBuffer || renderable.textureID == Renderer::TextureID::Invalid())
+                    if (renderable.textureID == Renderer::TextureID::Invalid() || !renderable.constantBuffer)
                         return;
 
                     commandList.PushMarker("Renderable", Color(0.0f, 0.1f, 0.0f));
@@ -339,7 +339,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             auto textView = registry->view<UITransform, UIText, UIVisible>();
             textView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIText& text)
                 {
-                    if (!text.constantBuffer || !text.font)
+                    if (!text.font || !text.constantBuffer)
                         return;
 
                     commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
