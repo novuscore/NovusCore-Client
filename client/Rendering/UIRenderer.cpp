@@ -122,14 +122,16 @@ void UIRenderer::Update(f32 deltaTime)
                 _renderer->UpdatePrimitiveModel(renderable.modelID, primitiveModelDesc);
             }
         });
+    registry->remove<UIDirty>(renderableView.begin(), renderableView.end());
 
     auto textView = registry->view<UITransform, UIText, UIDirty>();
     textView.each([this, registry](const auto entity, UITransform& transform, UIText& text)
         {
-            registry->remove<UIDirty>(entity);
-
             if (text.fontPath.length() == 0)
+            {
+                text.font = nullptr;
                 return;
+            }
 
             text.font = Renderer::Font::GetFont(_renderer, text.fontPath, text.fontSize);
 
@@ -215,6 +217,7 @@ void UIRenderer::Update(f32 deltaTime)
             text.constantBuffer->Apply(0);
             text.constantBuffer->Apply(1);
         });
+    registry->remove<UIDirty>(textView.begin(), textView.end());
 }
 
 void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex)
@@ -336,7 +339,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             auto textView = registry->view<UITransform, UIText, UIVisible>();
             textView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIText& text)
                 {
-                    if (!text.constantBuffer)
+                    if (!text.constantBuffer || !text.font)
                         return;
 
                     commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
