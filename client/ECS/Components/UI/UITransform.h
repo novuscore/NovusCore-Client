@@ -27,7 +27,7 @@ struct UITransform
     };
 
 public:
-    UITransform() : position(), localPosition(), anchor(), localAnchor(), size(), depth(), parent(), children(), type(UIElementType::UITYPE_NONE), isDirty(false), asObject(nullptr)
+    UITransform() : position(), localPosition(), anchor(), localAnchor(), size(), depth(), parent(), children(), asObject(nullptr), type(UIElementType::UITYPE_NONE)
     { 
         children.reserve(8);
     }
@@ -43,5 +43,4 @@ public:
     void* asObject;
 
     UIElementType type;
-    bool isDirty;
 };

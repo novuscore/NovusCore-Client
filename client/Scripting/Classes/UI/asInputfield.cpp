@@ -6,6 +6,7 @@
 #include "../../../ECS/Components/UI/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
 #include "../../../ECS/Components/UI/UIAddElementQueueSingleton.h"
+#include "../../../ECS/Components/UI/UIDirty.h"
 
 namespace UI
 {
@@ -195,7 +196,9 @@ namespace UI
                 UIText& uiText = uiRegistry->get<UIText>(entId);
 
                 uiText.text = text;
-                uiText.isDirty = true;
+
+                if (!uiRegistry->has<UIDirty>(entId))
+                    uiRegistry->emplace<UIDirty>(entId);
             });
 
         if(updateWriteHead)
@@ -214,7 +217,8 @@ namespace UI
                 UIText& uiText = uiRegistry->get<UIText>(entId);
 
                 uiText.color = color;
-                uiText.isDirty = true;
+                if (!uiRegistry->has<UIDirty>(entId))
+                    uiRegistry->emplace<UIDirty>(entId);
             });
     }
 
@@ -230,7 +234,8 @@ namespace UI
                 UIText& uiText = uiRegistry->get<UIText>(entId);
 
                 uiText.outlineColor = outlineColor;
-                uiText.isDirty = true;
+                if (!uiRegistry->has<UIDirty>(entId))
+                    uiRegistry->emplace<UIDirty>(entId);
             });
     }
 
@@ -246,7 +251,8 @@ namespace UI
                 UIText& uiText = uiRegistry->get<UIText>(entId);
 
                 uiText.outlineWidth = outlineWidth;
-                uiText.isDirty = true;
+                if (!uiRegistry->has<UIDirty>(entId))
+                    uiRegistry->emplace<UIDirty>(entId);
             });
     }
 
@@ -263,7 +269,8 @@ namespace UI
 
                 uiText.fontPath = fontPath;
                 uiText.fontSize = fontSize;
-                uiText.isDirty = true;
+                if (!uiRegistry->has<UIDirty>(entId))
+                    uiRegistry->emplace<UIDirty>(entId);
             });
     }
 

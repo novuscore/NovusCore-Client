@@ -16,7 +16,7 @@ public:
     };
 
 public:
-    UIText() : text(), glyphCount(), color(1, 1, 1, 1), outlineColor(0, 0, 0, 1), outlineWidth(0.0f), fontPath(), fontSize(), font(), models(), textures(), constantBuffer(nullptr), isDirty(true) { }
+    UIText() : text(), glyphCount(), color(1, 1, 1, 1), outlineColor(0, 0, 0, 1), outlineWidth(0.0f), fontPath(), fontSize(), font(), models(), textures(), constantBuffer(nullptr) { }
 
     std::string text;
     u32 glyphCount;
@@ -33,6 +33,4 @@ public:
     std::vector<Renderer::TextureID> textures;
 
     Renderer::ConstantBuffer<TextConstantBuffer>* constantBuffer;
-
-    bool isDirty;
 };

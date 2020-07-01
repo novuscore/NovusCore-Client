@@ -4,6 +4,7 @@
 #include "../../../ECS/Components/UI/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
 #include "../../../ECS/Components/UI/UIAddElementQueueSingleton.h"
+#include "../../../ECS/Components/UI/UIDirty.h"
 
 namespace UI
 {
@@ -95,8 +96,9 @@ namespace UI
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UIRenderable& renderable = uiRegistry->get<UIRenderable>(entId);
 
-                renderable.isDirty = true;
                 renderable.texture = texture;
+                if (!uiRegistry->has<UIDirty>(entId))
+                    uiRegistry->emplace<UIDirty>(entId);
             });
     }
     void asPanel::SetColor(const Color& color)
@@ -110,8 +112,9 @@ namespace UI
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UIRenderable& renderable = uiRegistry->get<UIRenderable>(entId);
 
-                renderable.isDirty = true;
                 renderable.color = color;
+                if (!uiRegistry->has<UIDirty>(entId))
+                    uiRegistry->emplace<UIDirty>(entId);
             });
     }
 

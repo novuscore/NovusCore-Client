@@ -5,6 +5,7 @@
 #include "../../../ECS/Components/UI/UITransformUtils.h"
 
 #include "../../../ECS/Components/UI/UIVisible.h"
+#include "../../../ECS/Components/UI/UIDirty.h"
 
 namespace UI
 {
@@ -35,7 +36,8 @@ namespace UI
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& uiTransform = uiRegistry->get<UITransform>(entId);
 
-                uiTransform.isDirty = true;
+                if (!uiRegistry->has<UIDirty>(entId))
+                    uiRegistry->emplace<UIDirty>(entId);
                 if (hasParent)
                     uiTransform.localPosition = position;
                 else
@@ -71,7 +73,6 @@ namespace UI
                 UITransform& uiTransform = uiRegistry->get<UITransform>(entId);
 
                 uiTransform.anchor = anchor;
-                uiTransform.isDirty = true;
 
                 if (uiTransform.parent)
                 {
@@ -81,6 +82,9 @@ namespace UI
                 }
 
                 UpdateChildPositions(uiRegistry, uiTransform);
+                
+                if (!uiRegistry->has<UIDirty>(entId))
+                    uiRegistry->emplace<UIDirty>(entId);
             });
     }
 
@@ -101,9 +105,11 @@ namespace UI
                 UITransform& uiTransform = uiRegistry->get<UITransform>(entId);
 
                 uiTransform.localAnchor = localAnchor;
-                uiTransform.isDirty = true;
 
                 UpdateChildPositions(uiRegistry, uiTransform);
+
+                if (!uiRegistry->has<UIDirty>(entId))
+                    uiRegistry->emplace<UIDirty>(entId);
             });
     }
 
@@ -124,9 +130,11 @@ namespace UI
                 UITransform& uiTransform = uiRegistry->get<UITransform>(entId);
 
                 uiTransform.size = size;
-                uiTransform.isDirty = true;
 
                 UpdateChildPositions(uiRegistry, uiTransform);
+
+                if (!uiRegistry->has<UIDirty>(entId))
+                    uiRegistry->emplace<UIDirty>(entId);
             });
     }
 
@@ -143,7 +151,9 @@ namespace UI
                 UITransform& uiTransform = uiRegistry->get<UITransform>(entId);
 
                 uiTransform.depth = depth;
-                uiTransform.isDirty = true;
+
+                if (!uiRegistry->has<UIDirty>(entId))
+                    uiRegistry->emplace<UIDirty>(entId);
             });
     }
 
@@ -281,12 +291,15 @@ namespace UI
     {
         for (UITransform::UIChild& child : parent.children)
         {
-            UITransform& uiChildTransform = uiRegistry->get<UITransform>(entt::entity(child.entity));
+            entt::entity entId = entt::entity(child.entity);
+            UITransform& uiChildTransform = uiRegistry->get<UITransform>(entId);
 
             uiChildTransform.position = UITransformUtils::GetAnchorPosition(parent, uiChildTransform.anchor);
-            uiChildTransform.isDirty = true;
 
             UpdateChildPositions(uiRegistry, uiChildTransform);
+
+            if (!uiRegistry->has<UIDirty>(entId))
+                uiRegistry->emplace<UIDirty>(entId);
         }
     }
 

@@ -11,6 +11,7 @@
 #include "../ECS/Components/UI/UITransformEvents.h"
 #include "../ECS/Components/UI/UIRenderable.h"
 #include "../ECS/Components/UI/UIVisible.h"
+#include "../ECS/Components/UI/UIDirty.h"
 #include "../ECS/Components/UI/UIText.h"
 #include "../ECS/Components/UI/UIInputField.h"
 
@@ -38,8 +39,6 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
     inputManager->RegisterCharInputCallback("UI Char Input Cheker"_h, std::bind(&UIRenderer::OnCharInput, this, std::placeholders::_1, std::placeholders::_2));
 
     InitRegistry();
-
-    _focusedWidget = entt::null;
 }
 
 void UIRenderer::InitRegistry()
@@ -47,6 +46,7 @@ void UIRenderer::InitRegistry()
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     registry->prepare<UITransform>();
     registry->prepare<UITransformEvents>();
+
     registry->prepare<UIRenderable>();
     registry->prepare<UIText>();
 
@@ -62,86 +62,74 @@ void UIRenderer::InitRegistry()
 
     // Register UI data singleton.
     registry->set<UI::UIDataSingleton>();
+
+    _focusedWidget = entt::null;
 }
 
 void UIRenderer::Update(f32 deltaTime)
 {
     entt::registry* registry = ServiceLocator::GetUIRegistry();
 
-    auto renderableView = registry->view<UITransform, UIRenderable, UIVisible>();
-    renderableView.each([this](const auto, UITransform& transform, UIRenderable& renderable)
+    auto renderableView = registry->view<UITransform, UIRenderable, UIDirty>();
+    renderableView.each([this, registry](const auto entity, UITransform& transform, UIRenderable& renderable)
         {
-            if (!transform.isDirty && !renderable.isDirty)
-                return;
+            registry->remove<UIDirty>(entity);
 
-            if (renderable.isDirty)
+            // Renderable Updates
+            if (renderable.texture.length() == 0)
             {
-                if (renderable.texture.length() == 0)
-                {
-                    renderable.isDirty = false;
-                    return;
-                }
-
-                // (Re)load texture
-                renderable.textureID = ReloadTexture(renderable.texture);
-
-                // Create constant buffer if necessary
-                auto constantBuffer = renderable.constantBuffer;
-                if (constantBuffer == nullptr)
-                {
-                    constantBuffer = _renderer->CreateConstantBuffer<UIRenderable::RenderableConstantBuffer>();
-                    renderable.constantBuffer = constantBuffer;
-                }
-                constantBuffer->resource.color = renderable.color;
-                constantBuffer->Apply(0);
-                constantBuffer->Apply(1);
-
-                renderable.isDirty = false;
+                renderable.textureID = Renderer::TextureID::Invalid();
+                return;
             }
 
-            if (transform.isDirty)
+            // (Re)load texture
+            renderable.textureID = ReloadTexture(renderable.texture);
+
+            // Create constant buffer if necessary
+            auto constantBuffer = renderable.constantBuffer;
+            if (constantBuffer == nullptr)
             {
-                Renderer::PrimitiveModelDesc primitiveModelDesc;
+                constantBuffer = _renderer->CreateConstantBuffer<UIRenderable::RenderableConstantBuffer>();
+                renderable.constantBuffer = constantBuffer;
+            }
+            constantBuffer->resource.color = renderable.color;
+            constantBuffer->Apply(0);
+            constantBuffer->Apply(1);
 
-                // Update vertex buffer
-                const vec3& pos = vec3(UITransformUtils::GetMinBounds(transform), transform.depth);
-                const vec2& size = transform.size;
+            // Transform Updates.
+            const vec3& pos = vec3(UITransformUtils::GetMinBounds(transform), transform.depth);
+            const vec2& size = transform.size;
 
-                CalculateVertices(pos, size, primitiveModelDesc.vertices);
+            // Update vertex buffer
+            Renderer::PrimitiveModelDesc primitiveModelDesc;
+            CalculateVertices(pos, size, primitiveModelDesc.vertices);
 
-                // If the primitive model hasn't been created yet, create it
-                if (renderable.modelID == Renderer::ModelID::Invalid())
-                {
-                    // Indices
-                    primitiveModelDesc.indices.push_back(0);
-                    primitiveModelDesc.indices.push_back(1);
-                    primitiveModelDesc.indices.push_back(2);
-                    primitiveModelDesc.indices.push_back(1);
-                    primitiveModelDesc.indices.push_back(3);
-                    primitiveModelDesc.indices.push_back(2);
+            // If the primitive model hasn't been created yet, create it
+            if (renderable.modelID == Renderer::ModelID::Invalid())
+            {
+                // Indices
+                primitiveModelDesc.indices.push_back(0);
+                primitiveModelDesc.indices.push_back(1);
+                primitiveModelDesc.indices.push_back(2);
+                primitiveModelDesc.indices.push_back(1);
+                primitiveModelDesc.indices.push_back(3);
+                primitiveModelDesc.indices.push_back(2);
 
-                    renderable.modelID = _renderer->CreatePrimitiveModel(primitiveModelDesc);
-                }
-                else // Otherwise we just update the already existing primitive model
-                {
-                    _renderer->UpdatePrimitiveModel(renderable.modelID, primitiveModelDesc);
-                }
-
-                transform.isDirty = false;
+                renderable.modelID = _renderer->CreatePrimitiveModel(primitiveModelDesc);
+            }
+            else // Otherwise we just update the already existing primitive model
+            {
+                _renderer->UpdatePrimitiveModel(renderable.modelID, primitiveModelDesc);
             }
         });
 
-    auto textView = registry->view<UITransform, UIText, UIVisible>();
-    textView.each([this](const auto, UITransform& transform, UIText& text)
+    auto textView = registry->view<UITransform, UIText, UIDirty>();
+    textView.each([this, registry](const auto entity, UITransform& transform, UIText& text)
         {
-            if (!transform.isDirty && !text.isDirty)
-                return;
+            registry->remove<UIDirty>(entity);
 
             if (text.fontPath.length() == 0)
-            {
-                text.isDirty = false;
                 return;
-            }
 
             text.font = Renderer::Font::GetFont(_renderer, text.fontPath, text.fontSize);
 
@@ -226,9 +214,6 @@ void UIRenderer::Update(f32 deltaTime)
             text.constantBuffer->resource.outlineWidth = text.outlineWidth;
             text.constantBuffer->Apply(0);
             text.constantBuffer->Apply(1);
-
-            transform.isDirty = false;
-            text.isDirty = false;
         });
 }
 
@@ -315,10 +300,10 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 
             // Draw all the panels
             entt::registry* registry = ServiceLocator::GetUIRegistry();
-            auto renderableView = registry->view<UITransform, UIRenderable>();
+            auto renderableView = registry->view<UITransform, UIRenderable, UIVisible>();
             renderableView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIRenderable& renderable)
                 {
-                    if (!renderable.constantBuffer)
+                    if (!renderable.constantBuffer || renderable.textureID == Renderer::TextureID::Invalid())
                         return;
 
                     commandList.PushMarker("Renderable", Color(0.0f, 0.1f, 0.0f));
@@ -348,7 +333,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
             commandList.BeginPipeline(pipeline);
 
-            auto textView = registry->view<UITransform, UIText>();
+            auto textView = registry->view<UITransform, UIText, UIVisible>();
             textView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIText& text)
                 {
                     if (!text.constantBuffer)

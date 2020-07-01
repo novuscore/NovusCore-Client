@@ -11,13 +11,11 @@ public:
 
         u8 padding[240] = {};
     };
-    UIRenderable() : texture(), textureID(Renderer::TextureID::Invalid()), modelID(Renderer::ModelID::Invalid()), color(1, 1, 1, 1), constantBuffer(nullptr), isDirty(true) { }
+    UIRenderable() : texture(), textureID(Renderer::TextureID::Invalid()), modelID(Renderer::ModelID::Invalid()), color(1, 1, 1, 1), constantBuffer(nullptr) { }
 
     std::string texture;
     Renderer::TextureID textureID;
     Renderer::ModelID modelID;
     Color color;
     Renderer::ConstantBuffer<RenderableConstantBuffer>* constantBuffer;
-
-    bool isDirty;
 };
