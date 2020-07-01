@@ -5,6 +5,8 @@
 #include "../../Components/UI/UITransform.h"
 #include "../../Components/UI/UITransformEvents.h"
 #include "../../Components/UI/UIRenderable.h"
+#include "../../Components/UI/UIVisible.h"
+#include "../../Components/UI/UIVisiblity.h"
 #include "../../Components/UI/UIText.h"
 #include "../../Components/UI/UIInputField.h"
 
@@ -20,6 +22,9 @@ void AddElementSystem::Update(entt::registry& registry)
         UITransform& transform = registry.emplace<UITransform>(element.entityId);
         transform.type = element.type;
         transform.asObject = element.asObject;
+
+        registry.emplace<UIVisible>(element.entityId);
+        registry.emplace<UIVisiblity>(element.entityId);
 
         switch (element.type)
         {

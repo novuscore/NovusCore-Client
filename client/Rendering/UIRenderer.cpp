@@ -10,6 +10,7 @@
 #include "../ECS/Components/UI/UITransformUtils.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
 #include "../ECS/Components/UI/UIRenderable.h"
+#include "../ECS/Components/UI/UIVisible.h"
 #include "../ECS/Components/UI/UIText.h"
 #include "../ECS/Components/UI/UIInputField.h"
 
@@ -49,6 +50,9 @@ void UIRenderer::InitRegistry()
     registry->prepare<UIRenderable>();
     registry->prepare<UIText>();
 
+    registry->prepare<UIVisible>();
+    registry->prepare<UIVisiblity>();
+
     // Preallocate Entity Ids
     UIEntityPoolSingleton& entityPool = registry->set<UIEntityPoolSingleton>();
     UIAddElementQueueSingleton& addElementQueue = registry->set<UIAddElementQueueSingleton>();
@@ -63,7 +67,8 @@ void UIRenderer::InitRegistry()
 void UIRenderer::Update(f32 deltaTime)
 {
     entt::registry* registry = ServiceLocator::GetUIRegistry();
-    auto renderableView = registry->view<UITransform, UIRenderable>();
+
+    auto renderableView = registry->view<UITransform, UIRenderable, UIVisible>();
     renderableView.each([this](const auto, UITransform& transform, UIRenderable& renderable)
         {
             if (!transform.isDirty && !renderable.isDirty)
@@ -126,7 +131,7 @@ void UIRenderer::Update(f32 deltaTime)
             }
         });
 
-    auto textView = registry->view<UITransform, UIText>();
+    auto textView = registry->view<UITransform, UIText, UIVisible>();
     textView.each([this](const auto, UITransform& transform, UIText& text)
         {
             if (!transform.isDirty && !text.isDirty)
@@ -378,10 +383,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 {
     entt::registry* registry = ServiceLocator::GetUIRegistry();
-
-    InputManager* inputManager = ServiceLocator::GetInputManager();
-    f32 mouseX = inputManager->GetMousePositionX();
-    f32 mouseY = inputManager->GetMousePositionY();
+    const vec2 mouse = ServiceLocator::GetInputManager()->GetMousePosition();
 
     //Unfocus last focused widget.
     entt::entity lastFocusedWidget = _focusedWidget;
@@ -394,15 +396,15 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
     }
 
     //TODO IMPROVEMENT: Depth sorting widgets.
-    auto eventView = registry->view<UITransform, UITransformEvents>();
+    auto eventView = registry->view<UITransform, UITransformEvents, UIVisible>();
     for (auto entity : eventView)
     {
         const UITransform& transform = eventView.get<UITransform>(entity);
         const vec2 minBounds = UITransformUtils::GetMinBounds(transform);
         const vec2 maxBounds = UITransformUtils::GetMaxBounds(transform);
 
-        if ((mouseX > minBounds.x && mouseX < maxBounds.x) &&
-            (mouseY > minBounds.y && mouseY < maxBounds.y))
+        if ((mouse.x > minBounds.x && mouse.x < maxBounds.x) &&
+            (mouse.y > minBounds.y && mouse.y < maxBounds.y))
         {
             UITransformEvents& events = eventView.get<UITransformEvents>(entity);
 

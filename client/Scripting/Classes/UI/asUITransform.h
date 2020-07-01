@@ -4,6 +4,7 @@
 
 #include "../../ScriptEngine.h"
 #include "../../../ECS/Components/UI/UITransform.h"
+#include "../../../ECS/Components/UI/UIVisiblity.h"
 #include "../../../ECS/Components/UI/UIDataSingleton.h"
 
 namespace UI
@@ -41,6 +42,11 @@ namespace UI
 
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetMinBound()", asMETHOD(T, GetMinBound)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetMaxBound()", asMETHOD(T, GetMaxBound)); assert(r >= 0);
+
+            r = ScriptEngine::RegisterScriptClassFunction("bool IsVisible()", asMETHOD(T, IsVisible)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("bool IsLocallyVisible()", asMETHOD(T, IsLocallyVisible)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("bool IsParentVisible()", asMETHOD(T, IsParentVisible)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetVisible(bool visible)", asMETHOD(T, SetVisible)); assert(r >= 0);
         }
 
         virtual const entt::entity GetEntityId() const
@@ -97,16 +103,24 @@ namespace UI
         const vec2 GetMinBound() const;
         const vec2 GetMaxBound() const;
 
+        const bool IsVisible() const { return _visibility.visible && _visibility.parentVisible; }
+        const bool IsLocallyVisible() const { return _visibility.visible; }
+        const bool IsParentVisible() const { return _visibility.parentVisible; }
+        virtual void SetVisible(bool visible);
     private:
         static void UpdateChildPositions(entt::registry* uiRegistry, UITransform& parent);
 
         static void UpdateChildPositionsInAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent);
+
+        static void UpdateChildVisiblity(entt::registry* uiRegistry, const UITransform& parent, bool parentVisiblity);
+        
+        static void UpdateChildVisiblityInAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisibility);
 
     protected:
         entt::entity _entityId;
         UIElementType _elementType;
 
         UITransform _transform;
-
+        UIVisiblity _visibility;
     };
 }

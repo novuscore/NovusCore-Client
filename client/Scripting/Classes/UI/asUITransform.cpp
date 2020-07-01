@@ -4,6 +4,8 @@
 #include "../../../ECS/Components/UI/UIDataSingleton.h"
 #include "../../../ECS/Components/UI/UITransformUtils.h"
 
+#include "../../../ECS/Components/UI/UIVisible.h"
+
 namespace UI
 {
     asUITransform::asUITransform(entt::entity entityId, UIElementType elementType) : _entityId(entityId), _elementType(elementType)
@@ -25,6 +27,7 @@ namespace UI
         UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
         UpdateChildPositionsInAngelScript(uiDataSingleton, _transform);
 
+        // TRANSACTION
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([position, hasParent, entId]()
@@ -32,7 +35,7 @@ namespace UI
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& uiTransform = uiRegistry->get<UITransform>(entId);
 
-                uiTransform.isDirty = true;      
+                uiTransform.isDirty = true;
                 if (hasParent)
                     uiTransform.localPosition = position;
                 else
@@ -59,6 +62,7 @@ namespace UI
 
         UpdateChildPositionsInAngelScript(uiDataSingleton, _transform);
 
+        // TRANSACTION
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([anchor, entId]()
@@ -88,6 +92,7 @@ namespace UI
         UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
         UpdateChildPositionsInAngelScript(uiDataSingleton, _transform);
 
+        // TRANSACTION
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([localAnchor, entId]()
@@ -97,7 +102,7 @@ namespace UI
 
                 uiTransform.localAnchor = localAnchor;
                 uiTransform.isDirty = true;
-                
+
                 UpdateChildPositions(uiRegistry, uiTransform);
             });
     }
@@ -110,6 +115,7 @@ namespace UI
         UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
         UpdateChildPositionsInAngelScript(uiDataSingleton, _transform);
 
+        // TRANSACTION
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([size, entId]()
@@ -119,7 +125,7 @@ namespace UI
 
                 uiTransform.size = size;
                 uiTransform.isDirty = true;
-                
+
                 UpdateChildPositions(uiRegistry, uiTransform);
             });
     }
@@ -128,6 +134,7 @@ namespace UI
     {
         _transform.depth = depth;
 
+        // TRANSACTION
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([depth, entId]()
@@ -142,13 +149,13 @@ namespace UI
 
     void asUITransform::SetParent(asUITransform* parent)
     {
+        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+        UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
+
         // Remove old parent.
         if (_transform.parent)
         {
-            entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-            UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
-
-            //Find parent transform as object.
+            // Find parent transform as object.
             auto entityToAsObjectIterator = uiDataSingleton.entityToAsObject.find(entt::entity(_transform.parent));
             if (entityToAsObjectIterator != uiDataSingleton.entityToAsObject.end())
             {
@@ -157,25 +164,34 @@ namespace UI
                 UITransformUtils::RemoveChild(oldParentTransform, _entityId);
             }
 
-            //Keep same absolute position.
+            // Keep same absolute position.
             _transform.position = _transform.position + _transform.localPosition;
             _transform.localPosition = vec2(0, 0);
+
+            _visibility.parentVisible = true;
         }
 
         // Set new parent.
         _transform.parent = entt::to_integral(parent->_entityId);
 
-        //Calculate origin.
-        UITransform& newParentTransform = parent->_transform;
-        vec2 NewOrigin = UITransformUtils::GetAnchorPosition(newParentTransform, _transform.anchor);
+        // Calculate origin.
+        UITransform& parentTransform = parent->_transform;
+        vec2 NewOrigin = UITransformUtils::GetAnchorPosition(parentTransform, _transform.anchor);
 
-        //Recalculate new local position whilst keeping absolute position.
-        _transform.localPosition = (NewOrigin + newParentTransform.localPosition) - _transform.position;
-        _transform.position = NewOrigin + newParentTransform.localPosition;
+        // Recalculate new local position whilst keeping absolute position.
+        _transform.localPosition = (NewOrigin + parentTransform.localPosition) - _transform.position;
+        _transform.position = NewOrigin + parentTransform.localPosition;
 
-        //Add ourselves to parent's angelscript object children
-        UITransformUtils::AddChild(newParentTransform, _entityId, _elementType);
+        // Add ourselves to parent's angelscript object children
+        UITransformUtils::AddChild(parentTransform, _entityId, _elementType);
 
+        // Update visiblity
+        UIVisiblity& parentVisibility = parent->_visibility;
+        _visibility.parentVisible = parentVisibility.parentVisible && parentVisibility.visible;
+
+        UpdateChildVisiblityInAngelScript(uiDataSingleton, _transform, _visibility.parentVisible && _visibility.visible);
+
+        // TRANSACTION
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity parentEntityId = parent->GetEntityId();
         entt::entity entityId = _entityId;
@@ -186,26 +202,35 @@ namespace UI
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& transform = uiRegistry->get<UITransform>(entityId);
+                UIVisiblity& visiblity = uiRegistry->get<UIVisiblity>(entityId);
 
-                //Remove old parent.
+                // Remove old parent.
                 if (transform.parent)
                 {
                     UITransform& oldParentTransform = uiRegistry->get<UITransform>(entt::entity(transform.parent));
 
                     //Remove from parents children.
                     UITransformUtils::RemoveChild(oldParentTransform, entityId);
+
+                    visiblity.parentVisible = true;
                 }
 
-                //Set new parent.
+                // Set new parent.
                 transform.parent = entt::to_integral(parentEntityId);
 
-                //Apply calculated new positions
+                // Apply calculated new positions
                 transform.position = newPosition;
                 transform.localPosition = newLocalPosition;
 
-                //Add this to parent's children.
-                UITransform& newParentTransform = uiRegistry->get<UITransform>(parentEntityId);
-                UITransformUtils::AddChild(newParentTransform, entityId, elementType);
+                // Add this to parent's children.
+                UITransform& parentTransform = uiRegistry->get<UITransform>(parentEntityId);
+                UITransformUtils::AddChild(parentTransform, entityId, elementType);
+
+                // Update visiblity.
+                UIVisiblity& parentVisibility = uiRegistry->get<UIVisiblity>(parentEntityId);
+                visiblity.parentVisible = parentVisibility.parentVisible && parentVisibility.visible;
+
+                UpdateChildVisiblity(uiRegistry, transform, visiblity.parentVisible && visiblity.visible);
             });
     }
 
@@ -217,6 +242,39 @@ namespace UI
     const vec2 asUITransform::GetMaxBound() const
     {
         return UITransformUtils::GetMaxBounds(_transform);
+    }
+
+    void asUITransform::SetVisible(bool visible)
+    {
+        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+        UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
+
+        _visibility.visible = visible;
+
+        UpdateChildVisiblityInAngelScript(uiDataSingleton, _transform, _visibility.parentVisible && _visibility.visible);
+
+        // TRANSACTION
+        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity entId = _entityId;
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([visible, entId]()
+            {
+                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+                UIVisiblity& uiVisibility = uiRegistry->get<UIVisiblity>(entId);
+
+                const bool visiblityChanged = uiVisibility.visible != visible;
+                if (!visiblityChanged)
+                    return;
+
+                uiVisibility.visible = visible;
+
+                const bool newVisiblity = uiVisibility.parentVisible && uiVisibility.visible;
+                UpdateChildVisiblity(uiRegistry, uiRegistry->get<UITransform>(entId), newVisiblity);
+
+                if (newVisiblity)
+                    uiRegistry->emplace<UIVisible>(entId);
+                else
+                    uiRegistry->remove<UIVisible>(entId);
+            });
     }
 
     void asUITransform::UpdateChildPositions(entt::registry* uiRegistry, UITransform& parent)
@@ -237,17 +295,59 @@ namespace UI
         for (UITransform::UIChild& child : parent.children)
         {
             auto iterator = uiDataSingleton.entityToAsObject.find(entt::entity(child.entity));
-            if (iterator != uiDataSingleton.entityToAsObject.end())
-            {
-                asUITransform* asChild = iterator->getSecond();
+            if (iterator == uiDataSingleton.entityToAsObject.end())
+                continue;
 
-                asChild->_transform.position = UITransformUtils::GetAnchorPosition(parent, asChild->_transform.anchor);
+            UITransform& asChildTransform = iterator->getSecond()->_transform;
 
-                if (asChild->_transform.children.size())
-                {
-                    UpdateChildPositionsInAngelScript(uiDataSingleton, asChild->_transform);
-                }
-            }
+            asChildTransform.position = UITransformUtils::GetAnchorPosition(parent, asChildTransform.anchor);
+
+            UpdateChildPositionsInAngelScript(uiDataSingleton, asChildTransform);
+        }
+    }
+
+    void asUITransform::UpdateChildVisiblity(entt::registry* uiRegistry, const UITransform& parent, bool parentVisiblity)
+    {
+        for (const UITransform::UIChild& child : parent.children)
+        {
+            const entt::entity childEntity = entt::entity(child.entity);
+            UIVisiblity& uiChildVisiblity = uiRegistry->get<UIVisiblity>(childEntity);
+
+            const bool visiblityChanged = uiChildVisiblity.parentVisible != parentVisiblity;
+            if (!visiblityChanged)
+                continue;
+
+            uiChildVisiblity.parentVisible = parentVisiblity;
+
+            const bool newVisiblity = uiChildVisiblity.parentVisible && uiChildVisiblity.visible;
+            UpdateChildVisiblity(uiRegistry, uiRegistry->get<UITransform>(childEntity), newVisiblity);
+
+            if (newVisiblity)
+                uiRegistry->emplace<UIVisible>(entt::entity(child.entity));
+            else
+                uiRegistry->remove<UIVisible>(entt::entity(child.entity));
+        }
+    }
+
+    void asUITransform::UpdateChildVisiblityInAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisiblity)
+    {
+        for (const UITransform::UIChild& child : parent.children)
+        {
+            auto iterator = uiDataSingleton.entityToAsObject.find(entt::entity(child.entity));
+            if (iterator == uiDataSingleton.entityToAsObject.end())
+                continue;
+
+            asUITransform* asChild = iterator->getSecond();
+            UIVisiblity& uiChildVisiblity = asChild->_visibility;
+
+            const bool visiblityChanged = uiChildVisiblity.parentVisible != parentVisiblity;
+            if (!visiblityChanged)
+                continue;
+
+            uiChildVisiblity.parentVisible = parentVisiblity;
+
+            const bool newVisiblity = uiChildVisiblity.parentVisible && uiChildVisiblity.visible;
+            UpdateChildVisiblityInAngelScript(uiDataSingleton, asChild->_transform, newVisiblity);
 
         }
     }
