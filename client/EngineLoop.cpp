@@ -36,9 +36,6 @@
 #include "Network/Handlers/GameSocket/GameHandlers.h"
 #include "Scripting/ScriptHandler.h"
 
-// AngelScript
-#include "Scripting/Classes/UI/asUITransform.h"
-
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
 
@@ -243,16 +240,7 @@ bool EngineLoop::Update(f32 deltaTime)
         }
         else if (message.code == MSG_IN_RELOAD)
         {
-            entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-            UI::UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UI::UIDataSingleton>();
-            for (auto asObject : uiDataSingleton.entityToAsObject)
-            {
-                delete asObject.second;
-            }
-            uiDataSingleton.entityToAsObject.clear();
-            uiRegistry->clear();
-
-            _clientRenderer->GetUIRenderer()->InitRegistry();
+            _clientRenderer->GetUIRenderer()->ClearWidgets();
 
             ScriptHandler::ReloadScripts();
         }

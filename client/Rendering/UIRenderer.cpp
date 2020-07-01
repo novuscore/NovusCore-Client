@@ -27,6 +27,8 @@
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
 
+const int ENTITIES_TO_PREALLOCATE = 10000;
+
 UIRenderer::UIRenderer(Renderer::Renderer* renderer)
 {
     _renderer = renderer;
@@ -38,11 +40,6 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
     inputManager->RegisterKeyboardInputCallback("UI Keyboard Input Checker"_h, std::bind(&UIRenderer::OnKeyboardInput, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
     inputManager->RegisterCharInputCallback("UI Char Input Cheker"_h, std::bind(&UIRenderer::OnCharInput, this, std::placeholders::_1, std::placeholders::_2));
 
-    InitRegistry();
-}
-
-void UIRenderer::InitRegistry()
-{
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     registry->prepare<UITransform>();
     registry->prepare<UITransformEvents>();
@@ -53,17 +50,40 @@ void UIRenderer::InitRegistry()
     registry->prepare<UIVisible>();
     registry->prepare<UIVisiblity>();
 
-    // Preallocate Entity Ids
-    UIEntityPoolSingleton& entityPool = registry->set<UIEntityPoolSingleton>();
-    UIAddElementQueueSingleton& addElementQueue = registry->set<UIAddElementQueueSingleton>();
-    std::vector<entt::entity> entityIds(10000);
-    registry->create(entityIds.begin(), entityIds.end());
-    entityPool.entityIdPool.enqueue_bulk(entityIds.begin(), 10000);
-
     // Register UI data singleton.
     registry->set<UI::UIDataSingleton>();
 
+    AllocateEntityPool();
+
     _focusedWidget = entt::null;
+}
+
+void UIRenderer::ClearWidgets()
+{
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
+    UI::UIDataSingleton& uiDataSingleton = registry->ctx<UI::UIDataSingleton>();
+    for (auto asObject : uiDataSingleton.entityToAsObject)
+    {
+        delete asObject.second;
+    }
+    uiDataSingleton.entityToAsObject.clear();
+    registry->clear();
+
+    AllocateEntityPool();
+
+    _focusedWidget = entt::null;
+}
+
+void UIRenderer::AllocateEntityPool()
+{
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
+
+    // Preallocate Entity Ids
+    UIEntityPoolSingleton& entityPool = registry->set<UIEntityPoolSingleton>();
+    UIAddElementQueueSingleton& addElementQueue = registry->set<UIAddElementQueueSingleton>();
+    std::vector<entt::entity> entityIds(ENTITIES_TO_PREALLOCATE);
+    registry->create(entityIds.begin(), entityIds.end());
+    entityPool.entityIdPool.enqueue_bulk(entityIds.begin(), ENTITIES_TO_PREALLOCATE);
 }
 
 void UIRenderer::Update(f32 deltaTime)
@@ -400,7 +420,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             if (!events.flags)
                 return true;
 
-            // Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it. But it still needs to block clicking through it.
+            // Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it. But we still need to block clicking through it.
             if (lastFocusedWidget == entity)
                 return true;
 
@@ -492,10 +512,9 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
 
 bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
 {
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
-
     if (_focusedWidget != entt::null)
     {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
         UITransform& transform = registry->get<UITransform>(_focusedWidget);
 
         if (transform.type == UIElementType::UITYPE_INPUTFIELD)
@@ -542,10 +561,10 @@ void UIRenderer::CalculateVertices(const vec3& pos, const vec2& size, std::vecto
 
     // UV space
     // TODO: Do scaling depending on rendertargets actual size instead of assuming 1080p (which is our reference resolution)
-    upperLeftPos /= vec3(1920, 1080, 1.0f);
-    upperRightPos /= vec3(1920, 1080, 1.0f);
-    lowerLeftPos /= vec3(1920, 1080, 1.0f);
-    lowerRightPos /= vec3(1920, 1080, 1.0f);
+    upperLeftPos /= vec3(WIDTH, HEIGHT, 1.0f);
+    upperRightPos /= vec3(WIDTH, HEIGHT, 1.0f);
+    lowerLeftPos /= vec3(WIDTH, HEIGHT, 1.0f);
+    lowerRightPos /= vec3(WIDTH, HEIGHT, 1.0f);
 
     // Vertices
     Renderer::Vertex upperLeft;
