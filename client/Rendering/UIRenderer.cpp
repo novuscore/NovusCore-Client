@@ -66,14 +66,16 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
 void UIRenderer::ClearWidgets()
 {
     entt::registry* registry = ServiceLocator::GetUIRegistry();
-
     UI::UIDataSingleton& uiDataSingleton = registry->ctx<UI::UIDataSingleton>();
 
     std::vector<entt::entity> usedIds = std::vector<entt::entity>();
     usedIds.reserve(uiDataSingleton.entityToAsObject.size());
+    
     for (auto asObject : uiDataSingleton.entityToAsObject)
     {
         usedIds.push_back(asObject.first);
+        registry->remove_all(entt::entity(asObject.first));
+
         delete asObject.second;
     }
     uiDataSingleton.entityToAsObject.clear();
@@ -81,12 +83,6 @@ void UIRenderer::ClearWidgets()
     //Empty old pool of old ids..
     UIEntityPoolSingleton& entityPool = registry->set<UIEntityPoolSingleton>();
     entityPool.entityIdPool.enqueue_bulk(usedIds.begin(), usedIds.size());
-
-    registry->each([registry](auto entity)
-        {
-            registry->remove_all(entity);
-        }
-    );
 
     _focusedWidget = entt::null;
 }
