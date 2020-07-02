@@ -50,10 +50,15 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
     registry->prepare<UIVisible>();
     registry->prepare<UIVisiblity>();
 
-    // Register UI data singleton.
+    // Register UI singletons.
     registry->set<UI::UIDataSingleton>();
+    registry->set<UIAddElementQueueSingleton>();
 
-    AllocateEntityPool();
+    // Preallocate Entity Ids
+    UIEntityPoolSingleton& entityPool = registry->set<UIEntityPoolSingleton>();
+    std::vector<entt::entity> entityIds(ENTITIES_TO_PREALLOCATE);
+    registry->create(entityIds.begin(), entityIds.end());
+    entityPool.entityIdPool.enqueue_bulk(entityIds.begin(), ENTITIES_TO_PREALLOCATE);
 
     _focusedWidget = entt::null;
 }
@@ -61,29 +66,29 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
 void UIRenderer::ClearWidgets()
 {
     entt::registry* registry = ServiceLocator::GetUIRegistry();
+
     UI::UIDataSingleton& uiDataSingleton = registry->ctx<UI::UIDataSingleton>();
+
+    std::vector<entt::entity> usedIds = std::vector<entt::entity>();
+    usedIds.reserve(uiDataSingleton.entityToAsObject.size());
     for (auto asObject : uiDataSingleton.entityToAsObject)
     {
+        usedIds.push_back(asObject.first);
         delete asObject.second;
     }
     uiDataSingleton.entityToAsObject.clear();
-    registry->clear();
+    
+    //Empty old pool of old ids..
+    UIEntityPoolSingleton& entityPool = registry->set<UIEntityPoolSingleton>();
+    entityPool.entityIdPool.enqueue_bulk(usedIds.begin(), usedIds.size());
 
-    AllocateEntityPool();
+    registry->each([registry](auto entity)
+        {
+            registry->remove_all(entity);
+        }
+    );
 
     _focusedWidget = entt::null;
-}
-
-void UIRenderer::AllocateEntityPool()
-{
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
-
-    // Preallocate Entity Ids
-    UIEntityPoolSingleton& entityPool = registry->set<UIEntityPoolSingleton>();
-    UIAddElementQueueSingleton& addElementQueue = registry->set<UIAddElementQueueSingleton>();
-    std::vector<entt::entity> entityIds(ENTITIES_TO_PREALLOCATE);
-    registry->create(entityIds.begin(), entityIds.end());
-    entityPool.entityIdPool.enqueue_bulk(entityIds.begin(), ENTITIES_TO_PREALLOCATE);
 }
 
 void UIRenderer::Update(f32 deltaTime)
