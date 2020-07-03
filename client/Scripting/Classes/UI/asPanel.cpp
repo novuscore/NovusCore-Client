@@ -98,8 +98,7 @@ namespace UI
                 UIRenderable& renderable = uiRegistry->get<UIRenderable>(entId);
 
                 renderable.texture = texture;
-                if (!uiRegistry->has<UIDirty>(entId))
-                    uiRegistry->emplace<UIDirty>(entId);
+                MarkDirty(uiRegistry, entId)
             });
     }
     void asPanel::SetColor(const Color& color)
@@ -114,8 +113,7 @@ namespace UI
                 UIRenderable& renderable = uiRegistry->get<UIRenderable>(entId);
 
                 renderable.color = color;
-                if (!uiRegistry->has<UIDirty>(entId))
-                    uiRegistry->emplace<UIDirty>(entId);
+                MarkDirty(uiRegistry, entId)
             });
     }
 

@@ -309,6 +309,12 @@ namespace UI
             });
     }
 
+    void asUITransform::MarkDirty(entt::registry* uiRegistry, entt::entity entId)
+    {
+        if (!uiRegistry->has<UIDirty>(entId))
+            uiRegistry->emplace<UIDirty>(entId);
+    }
+
     void asUITransform::UpdateChildPositions(entt::registry* uiRegistry, UITransform& parent)
     {
         for (UITransform::UIChild& child : parent.children)
@@ -320,8 +326,7 @@ namespace UI
 
             UpdateChildPositions(uiRegistry, uiChildTransform);
 
-            if (!uiRegistry->has<UIDirty>(entId))
-                uiRegistry->emplace<UIDirty>(entId);
+            MarkDirty(uiRegistry, entId);
         }
     }
 
@@ -383,7 +388,6 @@ namespace UI
 
             const bool newVisiblity = uiChildVisiblity.parentVisible && uiChildVisiblity.visible;
             UpdateChildVisiblityInAngelScript(uiDataSingleton, asChild->_transform, newVisiblity);
-
         }
     }
 }

@@ -196,8 +196,7 @@ namespace UI
 
                 uiText.text = text;
 
-                if (!uiRegistry->has<UIDirty>(entId))
-                    uiRegistry->emplace<UIDirty>(entId);
+                MarkDirty(uiRegistry, entId)
             });
 
         if(updateWriteHead)
@@ -216,8 +215,7 @@ namespace UI
                 UIText& uiText = uiRegistry->get<UIText>(entId);
 
                 uiText.color = color;
-                if (!uiRegistry->has<UIDirty>(entId))
-                    uiRegistry->emplace<UIDirty>(entId);
+                MarkDirty(uiRegistry, entId)
             });
     }
 
@@ -233,8 +231,7 @@ namespace UI
                 UIText& uiText = uiRegistry->get<UIText>(entId);
 
                 uiText.outlineColor = outlineColor;
-                if (!uiRegistry->has<UIDirty>(entId))
-                    uiRegistry->emplace<UIDirty>(entId);
+                MarkDirty(uiRegistry, entId)
             });
     }
 
@@ -250,8 +247,7 @@ namespace UI
                 UIText& uiText = uiRegistry->get<UIText>(entId);
 
                 uiText.outlineWidth = outlineWidth;
-                if (!uiRegistry->has<UIDirty>(entId))
-                    uiRegistry->emplace<UIDirty>(entId);
+                MarkDirty(uiRegistry, entId)
             });
     }
 
@@ -268,8 +264,7 @@ namespace UI
 
                 uiText.fontPath = fontPath;
                 uiText.fontSize = fontSize;
-                if (!uiRegistry->has<UIDirty>(entId))
-                    uiRegistry->emplace<UIDirty>(entId);
+                MarkDirty(uiRegistry, entId)
             });
     }
 

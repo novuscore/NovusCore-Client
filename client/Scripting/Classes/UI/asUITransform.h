@@ -110,7 +110,10 @@ namespace UI
         const bool IsLocallyVisible() const { return _visibility.visible; }
         const bool IsParentVisible() const { return _visibility.parentVisible; }
         virtual void SetVisible(bool visible);
-    private:
+    
+protected:
+        static void MarkDirty(entt::registry* uiRegistry, entt::entity entId);
+    
         static void UpdateChildPositions(entt::registry* uiRegistry, UITransform& parent);
 
         static void UpdateChildPositionsInAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent);

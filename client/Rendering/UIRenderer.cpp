@@ -367,8 +367,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
     entt::entity lastFocusedWidget = dataSingleton.focusedWidget;
     if (dataSingleton.focusedWidget != entt::null)
     {
-        auto& events = registry->get<UITransformEvents>(dataSingleton.focusedWidget);
-        events.OnUnfocused();
+        registry->get<UITransformEvents>(dataSingleton.focusedWidget).OnUnfocused();
 
         dataSingleton.focusedWidget = entt::null;
     }
@@ -487,7 +486,6 @@ bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
 
     if (dataSingleton.focusedWidget != entt::null)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
         UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
 
         if (transform.type == UIElementType::UITYPE_INPUTFIELD)
