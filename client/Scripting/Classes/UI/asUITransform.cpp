@@ -253,6 +253,19 @@ namespace UI
             });
     }
 
+    void asUITransform::Destroy()
+    {
+        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity entId = _entityId;
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([entId]()
+            {
+                entt::registry* registry = ServiceLocator::GetUIRegistry();
+                UIDataSingleton& dataSingleton = registry->ctx<UIDataSingleton>();
+
+                dataSingleton.DestroyWidget(entId);
+            });
+    }
+
     const vec2 asUITransform::GetMinBound() const
     {
         return UITransformUtils::GetMinBounds(_transform);

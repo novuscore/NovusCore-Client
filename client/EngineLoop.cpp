@@ -20,6 +20,8 @@
 #include "ECS/Components/Network/AuthenticationSingleton.h"
 #include "ECS/Components/LocalplayerSingleton.h"
 
+#include "ECS/Components/UI/Singletons/UIDataSingleton.h"
+
 // Components
 #include "ECS/Components/Rendering/Model.h"
 #include "ECS/Components/Transform.h"
@@ -239,7 +241,8 @@ bool EngineLoop::Update(f32 deltaTime)
         }
         else if (message.code == MSG_IN_RELOAD)
         {
-            _clientRenderer->GetUIRenderer()->ClearWidgets();
+            entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+            uiRegistry->ctx<UI::UIDataSingleton>().ClearWidgets();
 
             ScriptHandler::ReloadScripts();
         }

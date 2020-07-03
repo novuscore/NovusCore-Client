@@ -28,9 +28,8 @@
 const u32 WIDTH = 1920;
 const u32 HEIGHT = 1080;
 
-UIRenderer::UIRenderer(Renderer::Renderer* renderer)
+UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
 {
-    _renderer = renderer;
     CreatePermanentResources();
 
     InputManager* inputManager = ServiceLocator::GetInputManager();
@@ -55,43 +54,6 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
 
     // Preallocate Entity Ids
     registry->set<UI::UIEntityPoolSingleton>().AllocatePool();
-
-    _focusedWidget = entt::null;
-}
-
-void UIRenderer::ClearWidgets()
-{
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
-    UI::UIDataSingleton& uiDataSingleton = registry->ctx<UI::UIDataSingleton>();
-
-    std::vector<entt::entity> entityIds = std::vector<entt::entity>();
-    entityIds.reserve(uiDataSingleton.entityToAsObject.size());
-    
-    for (auto asObject : uiDataSingleton.entityToAsObject)
-    {
-        entityIds.push_back(asObject.first);
-
-        delete asObject.second;
-    }
-    uiDataSingleton.entityToAsObject.clear();
-    
-    // Delete entities.
-    registry->destroy(entityIds.begin(), entityIds.end());
-
-    _focusedWidget = entt::null;
-}
-
-void UIRenderer::DestroyWidget(entt::entity entId)
-{
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
-    UI::UIDataSingleton& uiDataSingleton = registry->ctx<UI::UIDataSingleton>();
-
-    if (auto itr = uiDataSingleton.entityToAsObject.find(entId); itr != uiDataSingleton.entityToAsObject.end())
-    {
-        delete itr->second;
-    }
-
-    registry->destroy(entId);
 }
 
 void UIRenderer::Update(f32 deltaTime)
@@ -397,24 +359,22 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 {
     entt::registry* registry = ServiceLocator::GetUIRegistry();
+    UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
+
     const vec2 mouse = ServiceLocator::GetInputManager()->GetMousePosition();
 
     //Unfocus last focused widget.
-    entt::entity lastFocusedWidget = _focusedWidget;
-    if (_focusedWidget != entt::null)
+    entt::entity lastFocusedWidget = dataSingleton.focusedWidget;
+    if (dataSingleton.focusedWidget != entt::null)
     {
-        auto& events = registry->get<UITransformEvents>(_focusedWidget);
+        auto& events = registry->get<UITransformEvents>(dataSingleton.focusedWidget);
         events.OnUnfocused();
 
-        _focusedWidget = entt::null;
+        dataSingleton.focusedWidget = entt::null;
     }
 
-    //TODO IMPROVEMENT: Depth sorting widgets.
     auto eventView = registry->group<UITransform, UITransformEvents, UIVisible>();
-    eventView.sort<UITransform>([](UITransform& left, UITransform& right) { 
-        return left.depth < right.depth; 
-        });
-
+    eventView.sort<UITransform>([](UITransform& left, UITransform& right) { return left.depth < right.depth; });
     for (auto entity : eventView)
     {
         const UITransform& transform = eventView.get<UITransform>(entity);
@@ -445,7 +405,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             {
                 if (events.IsFocusable())
                 {
-                    _focusedWidget = entity;
+                    dataSingleton.focusedWidget = entity;
 
                     events.OnFocused();
                 }
@@ -470,28 +430,27 @@ void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
 
 bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
 {
-    if (_focusedWidget == entt::null)
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
+    UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
+
+    if (dataSingleton.focusedWidget == entt::null || action != GLFW_RELEASE)
         return false;
 
-    if (action != GLFW_RELEASE)
-        return true;
-
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
-    UITransformEvents& events = registry->get<UITransformEvents>(_focusedWidget);
+    UITransformEvents& events = registry->get<UITransformEvents>(dataSingleton.focusedWidget);
 
     if (key == GLFW_KEY_ESCAPE)
     {
         events.OnUnfocused();
-        _focusedWidget = entt::null;
+        dataSingleton.focusedWidget = entt::null;
 
         return true;
     }
 
-    UITransform& transform = registry->get<UITransform>(_focusedWidget);
+    UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
     if (transform.type == UIElementType::UITYPE_INPUTFIELD)
     {
         UI::asInputField* inputFieldAS = reinterpret_cast<UI::asInputField*>(transform.asObject);
-        UIInputField& inputField = registry->get<UIInputField>(_focusedWidget);
+        UIInputField& inputField = registry->get<UIInputField>(dataSingleton.focusedWidget);
 
         switch (key)
         {
@@ -510,7 +469,8 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
         case GLFW_KEY_ENTER:
             inputField.OnSubmit();
             events.OnUnfocused();
-            _focusedWidget = entt::null;
+            
+            dataSingleton.focusedWidget = entt::null;
             break;
         default:
             break;
@@ -522,10 +482,13 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
 
 bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
 {
-    if (_focusedWidget != entt::null)
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
+    UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
+
+    if (dataSingleton.focusedWidget != entt::null)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UITransform& transform = registry->get<UITransform>(_focusedWidget);
+        UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
 
         if (transform.type == UIElementType::UITYPE_INPUTFIELD)
         {

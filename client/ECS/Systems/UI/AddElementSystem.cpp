@@ -1,7 +1,7 @@
 #include "AddElementSystem.h"
 #include <entt.hpp>
 #include <tracy/Tracy.hpp>
-#include "../../Components/UI/UIAddElementQueueSingleton.h"
+#include "../../Components/UI/Singletons/UIAddElementQueueSingleton.h"
 #include "../../Components/UI/UITransform.h"
 #include "../../Components/UI/UITransformEvents.h"
 #include "../../Components/UI/UIRenderable.h"
@@ -12,7 +12,7 @@
 
 void AddElementSystem::Update(entt::registry& registry)
 {
-    UIAddElementQueueSingleton& uiAddElementQueueSingleton = registry.ctx<UIAddElementQueueSingleton>();
+    UI::UIAddElementQueueSingleton& uiAddElementQueueSingleton = registry.ctx<UI::UIAddElementQueueSingleton>();
 
     ZoneScopedNC("AddElementSystem::Update", tracy::Color::Blue)
 
