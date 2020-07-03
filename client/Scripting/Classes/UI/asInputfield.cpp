@@ -1,11 +1,10 @@
 #include "asInputfield.h"
-#include "asLabel.h"
-#include "asPanel.h"
 #include "../../ScriptEngine.h"
 #include "../../../Utils/ServiceLocator.h"
-#include "../../../ECS/Components/UI/UIEntityPoolSingleton.h"
+
+#include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
-#include "../../../ECS/Components/UI/UIAddElementQueueSingleton.h"
+
 #include "../../../ECS/Components/UI/UIDirty.h"
 
 namespace UI
@@ -278,15 +277,8 @@ namespace UI
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
-        UIAddElementQueueSingleton& addElementQueue = registry->ctx<UIAddElementQueueSingleton>();
 
-        entt::entity entityId;
-        entityPool.entityIdPool.try_dequeue(entityId);
-
-        asInputField* inputField = new asInputField(entityId);
-
-        UIElementData elementData { entityId, UIElementType::UITYPE_INPUTFIELD, inputField };
-        addElementQueue.elementPool.enqueue(elementData);
+        asInputField* inputField = new asInputField(entityPool.DeQeueueId());
 
         return inputField;
     }

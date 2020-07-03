@@ -5,7 +5,7 @@
 #include "../../ScriptEngine.h"
 #include "../../../ECS/Components/UI/UITransform.h"
 #include "../../../ECS/Components/UI/UIVisiblity.h"
-#include "../../../ECS/Components/UI/UIDataSingleton.h"
+#include "../../../ECS/Components/UI/Singletons/UIDataSingleton.h"
 
 namespace UI
 {
@@ -36,7 +36,7 @@ namespace UI
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetSize()", asMETHOD(T, GetSize)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetSize(vec2 size)", asMETHOD(T, SetSize)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("float GetDepth()", asMETHOD(T, GetDepth)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetDepth(float depth)", asMETHOD(T, SetDepth)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetDepth(uint16 depth)", asMETHOD(T, SetDepth)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("void SetParent(UITransform@ parent)", asMETHOD(T, SetParent)); assert(r >= 0);
 

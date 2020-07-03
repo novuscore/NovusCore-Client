@@ -1,7 +1,10 @@
 #include "asUITransform.h"
 #include "../../../Utils/ServiceLocator.h"
+
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
-#include "../../../ECS/Components/UI/UIDataSingleton.h"
+#include "../../../ECS/Components/UI/Singletons/UIDataSingleton.h"
+#include "../../../ECS/Components/UI/Singletons/UIAddElementQueueSingleton.h"
+
 #include "../../../ECS/Components/UI/UITransformUtils.h"
 
 #include "../../../ECS/Components/UI/UIVisible.h"
@@ -11,8 +14,14 @@ namespace UI
 {
     asUITransform::asUITransform(entt::entity entityId, UIElementType elementType) : _entityId(entityId), _elementType(elementType)
     {
-        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-        UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+
+        UIElementData elementData{ entityId, elementType, this };
+
+        UIAddElementQueueSingleton& addElementQueue = registry->ctx<UIAddElementQueueSingleton>();
+        addElementQueue.elementPool.enqueue(elementData);
+
+        UIDataSingleton& uiDataSingleton = registry->ctx<UIDataSingleton>();
         uiDataSingleton.entityToAsObject[entityId] = this;
     }
 

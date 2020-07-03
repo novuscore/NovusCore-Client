@@ -22,6 +22,8 @@ public:
 
     void ClearWidgets();
 
+    void DestroyWidget(entt::entity entId);
+
     void Update(f32 deltaTime);
     void AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex);
 

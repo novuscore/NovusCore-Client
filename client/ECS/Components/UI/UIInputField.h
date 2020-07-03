@@ -3,7 +3,6 @@
 #include <angelscript.h>
 #include "../../../Scripting/ScriptEngine.h"
 
-// We need to define structs for event data, so we can pass data into callbacks for angelscript
 struct UIInputField
 {
 public:

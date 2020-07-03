@@ -3,9 +3,10 @@
 
 #include "../Utils/ServiceLocator.h"
 
-#include "../ECS/Components/UI/UIEntityPoolSingleton.h"
-#include "../ECS/Components/UI/UIAddElementQueueSingleton.h"
-#include "../ECS/Components/UI/UIDataSingleton.h"
+#include "../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
+#include "../ECS/Components/UI/Singletons/UIAddElementQueueSingleton.h"
+#include "../ECS/Components/UI/Singletons/UIDataSingleton.h"
+
 #include "../ECS/Components/UI/UITransform.h"
 #include "../ECS/Components/UI/UITransformUtils.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
@@ -24,10 +25,8 @@
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
 
-const int WIDTH = 1920;
-const int HEIGHT = 1080;
-
-const int ENTITIES_TO_PREALLOCATE = 10000;
+const u32 WIDTH = 1920;
+const u32 HEIGHT = 1080;
 
 UIRenderer::UIRenderer(Renderer::Renderer* renderer)
 {
@@ -52,13 +51,10 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer)
 
     // Register UI singletons.
     registry->set<UI::UIDataSingleton>();
-    registry->set<UIAddElementQueueSingleton>();
+    registry->set<UI::UIAddElementQueueSingleton>();
 
     // Preallocate Entity Ids
-    UIEntityPoolSingleton& entityPool = registry->set<UIEntityPoolSingleton>();
-    std::vector<entt::entity> entityIds(ENTITIES_TO_PREALLOCATE);
-    registry->create(entityIds.begin(), entityIds.end());
-    entityPool.entityIdPool.enqueue_bulk(entityIds.begin(), ENTITIES_TO_PREALLOCATE);
+    registry->set<UI::UIEntityPoolSingleton>().AllocatePool();
 
     _focusedWidget = entt::null;
 }
@@ -68,23 +64,34 @@ void UIRenderer::ClearWidgets()
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     UI::UIDataSingleton& uiDataSingleton = registry->ctx<UI::UIDataSingleton>();
 
-    std::vector<entt::entity> usedIds = std::vector<entt::entity>();
-    usedIds.reserve(uiDataSingleton.entityToAsObject.size());
+    std::vector<entt::entity> entityIds = std::vector<entt::entity>();
+    entityIds.reserve(uiDataSingleton.entityToAsObject.size());
     
     for (auto asObject : uiDataSingleton.entityToAsObject)
     {
-        usedIds.push_back(asObject.first);
-        registry->remove_all(entt::entity(asObject.first));
+        entityIds.push_back(asObject.first);
 
         delete asObject.second;
     }
     uiDataSingleton.entityToAsObject.clear();
     
-    //Empty old pool of old ids..
-    UIEntityPoolSingleton& entityPool = registry->set<UIEntityPoolSingleton>();
-    entityPool.entityIdPool.enqueue_bulk(usedIds.begin(), usedIds.size());
+    // Delete entities.
+    registry->destroy(entityIds.begin(), entityIds.end());
 
     _focusedWidget = entt::null;
+}
+
+void UIRenderer::DestroyWidget(entt::entity entId)
+{
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
+    UI::UIDataSingleton& uiDataSingleton = registry->ctx<UI::UIDataSingleton>();
+
+    if (auto itr = uiDataSingleton.entityToAsObject.find(entId); itr != uiDataSingleton.entityToAsObject.end())
+    {
+        delete itr->second;
+    }
+
+    registry->destroy(entId);
 }
 
 void UIRenderer::Update(f32 deltaTime)
@@ -94,8 +101,6 @@ void UIRenderer::Update(f32 deltaTime)
     auto renderableView = registry->view<UITransform, UIRenderable, UIDirty>();
     renderableView.each([this, registry](const auto entity, UITransform& transform, UIRenderable& renderable)
         {
-            registry->remove<UIDirty>(entity);
-
             // Renderable Updates
             if (renderable.texture.length() == 0)
             {
@@ -405,7 +410,11 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
     }
 
     //TODO IMPROVEMENT: Depth sorting widgets.
-    auto eventView = registry->view<UITransform, UITransformEvents, UIVisible>();
+    auto eventView = registry->group<UITransform, UITransformEvents, UIVisible>();
+    eventView.sort<UITransform>([](UITransform& left, UITransform& right) { 
+        return left.depth < right.depth; 
+        });
+
     for (auto entity : eventView)
     {
         const UITransform& transform = eventView.get<UITransform>(entity);
@@ -555,10 +564,10 @@ Renderer::TextureID UIRenderer::ReloadTexture(const std::string& texturePath)
 
 void UIRenderer::CalculateVertices(const vec3& pos, const vec2& size, std::vector<Renderer::Vertex>& vertices)
 {
-    vec3 upperLeftPos = vec3(pos.x, pos.y, 0.0f);
-    vec3 upperRightPos = vec3(pos.x + size.x, pos.y, 0.0f);
-    vec3 lowerLeftPos = vec3(pos.x, pos.y + size.y, 0.0f);
-    vec3 lowerRightPos = vec3(pos.x + size.x, pos.y + size.y, 0.0f);
+    vec3 upperLeftPos = vec3(pos.x, pos.y, -pos.z);
+    vec3 upperRightPos = vec3(pos.x + size.x, pos.y, -pos.z);
+    vec3 lowerLeftPos = vec3(pos.x, pos.y + size.y, -pos.z);
+    vec3 lowerRightPos = vec3(pos.x + size.x, pos.y + size.y, -pos.z);
 
     // UV space
     // TODO: Do scaling depending on rendertargets actual size instead of assuming 1080p (which is our reference resolution)

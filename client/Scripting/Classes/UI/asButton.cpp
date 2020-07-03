@@ -3,9 +3,9 @@
 #include "asPanel.h"
 #include "../../ScriptEngine.h"
 #include "../../../Utils/ServiceLocator.h"
-#include "../../../ECS/Components/UI/UIEntityPoolSingleton.h"
+
+#include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
-#include "../../../ECS/Components/UI/UIAddElementQueueSingleton.h"
 
 namespace UI
 {
@@ -139,15 +139,8 @@ namespace UI
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
-        UIAddElementQueueSingleton& addElementQueue = registry->ctx<UIAddElementQueueSingleton>();
 
-        entt::entity entityId;
-        entityPool.entityIdPool.try_dequeue(entityId);
-
-        asButton* button = new asButton(entityId);
-
-        UIElementData elementData { entityId, UIElementType::UITYPE_BUTTON, button };
-        addElementQueue.elementPool.enqueue(elementData);
+        asButton* button = new asButton(entityPool.DeQeueueId());
 
         return button;
     }

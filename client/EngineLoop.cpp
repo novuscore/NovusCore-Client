@@ -19,7 +19,6 @@
 #include "ECS/Components/Network/ConnectionSingleton.h"
 #include "ECS/Components/Network/AuthenticationSingleton.h"
 #include "ECS/Components/LocalplayerSingleton.h"
-#include "ECS/Components/UI/UIDataSingleton.h"
 
 // Components
 #include "ECS/Components/Rendering/Model.h"
