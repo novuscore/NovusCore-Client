@@ -234,7 +234,7 @@ namespace UI
 
                 uiText.text = text;
 
-                MarkDirty(uiRegistry, entId)
+                MarkDirty(uiRegistry, entId);
             });
 
         if(updateWriteHead)
@@ -253,7 +253,7 @@ namespace UI
                 UIText& uiText = uiRegistry->get<UIText>(entId);
 
                 uiText.color = color;
-                MarkDirty(uiRegistry, entId)
+                MarkDirty(uiRegistry, entId);
             });
     }
 
@@ -269,7 +269,7 @@ namespace UI
                 UIText& uiText = uiRegistry->get<UIText>(entId);
 
                 uiText.outlineColor = outlineColor;
-                MarkDirty(uiRegistry, entId)
+                MarkDirty(uiRegistry, entId);
             });
     }
 
@@ -285,7 +285,7 @@ namespace UI
                 UIText& uiText = uiRegistry->get<UIText>(entId);
 
                 uiText.outlineWidth = outlineWidth;
-                MarkDirty(uiRegistry, entId)
+                MarkDirty(uiRegistry, entId);
             });
     }
 
@@ -302,7 +302,7 @@ namespace UI
 
                 uiText.fontPath = fontPath;
                 uiText.fontSize = fontSize;
-                MarkDirty(uiRegistry, entId)
+                MarkDirty(uiRegistry, entId);
             });
     }
 
