@@ -7,6 +7,8 @@
 
 #include "../../../ECS/Components/UI/UIDirty.h"
 
+#include <GLFW/glfw3.h>
+
 namespace UI
 {
     asInputField::asInputField(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_INPUTFIELD) 
@@ -42,7 +44,43 @@ namespace UI
         r = ScriptEngine::RegisterScriptClassFunction("void SetFont(string fontPath, float fontSize)", asMETHOD(asInputField, SetTextFont)); assert(r >= 0);
     }
 
-    void asInputField::AppendInput(const std::string& Input)
+    void asInputField::HandleKeyInput(i32 key)
+    {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
+
+        UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
+        UIInputField& inputField = registry->get<UIInputField>(dataSingleton.focusedWidget);
+        UITransformEvents& events = registry->get<UITransformEvents>(dataSingleton.focusedWidget);
+
+        UI::asInputField* inputFieldAS = reinterpret_cast<UI::asInputField*>(transform.asObject);
+
+        switch (key)
+        {
+        case GLFW_KEY_BACKSPACE:
+            inputFieldAS->RemovePreviousCharacter();
+            break;
+        case GLFW_KEY_DELETE:
+            inputFieldAS->RemoveNextCharacter();
+            break;
+        case GLFW_KEY_LEFT:
+            inputFieldAS->MovePointerLeft();
+            break;
+        case GLFW_KEY_RIGHT:
+            inputFieldAS->MovePointerRight();
+            break;
+        case GLFW_KEY_ENTER:
+            inputField.OnSubmit();
+            events.OnUnfocused();
+
+            dataSingleton.focusedWidget = entt::null;
+            break;
+        default:
+            break;
+        }
+    }
+
+    void asInputField::HandleInput(const std::string& Input)
     {
         std::string newString = GetText();
         if (_inputField.writeHeadIndex == newString.length())

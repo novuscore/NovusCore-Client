@@ -435,6 +435,7 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
     if (dataSingleton.focusedWidget == entt::null || action != GLFW_RELEASE)
         return false;
 
+    UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
     UITransformEvents& events = registry->get<UITransformEvents>(dataSingleton.focusedWidget);
 
     if (key == GLFW_KEY_ESCAPE)
@@ -445,35 +446,16 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
         return true;
     }
 
-    UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
-    if (transform.type == UIElementType::UITYPE_INPUTFIELD)
+    switch (transform.type)
+    {
+    case UIElementType::UITYPE_INPUTFIELD:
     {
         UI::asInputField* inputFieldAS = reinterpret_cast<UI::asInputField*>(transform.asObject);
-        UIInputField& inputField = registry->get<UIInputField>(dataSingleton.focusedWidget);
-
-        switch (key)
-        {
-        case GLFW_KEY_BACKSPACE:
-            inputFieldAS->RemovePreviousCharacter();
-            break;
-        case GLFW_KEY_DELETE:
-            inputFieldAS->RemoveNextCharacter();
-            break;
-        case GLFW_KEY_LEFT:
-            inputFieldAS->MovePointerLeft();
-            break;
-        case GLFW_KEY_RIGHT:
-            inputFieldAS->MovePointerRight();
-            break;
-        case GLFW_KEY_ENTER:
-            inputField.OnSubmit();
-            events.OnUnfocused();
-            
-            dataSingleton.focusedWidget = entt::null;
-            break;
-        default:
-            break;
-        }
+        inputFieldAS->HandleKeyInput(key);
+        break;
+    }
+    default:
+        break;
     }
 
     return true;
@@ -484,21 +466,24 @@ bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
 
-    if (dataSingleton.focusedWidget != entt::null)
+    if (dataSingleton.focusedWidget == entt::null)
+        return false;
+
+    UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
+
+    switch (transform.type)
     {
-        UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
-
-        if (transform.type == UIElementType::UITYPE_INPUTFIELD)
-        {
-            UI::asInputField* inputField = reinterpret_cast<UI::asInputField*>(transform.asObject);
-
-            inputField->AppendInput((char)unicodeKey);
-        }
-
-        return true;
+    case UIElementType::UITYPE_INPUTFIELD:
+    {
+        UI::asInputField* inputField = reinterpret_cast<UI::asInputField*>(transform.asObject);
+        inputField->HandleCharInput((char)unicodeKey);
+        break;
+    }
+    default:
+        break;
     }
 
-    return false;
+    return true;
 }
 
 void UIRenderer::CreatePermanentResources()

@@ -20,13 +20,15 @@ namespace UI
 
         static void RegisterType();
 
+        void HandleKeyInput(i32 key);
+
         //InputField Functions
-        void AppendInput(const std::string& input);
-        void AppendInput(const char input) 
+        void HandleInput(const std::string& input);
+        void HandleCharInput(const char input) 
         {
             std::string strInput = "";
             strInput.append(1, input);
-            AppendInput(strInput);
+            HandleInput(strInput);
         }
 
         void RemovePreviousCharacter();
