@@ -1,6 +1,7 @@
 #include "AddElementSystem.h"
 #include <entt.hpp>
 #include <tracy/Tracy.hpp>
+
 #include "../../Components/UI/Singletons/UIAddElementQueueSingleton.h"
 #include "../../Components/UI/UITransform.h"
 #include "../../Components/UI/UITransformEvents.h"
@@ -16,7 +17,7 @@ void AddElementSystem::Update(entt::registry& registry)
 
     ZoneScopedNC("AddElementSystem::Update", tracy::Color::Blue)
 
-    UIElementData element;
+    UI::UIElementCreationData element;
     while (uiAddElementQueueSingleton.elementPool.try_dequeue(element))
     {
         UITransform& transform = registry.emplace<UITransform>(element.entityId);
@@ -28,13 +29,13 @@ void AddElementSystem::Update(entt::registry& registry)
 
         switch (element.type)
         {
-        case UIElementType::UITYPE_TEXT:
+        case UI::UIElementType::UITYPE_TEXT:
             registry.emplace<UIText>(element.entityId);
             break;
-        case UIElementType::UITYPE_PANEL:
+        case UI::UIElementType::UITYPE_PANEL:
             registry.emplace<UIRenderable>(element.entityId);
             break;
-        case UIElementType::UITYPE_INPUTFIELD:
+        case UI::UIElementType::UITYPE_INPUTFIELD:
         {
             registry.emplace<UIText>(element.entityId);
             UIInputField& inputField = registry.emplace<UIInputField>(element.entityId);
@@ -45,7 +46,7 @@ void AddElementSystem::Update(entt::registry& registry)
             break;
         }
 
-        if (element.type != UIElementType::UITYPE_TEXT)
+        if (element.type != UI::UIElementType::UITYPE_TEXT)
         {
             UITransformEvents& events = registry.emplace<UITransformEvents>(element.entityId);
             events.asObject = element.asObject;

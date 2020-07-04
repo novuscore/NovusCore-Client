@@ -28,18 +28,14 @@ namespace UITransformUtils
         return GetMinBounds(transform) + (transform.size * anchor);
     }
 
-    inline static void AddChild(UITransform& transform, entt::entity childEntityId, UIElementType childElementType)
+    inline static void AddChild(UITransform& transform, entt::entity childEntityId, UI::UIElementType childElementType)
     {
-        UITransform::UIChild newChild;
-        newChild.entity = entt::to_integral(childEntityId);
-        newChild.type = childElementType;
-
-        transform.children.push_back(newChild);
+        transform.children.push_back({ entt::to_integral(childEntityId) , childElementType });
     }
 
     inline static void RemoveChild(UITransform& transform, entt::entity childEntityId)
     {
-        auto position = std::find_if(transform.children.begin(), transform.children.end(), [childEntityId](UITransform::UIChild& uiChild)
+        auto position = std::find_if(transform.children.begin(), transform.children.end(), [childEntityId](UIChild& uiChild)
             {
                 return uiChild.entity == entt::to_integral(childEntityId);
             });

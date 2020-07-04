@@ -1,8 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include <entt.hpp>
 
-#include "../../../ECS/Components/UI/UITransform.h"
 #include "../../../ECS/Components/UI/UIText.h"
 #include "asUITransform.h"
 

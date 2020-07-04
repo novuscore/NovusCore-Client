@@ -1,13 +1,12 @@
 #pragma once
-#include <NovusTypes.h>
 #include <Utils/ConcurrentQueue.h>
-#include <entt.hpp>
+#include <entity/entity.hpp>
 
 namespace UI
 {
     struct UIEntityPoolSingleton
     {
-        const u32 ENTITIES_TO_PREALLOCATE = 10000;
+        const int ENTITIES_TO_PREALLOCATE = 10000;
 
     public:
         UIEntityPoolSingleton() : entityIdPool(ENTITIES_TO_PREALLOCATE) { }

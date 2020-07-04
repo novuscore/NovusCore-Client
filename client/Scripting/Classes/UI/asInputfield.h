@@ -1,6 +1,5 @@
 #pragma once
 #include <NovusTypes.h>
-#include <entt.hpp>
 
 #include "asUITransform.h"
 

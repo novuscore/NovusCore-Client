@@ -16,7 +16,7 @@ namespace UI
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
-        UIElementData elementData{ entityId, elementType, this };
+        UIElementCreationData elementData{ entityId, elementType, this };
 
         UIAddElementQueueSingleton& addElementQueue = registry->ctx<UIAddElementQueueSingleton>();
         addElementQueue.elementPool.enqueue(elementData);
@@ -317,7 +317,7 @@ namespace UI
 
     void asUITransform::UpdateChildPositions(entt::registry* uiRegistry, UITransform& parent)
     {
-        for (UITransform::UIChild& child : parent.children)
+        for (UIChild& child : parent.children)
         {
             entt::entity entId = entt::entity(child.entity);
             UITransform& uiChildTransform = uiRegistry->get<UITransform>(entId);
@@ -332,7 +332,7 @@ namespace UI
 
     void asUITransform::UpdateChildPositionsInAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent)
     {
-        for (UITransform::UIChild& child : parent.children)
+        for (UIChild& child : parent.children)
         {
             auto iterator = uiDataSingleton.entityToAsObject.find(entt::entity(child.entity));
             if (iterator == uiDataSingleton.entityToAsObject.end())
@@ -348,7 +348,7 @@ namespace UI
 
     void asUITransform::UpdateChildVisiblity(entt::registry* uiRegistry, const UITransform& parent, bool parentVisiblity)
     {
-        for (const UITransform::UIChild& child : parent.children)
+        for (const UIChild& child : parent.children)
         {
             const entt::entity childEntity = entt::entity(child.entity);
             UIVisiblity& uiChildVisiblity = uiRegistry->get<UIVisiblity>(childEntity);
@@ -371,7 +371,7 @@ namespace UI
 
     void asUITransform::UpdateChildVisiblityInAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisiblity)
     {
-        for (const UITransform::UIChild& child : parent.children)
+        for (const UIChild& child : parent.children)
         {
             auto iterator = uiDataSingleton.entityToAsObject.find(entt::entity(child.entity));
             if (iterator == uiDataSingleton.entityToAsObject.end())

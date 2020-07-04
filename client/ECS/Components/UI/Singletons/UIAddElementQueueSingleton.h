@@ -1,16 +1,22 @@
 #pragma once
-#include <NovusTypes.h>
 #include <Utils/ConcurrentQueue.h>
-#include <entt.hpp>
-#include "../../../Components/UI/UITransform.h"
+#include <entity/entity.hpp>
+#include "../../../Components/UI/UITypes.h"
 
 namespace UI
 {
+    struct UIElementCreationData
+    {
+        entt::entity entityId;
+        UIElementType type;
+        void* asObject;
+    };
+
     struct UIAddElementQueueSingleton
     {
     public:
         UIAddElementQueueSingleton() : elementPool(1024) { }
 
-        moodycamel::ConcurrentQueue<struct UIElementData> elementPool;
+        moodycamel::ConcurrentQueue<UIElementCreationData> elementPool;
     };
 }

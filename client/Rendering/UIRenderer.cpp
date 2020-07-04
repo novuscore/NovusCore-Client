@@ -378,46 +378,46 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
     for (auto entity : eventView)
     {
         const UITransform& transform = eventView.get<UITransform>(entity);
+        UITransformEvents& events = eventView.get<UITransformEvents>(entity);
+
         const vec2 minBounds = UITransformUtils::GetMinBounds(transform);
         const vec2 maxBounds = UITransformUtils::GetMaxBounds(transform);
 
-        if ((mouse.x > minBounds.x && mouse.x < maxBounds.x) &&
-            (mouse.y > minBounds.y && mouse.y < maxBounds.y))
-        {
-            UITransformEvents& events = eventView.get<UITransformEvents>(entity);
+        // Check so mouse if within widget bounds.
+        if (!((mouse.x > minBounds.x && mouse.x < maxBounds.x) && (mouse.y > minBounds.y && mouse.y < maxBounds.y)))
+                continue;
 
-            // Check if we have any events we can actually call else exit out early. It needs to still block clicking through though.
-            if (!events.flags)
-                return true;
-
-            // Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it. But we still need to block clicking through it.
-            if (lastFocusedWidget == entity)
-                return true;
-
-            if (keybind->state)
-            {
-                if (events.IsDraggable())
-                {
-                    // TODO FEATURE: Dragging
-                }
-            }
-            else
-            {
-                if (events.IsFocusable())
-                {
-                    dataSingleton.focusedWidget = entity;
-
-                    events.OnFocused();
-                }
-
-                if (events.IsClickable())
-                {
-                    events.OnClick();
-                }
-            }
-
+        // Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it. But we still need to block clicking through it.
+        if (lastFocusedWidget == entity)
             return true;
+
+        // Check if we have any events we can actually call else exit out early. It needs to still block clicking through though.
+        if (!events.flags)
+            return true;
+
+        if (keybind->state)
+        {
+            if (events.IsDraggable())
+            {
+                // TODO FEATURE: Dragging
+            }
         }
+        else
+        {
+            if (events.IsFocusable())
+            {
+                dataSingleton.focusedWidget = entity;
+
+                events.OnFocused();
+            }
+
+            if (events.IsClickable())
+            {
+                events.OnClick();
+            }
+        }
+
+        return true;
     }
 
     return false;
@@ -449,13 +449,17 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
 
     switch (transform.type)
     {
-    case UIElementType::UITYPE_INPUTFIELD:
+    case UI::UIElementType::UITYPE_INPUTFIELD:
     {
         UI::asInputField* inputFieldAS = reinterpret_cast<UI::asInputField*>(transform.asObject);
         inputFieldAS->HandleKeyInput(key);
         break;
     }
     default:
+        if (events.IsClickable() && GLFW_KEY_ENTER)
+        {
+            events.OnClick();
+        }
         break;
     }
 
@@ -473,7 +477,7 @@ bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
     UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
     switch (transform.type)
     {
-    case UIElementType::UITYPE_INPUTFIELD:
+    case UI::UIElementType::UITYPE_INPUTFIELD:
     {
         UI::asInputField* inputField = reinterpret_cast<UI::asInputField*>(transform.asObject);
         inputField->HandleCharInput((char)unicodeKey);

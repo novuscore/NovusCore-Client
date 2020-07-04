@@ -1,5 +1,5 @@
 #pragma once
-#include <entt.hpp>
+#include <entity/entity.hpp>
 #include <robin_hood.h>
 
 namespace UI
