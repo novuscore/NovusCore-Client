@@ -95,7 +95,7 @@ namespace UI
         
         virtual const u16 GetDepth() const
         {
-            return _transform.depth;
+            return _transform.sortData.depth;
         }
         virtual void SetDepth(const u16 depth);
 

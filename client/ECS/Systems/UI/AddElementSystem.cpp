@@ -21,7 +21,8 @@ void AddElementSystem::Update(entt::registry& registry)
     while (uiAddElementQueueSingleton.elementPool.try_dequeue(element))
     {
         UITransform& transform = registry.emplace<UITransform>(element.entityId);
-        transform.type = element.type;
+        transform.sortData.entId = element.entityId;
+        transform.sortData.type = element.type;
         transform.asObject = element.asObject;
 
         registry.emplace<UIVisible>(element.entityId);

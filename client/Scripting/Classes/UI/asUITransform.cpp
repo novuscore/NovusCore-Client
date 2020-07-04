@@ -149,7 +149,7 @@ namespace UI
 
     void asUITransform::SetDepth(const u16 depth)
     {
-        _transform.depth = depth;
+        _transform.sortData.depth = depth;
 
         // TRANSACTION
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
@@ -159,7 +159,7 @@ namespace UI
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& uiTransform = uiRegistry->get<UITransform>(entId);
 
-                uiTransform.depth = depth;
+                uiTransform.sortData.depth = depth;
 
                 if (!uiRegistry->has<UIDirty>(entId))
                     uiRegistry->emplace<UIDirty>(entId);

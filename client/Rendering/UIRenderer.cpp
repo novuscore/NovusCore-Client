@@ -94,7 +94,7 @@ void UIRenderer::Update(f32 deltaTime)
             constantBuffer->Apply(1);
 
             // Transform Updates.
-            const vec3& pos = vec3(UITransformUtils::GetMinBounds(transform), transform.depth);
+            const vec2& pos = vec2(UITransformUtils::GetMinBounds(transform));
             const vec2& size = transform.size;
 
             // Update vertex buffer
@@ -155,7 +155,7 @@ void UIRenderer::Update(f32 deltaTime)
                 }
             }
 
-            vec3 currentPosition = vec3(UITransformUtils::GetMinBounds(transform), transform.depth);
+            vec2 currentPosition = vec2(UITransformUtils::GetMinBounds(transform));
             currentPosition.y -= text.font->GetChar('A').yOffset * 1.15f; //TODO Get line height in a less hacky way. (This was done to make text anchors also be the top-left as other widgets)
 
             size_t glyph = 0;
@@ -169,7 +169,7 @@ void UIRenderer::Update(f32 deltaTime)
 
                 Renderer::FontChar fontChar = text.font->GetChar(character);
 
-                const vec3& pos = currentPosition + vec3(fontChar.xOffset, fontChar.yOffset, 0);
+                const vec2& pos = currentPosition + vec2(fontChar.xOffset, fontChar.yOffset);
                 const vec2& size = vec2(fontChar.width, fontChar.height);
 
                 Renderer::PrimitiveModelDesc primitiveModelDesc;
@@ -333,7 +333,8 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
             commandList.BeginPipeline(pipeline);
 
-            auto textView = registry->group<UITransform, UIText, UIVisible>();
+            auto textView = registry->group<>(entt::get<UITransform,UIVisible, UIText>);
+            textView.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
             textView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIText& text)
                 {
                     if (!text.font || !text.constantBuffer)
@@ -468,8 +469,8 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         dataSingleton.focusedWidget = entt::null;
     }
 
-    auto eventGroup = registry->group<UITransform, UITransformEvents, UIVisible>();
-    eventGroup.sort<UITransform>([](UITransform& left, UITransform& right) { return left.depth < right.depth; });
+    auto eventGroup = registry->group<UITransform>(entt::get<UITransformEvents, UIVisible>);
+    //eventGroup.sort<UITransform>([](UITransform& left, UITransform& right) { return left.sortKey < right.sortKey; });
     for (auto entity : eventGroup)
     {
         const UITransform& transform = eventGroup.get<UITransform>(entity);
@@ -542,7 +543,7 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
         return true;
     }
 
-    switch (transform.type)
+    switch (transform.sortData.type)
     {
     case UI::UIElementType::UITYPE_INPUTFIELD:
     {
@@ -570,7 +571,7 @@ bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
         return false;
 
     UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
-    switch (transform.type)
+    switch (transform.sortData.type)
     {
     case UI::UIElementType::UITYPE_INPUTFIELD:
     {
@@ -607,7 +608,7 @@ Renderer::TextureID UIRenderer::ReloadTexture(const std::string& texturePath)
     return _renderer->LoadTexture(textureDesc);
 }
 
-void UIRenderer::CalculateVertices(const vec3& pos, const vec2& size, std::vector<Renderer::Vertex>& vertices)
+void UIRenderer::CalculateVertices(const vec2& pos, const vec2& size, std::vector<Renderer::Vertex>& vertices)
 {
     vec3 upperLeftPos = vec3(pos.x, pos.y, 0.f);
     vec3 upperRightPos = vec3(pos.x + size.x, pos.y, 0.f);

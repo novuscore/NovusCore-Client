@@ -10,20 +10,28 @@ struct UIChild
 
 struct UITransform
 {
-    UITransform() : position(), localPosition(), anchor(), localAnchor(), size(), depth(), parent(), children(), asObject(nullptr), type(UI::UIElementType::UITYPE_NONE)
+    UITransform()
     { 
         children.reserve(8);
     }
 
-    vec2 position;
-    vec2 localPosition;
-    vec2 anchor;
-    vec2 localAnchor;
-    vec2 size;
-    u16 depth;
-    u32 parent;
+    vec2 position = vec2(0,0);
+    vec2 localPosition = vec2(0, 0);
+    vec2 anchor = vec2(0, 0);
+    vec2 localAnchor = vec2(0, 0);
+    vec2 size = vec2(0, 0);
+    union
+    {
+        u64 sortKey = 0;
+        struct
+        {
+            u16 depth;
+            UI::UIElementType type;
+            entt::entity entId;
+        } sortData;
+    };
+    u32 parent = 0;
     std::vector<UIChild> children;
-    void* asObject;
+    void* asObject = nullptr;
 
-    UI::UIElementType type;
 };

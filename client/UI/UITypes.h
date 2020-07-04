@@ -2,7 +2,7 @@
 
 namespace UI
 {
-    enum class UIElementType
+    enum class UIElementType : u16
     {
         UITYPE_NONE,
 
