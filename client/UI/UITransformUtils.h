@@ -1,6 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include "UITransform.h"
+#include "../ECS/Components/UI/UITransform.h"
 
 namespace UITransformUtils
 {

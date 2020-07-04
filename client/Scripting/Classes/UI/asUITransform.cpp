@@ -5,10 +5,10 @@
 #include "../../../ECS/Components/UI/Singletons/UIDataSingleton.h"
 #include "../../../ECS/Components/UI/Singletons/UIAddElementQueueSingleton.h"
 
-#include "../../../ECS/Components/UI/UITransformUtils.h"
-
 #include "../../../ECS/Components/UI/UIVisible.h"
 #include "../../../ECS/Components/UI/UIDirty.h"
+
+#include "../../../UI/UITransformUtils.h"
 
 namespace UI
 {

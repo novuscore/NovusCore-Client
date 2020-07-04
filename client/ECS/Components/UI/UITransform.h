@@ -1,6 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include "UITypes.h"
+#include "../../../UI/UITypes.h"
 
 struct UIChild
 {

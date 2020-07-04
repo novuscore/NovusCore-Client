@@ -8,7 +8,6 @@
 #include "../ECS/Components/UI/Singletons/UIDataSingleton.h"
 
 #include "../ECS/Components/UI/UITransform.h"
-#include "../ECS/Components/UI/UITransformUtils.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
 #include "../ECS/Components/UI/UIRenderable.h"
 #include "../ECS/Components/UI/UIText.h"
@@ -16,6 +15,8 @@
 
 #include "../ECS/Components/UI/UIVisible.h"
 #include "../ECS/Components/UI/UIDirty.h"
+
+#include "../UI/UITransformUtils.h"
 
 #include "../Scripting/Classes/UI/asInputfield.h"
 
