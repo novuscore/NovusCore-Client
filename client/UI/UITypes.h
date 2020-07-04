@@ -7,10 +7,11 @@ namespace UI
         UITYPE_NONE,
 
         UITYPE_PANEL,
-        UITYPE_TEXT,
         UITYPE_BUTTON,
-        UITYPE_INPUTFIELD,
         UITYPE_CHECKBOX,
-        UITYPE_SLIDER
+        UITYPE_SLIDER,
+
+        UITYPE_TEXT,
+        UITYPE_INPUTFIELD
     };
 }

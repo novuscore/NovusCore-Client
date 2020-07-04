@@ -238,15 +238,6 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             Renderer::GraphicsPipelineDesc pipelineDesc;
             renderGraph->InitializePipelineDesc(pipelineDesc);
 
-            // Shaders
-            Renderer::VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "Data/shaders/panel.vert.spv";
-            pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
-
-            Renderer::PixelShaderDesc pixelShaderDesc;
-            pixelShaderDesc.path = "Data/shaders/panel.frag.spv";
-            pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
-
             // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
             pipelineDesc.states.inputLayouts[0].enabled = true;
             pipelineDesc.states.inputLayouts[0].SetName("POSITION");
@@ -293,76 +284,106 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::BLEND_MODE_INV_SRC_ALPHA;
             pipelineDesc.states.blendState.renderTargets[0].srcBlendAlpha = Renderer::BlendMode::BLEND_MODE_ZERO;
             pipelineDesc.states.blendState.renderTargets[0].destBlendAlpha = Renderer::BlendMode::BLEND_MODE_ONE;
+            
+            // Panel Shaders
+            Renderer::VertexShaderDesc vertexShaderDesc;
+            vertexShaderDesc.path = "Data/shaders/panel.vert.spv";
+            pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
-            // Set pipeline
-            Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
-            commandList.BeginPipeline(pipeline);
+            Renderer::PixelShaderDesc pixelShaderDesc;
+            pixelShaderDesc.path = "Data/shaders/panel.frag.spv";
+            pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
-            // Draw all the panels
-            entt::registry* registry = ServiceLocator::GetUIRegistry();
-            auto renderableView = registry->view<UITransform, UIRenderable, UIVisible>();
-            renderableView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIRenderable& renderable)
-                {
-                    if (renderable.textureID == Renderer::TextureID::Invalid() || !renderable.constantBuffer)
-                        return;
+            Renderer::GraphicsPipelineID panelPipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
 
-                    commandList.PushMarker("Renderable", Color(0.0f, 0.1f, 0.0f));
-
-                    // Set constant buffer
-                    commandList.SetConstantBuffer(0, renderable.constantBuffer->GetDescriptor(frameIndex), frameIndex);
-
-                    // Set Sampler and texture.
-                    commandList.SetSampler(1, _linearSampler);
-                    commandList.SetTexture(2, renderable.textureID);
-
-                    // Draw
-                    commandList.Draw(renderable.modelID);
-
-                    commandList.PopMarker();
-                });
-            commandList.EndPipeline(pipeline);
-
-            // Draw text
+            // Text Shaders
             vertexShaderDesc.path = "Data/shaders/text.vert.spv";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
             pixelShaderDesc.path = "Data/shaders/text.frag.spv";
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
+            Renderer::GraphicsPipelineID textPipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+
             // Set pipeline
-            pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
-            commandList.BeginPipeline(pipeline);
+            commandList.BeginPipeline(panelPipeline);
+            Renderer::GraphicsPipelineID activePipeline = panelPipeline;
 
-            auto textView = registry->group<>(entt::get<UITransform,UIVisible, UIText>);
-            textView.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
-            textView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIText& text)
+            commandList.SetSampler(1, _linearSampler);
+
+            entt::registry* registry = ServiceLocator::GetUIRegistry();
+            auto renderView = registry->group<>(entt::get<UITransform,UIVisible>);
+            renderView.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
+            renderView.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &panelPipeline](const auto entity, UITransform& transform)
                 {
-                    if (!text.font || !text.constantBuffer)
-                        return;
-
-                    commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
-
-                    // Set constant buffer
-                    commandList.SetConstantBuffer(0, text.constantBuffer->GetDescriptor(frameIndex), frameIndex);
-
-                    // Set sampler
-                    commandList.SetSampler(1, _linearSampler);
-
-                    // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
-                    size_t glyphs = text.models.size();
-                    for (u32 i = 0; i < glyphs; i++)
+                    switch (transform.sortData.type)
                     {
-                        // Set texture
-                        commandList.SetTexture(2, text.textures[i]);
+                    case UI::UIElementType::UITYPE_TEXT:
+                    case UI::UIElementType::UITYPE_INPUTFIELD:
+                    {
+                        UIText& text = registry->get<UIText>(entity);
+                        if (!text.constantBuffer)
+                            return;
+
+                        if (activePipeline != textPipeline)
+                        {
+                            commandList.EndPipeline(activePipeline);
+                            commandList.BeginPipeline(textPipeline);
+                            activePipeline = textPipeline;
+                        }
+
+                        commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
+
+                        // Set constant buffer
+                        commandList.SetConstantBuffer(0, text.constantBuffer->GetDescriptor(frameIndex), frameIndex);
+
+                        // Set sampler
+
+                        // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
+                        size_t glyphs = text.models.size();
+                        for (u32 i = 0; i < glyphs; i++)
+                        {
+                            // Set texture
+                            commandList.SetTexture(2, text.textures[i]);
+
+                            // Draw
+                            commandList.Draw(text.models[i]);
+                        }
+
+                        commandList.PopMarker(); 
+                        break;
+                    }
+                    default:
+                    {
+                        UIRenderable& renderable = registry->get<UIRenderable>(entity);
+                        if (!renderable.constantBuffer)
+                            return;
+                        
+                        if (activePipeline != panelPipeline)
+                        {
+                            commandList.EndPipeline(activePipeline);
+                            commandList.BeginPipeline(panelPipeline);
+                            activePipeline = panelPipeline;
+                        }
+
+                        commandList.PushMarker("Renderable", Color(0.0f, 0.1f, 0.0f));
+
+                        // Set constant buffer
+                        commandList.SetConstantBuffer(0, renderable.constantBuffer->GetDescriptor(frameIndex), frameIndex);
+
+                        // Set texture.
+                        commandList.SetTexture(2, renderable.textureID);
 
                         // Draw
-                        commandList.Draw(text.models[i]);
-                    }
+                        commandList.Draw(renderable.modelID);
 
-                    commandList.PopMarker();
+                        commandList.PopMarker();
+                        break;
+                    }
+                    }
                 });
 
-            commandList.EndPipeline(pipeline);
+            commandList.EndPipeline(panelPipeline);
         });
 }
 
