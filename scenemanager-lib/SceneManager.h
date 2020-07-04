@@ -14,6 +14,9 @@ public:
         _sceneNameHashes.reserve(sceneNameHashes.size());
         _sceneNameHashes.assign(sceneNameHashes.begin(), sceneNameHashes.end());
 
+        _sceneAnyLoadedCallback.clear();
+        _sceneAnyLoadedCallback.reserve(sceneNameHashes.size());
+
         _sceneLoadedCallback.clear();
         _sceneLoadedCallback.reserve(sceneNameHashes.size());
         for (u32 sceneNameHashed : _sceneNameHashes)
@@ -30,11 +33,14 @@ public:
     u32 GetScene() { return _currentSceneNameHashed; }
 
     bool RegisterSceneLoadedCallback(u32 sceneNameHashed, SceneCallback inSceneCallback);
+    bool RegisterSceneLoadedCallback(SceneCallback inSceneCallback);
     bool UnregisterSceneLoadedCallback(u32 sceneNameHashed, u32 callbackNameHashed);
+    bool UnregisterSceneLoadedCallback(u32 callbackNameHashed);
 
 private:
     std::vector<u32> _sceneNameHashes;
     u32 _currentSceneNameHashed;
 
+    std::vector<SceneCallback> _sceneAnyLoadedCallback;
     robin_hood::unordered_map<u32, std::vector<SceneCallback>> _sceneLoadedCallback;
 };
