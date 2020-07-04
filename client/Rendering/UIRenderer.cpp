@@ -54,7 +54,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
     registry->set<UI::UIDataSingleton>();
     registry->set<UI::UIAddElementQueueSingleton>();
 
-    // Preallocate Entity Ids
+    // Register entity pool.
     registry->set<UI::UIEntityPoolSingleton>().AllocatePool();
 }
 
@@ -374,12 +374,12 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         dataSingleton.focusedWidget = entt::null;
     }
 
-    auto eventView = registry->group<UITransform, UITransformEvents, UIVisible>();
-    eventView.sort<UITransform>([](UITransform& left, UITransform& right) { return left.depth < right.depth; });
-    for (auto entity : eventView)
+    auto eventGroup = registry->group<UITransform, UITransformEvents, UIVisible>();
+    eventGroup.sort<UITransform>([](UITransform& left, UITransform& right) { return left.depth < right.depth; });
+    for (auto entity : eventGroup)
     {
-        const UITransform& transform = eventView.get<UITransform>(entity);
-        UITransformEvents& events = eventView.get<UITransformEvents>(entity);
+        const UITransform& transform = eventGroup.get<UITransform>(entity);
+        UITransformEvents& events = eventGroup.get<UITransformEvents>(entity);
 
         const vec2 minBounds = UITransformUtils::GetMinBounds(transform);
         const vec2 maxBounds = UITransformUtils::GetMaxBounds(transform);

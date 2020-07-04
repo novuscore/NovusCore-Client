@@ -1,7 +1,7 @@
 #pragma once
 #include <Utils/ConcurrentQueue.h>
 #include <Utils/Message.h>
-#include <entt.hpp>
+#include <entity/registry.hpp>
 #include <cassert>
 
 class MessageHandler;
