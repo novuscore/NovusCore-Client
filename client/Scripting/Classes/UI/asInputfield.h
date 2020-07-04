@@ -23,13 +23,7 @@ namespace UI
         void HandleKeyInput(i32 key);
 
         //InputField Functions
-        void HandleInput(const std::string& input);
-        void HandleCharInput(const char input) 
-        {
-            std::string strInput = "";
-            strInput.append(1, input);
-            HandleInput(strInput);
-        }
+        void HandleCharInput(const char input);
 
         void RemovePreviousCharacter();
         void RemoveNextCharacter();

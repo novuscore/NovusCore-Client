@@ -11,10 +11,11 @@
 #include "../ECS/Components/UI/UITransformUtils.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
 #include "../ECS/Components/UI/UIRenderable.h"
-#include "../ECS/Components/UI/UIVisible.h"
-#include "../ECS/Components/UI/UIDirty.h"
 #include "../ECS/Components/UI/UIText.h"
 #include "../ECS/Components/UI/UIInputField.h"
+
+#include "../ECS/Components/UI/UIVisible.h"
+#include "../ECS/Components/UI/UIDirty.h"
 
 #include "../Scripting/Classes/UI/asInputfield.h"
 
@@ -470,7 +471,6 @@ bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
         return false;
 
     UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
-
     switch (transform.type)
     {
     case UIElementType::UITYPE_INPUTFIELD:

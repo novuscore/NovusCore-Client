@@ -47,54 +47,49 @@ namespace UI
     void asInputField::HandleKeyInput(i32 key)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
 
-        UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
-        UIInputField& inputField = registry->get<UIInputField>(dataSingleton.focusedWidget);
-        UITransformEvents& events = registry->get<UITransformEvents>(dataSingleton.focusedWidget);
-
-        UI::asInputField* inputFieldAS = reinterpret_cast<UI::asInputField*>(transform.asObject);
+        UIInputField& inputField = registry->get<UIInputField>(GetEntityId());
+        UITransformEvents& events = registry->get<UITransformEvents>(GetEntityId());
 
         switch (key)
         {
         case GLFW_KEY_BACKSPACE:
-            inputFieldAS->RemovePreviousCharacter();
+            RemovePreviousCharacter();
             break;
         case GLFW_KEY_DELETE:
-            inputFieldAS->RemoveNextCharacter();
+            RemoveNextCharacter();
             break;
         case GLFW_KEY_LEFT:
-            inputFieldAS->MovePointerLeft();
+            MovePointerLeft();
             break;
         case GLFW_KEY_RIGHT:
-            inputFieldAS->MovePointerRight();
+            MovePointerRight();
             break;
         case GLFW_KEY_ENTER:
             inputField.OnSubmit();
             events.OnUnfocused();
 
-            dataSingleton.focusedWidget = entt::null;
+            registry->ctx<UI::UIDataSingleton>().focusedWidget = entt::null;
             break;
         default:
             break;
         }
     }
 
-    void asInputField::HandleInput(const std::string& Input)
+    void asInputField::HandleCharInput(const char input)
     {
         std::string newString = GetText();
         if (_inputField.writeHeadIndex == newString.length())
         {
-            newString += Input;
+            newString += input;
         }
         else
         {
-            newString.insert(_inputField.writeHeadIndex, Input);
+            newString.insert(_inputField.writeHeadIndex, 1, input);
         }
 
         SetText(newString, false);
-
-        SetWriteHeadPosition(_inputField.writeHeadIndex + static_cast<u32>(Input.length()));
+        MovePointerRight();
     }
 
     void asInputField::RemovePreviousCharacter()
