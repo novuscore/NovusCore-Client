@@ -14,6 +14,8 @@
 #include "Classes/UI/asButton.h"
 #include "Classes/UI/asInputfield.h"
 
+#include "../Rendering/UIRenderer.h"
+
 thread_local asIScriptEngine* ScriptEngine::_scriptEngine = nullptr;
 thread_local asIScriptContext* ScriptEngine::_scriptContext = nullptr;
 thread_local std::string ScriptEngine::_scriptCurrentObjectName = "";
@@ -106,6 +108,8 @@ void ScriptEngine::RegisterFunctions()
     UI::asLabel::RegisterType();
     UI::asButton::RegisterType();
     UI::asInputField::RegisterType();
+
+    UIRenderer::RegisterAngelFunctions();
 
     ScriptEngine::RegisterScriptFunction("void Print(string msg)", asFUNCTION(ScriptEngine::Print));
 }

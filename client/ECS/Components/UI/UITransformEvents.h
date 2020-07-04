@@ -9,7 +9,6 @@ enum UITransformEventsFlags
     UIEVENTS_FLAG_CLICKABLE = 1 << 1,
     UIEVENTS_FLAG_DRAGGABLE = 1 << 2,
     UIEVENTS_FLAG_FOCUSABLE = 1 << 3
-
 };
 
 // We need to define structs for event data, so we can pass data into callbacks for angelscript

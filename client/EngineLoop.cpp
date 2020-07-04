@@ -85,22 +85,9 @@ bool EngineLoop::TryGetMessage(Message& message)
     return _outputQueue.try_dequeue(message);
 }
 
-void LoginScreenLoaded(u32 sceneNameHash)
-{
-    NC_LOG_SUCCESS("Scene: LoginScreen was loaded");
-}
-
 void EngineLoop::Run()
 {
     _isRunning = true;
-
-    SceneManager* sceneManager = new SceneManager();
-    sceneManager->SetAvailableScenes({ "LoginScreen"_h, "CharacterSelection"_h, "CharacterCreation"_h });
-    sceneManager->RegisterSceneLoadedCallback("LoginScreen"_h, SceneCallback("Dummy Callback"_h, LoginScreenLoaded));
-    ServiceLocator::SetSceneManager(sceneManager);
-
-    // We want to push this to the end of the first frame so anything that runs during the first frame has time to set itself up
-    sceneManager->LoadScene("LoginScreen"_h);
 
     _updateFramework.gameRegistry.create();
     _updateFramework.uiRegistry.create();
@@ -118,6 +105,11 @@ void EngineLoop::Run()
 
     Timer timer;
     f32 targetDelta = 1.0f / 60.f;
+
+    // Set up SceneManager. This has to happen before the ClientRenderer is created.
+    SceneManager* sceneManager = new SceneManager();
+    sceneManager->SetAvailableScenes({ "LoginScreen"_h, "CharacterSelection"_h, "CharacterCreation"_h });
+    ServiceLocator::SetSceneManager(sceneManager);
 
     _clientRenderer = new ClientRenderer();
 
@@ -162,13 +154,15 @@ void EngineLoop::Run()
             }
         });
 
+    // Load Scripts
     std::string scriptPath = "./Data/scripts";
     ScriptHandler::LoadScriptDirectory(scriptPath);
-    
+
+    sceneManager->LoadScene("LoginScreen"_h);
+
     _network.authSocket->SetReadHandler(std::bind(&ConnectionUpdateSystem::AuthSocket_HandleRead, std::placeholders::_1));
     _network.authSocket->SetConnectHandler(std::bind(&ConnectionUpdateSystem::AuthSocket_HandleConnect, std::placeholders::_1, std::placeholders::_2));
     _network.authSocket->SetDisconnectHandler(std::bind(&ConnectionUpdateSystem::AuthSocket_HandleDisconnect, std::placeholders::_1));
-    _network.authSocket->Connect("127.0.0.1", 3724); // Realmlist should contain these values
     
     _network.gameSocket->SetReadHandler(std::bind(&ConnectionUpdateSystem::GameSocket_HandleRead, std::placeholders::_1));
     _network.gameSocket->SetConnectHandler(std::bind(&ConnectionUpdateSystem::GameSocket_HandleConnect, std::placeholders::_1, std::placeholders::_2));

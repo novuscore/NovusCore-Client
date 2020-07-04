@@ -7,6 +7,8 @@
 #include <Renderer/Descriptors/SamplerDesc.h>
 #include <Renderer/ConstantBuffer.h>
 
+#include "../Scripting/ScriptEngine.h"
+
 namespace Renderer
 {
     class RenderGraph;
@@ -22,6 +24,12 @@ public:
 
     void Update(f32 deltaTime);
     void AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex);
+
+    static void RegisterAngelFunctions();
+
+    void OnSceneLoaded(u32 sceneLoaded);
+    static void RegisterSceneLoadedCallback(std::string sceneName, std::string callbackName, asIScriptFunction* callback);
+    static void UnregisterSceneLoadedCallback(std::string sceneName, std::string callbackName);
 
 private:
     bool OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind);

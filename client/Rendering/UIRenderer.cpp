@@ -2,10 +2,13 @@
 #include "Camera.h"
 
 #include "../Utils/ServiceLocator.h"
+#include "../../scenemanager-lib/SceneManager.h"
 
 #include "../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../ECS/Components/UI/Singletons/UIAddElementQueueSingleton.h"
 #include "../ECS/Components/UI/Singletons/UIDataSingleton.h"
+
+#include "../ECS/Components//Singletons/ScriptSceneSingleton.h"
 
 #include "../ECS/Components/UI/UITransform.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
@@ -38,17 +41,18 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
     inputManager->RegisterKeybind("UI Click Checker", GLFW_MOUSE_BUTTON_LEFT, KEYBIND_ACTION_CLICK, KEYBIND_MOD_ANY, std::bind(&UIRenderer::OnMouseClick, this, std::placeholders::_1, std::placeholders::_2));
     inputManager->RegisterMousePositionCallback("UI Mouse Position Checker", std::bind(&UIRenderer::OnMousePositionUpdate, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     inputManager->RegisterKeyboardInputCallback("UI Keyboard Input Checker"_h, std::bind(&UIRenderer::OnKeyboardInput, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
-    inputManager->RegisterCharInputCallback("UI Char Input Cheker"_h, std::bind(&UIRenderer::OnCharInput, this, std::placeholders::_1, std::placeholders::_2));
+    inputManager->RegisterCharInputCallback("UI Char Input Checker"_h, std::bind(&UIRenderer::OnCharInput, this, std::placeholders::_1, std::placeholders::_2));
 
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     registry->prepare<UITransform>();
     registry->prepare<UITransformEvents>();
-
     registry->prepare<UIRenderable>();
     registry->prepare<UIText>();
 
     registry->prepare<UIVisible>();
     registry->prepare<UIVisiblity>();
+
+    registry->set<ScriptSceneSingleton>();
 
     // Register UI singletons.
     registry->set<UI::UIDataSingleton>();
@@ -56,6 +60,9 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
 
     // Register entity pool.
     registry->set<UI::UIEntityPoolSingleton>().AllocatePool();
+
+    SceneManager* sceneManager = ServiceLocator::GetSceneManager();
+    sceneManager->RegisterSceneLoadedCallback(SceneCallback("UIRenderer Callback"_h, std::bind(&UIRenderer::OnSceneLoaded, this, std::placeholders::_1)));
 }
 
 void UIRenderer::Update(f32 deltaTime)
@@ -326,7 +333,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
             commandList.BeginPipeline(pipeline);
 
-            auto textView = registry->view<UITransform, UIText, UIVisible>();
+            auto textView = registry->group<UITransform, UIText, UIVisible>();
             textView.each([this, &commandList, frameIndex](const auto, UITransform& transform, UIText& text)
                 {
                     if (!text.font || !text.constantBuffer)
@@ -356,6 +363,93 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 
             commandList.EndPipeline(pipeline);
         });
+}
+
+void UIRenderer::RegisterAngelFunctions()
+{
+    i32 r = ScriptEngine::RegisterScriptFunctionDef("void SceneLoadedCallback(uint sceneHash)"); assert(r >= 0);
+    r = ScriptEngine::RegisterScriptFunction("void RegisterSceneLoadedCallback(string sceneName, string callBackName, SceneLoadedCallback@ cb)", asFUNCTION(UIRenderer::RegisterSceneLoadedCallback)); assert(r >= 0);
+    r = ScriptEngine::RegisterScriptFunction("void UnRegisterSceneLoadedCallback(string sceneName, string callBackName)", asFUNCTION(UIRenderer::UnregisterSceneLoadedCallback)); assert(r >= 0);
+}
+
+void UIRenderer::OnSceneLoaded(u32 sceneLoaded)
+{
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
+    ScriptSceneSingleton& scriptSceneSingleton = registry->ctx<ScriptSceneSingleton>();
+
+    for (auto& sceneCallback : scriptSceneSingleton._sceneAnyLoadedCallback)
+    {
+        asIScriptContext* context = ScriptEngine::GetScriptContext();
+        {
+            context->Prepare(sceneCallback.callback);
+            {
+                context->SetArgDWord(0, sceneLoaded);
+            }
+            context->Execute();
+        }
+    }
+
+    for (auto& sceneCallback : scriptSceneSingleton._sceneLoadedCallback[sceneLoaded])
+    {
+        asIScriptContext* context = ScriptEngine::GetScriptContext();
+        {
+            context->Prepare(sceneCallback.callback);
+            {
+                context->SetArgDWord(0, sceneLoaded);
+            }
+            i32 r = context->Execute();
+
+            if (r != asEXECUTION_FINISHED)
+            {
+                // The execution didn't complete as expected. Determine what happened.
+                if (r == asEXECUTION_EXCEPTION)
+                {
+                    // An exception occurred, let the script writer know what happened so it can be corrected.
+                    NC_LOG_ERROR("[Script]: An exception '%s' occurred. Please correct the code and try again.\n", context->GetExceptionString());
+                }
+            }
+        }
+    }
+}
+
+void UIRenderer::RegisterSceneLoadedCallback(std::string sceneName, std::string callbackName, asIScriptFunction* callback)
+{
+    u32 sceneHash = StringUtils::fnv1a_32(sceneName.c_str(), sceneName.size());
+    u32 callbackNameHash = StringUtils::fnv1a_32(callbackName.c_str(), callbackName.size());
+
+    SceneManager* sceneManager = ServiceLocator::GetSceneManager();
+    if (!sceneManager->SceneExists(sceneHash))
+        return;
+
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
+    ScriptSceneSingleton& scriptSceneSingleton = registry->ctx<ScriptSceneSingleton>();
+
+    for (auto& sceneCallback : scriptSceneSingleton._sceneLoadedCallback[sceneHash])
+    {
+        if (callbackNameHash == sceneCallback.callbackNameHashed)
+            return;
+    }
+
+    scriptSceneSingleton._sceneLoadedCallback[sceneHash].push_back( asSceneCallback(callbackNameHash, callback) );
+}
+
+void UIRenderer::UnregisterSceneLoadedCallback(std::string sceneName, std::string callbackName)
+{
+    u32 sceneHash = (u32)std::hash<std::string>{}(sceneName);
+    u32 callbackNameHash = (u32)std::hash<std::string>{}(callbackName);
+
+    SceneManager* sceneManager = ServiceLocator::GetSceneManager();
+    if (!sceneManager->SceneExists(sceneHash))
+        return;
+
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
+    ScriptSceneSingleton& scriptSceneSingleton = registry->ctx<ScriptSceneSingleton>();
+
+    auto itr = std::find_if(scriptSceneSingleton._sceneLoadedCallback[sceneHash].begin(), scriptSceneSingleton._sceneLoadedCallback[sceneHash].end(), [callbackNameHash](const asSceneCallback& sceneCallback) -> bool { return callbackNameHash == sceneCallback.callbackNameHashed; });
+    if (itr == scriptSceneSingleton._sceneLoadedCallback[sceneHash].end())
+        return;
+
+    scriptSceneSingleton._sceneLoadedCallback[sceneHash].erase(itr);
 }
 
 bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
@@ -515,10 +609,10 @@ Renderer::TextureID UIRenderer::ReloadTexture(const std::string& texturePath)
 
 void UIRenderer::CalculateVertices(const vec3& pos, const vec2& size, std::vector<Renderer::Vertex>& vertices)
 {
-    vec3 upperLeftPos = vec3(pos.x, pos.y, -pos.z);
-    vec3 upperRightPos = vec3(pos.x + size.x, pos.y, -pos.z);
-    vec3 lowerLeftPos = vec3(pos.x, pos.y + size.y, -pos.z);
-    vec3 lowerRightPos = vec3(pos.x + size.x, pos.y + size.y, -pos.z);
+    vec3 upperLeftPos = vec3(pos.x, pos.y, 0.f);
+    vec3 upperRightPos = vec3(pos.x + size.x, pos.y, 0.f);
+    vec3 lowerLeftPos = vec3(pos.x, pos.y + size.y, 0.f);
+    vec3 lowerRightPos = vec3(pos.x + size.x, pos.y + size.y, 0.f);
 
     // UV space
     // TODO: Do scaling depending on rendertargets actual size instead of assuming 1080p (which is our reference resolution)
