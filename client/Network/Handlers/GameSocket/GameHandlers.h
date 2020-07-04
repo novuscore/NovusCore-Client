@@ -10,9 +10,9 @@ namespace GameSocket
     {
     public:
         static void Setup(MessageHandler*);
-        static bool SMSG_CREATE_PLAYER(std::shared_ptr<NetworkClient>, NetworkPacket*);
-        static bool SMSG_CREATE_ENTITY(std::shared_ptr<NetworkClient>, NetworkPacket*);
-        static bool SMSG_UPDATE_ENTITY(std::shared_ptr<NetworkClient>, NetworkPacket*);
-        static bool SMSG_DELETE_ENTITY(std::shared_ptr<NetworkClient>, NetworkPacket*);
+        static bool HandleCreatePlayer(std::shared_ptr<NetworkClient>, NetworkPacket*);
+        static bool HandleCreateEntity(std::shared_ptr<NetworkClient>, NetworkPacket*);
+        static bool HandleUpdateEntity(std::shared_ptr<NetworkClient>, NetworkPacket*);
+        static bool HandleDeleteEntity(std::shared_ptr<NetworkClient>, NetworkPacket*);
     };
 }
