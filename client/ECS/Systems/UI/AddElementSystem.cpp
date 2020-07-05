@@ -1,14 +1,19 @@
 #include "AddElementSystem.h"
-#include <entt.hpp>
+#include <entity/registry.hpp>
+#include <entity/entity.hpp>
 #include <tracy/Tracy.hpp>
 
 #include "../../Components/UI/Singletons/UIAddElementQueueSingleton.h"
 #include "../../Components/UI/UITransform.h"
 #include "../../Components/UI/UITransformEvents.h"
+
 #include "../../Components/UI/UIRenderable.h"
+#include "../../Components/UI/UIImage.h"
+#include "../../Components/UI/UIText.h"
+
 #include "../../Components/UI/UIVisible.h"
 #include "../../Components/UI/UIVisiblity.h"
-#include "../../Components/UI/UIText.h"
+
 #include "../../Components/UI/UIInputField.h"
 
 void AddElementSystem::Update(entt::registry& registry)
@@ -34,7 +39,7 @@ void AddElementSystem::Update(entt::registry& registry)
             registry.emplace<UIText>(element.entityId);
             break;
         case UI::UIElementType::UITYPE_PANEL:
-            registry.emplace<UIRenderable>(element.entityId);
+            registry.emplace<UIImage>(element.entityId);
             break;
         case UI::UIElementType::UITYPE_INPUTFIELD:
         {
@@ -45,6 +50,11 @@ void AddElementSystem::Update(entt::registry& registry)
         }
         default:
             break;
+        }
+
+        if (registry.any<UIImage, UIText>(element.entityId))
+        {
+            registry.emplace<UIRenderable>(element.entityId);
         }
 
         if (element.type != UI::UIElementType::UITYPE_TEXT)

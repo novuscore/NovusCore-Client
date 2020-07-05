@@ -27,7 +27,7 @@ public:
 
     static void RegisterAngelFunctions();
 
-    void OnSceneLoaded(u32 sceneLoaded);
+    static void OnSceneLoaded(u32 sceneLoaded);
     static void RegisterSceneLoadedCallback(std::string sceneName, std::string callbackName, asIScriptFunction* callback);
     static void UnregisterSceneLoadedCallback(std::string sceneName, std::string callbackName);
 

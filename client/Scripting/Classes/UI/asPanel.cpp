@@ -88,14 +88,14 @@ namespace UI
 
     void asPanel::SetTexture(const std::string& texture)
     {
-        _renderable.texture = texture;
+        _image.texture = texture;
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([texture, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UIRenderable& renderable = uiRegistry->get<UIRenderable>(entId);
+                UIImage& renderable = uiRegistry->get<UIImage>(entId);
 
                 renderable.texture = texture;
                 MarkDirty(uiRegistry, entId);
@@ -103,14 +103,14 @@ namespace UI
     }
     void asPanel::SetColor(const Color& color)
     {
-        _renderable.color = color;
+        _image.color = color;
 
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([color, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UIRenderable& renderable = uiRegistry->get<UIRenderable>(entId);
+                UIImage& renderable = uiRegistry->get<UIImage>(entId);
 
                 renderable.color = color;
                 MarkDirty(uiRegistry, entId);

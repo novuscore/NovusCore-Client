@@ -21,6 +21,6 @@ struct ScriptSceneSingleton
 {
     ScriptSceneSingleton() {}
 
-    std::vector<asSceneCallback> _sceneAnyLoadedCallback;
-    robin_hood::unordered_map<u32, std::vector<asSceneCallback>> _sceneLoadedCallback;
+    std::vector<asSceneCallback> sceneAnyLoadedCallback;
+    robin_hood::unordered_map<u32, std::vector<asSceneCallback>> sceneLoadedCallback;
 };

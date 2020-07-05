@@ -12,8 +12,11 @@
 
 #include "../ECS/Components/UI/UITransform.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
+
 #include "../ECS/Components/UI/UIRenderable.h"
+#include "../ECS/Components/UI/UIImage.h"
 #include "../ECS/Components/UI/UIText.h"
+
 #include "../ECS/Components/UI/UIInputField.h"
 
 #include "../ECS/Components/UI/UIVisible.h"
@@ -46,7 +49,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     registry->prepare<UITransform>();
     registry->prepare<UITransformEvents>();
-    registry->prepare<UIRenderable>();
+    registry->prepare<UIImage>();
     registry->prepare<UIText>();
 
     registry->prepare<UIVisible>();
@@ -61,35 +64,35 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
     // Register entity pool.
     registry->set<UI::UIEntityPoolSingleton>().AllocatePool();
 
-    SceneManager* sceneManager = ServiceLocator::GetSceneManager();
-    sceneManager->RegisterSceneLoadedCallback(SceneCallback("UIRenderer Callback"_h, std::bind(&UIRenderer::OnSceneLoaded, this, std::placeholders::_1)));
+    // Pre-construct render group. Groups perform initialization the first time they are requested, to avoid extra cost we do it before any components have been assigned.
+    registry->group<UITransform, UIVisible>();
 }
 
 void UIRenderer::Update(f32 deltaTime)
 {
     entt::registry* registry = ServiceLocator::GetUIRegistry();
 
-    auto renderableView = registry->view<UITransform, UIRenderable, UIDirty>();
-    renderableView.each([this, registry](const auto entity, UITransform& transform, UIRenderable& renderable)
+    auto renderableView = registry->view<UITransform, UIImage, UIDirty>();
+    renderableView.each([this, registry](const auto entity, UITransform& transform, UIImage& image)
         {
             // Renderable Updates
-            if (renderable.texture.length() == 0)
+            if (image.texture.length() == 0)
             {
-                renderable.textureID = Renderer::TextureID::Invalid();
+                image.textureID = Renderer::TextureID::Invalid();
                 return;
             }
 
             // (Re)load texture
-            renderable.textureID = ReloadTexture(renderable.texture);
+            image.textureID = ReloadTexture(image.texture);
 
             // Create constant buffer if necessary
-            auto constantBuffer = renderable.constantBuffer;
+            auto constantBuffer = image.constantBuffer;
             if (constantBuffer == nullptr)
             {
-                constantBuffer = _renderer->CreateConstantBuffer<UIRenderable::RenderableConstantBuffer>();
-                renderable.constantBuffer = constantBuffer;
+                constantBuffer = _renderer->CreateConstantBuffer<UIImage::ImageConstantBuffer>();
+                image.constantBuffer = constantBuffer;
             }
-            constantBuffer->resource.color = renderable.color;
+            constantBuffer->resource.color = image.color;
             constantBuffer->Apply(0);
             constantBuffer->Apply(1);
 
@@ -102,7 +105,7 @@ void UIRenderer::Update(f32 deltaTime)
             CalculateVertices(pos, size, primitiveModelDesc.vertices);
 
             // If the primitive model hasn't been created yet, create it
-            if (renderable.modelID == Renderer::ModelID::Invalid())
+            if (image.modelID == Renderer::ModelID::Invalid())
             {
                 // Indices
                 primitiveModelDesc.indices.push_back(0);
@@ -112,11 +115,11 @@ void UIRenderer::Update(f32 deltaTime)
                 primitiveModelDesc.indices.push_back(3);
                 primitiveModelDesc.indices.push_back(2);
 
-                renderable.modelID = _renderer->CreatePrimitiveModel(primitiveModelDesc);
+                image.modelID = _renderer->CreatePrimitiveModel(primitiveModelDesc);
             }
             else // Otherwise we just update the already existing primitive model
             {
-                _renderer->UpdatePrimitiveModel(renderable.modelID, primitiveModelDesc);
+                _renderer->UpdatePrimitiveModel(image.modelID, primitiveModelDesc);
             }
         });
     registry->remove<UIDirty>(renderableView.begin(), renderableView.end());
@@ -312,9 +315,9 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             commandList.SetSampler(1, _linearSampler);
 
             entt::registry* registry = ServiceLocator::GetUIRegistry();
-            auto renderView = registry->group<>(entt::get<UITransform,UIVisible>);
-            renderView.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
-            renderView.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &panelPipeline](const auto entity, UITransform& transform)
+            auto renderGroup = registry->group<UITransform, UIRenderable, UIVisible>();
+            renderGroup.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
+            renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &panelPipeline](const auto entity, UITransform& transform)
                 {
                     switch (transform.sortData.type)
                     {
@@ -355,8 +358,8 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                     }
                     default:
                     {
-                        UIRenderable& renderable = registry->get<UIRenderable>(entity);
-                        if (!renderable.constantBuffer)
+                        UIImage& image = registry->get<UIImage>(entity);
+                        if (!image.constantBuffer)
                             return;
                         
                         if (activePipeline != panelPipeline)
@@ -366,16 +369,16 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                             activePipeline = panelPipeline;
                         }
 
-                        commandList.PushMarker("Renderable", Color(0.0f, 0.1f, 0.0f));
+                        commandList.PushMarker("Image", Color(0.0f, 0.1f, 0.0f));
 
                         // Set constant buffer
-                        commandList.SetConstantBuffer(0, renderable.constantBuffer->GetDescriptor(frameIndex), frameIndex);
+                        commandList.SetConstantBuffer(0, image.constantBuffer->GetDescriptor(frameIndex), frameIndex);
 
                         // Set texture.
-                        commandList.SetTexture(2, renderable.textureID);
+                        commandList.SetTexture(2, image.textureID);
 
                         // Draw
-                        commandList.Draw(renderable.modelID);
+                        commandList.Draw(image.modelID);
 
                         commandList.PopMarker();
                         break;
@@ -392,6 +395,9 @@ void UIRenderer::RegisterAngelFunctions()
     i32 r = ScriptEngine::RegisterScriptFunctionDef("void SceneLoadedCallback(uint sceneHash)"); assert(r >= 0);
     r = ScriptEngine::RegisterScriptFunction("void RegisterSceneLoadedCallback(string sceneName, string callBackName, SceneLoadedCallback@ cb)", asFUNCTION(UIRenderer::RegisterSceneLoadedCallback)); assert(r >= 0);
     r = ScriptEngine::RegisterScriptFunction("void UnRegisterSceneLoadedCallback(string sceneName, string callBackName)", asFUNCTION(UIRenderer::UnregisterSceneLoadedCallback)); assert(r >= 0);
+
+    SceneManager* sceneManager = ServiceLocator::GetSceneManager();
+    sceneManager->RegisterSceneLoadedCallback(SceneCallback("UIRenderer Callback"_h, std::bind(&UIRenderer::OnSceneLoaded, std::placeholders::_1)));
 }
 
 void UIRenderer::OnSceneLoaded(u32 sceneLoaded)
@@ -399,7 +405,7 @@ void UIRenderer::OnSceneLoaded(u32 sceneLoaded)
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     ScriptSceneSingleton& scriptSceneSingleton = registry->ctx<ScriptSceneSingleton>();
 
-    for (auto& sceneCallback : scriptSceneSingleton._sceneAnyLoadedCallback)
+    for (auto& sceneCallback : scriptSceneSingleton.sceneAnyLoadedCallback)
     {
         asIScriptContext* context = ScriptEngine::GetScriptContext();
         {
@@ -411,7 +417,7 @@ void UIRenderer::OnSceneLoaded(u32 sceneLoaded)
         }
     }
 
-    for (auto& sceneCallback : scriptSceneSingleton._sceneLoadedCallback[sceneLoaded])
+    for (auto& sceneCallback : scriptSceneSingleton.sceneLoadedCallback[sceneLoaded])
     {
         asIScriptContext* context = ScriptEngine::GetScriptContext();
         {
@@ -419,17 +425,7 @@ void UIRenderer::OnSceneLoaded(u32 sceneLoaded)
             {
                 context->SetArgDWord(0, sceneLoaded);
             }
-            i32 r = context->Execute();
-
-            if (r != asEXECUTION_FINISHED)
-            {
-                // The execution didn't complete as expected. Determine what happened.
-                if (r == asEXECUTION_EXCEPTION)
-                {
-                    // An exception occurred, let the script writer know what happened so it can be corrected.
-                    NC_LOG_ERROR("[Script]: An exception '%s' occurred. Please correct the code and try again.\n", context->GetExceptionString());
-                }
-            }
+            context->Execute();
         }
     }
 }
@@ -446,13 +442,13 @@ void UIRenderer::RegisterSceneLoadedCallback(std::string sceneName, std::string 
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     ScriptSceneSingleton& scriptSceneSingleton = registry->ctx<ScriptSceneSingleton>();
 
-    for (auto& sceneCallback : scriptSceneSingleton._sceneLoadedCallback[sceneHash])
+    for (auto& sceneCallback : scriptSceneSingleton.sceneLoadedCallback[sceneHash])
     {
         if (callbackNameHash == sceneCallback.callbackNameHashed)
             return;
     }
 
-    scriptSceneSingleton._sceneLoadedCallback[sceneHash].push_back( asSceneCallback(callbackNameHash, callback) );
+    scriptSceneSingleton.sceneLoadedCallback[sceneHash].push_back( asSceneCallback(callbackNameHash, callback) );
 }
 
 void UIRenderer::UnregisterSceneLoadedCallback(std::string sceneName, std::string callbackName)
@@ -467,11 +463,11 @@ void UIRenderer::UnregisterSceneLoadedCallback(std::string sceneName, std::strin
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     ScriptSceneSingleton& scriptSceneSingleton = registry->ctx<ScriptSceneSingleton>();
 
-    auto itr = std::find_if(scriptSceneSingleton._sceneLoadedCallback[sceneHash].begin(), scriptSceneSingleton._sceneLoadedCallback[sceneHash].end(), [callbackNameHash](const asSceneCallback& sceneCallback) -> bool { return callbackNameHash == sceneCallback.callbackNameHashed; });
-    if (itr == scriptSceneSingleton._sceneLoadedCallback[sceneHash].end())
+    auto itr = std::find_if(scriptSceneSingleton.sceneLoadedCallback[sceneHash].begin(), scriptSceneSingleton.sceneLoadedCallback[sceneHash].end(), [callbackNameHash](const asSceneCallback& sceneCallback) -> bool { return callbackNameHash == sceneCallback.callbackNameHashed; });
+    if (itr == scriptSceneSingleton.sceneLoadedCallback[sceneHash].end())
         return;
 
-    scriptSceneSingleton._sceneLoadedCallback[sceneHash].erase(itr);
+    scriptSceneSingleton.sceneLoadedCallback[sceneHash].erase(itr);
 }
 
 bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
@@ -490,8 +486,8 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         dataSingleton.focusedWidget = entt::null;
     }
 
-    auto eventGroup = registry->group<UITransform>(entt::get<UITransformEvents, UIVisible>);
-    //eventGroup.sort<UITransform>([](UITransform& left, UITransform& right) { return left.sortKey < right.sortKey; });
+    auto eventGroup = registry->group<>(entt::get<UITransform, UITransformEvents, UIVisible>);
+    eventGroup.sort<UITransform>([](UITransform& left, UITransform& right) { return left.sortKey > right.sortKey; });
     for (auto entity : eventGroup)
     {
         const UITransform& transform = eventGroup.get<UITransform>(entity);
