@@ -34,4 +34,7 @@ struct UITransform
     std::vector<UIChild> children;
     void* asObject = nullptr;
 
+    vec2 minBound = vec2(0, 0);
+    vec2 maxBound = vec2(0, 0);
+    bool includeChildBounds = false;
 };

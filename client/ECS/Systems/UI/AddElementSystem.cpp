@@ -11,6 +11,8 @@
 #include "../../Components/UI/UIImage.h"
 #include "../../Components/UI/UIText.h"
 
+#include "../../Components/UI/UICollision.h"
+
 #include "../../Components/UI/UIVisible.h"
 #include "../../Components/UI/UIVisiblity.h"
 
@@ -59,6 +61,7 @@ void AddElementSystem::Update(entt::registry& registry)
 
         if (element.type != UI::UIElementType::UITYPE_TEXT)
         {
+            registry.emplace<UICollision>(element.entityId);
             UITransformEvents& events = registry.emplace<UITransformEvents>(element.entityId);
             events.asObject = element.asObject;
         }

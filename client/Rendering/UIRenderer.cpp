@@ -12,6 +12,7 @@
 
 #include "../ECS/Components/UI/UITransform.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
+#include "../UI/UITransformUtils.h"
 
 #include "../ECS/Components/UI/UIRenderable.h"
 #include "../ECS/Components/UI/UIImage.h"
@@ -21,8 +22,7 @@
 
 #include "../ECS/Components/UI/UIVisible.h"
 #include "../ECS/Components/UI/UIDirty.h"
-
-#include "../UI/UITransformUtils.h"
+#include "../ECS/Components/UI/UICollision.h"
 
 #include "../Scripting/Classes/UI/asInputfield.h"
 
@@ -32,6 +32,7 @@
 #include <Window/Window.h>
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
+#include <tracy/Tracy.hpp>
 
 const u32 WIDTH = 1920;
 const u32 HEIGHT = 1080;
@@ -63,9 +64,6 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
 
     // Register entity pool.
     registry->set<UI::UIEntityPoolSingleton>().AllocatePool();
-
-    // Pre-construct render group. Groups perform initialization the first time they are requested, to avoid extra cost we do it before any components have been assigned.
-    registry->group<UITransform, UIVisible>();
 }
 
 void UIRenderer::Update(f32 deltaTime)
@@ -287,7 +285,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::BLEND_MODE_INV_SRC_ALPHA;
             pipelineDesc.states.blendState.renderTargets[0].srcBlendAlpha = Renderer::BlendMode::BLEND_MODE_ZERO;
             pipelineDesc.states.blendState.renderTargets[0].destBlendAlpha = Renderer::BlendMode::BLEND_MODE_ONE;
-            
+
             // Panel Shaders
             Renderer::VertexShaderDesc vertexShaderDesc;
             vertexShaderDesc.path = "Data/shaders/panel.vert.spv";
@@ -314,8 +312,10 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 
             commandList.SetSampler(1, _linearSampler);
 
+            ZoneScopedNC("UIRenderer::AddUIPass - Render", tracy::Color::Red)
+
             entt::registry* registry = ServiceLocator::GetUIRegistry();
-            auto renderGroup = registry->group<UITransform, UIRenderable, UIVisible>();
+            auto renderGroup = registry->group<UITransform>(entt::get<UIRenderable, UIVisible>);
             renderGroup.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
             renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &panelPipeline](const auto entity, UITransform& transform)
                 {
@@ -340,8 +340,6 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                         // Set constant buffer
                         commandList.SetConstantBuffer(0, text.constantBuffer->GetDescriptor(frameIndex), frameIndex);
 
-                        // Set sampler
-
                         // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
                         size_t glyphs = text.models.size();
                         for (u32 i = 0; i < glyphs; i++)
@@ -353,7 +351,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                             commandList.Draw(text.models[i]);
                         }
 
-                        commandList.PopMarker(); 
+                        commandList.PopMarker();
                         break;
                     }
                     default:
@@ -361,7 +359,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                         UIImage& image = registry->get<UIImage>(entity);
                         if (!image.constantBuffer)
                             return;
-                        
+
                         if (activePipeline != panelPipeline)
                         {
                             commandList.EndPipeline(activePipeline);
@@ -448,7 +446,7 @@ void UIRenderer::RegisterSceneLoadedCallback(std::string sceneName, std::string 
             return;
     }
 
-    scriptSceneSingleton.sceneLoadedCallback[sceneHash].push_back( asSceneCallback(callbackNameHash, callback) );
+    scriptSceneSingleton.sceneLoadedCallback[sceneHash].push_back(asSceneCallback(callbackNameHash, callback));
 }
 
 void UIRenderer::UnregisterSceneLoadedCallback(std::string sceneName, std::string callbackName)
@@ -486,19 +484,19 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         dataSingleton.focusedWidget = entt::null;
     }
 
-    auto eventGroup = registry->group<>(entt::get<UITransform, UITransformEvents, UIVisible>);
-    eventGroup.sort<UITransform>([](UITransform& left, UITransform& right) { return left.sortKey > right.sortKey; });
+    auto eventGroup = registry->group<UITransformEvents>(entt::get<UITransform, UICollision, UIVisible>);
+    eventGroup.sort<UITransform>([](const UITransform& left, const UITransform& right) { return left.sortKey > right.sortKey; });
     for (auto entity : eventGroup)
     {
         const UITransform& transform = eventGroup.get<UITransform>(entity);
         UITransformEvents& events = eventGroup.get<UITransformEvents>(entity);
 
-        const vec2 minBounds = UITransformUtils::GetMinBounds(transform);
-        const vec2 maxBounds = UITransformUtils::GetMaxBounds(transform);
+        const vec2 minBounds = transform.minBound;
+        const vec2 maxBounds = transform.maxBound;
 
         // Check so mouse if within widget bounds.
         if (!((mouse.x > minBounds.x && mouse.x < maxBounds.x) && (mouse.y > minBounds.y && mouse.y < maxBounds.y)))
-                continue;
+            continue;
 
         // Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it. But we still need to block clicking through it.
         if (lastFocusedWidget == entity)
@@ -508,7 +506,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         if (!events.flags)
             return true;
 
-        if (keybind->state)
+        if (keybind->state == GLFW_PRESS)
         {
             if (events.IsDraggable())
             {
@@ -569,7 +567,7 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
         break;
     }
     default:
-        if (events.IsClickable() && GLFW_KEY_ENTER)
+        if (key == GLFW_KEY_ENTER && events.IsClickable())
         {
             events.OnClick();
         }
@@ -588,16 +586,10 @@ bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
         return false;
 
     UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
-    switch (transform.sortData.type)
-    {
-    case UI::UIElementType::UITYPE_INPUTFIELD:
+    if (transform.sortData.type == UI::UIElementType::UITYPE_INPUTFIELD)
     {
         UI::asInputField* inputField = reinterpret_cast<UI::asInputField*>(transform.asObject);
         inputField->HandleCharInput((char)unicodeKey);
-        break;
-    }
-    default:
-        break;
     }
 
     return true;

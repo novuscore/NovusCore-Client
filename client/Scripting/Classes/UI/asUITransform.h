@@ -111,16 +111,18 @@ namespace UI
         const bool IsParentVisible() const { return _visibility.parentVisible; }
         virtual void SetVisible(bool visible);
     
-protected:
-        static void MarkDirty(entt::registry* uiRegistry, entt::entity entId);
-    
-        static void UpdateChildPositions(entt::registry* uiRegistry, UITransform& parent);
+        void SetCollisionEnabled(bool enabled);
 
-        static void UpdateChildPositionsInAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent);
+protected:
+        static void MarkDirty(entt::registry* registry, entt::entity entId);
+    
+        static void UpdateChildTransforms(entt::registry* uiRegistry, UITransform& parent);
+
+        static void UpdateChildTransformsAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent);
 
         static void UpdateChildVisiblity(entt::registry* uiRegistry, const UITransform& parent, bool parentVisiblity);
         
-        static void UpdateChildVisiblityInAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisibility);
+        static void UpdateChildVisiblityAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisibility);
 
     protected:
         entt::entity _entityId;
