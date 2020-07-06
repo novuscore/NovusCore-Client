@@ -146,7 +146,7 @@ void EngineLoop::Run()
                 buffer->Put(transform.moveFlags);
                 buffer->Put(position);
                 buffer->Put(rotation);
-                connectionSingleton.gameConnection->Send(buffer.get());
+                connectionSingleton.gameConnection->Send(buffer);
 
                 transform.position = position;
                 transform.rotation = rotation;

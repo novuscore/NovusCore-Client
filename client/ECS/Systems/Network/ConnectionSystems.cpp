@@ -23,7 +23,7 @@ void ConnectionUpdateSystem::Update(entt::registry& registry)
             NC_LOG_SUCCESS("[Network/Socket]: CMD: %u, Size: %u", packet->header.opcode, packet->header.size);
 #endif // NC_Debug
 
-            if (!authSocketMessageHandler->CallHandler(connectionSingleton.authConnection, packet.get()))
+            if (!authSocketMessageHandler->CallHandler(connectionSingleton.authConnection, packet))
             {
                 connectionSingleton.authConnection->Close(asio::error::shut_down);
                 connectionSingleton.authConnection = nullptr;
@@ -43,7 +43,7 @@ void ConnectionUpdateSystem::Update(entt::registry& registry)
             NC_LOG_SUCCESS("[Network/Socket]: CMD: %u, Size: %u", packet->header.opcode, packet->header.size);
 #endif // NC_Debug
 
-            if (!gameSocketMessageHandler->CallHandler(connectionSingleton.gameConnection, packet.get()))
+            if (!gameSocketMessageHandler->CallHandler(connectionSingleton.gameConnection, packet))
             {
                 connectionSingleton.gameConnection->Close(asio::error::shut_down);
                 connectionSingleton.gameConnection = nullptr;
@@ -64,7 +64,7 @@ void ConnectionUpdateSystem::AuthSocket_HandleConnect(BaseSocket* socket, bool c
         std::shared_ptr<Bytebuffer> buffer = Bytebuffer::Borrow<512>();
         buffer->Put(Opcode::MSG_REQUEST_ADDRESS);
         buffer->PutU16(0);
-        socket->Send(buffer.get());
+        socket->Send(buffer);
 
         socket->AsyncRead();
     }
@@ -151,7 +151,7 @@ void ConnectionUpdateSystem::GameSocket_HandleConnect(BaseSocket* socket, bool c
     u16 payloadSize = logonChallenge.Serialize(buffer, authentication.srp.aBuffer);
 
     buffer->Put<u16>(payloadSize, 2);
-    socket->Send(buffer.get());
+    socket->Send(buffer);
     socket->AsyncRead();
 }
 void ConnectionUpdateSystem::GameSocket_HandleRead(BaseSocket* socket)
