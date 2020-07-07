@@ -32,7 +32,7 @@ namespace UI
         r = ScriptEngine::RegisterScriptClassFunction("void OnFocus(InputFieldEventCallback@ cb)", asMETHOD(asInputField, SetOnFocusCallback)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void OnLostFocus(InputFieldEventCallback@ cb)", asMETHOD(asInputField, SetOnUnFocusCallback)); assert(r >= 0);
 
-        //Label Functions
+        //Text Functions
         r = ScriptEngine::RegisterScriptClassFunction("void SetText(string text, bool updateWriteHead = true)", asMETHOD(asInputField, SetText)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("string GetText()", asMETHOD(asInputField, GetText)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetTextColor(Color color)", asMETHOD(asInputField, SetTextColor)); assert(r >= 0);
@@ -46,11 +46,6 @@ namespace UI
 
     void asInputField::HandleKeyInput(i32 key)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-
-        UIInputField& inputField = registry->get<UIInputField>(GetEntityId());
-        UITransformEvents& events = registry->get<UITransformEvents>(GetEntityId());
-
         switch (key)
         {
         case GLFW_KEY_BACKSPACE:
@@ -66,11 +61,14 @@ namespace UI
             MovePointerRight();
             break;
         case GLFW_KEY_ENTER:
-            inputField.OnSubmit();
-            events.OnUnfocused();
+        {
+            entt::registry* registry = ServiceLocator::GetUIRegistry();
+            registry->get<UIInputField>(GetEntityId()).OnSubmit();
+            registry->get<UITransformEvents>(GetEntityId()).OnUnfocused();
 
             registry->ctx<UI::UIDataSingleton>().focusedWidget = entt::null;
             break;
+        }
         default:
             break;
         }
