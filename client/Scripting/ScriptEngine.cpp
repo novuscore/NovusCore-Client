@@ -15,6 +15,8 @@
 #include "Classes/UI/asButton.h"
 #include "Classes/UI/asInputfield.h"
 
+#include <entity/entity.hpp>
+
 #include "../Rendering/UIRenderer.h"
 
 thread_local asIScriptEngine* ScriptEngine::_scriptEngine = nullptr;
@@ -99,10 +101,17 @@ void ScriptEngine::RegisterFunctions()
     RegisterStdString(_scriptEngine);
     RegisterStdStringUtils(_scriptEngine);
 
+    // Entity type
+    RegisterScriptClass("Entity", sizeof(entt::entity),
+        asOBJ_VALUE |
+        asOBJ_POD |
+        asOBJ_APP_PRIMITIVE);
+
     // NovusCore Types
     ASMath::RegisterNamespace();
     ColorUtil::RegisterType();
     ASDataStorageUtils::RegisterNamespace();
+
 
     Player::RegisterType();
     UI::asUITransform::RegisterType();
