@@ -6,6 +6,7 @@
 #include "Addons/scriptstdstring/scriptstdstring.h"
 #include "Classes/Math/Math.h"
 #include "Classes/Math/ColorUtil.h"
+#include "Classes/DataStorage/DataStorageUtils.h"
 #include "Classes/Player.h"
 
 #include "Classes/UI/asUITransform.h"
@@ -101,6 +102,7 @@ void ScriptEngine::RegisterFunctions()
     // NovusCore Types
     ASMath::RegisterNamespace();
     ColorUtil::RegisterType();
+    ASDataStorageUtils::RegisterNamespace();
 
     Player::RegisterType();
     UI::asUITransform::RegisterType();
