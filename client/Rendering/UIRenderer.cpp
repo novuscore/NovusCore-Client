@@ -1,7 +1,15 @@
 #include "UIRenderer.h"
-#include "Camera.h"
+
+#include <Renderer/Renderer.h>
+#include <Renderer/Renderers/Vulkan/RendererVK.h>
+#include <Renderer/Descriptors/FontDesc.h>
+#include <Window/Window.h>
+#include <InputManager.h>
+#include <GLFW/glfw3.h>
+#include <tracy/Tracy.hpp>
 
 #include "../Utils/ServiceLocator.h"
+#include "../UI/UITransformUtils.h"
 
 #include "../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../ECS/Components/UI/Singletons/UIAddElementQueueSingleton.h"
@@ -9,7 +17,6 @@
 
 #include "../ECS/Components/UI/UITransform.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
-#include "../UI/UITransformUtils.h"
 
 #include "../ECS/Components/UI/UIRenderable.h"
 #include "../ECS/Components/UI/UIImage.h"
@@ -22,14 +29,6 @@
 #include "../ECS/Components/UI/UICollision.h"
 
 #include "../Scripting/Classes/UI/asInputfield.h"
-
-#include <Renderer/Renderer.h>
-#include <Renderer/Renderers/Vulkan/RendererVK.h>
-#include <Renderer/Descriptors/FontDesc.h>
-#include <Window/Window.h>
-#include <InputManager.h>
-#include <GLFW/glfw3.h>
-#include <tracy/Tracy.hpp>
 
 const u32 WIDTH = 1920;
 const u32 HEIGHT = 1080;

@@ -1,7 +1,5 @@
 #include "ColorUtil.h"
-#include <NovusTypes.h>
 #include "Math/Color.h"
-#include "../../dep/angelscript/angelscript/as_scriptengine.h"
 #include "../../ScriptEngine.h"
 
 static void Construct_RGBA(float r, float g, float b, float a, Color* out)

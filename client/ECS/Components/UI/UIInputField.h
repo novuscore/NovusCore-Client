@@ -6,11 +6,11 @@
 struct UIInputField
 {
 public:
-    UIInputField() : writeHeadIndex() ,onSubmitCallback(nullptr), asObject(nullptr) { }
+    UIInputField() { }
 
-    u32 writeHeadIndex;
-    asIScriptFunction* onSubmitCallback;
-    void* asObject;
+    u32 writeHeadIndex = 0;
+    asIScriptFunction* onSubmitCallback = nullptr;
+    void* asObject = nullptr;
 
     // Usually Components do not store logic, however this is an exception
 private:

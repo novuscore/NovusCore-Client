@@ -1,6 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include <entity/entity.hpp>
+#include <entity/fwd.hpp>
 
 namespace ASDataStorageUtils
 {

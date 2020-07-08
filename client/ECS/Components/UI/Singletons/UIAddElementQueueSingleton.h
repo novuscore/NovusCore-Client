@@ -1,6 +1,6 @@
 #pragma once
 #include <Utils/ConcurrentQueue.h>
-#include <entity/entity.hpp>
+#include <entity/fwd.hpp>
 #include "../../../../UI/UITypes.h"
 
 namespace UI
