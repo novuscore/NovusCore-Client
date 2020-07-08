@@ -7,6 +7,7 @@
 #include "Classes/Math/Math.h"
 #include "Classes/Math/ColorUtil.h"
 #include "Classes/DataStorage/DataStorageUtils.h"
+#include "Classes/SceneManager/SceneManagerUtils.h"
 #include "Classes/Player.h"
 
 #include "Classes/UI/asUITransform.h"
@@ -17,7 +18,6 @@
 
 #include <entity/entity.hpp>
 
-#include "../Rendering/UIRenderer.h"
 
 thread_local asIScriptEngine* ScriptEngine::_scriptEngine = nullptr;
 thread_local asIScriptContext* ScriptEngine::_scriptContext = nullptr;
@@ -111,7 +111,7 @@ void ScriptEngine::RegisterFunctions()
     ASMath::RegisterNamespace();
     ColorUtil::RegisterType();
     ASDataStorageUtils::RegisterNamespace();
-
+    ASSceneManagerUtils::RegisterNamespace();
 
     Player::RegisterType();
     UI::asUITransform::RegisterType();
@@ -119,8 +119,6 @@ void ScriptEngine::RegisterFunctions()
     UI::asLabel::RegisterType();
     UI::asButton::RegisterType();
     UI::asInputField::RegisterType();
-
-    UIRenderer::RegisterAngelFunctions();
 
     ScriptEngine::RegisterScriptFunction("void Print(string msg)", asFUNCTION(ScriptEngine::Print));
 }

@@ -27,7 +27,7 @@
 #include <Utils/StringUtils.h>
 #include <Utils/ConcurrentQueue.h>
 #include <taskflow/taskflow.hpp>
-#include <entt.hpp>
+#include <entity/fwd.hpp>
 #include <asio/io_service.hpp>
 
 namespace tf

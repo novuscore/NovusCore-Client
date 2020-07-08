@@ -17,9 +17,9 @@ struct asSceneCallback
     asIScriptFunction* callback;
 };
 
-struct ScriptSceneSingleton
+struct SceneManagerSingleton
 {
-    ScriptSceneSingleton() {}
+    SceneManagerSingleton() {}
 
     std::vector<asSceneCallback> sceneAnyLoadedCallback;
     robin_hood::unordered_map<u32, std::vector<asSceneCallback>> sceneLoadedCallback;

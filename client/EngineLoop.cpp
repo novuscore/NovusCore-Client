@@ -3,11 +3,9 @@
 #include <Utils/Timer.h>
 #include <tracy/Tracy.hpp>
 #include "Utils/ServiceLocator.h"
-#include "Utils/EntityUtils.h"
 #include <Networking/MessageHandler.h>
 #include "Utils/MapLoader.h"
 #include "Rendering/ClientRenderer.h"
-#include "Rendering/UIRenderer.h"
 #include "Rendering/Camera.h"
 #include <Renderer/Renderer.h>
 #include <SceneManager.h>
@@ -17,6 +15,7 @@
 #include "ECS/Components/Singletons/TimeSingleton.h"
 #include "ECS/Components/Singletons/ScriptSingleton.h"
 #include "ECS/Components/Singletons/DataStorageSingleton.h"
+#include "ECS/Components/Singletons/SceneManagerSingleton.h"
 #include "ECS/Components/Network/ConnectionSingleton.h"
 #include "ECS/Components/Network/AuthenticationSingleton.h"
 #include "ECS/Components/LocalplayerSingleton.h"
@@ -24,7 +23,6 @@
 #include "ECS/Components/UI/Singletons/UIDataSingleton.h"
 
 // Components
-#include "ECS/Components/Rendering/Model.h"
 #include "ECS/Components/Transform.h"
 
 // Systems
@@ -99,6 +97,7 @@ void EngineLoop::Run()
     TimeSingleton& timeSingleton = _updateFramework.gameRegistry.set<TimeSingleton>();
     ScriptSingleton& scriptSingleton = _updateFramework.gameRegistry.set<ScriptSingleton>();
     DataStorageSingleton& dataStorageSingleton = _updateFramework.gameRegistry.set<DataStorageSingleton>();
+    SceneManagerSingleton& sceneManagerSingleton = _updateFramework.gameRegistry.set<SceneManagerSingleton>();
     ConnectionSingleton& connectionSingleton = _updateFramework.gameRegistry.set<ConnectionSingleton>();
     AuthenticationSingleton& authenticationSingleton = _updateFramework.gameRegistry.set<AuthenticationSingleton>();
     LocalplayerSingleton& localplayerSingleton = _updateFramework.gameRegistry.set<LocalplayerSingleton>();
