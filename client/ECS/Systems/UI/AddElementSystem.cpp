@@ -14,7 +14,7 @@
 #include "../../Components/UI/UICollision.h"
 
 #include "../../Components/UI/UIVisible.h"
-#include "../../Components/UI/UIVisiblity.h"
+#include "../../Components/UI/UIVisibility.h"
 
 #include "../../Components/UI/UIInputField.h"
 
@@ -33,7 +33,7 @@ void AddElementSystem::Update(entt::registry& registry)
         transform.asObject = element.asObject;
 
         registry.emplace<UIVisible>(element.entityId);
-        registry.emplace<UIVisiblity>(element.entityId);
+        registry.emplace<UIVisibility>(element.entityId);
 
         switch (element.type)
         {

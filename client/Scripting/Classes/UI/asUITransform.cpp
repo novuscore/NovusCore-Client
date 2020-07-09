@@ -8,7 +8,6 @@
 #include "../../../ECS/Components/UI/UIVisible.h"
 #include "../../../ECS/Components/UI/UICollision.h"
 #include "../../../ECS/Components/UI/UIDirty.h"
-
 #include "../../../UI/UITransformUtils.h"
 
 namespace UI
@@ -226,11 +225,11 @@ namespace UI
         // Add ourselves to parent's angelscript object children
         UITransformUtils::AddChild(parentTransform, _entityId, _elementType);
 
-        // Update visiblity
-        UIVisiblity& parentVisibility = parent->_visibility;
+        // Update visibility
+        UIVisibility& parentVisibility = parent->_visibility;
         _visibility.parentVisible = parentVisibility.parentVisible && parentVisibility.visible;
 
-        UpdateChildVisiblityAngelScript(uiDataSingleton, _transform, _visibility.parentVisible && _visibility.visible);
+        UpdateChildVisibilityAngelScript(uiDataSingleton, _transform, _visibility.parentVisible && _visibility.visible);
 
         // TRANSACTION
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
@@ -243,7 +242,7 @@ namespace UI
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& transform = uiRegistry->get<UITransform>(entityId);
-                UIVisiblity& visiblity = uiRegistry->get<UIVisiblity>(entityId);
+                UIVisibility& visibility = uiRegistry->get<UIVisibility>(entityId);
 
                 // Remove old parent.
                 if (transform.parent)
@@ -253,7 +252,7 @@ namespace UI
                     //Remove from parents children.
                     UITransformUtils::RemoveChild(oldParentTransform, entityId);
 
-                    visiblity.parentVisible = true;
+                    visibility.parentVisible = true;
                 }
 
                 // Set new parent.
@@ -267,11 +266,11 @@ namespace UI
                 UITransform& parentTransform = uiRegistry->get<UITransform>(parentEntityId);
                 UITransformUtils::AddChild(parentTransform, entityId, elementType);
 
-                // Update visiblity.
-                UIVisiblity& parentVisibility = uiRegistry->get<UIVisiblity>(parentEntityId);
-                visiblity.parentVisible = parentVisibility.parentVisible && parentVisibility.visible;
+                // Update visibility.
+                UIVisibility& parentVisibility = uiRegistry->get<UIVisibility>(parentEntityId);
+                visibility.parentVisible = parentVisibility.parentVisible && parentVisibility.visible;
 
-                UpdateChildVisiblity(uiRegistry, transform, visiblity.parentVisible && visiblity.visible);
+                UpdateChildVisibility(uiRegistry, transform, visibility.parentVisible && visibility.visible);
             });
     }
 
@@ -305,7 +304,7 @@ namespace UI
 
         _visibility.visible = visible;
 
-        UpdateChildVisiblityAngelScript(uiDataSingleton, _transform, _visibility.parentVisible && _visibility.visible);
+        UpdateChildVisibilityAngelScript(uiDataSingleton, _transform, _visibility.parentVisible && _visibility.visible);
 
         // TRANSACTION
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
@@ -313,18 +312,18 @@ namespace UI
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([visible, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UIVisiblity& uiVisibility = uiRegistry->get<UIVisiblity>(entId);
+                UIVisibility& uiVisibility = uiRegistry->get<UIVisibility>(entId);
 
-                const bool visiblityChanged = uiVisibility.visible != visible;
-                if (!visiblityChanged)
+                const bool visibilityChanged = uiVisibility.visible != visible;
+                if (!visibilityChanged)
                     return;
 
                 uiVisibility.visible = visible;
 
-                const bool newVisiblity = uiVisibility.parentVisible && uiVisibility.visible;
-                UpdateChildVisiblity(uiRegistry, uiRegistry->get<UITransform>(entId), newVisiblity);
+                const bool newVisibility = uiVisibility.parentVisible && uiVisibility.visible;
+                UpdateChildVisibility(uiRegistry, uiRegistry->get<UITransform>(entId), newVisibility);
 
-                if (newVisiblity)
+                if (newVisibility)
                     uiRegistry->emplace<UIVisible>(entId);
                 else
                     uiRegistry->remove<UIVisible>(entId);
@@ -386,29 +385,29 @@ namespace UI
         }
     }
 
-    void asUITransform::UpdateChildVisiblity(entt::registry* uiRegistry, const UITransform& parent, bool parentVisiblity)
+    void asUITransform::UpdateChildVisibility(entt::registry* uiRegistry, const UITransform& parent, bool parentVisibility)
     {
         for (const UIChild& child : parent.children)
         {
             const entt::entity childEntity = entt::entity(child.entity);
-            UIVisiblity& uiChildVisiblity = uiRegistry->get<UIVisiblity>(childEntity);
+            UIVisibility& uiChildVisibility = uiRegistry->get<UIVisibility>(childEntity);
 
-            const bool visiblityChanged = uiChildVisiblity.parentVisible != parentVisiblity;
-            if (!visiblityChanged)
+            const bool visibilityChanged = uiChildVisibility.parentVisible != parentVisibility;
+            if (!visibilityChanged)
                 continue;
 
-            uiChildVisiblity.parentVisible = parentVisiblity;
+            uiChildVisibility.parentVisible = parentVisibility;
 
-            const bool newVisiblity = uiChildVisiblity.parentVisible && uiChildVisiblity.visible;
-            UpdateChildVisiblity(uiRegistry, uiRegistry->get<UITransform>(childEntity), newVisiblity);
+            const bool newVisibility = uiChildVisibility.parentVisible && uiChildVisibility.visible;
+            UpdateChildVisibility(uiRegistry, uiRegistry->get<UITransform>(childEntity), newVisibility);
 
-            if (newVisiblity)
+            if (newVisibility)
                 uiRegistry->emplace<UIVisible>(entt::entity(child.entity));
             else
                 uiRegistry->remove<UIVisible>(entt::entity(child.entity));
         }
     }
-    void asUITransform::UpdateChildVisiblityAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisiblity)
+    void asUITransform::UpdateChildVisibilityAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisibility)
     {
         for (const UIChild& child : parent.children)
         {
@@ -417,16 +416,16 @@ namespace UI
                 continue;
 
             asUITransform* asChild = iterator->getSecond();
-            UIVisiblity& uiChildVisiblity = asChild->_visibility;
+            UIVisibility& uiChildVisibility = asChild->_visibility;
 
-            const bool visiblityChanged = uiChildVisiblity.parentVisible != parentVisiblity;
-            if (!visiblityChanged)
+            const bool visibilityChanged = uiChildVisibility.parentVisible != parentVisibility;
+            if (!visibilityChanged)
                 continue;
 
-            uiChildVisiblity.parentVisible = parentVisiblity;
+            uiChildVisibility.parentVisible = parentVisibility;
 
-            const bool newVisiblity = uiChildVisiblity.parentVisible && uiChildVisiblity.visible;
-            UpdateChildVisiblityAngelScript(uiDataSingleton, asChild->_transform, newVisiblity);
+            const bool newVisibility = uiChildVisibility.parentVisible && uiChildVisibility.visible;
+            UpdateChildVisibilityAngelScript(uiDataSingleton, asChild->_transform, newVisibility);
         }
     }
 

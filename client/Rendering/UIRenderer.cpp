@@ -50,7 +50,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
     registry->prepare<UIText>();
 
     registry->prepare<UIVisible>();
-    registry->prepare<UIVisiblity>();
+    registry->prepare<UIVisibility>();
 
     // Register UI singletons.
     registry->set<UI::UIDataSingleton>();
