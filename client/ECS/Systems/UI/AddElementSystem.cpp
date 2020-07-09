@@ -6,16 +6,12 @@
 #include "../../Components/UI/Singletons/UIAddElementQueueSingleton.h"
 #include "../../Components/UI/UITransform.h"
 #include "../../Components/UI/UITransformEvents.h"
-
 #include "../../Components/UI/UIRenderable.h"
 #include "../../Components/UI/UIImage.h"
 #include "../../Components/UI/UIText.h"
-
 #include "../../Components/UI/UICollision.h"
-
 #include "../../Components/UI/UIVisible.h"
 #include "../../Components/UI/UIVisibility.h"
-
 #include "../../Components/UI/UIInputField.h"
 
 void AddElementSystem::Update(entt::registry& registry)

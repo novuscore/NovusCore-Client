@@ -115,7 +115,7 @@ namespace UI
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
 
-        asLabel* label = new asLabel(entityPool.DeQeueueId());
+        asLabel* label = new asLabel(entityPool.GetId());
 
         return label;
     }

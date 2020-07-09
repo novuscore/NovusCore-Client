@@ -140,7 +140,7 @@ namespace UI
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
 
-        asButton* button = new asButton(entityPool.DeQeueueId());
+        asButton* button = new asButton(entityPool.GetId());
 
         return button;
     }

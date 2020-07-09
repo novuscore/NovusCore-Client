@@ -95,9 +95,9 @@ namespace UI
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([texture, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UIImage& renderable = uiRegistry->get<UIImage>(entId);
+                UIImage& image = uiRegistry->get<UIImage>(entId);
 
-                renderable.texture = texture;
+                image.texture = texture;
                 MarkDirty(uiRegistry, entId);
             });
     }
@@ -110,9 +110,9 @@ namespace UI
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([color, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UIImage& renderable = uiRegistry->get<UIImage>(entId);
+                UIImage& image = uiRegistry->get<UIImage>(entId);
 
-                renderable.color = color;
+                image.color = color;
                 MarkDirty(uiRegistry, entId);
             });
     }
@@ -122,7 +122,7 @@ namespace UI
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
 
-        asPanel* panel = new asPanel(entityPool.DeQeueueId());
+        asPanel* panel = new asPanel(entityPool.GetId());
         
         return panel;
     }

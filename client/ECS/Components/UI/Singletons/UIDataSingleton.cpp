@@ -16,7 +16,6 @@ namespace UI
         for (auto asObject : entityToAsObject)
         {
             entityIds.push_back(asObject.first);
-
             delete asObject.second;
         }
         entityToAsObject.clear();

@@ -64,8 +64,8 @@ void UIRenderer::Update(f32 deltaTime)
 {
     entt::registry* registry = ServiceLocator::GetUIRegistry();
 
-    auto renderableView = registry->view<UITransform, UIImage, UIDirty>();
-    renderableView.each([this, registry](const auto entity, UITransform& transform, UIImage& image)
+    auto imageView = registry->view<UITransform, UIImage, UIDirty>();
+    imageView.each([this, registry](const auto entity, UITransform& transform, UIImage& image)
         {
             // Renderable Updates
             if (image.texture.length() == 0)
@@ -114,7 +114,6 @@ void UIRenderer::Update(f32 deltaTime)
                 _renderer->UpdatePrimitiveModel(image.modelID, primitiveModelDesc);
             }
         });
-    registry->remove<UIDirty>(renderableView.begin(), renderableView.end());
 
     auto textView = registry->view<UITransform, UIText, UIDirty>();
     textView.each([this, registry](const auto entity, UITransform& transform, UIText& text)
@@ -209,7 +208,8 @@ void UIRenderer::Update(f32 deltaTime)
             text.constantBuffer->Apply(0);
             text.constantBuffer->Apply(1);
         });
-    registry->remove<UIDirty>(textView.begin(), textView.end());
+
+    registry->clear<UIDirty>();
 }
 
 void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex)

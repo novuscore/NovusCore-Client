@@ -11,10 +11,8 @@ namespace UI
     public:
         UIEntityPoolSingleton() : entityIdPool(ENTITIES_TO_PREALLOCATE) { }
 
-        entt::entity DeQeueueId();
-
         void AllocatePool();
-
+        entt::entity GetId();
     private:
         moodycamel::ConcurrentQueue<entt::entity> entityIdPool;
     };

@@ -5,8 +5,6 @@
 #include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
 
-#include "../../../ECS/Components/UI/UIDirty.h"
-
 #include <GLFW/glfw3.h>
 
 namespace UI
@@ -63,8 +61,9 @@ namespace UI
         case GLFW_KEY_ENTER:
         {
             entt::registry* registry = ServiceLocator::GetUIRegistry();
-            registry->get<UIInputField>(GetEntityId()).OnSubmit();
-            registry->get<UITransformEvents>(GetEntityId()).OnUnfocused();
+            entt::entity Id = GetEntityId();
+            registry->get<UIInputField>(Id).OnSubmit();
+            registry->get<UITransformEvents>(Id).OnUnfocused();
 
             registry->ctx<UI::UIDataSingleton>().focusedWidget = entt::null;
             break;
@@ -304,7 +303,7 @@ namespace UI
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
 
-        asInputField* inputField = new asInputField(entityPool.DeQeueueId());
+        asInputField* inputField = new asInputField(entityPool.GetId());
 
         return inputField;
     }

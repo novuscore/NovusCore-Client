@@ -337,6 +337,8 @@ namespace UI
         gameRegistry->ctx<ScriptSingleton>().AddTransaction([enabled, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+                
+                // Check if collision enabled state is the same as what we are trying to set. If so doing anything would be redundant.
                 if (uiRegistry->has<UICollision>(entId) == enabled)
                     return;
 

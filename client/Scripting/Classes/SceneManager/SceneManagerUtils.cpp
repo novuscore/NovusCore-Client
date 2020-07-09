@@ -1,6 +1,5 @@
 #include "SceneManagerUtils.h"
 #include "../../ScriptEngine.h"
-
 #include "../../../Utils/ServiceLocator.h"
 #include "../scenemanager-lib/SceneManager.h"
 
