@@ -118,12 +118,13 @@ protected:
         static void MarkDirty(entt::registry* registry, entt::entity entId);
     
         static void UpdateChildTransforms(entt::registry* uiRegistry, UITransform& parent);
-
         static void UpdateChildTransformsAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent);
 
         static void UpdateChildVisiblity(entt::registry* uiRegistry, const UITransform& parent, bool parentVisiblity);
-        
         static void UpdateChildVisiblityAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisibility);
+
+        static void UpdateBounds(entt::registry* uiRegistry, UITransform& transform);
+        static void UpdateParentBounds(entt::registry* uiRegistry, UITransform& parent, vec2 childMin, vec2 childMax);
 
     protected:
         entt::entity _entityId;

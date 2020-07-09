@@ -367,8 +367,9 @@ namespace UI
 
             MarkDirty(uiRegistry, entId);
         }
-    }
 
+        UpdateBounds(uiRegistry, parent);
+    }
     void asUITransform::UpdateChildTransformsAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent)
     {
         for (UIChild& child : parent.children)
@@ -407,7 +408,6 @@ namespace UI
                 uiRegistry->remove<UIVisible>(entt::entity(child.entity));
         }
     }
-
     void asUITransform::UpdateChildVisiblityAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisiblity)
     {
         for (const UIChild& child : parent.children)
@@ -428,5 +428,38 @@ namespace UI
             const bool newVisiblity = uiChildVisiblity.parentVisible && uiChildVisiblity.visible;
             UpdateChildVisiblityAngelScript(uiDataSingleton, asChild->_transform, newVisiblity);
         }
+    }
+
+    void asUITransform::UpdateBounds(entt::registry* uiRegistry, UITransform& transform)
+    {
+        transform.minBound = UITransformUtils::GetMinBounds(transform);
+        transform.maxBound = UITransformUtils::GetMaxBounds(transform);
+
+        if (transform.includeChildBounds)
+        {
+            for (const UIChild& child : transform.children)
+            {
+                UpdateBounds(uiRegistry, uiRegistry->get<UITransform>(entt::entity(child.entity)));
+            }
+        }
+
+        if (!transform.parent)
+            return;
+
+        UpdateParentBounds(uiRegistry, uiRegistry->get<UITransform>(entt::entity(transform.parent)), transform.minBound, transform.maxBound);
+    }
+    void asUITransform::UpdateParentBounds(entt::registry* uiRegistry, UITransform& parent, vec2 childMin, vec2 childMax)
+    {
+        if (!parent.includeChildBounds)
+            return;
+
+        if (childMin.x < parent.minBound.x) parent.minBound.x = childMin.x;
+        if (childMin.y < parent.minBound.y) parent.minBound.y = childMin.y;
+
+        if (childMax.x > parent.maxBound.x) parent.maxBound.x = childMax.x;
+        if (childMax.y > parent.maxBound.y) parent.maxBound.y = childMax.y;
+
+        if (parent.parent)
+            UpdateParentBounds(uiRegistry, uiRegistry->get<UITransform>(entt::entity(parent.parent)), parent.minBound, parent.maxBound);
     }
 }
