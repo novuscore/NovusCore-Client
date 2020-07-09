@@ -4,7 +4,7 @@
 
 #include "../../ScriptEngine.h"
 #include "../../../ECS/Components/UI/UITransform.h"
-#include "../../../ECS/Components/UI/UIVisiblity.h"
+#include "../../../ECS/Components/UI/UIVisibility.h"
 #include "../../../ECS/Components/UI/Singletons/UIDataSingleton.h"
 
 namespace UI
@@ -120,8 +120,8 @@ protected:
         static void UpdateChildTransforms(entt::registry* uiRegistry, UITransform& parent);
         static void UpdateChildTransformsAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent);
 
-        static void UpdateChildVisiblity(entt::registry* uiRegistry, const UITransform& parent, bool parentVisiblity);
-        static void UpdateChildVisiblityAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisibility);
+        static void UpdateChildVisibility(entt::registry* uiRegistry, const UITransform& parent, bool parentVisibility);
+        static void UpdateChildVisibilityAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisibility);
 
         static void UpdateBounds(entt::registry* uiRegistry, UITransform& transform);
         static void UpdateParentBounds(entt::registry* uiRegistry, UITransform& parent, vec2 childMin, vec2 childMax);
@@ -131,6 +131,6 @@ protected:
         UIElementType _elementType;
 
         UITransform _transform;
-        UIVisiblity _visibility;
+        UIVisibility _visibility;
     };
 }
