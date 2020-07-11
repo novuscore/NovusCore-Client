@@ -274,19 +274,6 @@ namespace UI
             });
     }
 
-    void asUITransform::Destroy()
-    {
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = _entityId;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([entId]()
-            {
-                entt::registry* registry = ServiceLocator::GetUIRegistry();
-                UIDataSingleton& dataSingleton = registry->ctx<UIDataSingleton>();
-
-                dataSingleton.DestroyWidget(entId);
-            });
-    }
-
     const vec2 asUITransform::GetMinBound() const
     {
         return UITransformUtils::GetMinBounds(_transform);
@@ -302,9 +289,13 @@ namespace UI
         entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
         UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
 
-        _visibility.visible = visible;
+        //Don't do anything if new visibility isn't different from the old one.
+        if (_visibility.visible != visible)
+        {
+            _visibility.visible = visible;
 
-        UpdateChildVisibilityAngelScript(uiDataSingleton, _transform, _visibility.parentVisible && _visibility.visible);
+            UpdateChildVisibilityAngelScript(uiDataSingleton, _transform, _visibility.parentVisible && _visibility.visible);
+        }
 
         // TRANSACTION
         entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
@@ -314,8 +305,8 @@ namespace UI
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UIVisibility& uiVisibility = uiRegistry->get<UIVisibility>(entId);
 
-                const bool visibilityChanged = uiVisibility.visible != visible;
-                if (!visibilityChanged)
+                //Don't do anything if new visibility isn't different from the old one.
+                if (!uiVisibility.visible != visible)
                     return;
 
                 uiVisibility.visible = visible;
@@ -346,6 +337,19 @@ namespace UI
                     uiRegistry->emplace<UICollision>(entId);
                 else
                     uiRegistry->remove<UICollision>(entId);
+            });
+    }
+
+    void asUITransform::Destroy()
+    {
+        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        entt::entity entId = _entityId;
+        gameRegistry->ctx<ScriptSingleton>().AddTransaction([entId]()
+            {
+                entt::registry* registry = ServiceLocator::GetUIRegistry();
+                UIDataSingleton& dataSingleton = registry->ctx<UIDataSingleton>();
+
+                dataSingleton.DestroyWidget(entId);
             });
     }
 

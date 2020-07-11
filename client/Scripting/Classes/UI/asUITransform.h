@@ -102,8 +102,6 @@ namespace UI
 
         virtual void SetParent(asUITransform* parent);
         
-        virtual void Destroy();
-
         const vec2 GetMinBound() const;
         const vec2 GetMaxBound() const;
 
@@ -114,6 +112,7 @@ namespace UI
     
         void SetCollisionEnabled(bool enabled);
 
+        virtual void Destroy();
 protected:
         static void MarkDirty(entt::registry* registry, entt::entity entId);
     
