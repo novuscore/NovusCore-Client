@@ -16,11 +16,12 @@ namespace Renderer
         class ImageHandlerVK
         {
         public:
-            ImageHandlerVK();
-            ~ImageHandlerVK();
+            void Init(RenderDeviceVK* device);
 
-            ImageID CreateImage(RenderDeviceVK* device, const ImageDesc& desc);
-            DepthImageID CreateDepthImage(RenderDeviceVK* device, const DepthImageDesc& desc);
+            void OnWindowResize();
+
+            ImageID CreateImage(const ImageDesc& desc);
+            DepthImageID CreateDepthImage(const DepthImageDesc& desc);
 
             const ImageDesc& GetImageDesc(const ImageID id);
             const DepthImageDesc& GetDepthImageDesc(const DepthImageID id);
@@ -50,7 +51,12 @@ namespace Renderer
                 VkImageView depthView;
             };
 
+            void CreateImage(Image& image);
+            void CreateImage(DepthImage& image);
+
         private:
+            RenderDeviceVK* _device;
+
             std::vector<Image> _images;
             std::vector<DepthImage> _depthImages;
         };

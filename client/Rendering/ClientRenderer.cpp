@@ -18,25 +18,34 @@ const size_t FRAME_ALLOCATOR_SIZE = 8 * 1024 * 1024; // 8 MB
 u32 MAIN_RENDER_LAYER = "MainLayer"_h; // _h will compiletime hash the string into a u32
 u32 DEPTH_PREPASS_RENDER_LAYER = "DepthPrepass"_h; // _h will compiletime hash the string into a u32
 
-void key_callback(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 modifiers)
+void KeyCallback(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 modifiers)
 {
     Window* userWindow = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
     ServiceLocator::GetInputManager()->KeyboardInputHandler(userWindow, key, scancode, action, modifiers);
 }
-void char_callback(GLFWwindow* window, u32 unicodeKey)
+
+void CharCallback(GLFWwindow* window, u32 unicodeKey)
 {
     Window* userWindow = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
     ServiceLocator::GetInputManager()->CharInputHandler(userWindow, unicodeKey);
 }
-void mouse_callback(GLFWwindow* window, i32 button, i32 action, i32 modifiers)
+
+void MouseCallback(GLFWwindow* window, i32 button, i32 action, i32 modifiers)
 {
     Window* userWindow = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
     ServiceLocator::GetInputManager()->MouseInputHandler(userWindow, button, action, modifiers);
 }
-void cursor_position_callback(GLFWwindow* window, f64 x, f64 y)
+
+void CursorPositionCallback(GLFWwindow* window, f64 x, f64 y)
 {
     Window* userWindow = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
     ServiceLocator::GetInputManager()->MousePositionHandler(userWindow, static_cast<f32>(x), static_cast<f32>(y));
+}
+
+void WindowIconifyCallback(GLFWwindow* window, int iconified)
+{
+    Window* userWindow = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
+    userWindow->SetIsMinimized(iconified == 1);
 }
 
 ClientRenderer::ClientRenderer()
@@ -55,10 +64,11 @@ ClientRenderer::ClientRenderer()
     // We have to call Init here as we use the InputManager
     _camera->Init();
 
-    glfwSetKeyCallback(_window->GetWindow(), key_callback);
-    glfwSetCharCallback(_window->GetWindow(), char_callback);
-    glfwSetMouseButtonCallback(_window->GetWindow(), mouse_callback);
-    glfwSetCursorPosCallback(_window->GetWindow(), cursor_position_callback);
+    glfwSetKeyCallback(_window->GetWindow(), KeyCallback);
+    glfwSetCharCallback(_window->GetWindow(), CharCallback);
+    glfwSetMouseButtonCallback(_window->GetWindow(), MouseCallback);
+    glfwSetCursorPosCallback(_window->GetWindow(), CursorPositionCallback);
+    glfwSetWindowIconifyCallback(_window->GetWindow(), WindowIconifyCallback);
 
     Renderer::TextureDesc debugTexture;
     debugTexture.path = "Data/textures/DebugTexture.bmp";
@@ -114,6 +124,10 @@ void ClientRenderer::Update(f32 deltaTime)
 
 void ClientRenderer::Render()
 {
+    // If the window is minimized we want to pause rendering
+    if (_window->IsMinimized())
+        return;
+
     // Create rendergraph
     Renderer::RenderGraphDesc renderGraphDesc;
     renderGraphDesc.allocator = _frameAllocator; // We need to give our rendergraph an allocator to use
@@ -145,12 +159,6 @@ void ClientRenderer::Render()
             vertexShaderDesc.path = "Data/shaders/depthprepass.vs.hlsl.spv";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
-            // Constant buffers  TODO: Improve on this, if I set state 0 and 3 it won't work etc...
-            pipelineDesc.states.constantBufferStates[0].enabled = true; // ViewCB
-            pipelineDesc.states.constantBufferStates[0].shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_VERTEX;
-            pipelineDesc.states.constantBufferStates[1].enabled = true; // ModelCB
-            pipelineDesc.states.constantBufferStates[1].shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_VERTEX;
-
             // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
             pipelineDesc.states.inputLayouts[0].enabled = true;
             pipelineDesc.states.inputLayouts[0].SetName("POSITION");
@@ -164,20 +172,6 @@ void ClientRenderer::Render()
             pipelineDesc.states.inputLayouts[2].SetName("TEXCOORD");
             pipelineDesc.states.inputLayouts[2].format = Renderer::InputFormat::INPUT_FORMAT_R32G32_FLOAT;
             pipelineDesc.states.inputLayouts[2].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
-
-            // Viewport
-            pipelineDesc.states.viewport.topLeftX = 0;
-            pipelineDesc.states.viewport.topLeftY = 0;
-            pipelineDesc.states.viewport.width = static_cast<f32>(WIDTH);
-            pipelineDesc.states.viewport.height = static_cast<f32>(HEIGHT);
-            pipelineDesc.states.viewport.minDepth = 0.0f;
-            pipelineDesc.states.viewport.maxDepth = 1.0f;
-
-            // ScissorRect
-            pipelineDesc.states.scissorRect.left = 0;
-            pipelineDesc.states.scissorRect.right = WIDTH;
-            pipelineDesc.states.scissorRect.top = 0;
-            pipelineDesc.states.scissorRect.bottom = HEIGHT;
 
             // Depth state
             pipelineDesc.states.depthStencilState.depthEnable = true;
@@ -197,6 +191,9 @@ void ClientRenderer::Render()
             // Set pipeline
             Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
             commandList.BeginPipeline(pipeline);
+
+            commandList.SetViewport(0, 0, static_cast<f32>(WIDTH), static_cast<f32>(HEIGHT), 0.0f, 1.0f);
+            commandList.SetScissorRect(0, WIDTH, 0, HEIGHT);
 
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, _frameIndex);
 
@@ -258,12 +255,6 @@ void ClientRenderer::Render()
             pixelShaderDesc.path = "Data/shaders/test.ps.hlsl.spv";
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
-            // Constant buffers  TODO: Improve on this, if I set state 0 and 3 it won't work etc...
-            pipelineDesc.states.constantBufferStates[0].enabled = true; // ViewCB
-            pipelineDesc.states.constantBufferStates[0].shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_VERTEX;
-            pipelineDesc.states.constantBufferStates[1].enabled = true; // ModelCB
-            pipelineDesc.states.constantBufferStates[1].shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_VERTEX;
-
             // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
             pipelineDesc.states.inputLayouts[0].enabled = true;
             pipelineDesc.states.inputLayouts[0].SetName("POSITION");
@@ -278,20 +269,6 @@ void ClientRenderer::Render()
             pipelineDesc.states.inputLayouts[2].format = Renderer::InputFormat::INPUT_FORMAT_R32G32_FLOAT;
             pipelineDesc.states.inputLayouts[2].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
 
-            // Viewport
-            pipelineDesc.states.viewport.topLeftX = 0;
-            pipelineDesc.states.viewport.topLeftY = 0;
-            pipelineDesc.states.viewport.width = static_cast<f32>(WIDTH);
-            pipelineDesc.states.viewport.height = static_cast<f32>(HEIGHT);
-            pipelineDesc.states.viewport.minDepth = 0.0f;
-            pipelineDesc.states.viewport.maxDepth = 1.0f;
-
-            // ScissorRect
-            pipelineDesc.states.scissorRect.left = 0;
-            pipelineDesc.states.scissorRect.right = WIDTH;
-            pipelineDesc.states.scissorRect.top = 0;
-            pipelineDesc.states.scissorRect.bottom = HEIGHT;
-
             // Depth state
             pipelineDesc.states.depthStencilState.depthEnable = true;
             pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_EQUAL;
@@ -299,12 +276,6 @@ void ClientRenderer::Render()
             // Rasterizer state
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
             pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
-
-            // Samplers TODO: We don't care which samplers we have here, we just need the number of samplers
-            pipelineDesc.states.samplers[0].enabled = true;
-
-            // Textures TODO: We don't care which textures we have here, we just need the number of textures
-            pipelineDesc.textures[0] = data.cubeTexture;
 
             // Render targets
             pipelineDesc.renderTargets[0] = data.mainColor;
@@ -361,7 +332,8 @@ void ClientRenderer::CreatePermanentResources()
     // Main color rendertarget
     Renderer::ImageDesc mainColorDesc;
     mainColorDesc.debugName = "MainColor";
-    mainColorDesc.dimensions = ivec2(WIDTH, HEIGHT);
+    mainColorDesc.dimensions = vec2(1.0f, 1.0f);
+    mainColorDesc.dimensionType = Renderer::ImageDimensionType::DIMENSION_SCALE;
     mainColorDesc.format = Renderer::IMAGE_FORMAT_R16G16B16A16_FLOAT;
     mainColorDesc.sampleCount = Renderer::SAMPLE_COUNT_1;
 
@@ -370,7 +342,8 @@ void ClientRenderer::CreatePermanentResources()
     // Main depth rendertarget
     Renderer::DepthImageDesc mainDepthDesc;
     mainDepthDesc.debugName = "MainDepth";
-    mainDepthDesc.dimensions = ivec2(WIDTH, HEIGHT);
+    mainDepthDesc.dimensions = vec2(1.0f, 1.0f);
+    mainDepthDesc.dimensionType = Renderer::ImageDimensionType::DIMENSION_SCALE;
     mainDepthDesc.format = Renderer::DEPTH_IMAGE_FORMAT_D32_FLOAT;
     mainDepthDesc.sampleCount = Renderer::SAMPLE_COUNT_1;
 

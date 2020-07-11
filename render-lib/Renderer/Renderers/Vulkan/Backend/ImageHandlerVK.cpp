@@ -9,17 +9,43 @@ namespace Renderer
 {
     namespace Backend
     {
-        ImageHandlerVK::ImageHandlerVK()
+        void ImageHandlerVK::Init(RenderDeviceVK* device)
         {
-
+            _device = device;
         }
 
-        ImageHandlerVK::~ImageHandlerVK()
+        void ImageHandlerVK::OnWindowResize()
         {
+            // Recreate color images
+            for (auto& image : _images)
+            {
+                if (image.desc.dimensionType == ImageDimensionType::DIMENSION_SCALE)
+                {
+                    // Destroy old image
+                    vkDestroyImageView(_device->_device, image.colorView, nullptr);
+                    vmaDestroyImage(_device->_allocator, image.image, image.allocation);
+                    
+                    // Create new
+                    CreateImage(image);
+                }
+            }
 
+            // Recreate depth images
+            for (auto& image : _depthImages)
+            {
+                if (image.desc.dimensionType == ImageDimensionType::DIMENSION_SCALE)
+                {
+                    // Destroy old image
+                    vkDestroyImageView(_device->_device, image.depthView, nullptr);
+                    vmaDestroyImage(_device->_allocator, image.image, image.allocation);
+
+                    // Create new
+                    CreateImage(image);
+                }
+            }
         }
 
-        ImageID ImageHandlerVK::CreateImage(RenderDeviceVK* device, const ImageDesc& desc)
+        ImageID ImageHandlerVK::CreateImage(const ImageDesc& desc)
         {
             size_t nextHandle = _images.size();
 
@@ -35,84 +61,14 @@ namespace Renderer
             assert(desc.depth > 0); // Make sure the depth is valid
             assert(desc.format != IMAGE_FORMAT_UNKNOWN); // Make sure the format is valid
 
-            // Create image
-            VkImageCreateInfo imageInfo = {};
-            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            imageInfo.pNext = nullptr;
-            imageInfo.flags = 0; // TODO: VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT and VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT? https://github.com/DiligentGraphics/DiligentCore/blob/1edcafe9bd41bdde86869d4e1c0212c78ce123b7/Graphics/GraphicsEngineVulkan/src/TextureVkImpl.cpp
-            
-            if (desc.depth == 1)
-            {
-                imageInfo.imageType = VK_IMAGE_TYPE_2D;
-            }
-            else
-            {
-                NC_LOG_FATAL("Non-3d images is currently unsupported");
-            }
-
-            imageInfo.format = FormatConverterVK::ToVkFormat(desc.format);
-            imageInfo.extent.width = desc.dimensions.x;
-            imageInfo.extent.height = desc.dimensions.y;
-            imageInfo.extent.depth = desc.depth;
-            imageInfo.mipLevels = 1;
-            imageInfo.arrayLayers = 1;
-            imageInfo.samples = FormatConverterVK::ToVkSampleCount(desc.sampleCount);
-            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-            // We will sample directly from the color attachment
-            imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT; // Transfers
-            imageInfo.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; // RTV
-            imageInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT; // SRV 
-            imageInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT; // UAV
-
-            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            imageInfo.queueFamilyIndexCount = 0;
-            imageInfo.pQueueFamilyIndices = nullptr;
-            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-            VmaAllocationCreateInfo allocInfo = {};
-            allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-            if (vmaCreateImage(device->_allocator, &imageInfo, &allocInfo, &image.image, &image.allocation, nullptr) != VK_SUCCESS)
-            {
-                NC_LOG_FATAL("Failed to create image!");
-            }
-
-            // Create Color View
-            VkImageViewCreateInfo colorViewInfo = {};
-            colorViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            colorViewInfo.image = image.image;
-            if (desc.depth == 1)
-            {
-                colorViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            }
-            else
-            {
-                NC_LOG_FATAL("Non-3d images is currently unsupported");
-            }
-            colorViewInfo.format = imageInfo.format;
-            colorViewInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
-            colorViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            colorViewInfo.subresourceRange.baseMipLevel = 0;
-            colorViewInfo.subresourceRange.levelCount = 1;
-            colorViewInfo.subresourceRange.baseArrayLayer = 0;
-            colorViewInfo.subresourceRange.layerCount = 1;
-
-            if (vkCreateImageView(device->_device, &colorViewInfo, nullptr, &image.colorView) != VK_SUCCESS)
-            {
-                NC_LOG_FATAL("Failed to create color image view!");
-            }
-
-            DebugMarkerUtilVK::SetObjectName(device->_device, (u64)image.colorView, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, desc.debugName.c_str());
-            
-            // Transition image from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_GENERAL
-            device->TransitionImageLayout(image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, desc.depth);
+            CreateImage(image);
 
             _images.push_back(image);
 
             return ImageID(static_cast<type>(nextHandle));
         }
 
-        DepthImageID ImageHandlerVK::CreateDepthImage(RenderDeviceVK* device, const DepthImageDesc& desc)
+        DepthImageID ImageHandlerVK::CreateDepthImage(const DepthImageDesc& desc)
         {
             size_t nextHandle = _depthImages.size();
 
@@ -123,66 +79,7 @@ namespace Renderer
             DepthImage image;
             image.desc = desc;
 
-            // Create image
-            VkImageCreateInfo imageInfo = {};
-            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            imageInfo.pNext = nullptr;
-            imageInfo.flags = 0; // TODO: VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT and VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT? https://github.com/DiligentGraphics/DiligentCore/blob/1edcafe9bd41bdde86869d4e1c0212c78ce123b7/Graphics/GraphicsEngineVulkan/src/TextureVkImpl.cpp
-            imageInfo.imageType = VK_IMAGE_TYPE_2D;
-
-            imageInfo.format = FormatConverterVK::ToVkFormat(desc.format);
-            imageInfo.extent.width = desc.dimensions.x;
-            imageInfo.extent.height = desc.dimensions.y;
-            imageInfo.extent.depth = 1;
-            imageInfo.mipLevels = 1;
-            imageInfo.arrayLayers = 1;
-            imageInfo.samples = FormatConverterVK::ToVkSampleCount(desc.sampleCount);
-            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-            // We will sample directly from the color attachment
-            imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT; // Transfers
-            imageInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; // DSV
-            imageInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT; // SRV 
-            //imageInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT; // UAV TODO
-
-            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            imageInfo.queueFamilyIndexCount = 0;
-            imageInfo.pQueueFamilyIndices = nullptr;
-            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-            VmaAllocationCreateInfo allocInfo = {};
-            allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-            if (vmaCreateImage(device->_allocator, &imageInfo, &allocInfo, &image.image, &image.allocation, nullptr) != VK_SUCCESS)
-            {
-                NC_LOG_FATAL("Failed to create image!");
-            }
-
-            // Create Depth View
-            VkImageViewCreateInfo depthViewInfo = {};
-            depthViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            depthViewInfo.image = image.image;
-            depthViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-           
-            depthViewInfo.format = imageInfo.format;
-            depthViewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-            depthViewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-            depthViewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-            depthViewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-            depthViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-            depthViewInfo.subresourceRange.baseMipLevel = 0;
-            depthViewInfo.subresourceRange.levelCount = 1;
-            depthViewInfo.subresourceRange.baseArrayLayer = 0;
-            depthViewInfo.subresourceRange.layerCount = 1;
-
-            if (vkCreateImageView(device->_device, &depthViewInfo, nullptr, &image.depthView) != VK_SUCCESS)
-            {
-                NC_LOG_FATAL("Failed to create depth image view!");
-            }
-
-            DebugMarkerUtilVK::SetObjectName(device->_device, (u64)image.depthView, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, desc.debugName.c_str());
-
-            // Transition image from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-            device->TransitionImageLayout(image.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
+            CreateImage(image);
 
             _depthImages.push_back(image);
 
@@ -241,6 +138,168 @@ namespace Renderer
             // Lets make sure this id exists
             assert(_depthImages.size() > static_cast<type>(id));
             return _depthImages[static_cast<type>(id)].depthView;
+        }
+
+        void ImageHandlerVK::CreateImage(Image& image)
+        {
+            // Create image
+            VkImageCreateInfo imageInfo = {};
+            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            imageInfo.pNext = nullptr;
+            imageInfo.flags = 0; // TODO: VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT and VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT? https://github.com/DiligentGraphics/DiligentCore/blob/1edcafe9bd41bdde86869d4e1c0212c78ce123b7/Graphics/GraphicsEngineVulkan/src/TextureVkImpl.cpp
+
+            if (image.desc.depth == 1)
+            {
+                imageInfo.imageType = VK_IMAGE_TYPE_2D;
+            }
+            else
+            {
+                NC_LOG_FATAL("Non-3d images is currently unsupported");
+            }
+
+            f32 width = image.desc.dimensions.x;
+            f32 height = image.desc.dimensions.y;
+
+            // If the supplied dimensions is a % of window size
+            if (image.desc.dimensionType == ImageDimensionType::DIMENSION_SCALE)
+            {
+                uvec2 windowSize = _device->GetMainWindowSize();
+                width *= windowSize.x;
+                height *= windowSize.y;
+            }
+
+            imageInfo.format = FormatConverterVK::ToVkFormat(image.desc.format);
+            imageInfo.extent.width = static_cast<u32>(width);
+            imageInfo.extent.height = static_cast<u32>(height);
+            imageInfo.extent.depth = image.desc.depth;
+            imageInfo.mipLevels = 1;
+            imageInfo.arrayLayers = 1;
+            imageInfo.samples = FormatConverterVK::ToVkSampleCount(image.desc.sampleCount);
+            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+            // We will sample directly from the color attachment
+            imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT; // Transfers
+            imageInfo.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; // RTV
+            imageInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT; // SRV 
+            imageInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT; // UAV
+
+            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            imageInfo.queueFamilyIndexCount = 0;
+            imageInfo.pQueueFamilyIndices = nullptr;
+            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+            VmaAllocationCreateInfo allocInfo = {};
+            allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+            if (vmaCreateImage(_device->_allocator, &imageInfo, &allocInfo, &image.image, &image.allocation, nullptr) != VK_SUCCESS)
+            {
+                NC_LOG_FATAL("Failed to create image!");
+            }
+
+            // Create Color View
+            VkImageViewCreateInfo colorViewInfo = {};
+            colorViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            colorViewInfo.image = image.image;
+            if (image.desc.depth == 1)
+            {
+                colorViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            }
+            else
+            {
+                NC_LOG_FATAL("Non-3d images is currently unsupported");
+            }
+
+            colorViewInfo.format = imageInfo.format;
+            colorViewInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
+            colorViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            colorViewInfo.subresourceRange.baseMipLevel = 0;
+            colorViewInfo.subresourceRange.levelCount = 1;
+            colorViewInfo.subresourceRange.baseArrayLayer = 0;
+            colorViewInfo.subresourceRange.layerCount = 1;
+
+            if (vkCreateImageView(_device->_device, &colorViewInfo, nullptr, &image.colorView) != VK_SUCCESS)
+            {
+                NC_LOG_FATAL("Failed to create color image view!");
+            }
+
+            DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)image.colorView, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, image.desc.debugName.c_str());
+
+            // Transition image from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_GENERAL
+            _device->TransitionImageLayout(image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, image.desc.depth);
+        }
+
+        void ImageHandlerVK::CreateImage(DepthImage& image)
+        {
+            // Create image
+            VkImageCreateInfo imageInfo = {};
+            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            imageInfo.pNext = nullptr;
+            imageInfo.flags = 0; // TODO: VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT and VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT? https://github.com/DiligentGraphics/DiligentCore/blob/1edcafe9bd41bdde86869d4e1c0212c78ce123b7/Graphics/GraphicsEngineVulkan/src/TextureVkImpl.cpp
+            imageInfo.imageType = VK_IMAGE_TYPE_2D;
+
+            f32 width = image.desc.dimensions.x;
+            f32 height = image.desc.dimensions.y;
+
+            // If the supplied dimensions is a % of window size
+            if (image.desc.dimensionType == ImageDimensionType::DIMENSION_SCALE)
+            {
+                uvec2 windowSize = _device->GetMainWindowSize();
+                width *= windowSize.x;
+                height *= windowSize.y;
+            }
+
+            imageInfo.format = FormatConverterVK::ToVkFormat(image.desc.format);
+            imageInfo.extent.width = static_cast<u32>(width);
+            imageInfo.extent.height = static_cast<u32>(height);
+            imageInfo.extent.depth = 1;
+            imageInfo.mipLevels = 1;
+            imageInfo.arrayLayers = 1;
+            imageInfo.samples = FormatConverterVK::ToVkSampleCount(image.desc.sampleCount);
+            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+            // We will sample directly from the color attachment
+            imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT; // Transfers
+            imageInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; // DSV
+            imageInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT; // SRV 
+            //imageInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT; // UAV TODO
+
+            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            imageInfo.queueFamilyIndexCount = 0;
+            imageInfo.pQueueFamilyIndices = nullptr;
+            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+            VmaAllocationCreateInfo allocInfo = {};
+            allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+            if (vmaCreateImage(_device->_allocator, &imageInfo, &allocInfo, &image.image, &image.allocation, nullptr) != VK_SUCCESS)
+            {
+                NC_LOG_FATAL("Failed to create image!");
+            }
+
+            // Create Depth View
+            VkImageViewCreateInfo depthViewInfo = {};
+            depthViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            depthViewInfo.image = image.image;
+            depthViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+
+            depthViewInfo.format = imageInfo.format;
+            depthViewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+            depthViewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+            depthViewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+            depthViewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+            depthViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            depthViewInfo.subresourceRange.baseMipLevel = 0;
+            depthViewInfo.subresourceRange.levelCount = 1;
+            depthViewInfo.subresourceRange.baseArrayLayer = 0;
+            depthViewInfo.subresourceRange.layerCount = 1;
+
+            if (vkCreateImageView(_device->_device, &depthViewInfo, nullptr, &image.depthView) != VK_SUCCESS)
+            {
+                NC_LOG_FATAL("Failed to create depth image view!");
+            }
+
+            DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)image.depthView, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, image.desc.debugName.c_str());
+
+            // Transition image from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+            _device->TransitionImageLayout(image.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
         }
     }
 }

@@ -448,6 +448,12 @@ namespace Renderer
         IMAGE_COMPONENT_TYPE_COUNT
     };
 
+    enum ImageDimensionType
+    {
+        DIMENSION_ABSOLUTE, // vec2(1,1) means 1x1 pixels
+        DIMENSION_SCALE     // vec2(1,1) means 100% of window size
+    };
+
     inline ImageComponentType ToImageComponentType(ImageFormat imageFormat)
     {
         switch (imageFormat)

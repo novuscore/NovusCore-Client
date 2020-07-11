@@ -53,31 +53,11 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
             vertexShaderDesc.path = "Data/shaders/terrain.vs.hlsl.spv";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
-            // Constant buffers  TODO: Improve on this, if I set state 0 and 3 it won't work etc...
-            pipelineDesc.states.constantBufferStates[0].enabled = true; // ViewCB
-            pipelineDesc.states.constantBufferStates[0].shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_VERTEX;
-            pipelineDesc.states.constantBufferStates[1].enabled = true; // ModelCB
-            pipelineDesc.states.constantBufferStates[1].shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_VERTEX;
-
             // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
             pipelineDesc.states.inputLayouts[0].enabled = true;
             pipelineDesc.states.inputLayouts[0].SetName("INSTANCEID");
             pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::INPUT_FORMAT_R32_UINT;
             pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_INSTANCE;
-
-            // Viewport
-            pipelineDesc.states.viewport.topLeftX = 0;
-            pipelineDesc.states.viewport.topLeftY = 0;
-            pipelineDesc.states.viewport.width = static_cast<f32>(WIDTH);
-            pipelineDesc.states.viewport.height = static_cast<f32>(HEIGHT);
-            pipelineDesc.states.viewport.minDepth = 0.0f;
-            pipelineDesc.states.viewport.maxDepth = 1.0f;
-
-            // ScissorRect
-            pipelineDesc.states.scissorRect.left = 0;
-            pipelineDesc.states.scissorRect.right = WIDTH;
-            pipelineDesc.states.scissorRect.top = 0;
-            pipelineDesc.states.scissorRect.bottom = HEIGHT;
 
             // Depth state
             pipelineDesc.states.depthStencilState.depthEnable = true;
@@ -87,9 +67,6 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
             // Rasterizer state
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
             pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
-
-            // Samplers TODO: We don't care which samplers we have here, we just need the number of samplers
-            pipelineDesc.states.samplers[0].enabled = true;
 
             pipelineDesc.depthStencil = data.mainDepth;
 
@@ -164,31 +141,11 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             pixelShaderDesc.path = (debugMode == 0) ? "Data/shaders/terrain.ps.hlsl.spv" : "Data/shaders/terrainDebug.ps.hlsl.spv";
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
-            // Constant buffers  TODO: Improve on this, if I set state 0 and 3 it won't work etc...
-            pipelineDesc.states.constantBufferStates[0].enabled = true; // ViewCB
-            pipelineDesc.states.constantBufferStates[0].shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_VERTEX;
-            pipelineDesc.states.constantBufferStates[1].enabled = true; // ModelCB
-            pipelineDesc.states.constantBufferStates[1].shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_VERTEX;
-
             // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
             pipelineDesc.states.inputLayouts[0].enabled = true;
             pipelineDesc.states.inputLayouts[0].SetName("INSTANCEID");
             pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::INPUT_FORMAT_R32_UINT;
             pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_INSTANCE;
-
-            // Viewport
-            pipelineDesc.states.viewport.topLeftX = 0;
-            pipelineDesc.states.viewport.topLeftY = 0;
-            pipelineDesc.states.viewport.width = static_cast<f32>(WIDTH);
-            pipelineDesc.states.viewport.height = static_cast<f32>(HEIGHT);
-            pipelineDesc.states.viewport.minDepth = 0.0f;
-            pipelineDesc.states.viewport.maxDepth = 1.0f;
-
-            // ScissorRect
-            pipelineDesc.states.scissorRect.left = 0;
-            pipelineDesc.states.scissorRect.right = WIDTH;
-            pipelineDesc.states.scissorRect.top = 0;
-            pipelineDesc.states.scissorRect.bottom = HEIGHT;
 
             // Depth state
             pipelineDesc.states.depthStencilState.depthEnable = true;
@@ -197,9 +154,6 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             // Rasterizer state
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
             pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
-
-            // Samplers TODO: We don't care which samplers we have here, we just need the number of samplers
-            pipelineDesc.states.samplers[0].enabled = true;
 
             // Render targets
             pipelineDesc.renderTargets[0] = data.mainColor;

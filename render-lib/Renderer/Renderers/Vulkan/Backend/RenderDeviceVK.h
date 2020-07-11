@@ -59,7 +59,6 @@ namespace Renderer
             void CreateLogicalDevice();
             void CreateAllocator();
             void CreateCommandPool();
-            void CreateCommandBuffers();
 
             // InitWindow helper functions
             void CreateSurface(GLFWwindow* window, SwapChainVK* swapChain);
@@ -67,6 +66,9 @@ namespace Renderer
             void CreateImageViews(SwapChainVK* swapChain);
             void CreateFrameBuffers(SwapChainVK* swapChain);
             void CreateBlitPipeline(ShaderHandlerVK* shaderHandler, SwapChainVK* swapChain, std::string fragShaderName, ImageComponentType componentType);
+
+            void CleanupSwapChain(SwapChainVK* swapChain);
+            void RecreateSwapChain(ShaderHandlerVK* shaderHandler, SwapChainVK* swapChain);
 
             int RateDeviceSuitability(VkPhysicalDevice device);
             QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
@@ -84,7 +86,10 @@ namespace Renderer
             void TransitionImageLayout(VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout, u32 numLayers);
             void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout, u32 numLayers);
 
+            uvec2 GetMainWindowSize() { return _mainWindowSize; }
         private:
+            uvec2 _mainWindowSize;
+
             static const u32 FRAME_INDEX_COUNT = 2;
             static bool _initialized;
             u32 _frameIndex;
@@ -95,7 +100,6 @@ namespace Renderer
             VkPhysicalDevice _physicalDevice = VK_NULL_HANDLE;
             VkDevice _device = VK_NULL_HANDLE;
             VkCommandPool _commandPool = VK_NULL_HANDLE;
-            VkCommandBuffer _commandBuffers[FRAME_INDEX_COUNT];
 
             VkQueue _graphicsQueue = VK_NULL_HANDLE;
             VkQueue _presentQueue = VK_NULL_HANDLE;

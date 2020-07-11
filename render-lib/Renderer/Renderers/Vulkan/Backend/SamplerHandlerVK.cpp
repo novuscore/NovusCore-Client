@@ -11,17 +11,12 @@ namespace Renderer
 {
     namespace Backend
     {
-        SamplerHandlerVK::SamplerHandlerVK()
+        void SamplerHandlerVK::Init(RenderDeviceVK* device)
         {
-
+            _device = device;
         }
 
-        SamplerHandlerVK::~SamplerHandlerVK()
-        {
-
-        }
-
-        SamplerID SamplerHandlerVK::CreateSampler(RenderDeviceVK* device, const SamplerDesc& desc)
+        SamplerID SamplerHandlerVK::CreateSampler(const SamplerDesc& desc)
         {
             using type = type_safe::underlying_type<SamplerID>;
 
@@ -60,7 +55,7 @@ namespace Renderer
             samplerInfo.minLod = desc.minLOD;
             samplerInfo.maxLod = desc.maxLOD;
 
-            if (vkCreateSampler(device->_device, &samplerInfo, nullptr, &sampler.sampler) != VK_SUCCESS)
+            if (vkCreateSampler(_device->_device, &samplerInfo, nullptr, &sampler.sampler) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create sampler!");
             }

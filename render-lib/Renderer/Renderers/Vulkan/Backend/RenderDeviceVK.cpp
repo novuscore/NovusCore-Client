@@ -64,8 +64,11 @@ namespace Renderer
             ivec2 size;
             glfwGetWindowSize(glfwWindow, &size.x, &size.y);
 
+            _mainWindowSize = size;
+
             // -- Create our swapchain abstraction and give it to the window --
             SwapChainVK* swapChain = new SwapChainVK(this);
+            swapChain->window = glfwWindow;
             window->SetSwapChain(swapChain);
             _swapChains.push_back(swapChain);
 
@@ -154,7 +157,6 @@ namespace Renderer
             CreateLogicalDevice();
             CreateAllocator();
             CreateCommandPool();
-            CreateCommandBuffers();
 
             _descriptorMegaPool = new DescriptorMegaPoolVK();
             _descriptorMegaPool->Init(FRAME_INDEX_COUNT, this);
@@ -319,9 +321,6 @@ namespace Renderer
                 queueCreateInfos.push_back(queueCreateInfo);
             }
 
-            //VkPhysicalDeviceFeatures deviceFeatures = {};
-            //deviceFeatures.samplerAnisotropy = VK_TRUE;
-
             VkPhysicalDeviceDescriptorIndexingFeaturesEXT descriptorIndexingFeatures = {};
             descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
             descriptorIndexingFeatures.runtimeDescriptorArray = true;
@@ -402,20 +401,6 @@ namespace Renderer
             }
         }
 
-        void RenderDeviceVK::CreateCommandBuffers() // TODO: Move to CommandListHandlerVK
-        {
-            VkCommandBufferAllocateInfo allocInfo = {};
-            allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-            allocInfo.commandPool = _commandPool;
-            allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            allocInfo.commandBufferCount = FRAME_INDEX_COUNT;
-
-            if (vkAllocateCommandBuffers(_device, &allocInfo, _commandBuffers) != VK_SUCCESS)
-            {
-                NC_LOG_FATAL("Failed to allocate command buffers!");
-            }
-        }
-
         void RenderDeviceVK::CreateSurface(GLFWwindow* window, SwapChainVK* swapChain)
         {
             if (glfwCreateWindowSurface(_instance, window, nullptr, &swapChain->surface) != VK_SUCCESS)
@@ -487,7 +472,7 @@ namespace Renderer
             
             u32 imageCount = SwapChainVK::FRAME_BUFFER_COUNT;
             vkGetSwapchainImagesKHR(_device, swapChain->swapChain, &imageCount, nullptr);
-            vkGetSwapchainImagesKHR(_device, swapChain->swapChain, &imageCount, swapChain->images);
+            vkGetSwapchainImagesKHR(_device, swapChain->swapChain, &imageCount, swapChain->images.items.data());
 
             swapChain->imageFormat = surfaceFormat.format;
             swapChain->extent = extent;
@@ -502,7 +487,7 @@ namespace Renderer
             {
                 VkImageViewCreateInfo viewInfo = {};
                 viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-                viewInfo.image = swapChain->images[i];
+                viewInfo.image = swapChain->images.Get(i);
                 viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
                 viewInfo.format = swapChain->imageFormat;
                 viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -511,12 +496,12 @@ namespace Renderer
                 viewInfo.subresourceRange.baseArrayLayer = 0;
                 viewInfo.subresourceRange.layerCount = 1;
 
-                if (vkCreateImageView(_device, &viewInfo, nullptr, &swapChain->imageViews[i]) != VK_SUCCESS)
+                if (vkCreateImageView(_device, &viewInfo, nullptr, &swapChain->imageViews.Get(i)) != VK_SUCCESS)
                 {
                     NC_LOG_FATAL("Failed to create texture image view!");
                 }
 
-                if (vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &swapChain->imageAvailableSemaphores[i]) != VK_SUCCESS)
+                if (vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &swapChain->imageAvailableSemaphores.Get(i)) != VK_SUCCESS)
                 {
                     NC_LOG_FATAL("Failed to create image available semaphore!");
                 }
@@ -525,61 +510,61 @@ namespace Renderer
 
         void RenderDeviceVK::CreateFrameBuffers(SwapChainVK* swapChain)
         {
+            // Create a dummy renderpass
+            VkAttachmentDescription colorAttachment = {};
+            colorAttachment.format = swapChain->imageFormat;
+            colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+            colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+            VkAttachmentReference colorAttachmentRef = {};
+            colorAttachmentRef.attachment = 0;
+            colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+            VkSubpassDescription subpass = {};
+            subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+            subpass.colorAttachmentCount = 1;
+            subpass.pColorAttachments = &colorAttachmentRef;
+
+            VkSubpassDependency dependency = {};
+            dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+            dependency.dstSubpass = 0;
+            dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependency.srcAccessMask = 0;
+            dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;// | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+            dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;// | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+            VkRenderPassCreateInfo renderPassInfo = {};
+            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+            renderPassInfo.attachmentCount = 1;
+            renderPassInfo.pAttachments = &colorAttachment;
+            renderPassInfo.subpassCount = 1;
+            renderPassInfo.pSubpasses = &subpass;
+            renderPassInfo.dependencyCount = 1;
+            renderPassInfo.pDependencies = &dependency;
+
+            if (vkCreateRenderPass(_device, &renderPassInfo, nullptr, &swapChain->renderPass) != VK_SUCCESS)
+            {
+                NC_LOG_FATAL("Failed to create render pass!");
+            }
+
+            // Create framebuffers
             for (size_t i = 0; i < SwapChainVK::FRAME_BUFFER_COUNT; i++)
             {
-                // Create a dummy renderpass
-                VkAttachmentDescription colorAttachment = {};
-                colorAttachment.format = swapChain->imageFormat;
-                colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-                colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-                colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-                VkAttachmentReference colorAttachmentRef = {};
-                colorAttachmentRef.attachment = 0;
-                colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-                VkSubpassDescription subpass = {};
-                subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-                subpass.colorAttachmentCount = 1;
-                subpass.pColorAttachments = &colorAttachmentRef;
-
-                VkSubpassDependency dependency = {};
-                dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-                dependency.dstSubpass = 0;
-                dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-                dependency.srcAccessMask = 0;
-                dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;// | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-                dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;// | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-                VkRenderPassCreateInfo renderPassInfo = {};
-                renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-                renderPassInfo.attachmentCount = 1;
-                renderPassInfo.pAttachments = &colorAttachment;
-                renderPassInfo.subpassCount = 1;
-                renderPassInfo.pSubpasses = &subpass;
-                renderPassInfo.dependencyCount = 1;
-                renderPassInfo.pDependencies = &dependency;
-
-                if (vkCreateRenderPass(_device, &renderPassInfo, nullptr, &swapChain->renderPass) != VK_SUCCESS)
-                {
-                   NC_LOG_FATAL("Failed to create render pass!");
-                }
-
-                // Create framebuffer
                 VkFramebufferCreateInfo framebufferInfo = {};
                 framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
                 framebufferInfo.renderPass = swapChain->renderPass;
                 framebufferInfo.attachmentCount = 1;
-                framebufferInfo.pAttachments = &swapChain->imageViews[i];
+                framebufferInfo.pAttachments = &swapChain->imageViews.Get(i);
                 framebufferInfo.width = swapChain->extent.width;
                 framebufferInfo.height = swapChain->extent.height;
                 framebufferInfo.layers = 1;
 
-                if (vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &swapChain->framebuffers[i]) != VK_SUCCESS)
+                if (vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &swapChain->framebuffers.Get(i)) != VK_SUCCESS)
                 {
                     NC_LOG_FATAL("Failed to create framebuffer!");
                 }
@@ -617,11 +602,11 @@ namespace Renderer
             // Load shaders
             VertexShaderDesc vertexShaderDesc;
             vertexShaderDesc.path = "Data/shaders/blit.vs.hlsl.spv";
-            VertexShaderID vertexShader = shaderHandler->LoadShader(this, vertexShaderDesc);
+            VertexShaderID vertexShader = shaderHandler->LoadShader(vertexShaderDesc);
 
             PixelShaderDesc pixelShaderDesc;
             pixelShaderDesc.path = "Data/shaders/" + fragShaderName + ".ps.hlsl.spv";
-            PixelShaderID pixelShader = shaderHandler->LoadShader(this, pixelShaderDesc);
+            PixelShaderID pixelShader = shaderHandler->LoadShader(pixelShaderDesc);
 
             // Create shader stage infos
             VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
@@ -820,6 +805,85 @@ namespace Renderer
             }
         }
 
+        void RenderDeviceVK::CleanupSwapChain(SwapChainVK* swapChain)
+        {
+            // Destroy frame buffers
+            for (u32 i = 0; i < swapChain->framebuffers.Num; i++)
+            {
+                vkDestroyFramebuffer(_device, swapChain->framebuffers.Get(i), nullptr);
+            }
+
+            // Free command buffers *NOT SURE IF NEEDED?*
+
+            // Destroy blit pipelines
+            for (u32 i = 0; i < 3; i++)
+            {
+                BlitPipeline& pipeline = swapChain->blitPipelines[i];
+
+                // Destroy pipeline
+                vkDestroyPipeline(_device, pipeline.pipeline, nullptr);
+
+                // Destroy pipeline layout
+                vkDestroyPipelineLayout(_device, pipeline.pipelineLayout, nullptr);
+
+                // Destroy descriptor set layout
+                vkDestroyDescriptorSetLayout(_device, pipeline.descriptorSetLayout, nullptr);
+
+                // Destroy descriptor pool
+                vkDestroyDescriptorPool(_device, pipeline.descriptorPool, nullptr);
+            }
+
+            // Destroy renderpass
+            vkDestroyRenderPass(_device, swapChain->renderPass, nullptr);
+
+            // Destroy imageviews
+            for (u32 i = 0; i < swapChain->imageViews.Num; i++)
+            {
+                vkDestroyImageView(_device, swapChain->imageViews.Get(i), nullptr);
+                
+            }
+
+            // Destroy semaphores
+            for (u32 i = 0; i < swapChain->imageAvailableSemaphores.Num; i++)
+            {
+                vkDestroySemaphore(_device, swapChain->imageAvailableSemaphores.Get(i), nullptr);
+            }
+
+            // Destroy swap chain
+            vkDestroySwapchainKHR(_device, swapChain->swapChain, nullptr);
+
+            // Destroy glfw surface
+            vkDestroySurfaceKHR(_instance, swapChain->surface, nullptr);
+        }
+
+        void RenderDeviceVK::RecreateSwapChain(ShaderHandlerVK* shaderHandler, SwapChainVK* swapChain)
+        {
+            // Get the new size
+            ivec2 size;
+            glfwGetWindowSize(swapChain->window, &size.x, &size.y);
+
+            if (size.x <= 0 || size.y <= 0)
+                return;
+
+            _mainWindowSize = size;
+
+            vkDeviceWaitIdle(_device); // Wait for any in progress rendering to finish
+
+            // Destroy the parts of the swapchain we need to destroy
+            CleanupSwapChain(swapChain);
+
+            // Recreate the swapchain
+            CreateSurface(swapChain->window, swapChain);
+            CreateSwapChain(size, swapChain);
+            CreateImageViews(swapChain);
+            CreateFrameBuffers(swapChain);
+
+            // Recreate blit pipelines
+            CreateBlitPipeline(shaderHandler, swapChain, "blitFloat", IMAGE_COMPONENT_TYPE_FLOAT);
+            CreateBlitPipeline(shaderHandler, swapChain, "blitUint", IMAGE_COMPONENT_TYPE_UINT);
+            CreateBlitPipeline(shaderHandler, swapChain, "blitInt", IMAGE_COMPONENT_TYPE_SINT);
+        }
+
         int RenderDeviceVK::RateDeviceSuitability(VkPhysicalDevice device)
         {
             VkPhysicalDeviceProperties deviceProperties;
@@ -867,16 +931,6 @@ namespace Renderer
                 NC_LOG_MESSAGE("[Renderer]: GPU Detected %s with score %i because it doesn't support the required extensions", deviceProperties.deviceName, 0);
                 return 0;
             }
-
-            // Make sure swapchain support is adequate, This is diabled because at initialization we don't have a surface to render to yet, will this cause an issue in the future? What modern devices do not have swapchain support!?
-            /*bool swapChainAdequate = false;
-            SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device);
-            swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
-            if (!swapChainAdequate)
-            {
-                NC_LOG_MESSAGE("[Renderer]: GPU Detected %s with score %i because swap chain support isn't adequate", deviceProperties.deviceName, 0);
-                return 0;
-            }*/
 
             NC_LOG_MESSAGE("[Renderer]: GPU Detected %s with score %i", deviceProperties.deviceName, score);
             return score;

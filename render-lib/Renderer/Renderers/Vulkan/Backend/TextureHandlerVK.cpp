@@ -17,17 +17,12 @@ namespace Renderer
 {
     namespace Backend
     {
-        TextureHandlerVK::TextureHandlerVK()
+        void TextureHandlerVK::Init(RenderDeviceVK* device)
         {
-
+            _device = device;
         }
 
-        TextureHandlerVK::~TextureHandlerVK()
-        {
-
-        }
-
-        void TextureHandlerVK::LoadDebugTexture(RenderDeviceVK* device, const TextureDesc& desc)
+        void TextureHandlerVK::LoadDebugTexture(const TextureDesc& desc)
         {
             _debugTexture.debugName = desc.path;
             
@@ -38,10 +33,10 @@ namespace Renderer
                 NC_LOG_FATAL("Failed to load debug texture!");
             }
 
-            CreateTexture(device, _debugTexture, pixels);
+            CreateTexture(_debugTexture, pixels);
         }
 
-        TextureID TextureHandlerVK::LoadTexture(RenderDeviceVK* device, const TextureDesc& desc)
+        TextureID TextureHandlerVK::LoadTexture(const TextureDesc& desc)
         {
             using type = type_safe::underlying_type<TextureID>;
 
@@ -69,13 +64,13 @@ namespace Renderer
                 NC_LOG_FATAL("Failed to load texture!");
             }
 
-            CreateTexture(device, texture, pixels);
+            CreateTexture(texture, pixels);
 
             _textures.push_back(texture);
             return TextureID(static_cast<type>(nextHandle));
         }
 
-        TextureID TextureHandlerVK::LoadTextureIntoArray(RenderDeviceVK* device, const TextureDesc& desc, TextureArrayID textureArrayID, u32& arrayIndex)
+        TextureID TextureHandlerVK::LoadTextureIntoArray(const TextureDesc& desc, TextureArrayID textureArrayID, u32& arrayIndex)
         {
             using type = type_safe::underlying_type<TextureID>;
 
@@ -95,7 +90,7 @@ namespace Renderer
             using textureArrayType = type_safe::underlying_type<TextureArrayID>;
             assert(static_cast<textureArrayType>(textureArrayID) < _textureArrays.size());
 
-            textureID = LoadTexture(device, desc);
+            textureID = LoadTexture(desc);
 
             using textureType = type_safe::underlying_type<TextureID>;
             Texture& texture = _textures[static_cast<textureType>(textureID)];
@@ -108,7 +103,7 @@ namespace Renderer
             return textureID;
         }
 
-        TextureArrayID TextureHandlerVK::CreateTextureArray(RenderDeviceVK* device, const TextureArrayDesc& desc)
+        TextureArrayID TextureHandlerVK::CreateTextureArray(const TextureArrayDesc& desc)
         {
             assert(desc.size > 0);
 
@@ -126,7 +121,7 @@ namespace Renderer
             return TextureArrayID(static_cast<type>(nextHandle));
         }
 
-        TextureID TextureHandlerVK::CreateDataTexture(RenderDeviceVK* device, const DataTextureDesc& desc)
+        TextureID TextureHandlerVK::CreateDataTexture(const DataTextureDesc& desc)
         {
             assert(desc.width > 0);
             assert(desc.height > 0);
@@ -147,18 +142,18 @@ namespace Renderer
             texture.layers = desc.layers;
             texture.format = FormatConverterVK::ToVkFormat(desc.format);
 
-            CreateTexture(device, texture, desc.data);
+            CreateTexture(texture, desc.data);
 
             _textures.push_back(texture);
             return TextureID(static_cast<type>(nextHandle));
         }
 
-        TextureID TextureHandlerVK::CreateDataTextureIntoArray(RenderDeviceVK* device, const DataTextureDesc& desc, TextureArrayID textureArrayID, u32& arrayIndex)
+        TextureID TextureHandlerVK::CreateDataTextureIntoArray(const DataTextureDesc& desc, TextureArrayID textureArrayID, u32& arrayIndex)
         {
             using textureArrayType = type_safe::underlying_type<TextureArrayID>;
             assert(static_cast<textureArrayType>(textureArrayID) < _textureArrays.size());
 
-            TextureID textureID = CreateDataTexture(device, desc);
+            TextureID textureID = CreateDataTexture(desc);
 
             using textureType = type_safe::underlying_type<TextureID>;
             Texture& texture = _textures[static_cast<textureType>(textureID)];
@@ -281,7 +276,7 @@ namespace Renderer
             return textureMemory;
         }
 
-        void TextureHandlerVK::CreateTexture(RenderDeviceVK* device, Texture& texture, u8* pixels)
+        void TextureHandlerVK::CreateTexture(Texture& texture, u8* pixels)
         {
             // Create staging buffer
             VkBuffer stagingBuffer;
@@ -289,12 +284,12 @@ namespace Renderer
 
             VkDeviceSize imageSize = Math::RoofToInt(static_cast<f64>(texture.width) * static_cast<f64>(texture.height) * static_cast<f64>(texture.layers) * FormatTexelSize(texture.format));
 
-            device->CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer, stagingBufferAllocation);
+            _device->CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer, stagingBufferAllocation);
 
             void* data;
-            vmaMapMemory(device->_allocator, stagingBufferAllocation, &data);
+            vmaMapMemory(_device->_allocator, stagingBufferAllocation, &data);
             memcpy(data, pixels, static_cast<size_t>(imageSize));
-            vmaUnmapMemory(device->_allocator, stagingBufferAllocation);
+            vmaUnmapMemory(_device->_allocator, stagingBufferAllocation);
 
             delete[] pixels;
 
@@ -318,17 +313,17 @@ namespace Renderer
             VmaAllocationCreateInfo allocInfo = {};
             allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-            if (vmaCreateImage(device->_allocator, &imageInfo, &allocInfo, &texture.image, &texture.allocation, nullptr) != VK_SUCCESS)
+            if (vmaCreateImage(_device->_allocator, &imageInfo, &allocInfo, &texture.image, &texture.allocation, nullptr) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create image!");
             }
 
-            DebugMarkerUtilVK::SetObjectName(device->_device, (u64)texture.image, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, texture.debugName.c_str());
+            DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)texture.image, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, texture.debugName.c_str());
 
             // Copy data from stagingBuffer into image
-            device->TransitionImageLayout(texture.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture.layers);
-            device->CopyBufferToImage(stagingBuffer, texture.image, static_cast<u32>(texture.width), static_cast<u32>(texture.height), texture.layers);
-            device->TransitionImageLayout(texture.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.layers);
+            _device->TransitionImageLayout(texture.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture.layers);
+            _device->CopyBufferToImage(stagingBuffer, texture.image, static_cast<u32>(texture.width), static_cast<u32>(texture.height), texture.layers);
+            _device->TransitionImageLayout(texture.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.layers);
 
             // Create color view
             VkImageViewCreateInfo viewInfo = {};
@@ -342,13 +337,12 @@ namespace Renderer
             viewInfo.subresourceRange.baseArrayLayer = 0;
             viewInfo.subresourceRange.layerCount = texture.layers;
 
-            if (vkCreateImageView(device->_device, &viewInfo, nullptr, &texture.imageView) != VK_SUCCESS)
+            if (vkCreateImageView(_device->_device, &viewInfo, nullptr, &texture.imageView) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create texture image view!");
             }
 
-            DebugMarkerUtilVK::SetObjectName(device->_device, (u64)texture.imageView, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, texture.debugName.c_str());
+            DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)texture.imageView, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, texture.debugName.c_str());
         }
-
     }
 }

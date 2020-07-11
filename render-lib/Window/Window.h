@@ -20,11 +20,15 @@ public:
     void SetSwapChain(Renderer::SwapChain* swapChain) { _swapChain = swapChain; }
     Renderer::SwapChain* GetSwapChain() { return _swapChain; }
 
+    bool IsMinimized() { return _isMinimized; }
+    void SetIsMinimized(bool isMinimized) { _isMinimized = isMinimized; }
 private:
 
 private:
     GLFWwindow* _window;
     Renderer::SwapChain* _swapChain;
+
+    bool _isMinimized = false;
 
     static bool _glfwInitialized;
 };

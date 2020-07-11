@@ -13,26 +13,23 @@ namespace Renderer
 {
     namespace Backend
     {
-        PipelineHandlerVK::PipelineHandlerVK()
+        void PipelineHandlerVK::Init(RenderDeviceVK* device, ShaderHandlerVK* shaderHandler, ImageHandlerVK* imageHandler)
         {
-
+            _device = device;
+            _shaderHandler = shaderHandler;
+            _imageHandler = imageHandler;
         }
 
-        PipelineHandlerVK::~PipelineHandlerVK()
+        void PipelineHandlerVK::OnWindowResize()
         {
             for (auto& pipeline : _graphicsPipelines)
             {
-                // TODO: Cleanup
+                vkDestroyFramebuffer(_device->_device, pipeline.framebuffer, nullptr);
+                CreateFramebuffer(pipeline);
             }
-            for (auto& pipeline : _computePipelines)
-            {
-                // TODO: Cleanup
-            }
-            _graphicsPipelines.clear();
-            _computePipelines.clear();
         }
 
-        GraphicsPipelineID PipelineHandlerVK::CreatePipeline(RenderDeviceVK* device, ShaderHandlerVK* shaderHandler, ImageHandlerVK* imageHandler, const GraphicsPipelineDesc& desc)
+        GraphicsPipelineID PipelineHandlerVK::CreatePipeline(const GraphicsPipelineDesc& desc)
         {
             assert(desc.ResourceToImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
             assert(desc.ResourceToDepthImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
@@ -56,14 +53,13 @@ namespace Renderer
             pipeline.cacheDescHash = cacheDescHash;
 
             // -- Get number of render targets and attachments --
-            u8 numRenderTargets = 0;
             u8 numAttachments = 0;
             for (int i = 0; i < MAX_RENDER_TARGETS; i++)
             {
                 if (desc.renderTargets[i] == RenderPassMutableResource::Invalid())
                     break;
 
-                numRenderTargets++;
+                pipeline.numRenderTargets++;
                 numAttachments++;
             }
 
@@ -73,7 +69,7 @@ namespace Renderer
             for (int i = 0; i < numAttachments; i++)
             {
                 ImageID imageID = desc.MutableResourceToImageID(desc.renderTargets[i]);
-                const ImageDesc& imageDesc = imageHandler->GetImageDesc(imageID);
+                const ImageDesc& imageDesc = _imageHandler->GetImageDesc(imageID);
                 attachments[i].format = FormatConverterVK::ToVkFormat(imageDesc.format);
                 attachments[i].samples = FormatConverterVK::ToVkSampleCount(imageDesc.sampleCount);
                 attachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -96,7 +92,7 @@ namespace Renderer
             if (desc.depthStencil != RenderPassMutableResource::Invalid())
             {
                 DepthImageID depthImageID = desc.MutableResourceToDepthImageID(desc.depthStencil);
-                const DepthImageDesc& imageDesc = imageHandler->GetDepthImageDesc(depthImageID);
+                const DepthImageDesc& imageDesc = _imageHandler->GetDepthImageDesc(depthImageID);
 
                 u32 attachmentSlot = numAttachments++;
                 
@@ -136,50 +132,24 @@ namespace Renderer
             renderPassInfo.dependencyCount = 1;
             renderPassInfo.pDependencies = &dependency;
 
-            if (vkCreateRenderPass(device->_device, &renderPassInfo, nullptr, &pipeline.renderPass) != VK_SUCCESS)
+            if (vkCreateRenderPass(_device->_device, &renderPassInfo, nullptr, &pipeline.renderPass) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create render pass!");
             }
 
             // -- Create Framebuffer --
-            std::vector<VkImageView> attachmentViews(numAttachments);
-            // Add all color rendertargets as attachments
-            for (int i = 0; i < numRenderTargets; i++)
-            {
-                ImageID imageID = desc.MutableResourceToImageID(desc.renderTargets[i]);
-                attachmentViews[i] = imageHandler->GetColorView(imageID);
-            }
-            // Add depthstencil as attachment
-            if (desc.depthStencil != RenderPassMutableResource::Invalid())
-            {
-                DepthImageID depthImageID = desc.MutableResourceToDepthImageID(desc.depthStencil);
-                attachmentViews[numRenderTargets] = imageHandler->GetDepthView(depthImageID);
-            }
+            CreateFramebuffer(pipeline);
 
-            VkFramebufferCreateInfo framebufferInfo = {};
-            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = pipeline.renderPass;
-            framebufferInfo.attachmentCount = numAttachments;
-            framebufferInfo.pAttachments = attachmentViews.data();
-            framebufferInfo.width = static_cast<u32>(desc.states.viewport.width);
-            framebufferInfo.height = static_cast<u32>(desc.states.viewport.height);
-            framebufferInfo.layers = 1;
-
-            if (vkCreateFramebuffer(device->_device, &framebufferInfo, nullptr, &pipeline.framebuffer) != VK_SUCCESS)
-            {
-                NC_LOG_FATAL("Failed to create framebuffer!");
-            }
-            
             // -- Create Descriptor Set Layout from reflected SPIR-V --
             std::vector<BindInfo> bindInfos;
             if (desc.states.vertexShader != VertexShaderID::Invalid())
             {
-                const BindReflection& bindReflection = shaderHandler->GetBindReflection(desc.states.vertexShader);
+                const BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.states.vertexShader);
                 bindInfos.insert(bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
             }
             if (desc.states.pixelShader != PixelShaderID::Invalid())
             {
-                const BindReflection& bindReflection = shaderHandler->GetBindReflection(desc.states.pixelShader);
+                const BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.states.pixelShader);
                 bindInfos.insert(bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
             }
 
@@ -204,7 +174,7 @@ namespace Renderer
                 pipeline.descriptorSetLayoutDatas[i].createInfo.bindingCount = static_cast<u32>(pipeline.descriptorSetLayoutDatas[i].bindings.size());
                 pipeline.descriptorSetLayoutDatas[i].createInfo.pBindings = pipeline.descriptorSetLayoutDatas[i].bindings.data();
 
-                if (vkCreateDescriptorSetLayout(device->_device, &pipeline.descriptorSetLayoutDatas[i].createInfo, nullptr, &pipeline.descriptorSetLayouts[i]) != VK_SUCCESS)
+                if (vkCreateDescriptorSetLayout(_device->_device, &pipeline.descriptorSetLayoutDatas[i].createInfo, nullptr, &pipeline.descriptorSetLayouts[i]) != VK_SUCCESS)
                 {
                     NC_LOG_FATAL("Failed to create descriptor set layout!");
                 }
@@ -217,7 +187,7 @@ namespace Renderer
                 vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
                 vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 
-                vertShaderStageInfo.module = shaderHandler->GetShaderModule(desc.states.vertexShader);
+                vertShaderStageInfo.module = _shaderHandler->GetShaderModule(desc.states.vertexShader);
                 vertShaderStageInfo.pName = "main";
 
                 shaderStages.push_back(vertShaderStageInfo);
@@ -228,7 +198,7 @@ namespace Renderer
                 fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
                 fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-                fragShaderStageInfo.module = shaderHandler->GetShaderModule(desc.states.pixelShader);
+                fragShaderStageInfo.module = _shaderHandler->GetShaderModule(desc.states.pixelShader);
                 fragShaderStageInfo.pName = "main";
 
                 shaderStages.push_back(fragShaderStageInfo);
@@ -327,24 +297,12 @@ namespace Renderer
             inputAssembly.primitiveRestartEnable = VK_FALSE;
 
             // -- Set viewport and scissor rect --
-            VkViewport viewport = {};
-            viewport.x = desc.states.viewport.topLeftX;
-            viewport.y = desc.states.viewport.topLeftY;
-            viewport.width = static_cast<f32>(desc.states.viewport.width);
-            viewport.height = static_cast<f32>(desc.states.viewport.height);
-            viewport.minDepth = desc.states.viewport.minDepth;
-            viewport.maxDepth = desc.states.viewport.maxDepth;
-
-            VkRect2D scissor = {};
-            scissor.offset = { desc.states.scissorRect.left, desc.states.scissorRect.top };
-            scissor.extent = { static_cast<u32>(desc.states.scissorRect.right - desc.states.scissorRect.left), static_cast<u32>(desc.states.scissorRect.bottom - desc.states.scissorRect.top) };
-
             VkPipelineViewportStateCreateInfo viewportState = {};
             viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
             viewportState.viewportCount = 1;
-            viewportState.pViewports = &viewport;
+            viewportState.pViewports = nullptr; // These are dynamic
             viewportState.scissorCount = 1;
-            viewportState.pScissors = &scissor;
+            viewportState.pScissors = nullptr; // These are dynamic
 
             // -- Rasterizer --
             VkPipelineRasterizationStateCreateInfo rasterizer = {};
@@ -400,9 +358,9 @@ namespace Renderer
             //depthStencil.back.reference;
 
             // -- Blenders --
-            std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments(numRenderTargets);
+            std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments(pipeline.numRenderTargets);
             
-            for (int i = 0; i < numRenderTargets; i++)
+            for (u32 i = 0; i < pipeline.numRenderTargets; i++)
             {
                 colorBlendAttachments[i].blendEnable = desc.states.blendState.renderTargets[i].blendEnable;
                 colorBlendAttachments[i].srcColorBlendFactor = FormatConverterVK::ToVkBlendFactor(desc.states.blendState.renderTargets[i].srcBlend);
@@ -418,7 +376,7 @@ namespace Renderer
             colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
             colorBlending.logicOpEnable = desc.states.blendState.renderTargets[0].logicOpEnable;
             colorBlending.logicOp = FormatConverterVK::ToVkLogicOp(desc.states.blendState.renderTargets[0].logicOp);
-            colorBlending.attachmentCount = numRenderTargets;
+            colorBlending.attachmentCount = pipeline.numRenderTargets;
             colorBlending.pAttachments = colorBlendAttachments.data();
             colorBlending.blendConstants[0] = 0.0f; // TODO: Blend constants
             colorBlending.blendConstants[1] = 0.0f; // TODO: Blend constants
@@ -432,10 +390,22 @@ namespace Renderer
             pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
             pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
-            if (vkCreatePipelineLayout(device->_device, &pipelineLayoutInfo, nullptr, &pipeline.pipelineLayout) != VK_SUCCESS)
+            if (vkCreatePipelineLayout(_device->_device, &pipelineLayoutInfo, nullptr, &pipeline.pipelineLayout) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create pipeline layout!");
             }
+
+            // Set up dynamic viewport and scissor
+            std::vector<VkDynamicState> dynamicStates;
+            dynamicStates.reserve(2);
+
+            dynamicStates.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+            dynamicStates.push_back(VK_DYNAMIC_STATE_SCISSOR);
+
+            VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
+            dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+            dynamicStateCreateInfo.dynamicStateCount = static_cast<u32>(dynamicStates.size());
+            dynamicStateCreateInfo.pDynamicStates = dynamicStates.data();
 
             VkGraphicsPipelineCreateInfo pipelineInfo = {};
             pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -448,20 +418,20 @@ namespace Renderer
             pipelineInfo.pMultisampleState = &multisampling;
             pipelineInfo.pDepthStencilState = &depthStencil;
             pipelineInfo.pColorBlendState = &colorBlending;
-            pipelineInfo.pDynamicState = nullptr; // Optional
+            pipelineInfo.pDynamicState = &dynamicStateCreateInfo;
             pipelineInfo.layout = pipeline.pipelineLayout;
             pipelineInfo.renderPass = pipeline.renderPass;
             pipelineInfo.subpass = 0;
             pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
             pipelineInfo.basePipelineIndex = -1; // Optional
 
-            if (vkCreateGraphicsPipelines(device->_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline.pipeline) != VK_SUCCESS)
+            if (vkCreateGraphicsPipelines(_device->_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline.pipeline) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create graphics pipeline!");
             }
 
             GraphicsPipelineID pipelineID = GraphicsPipelineID(static_cast<gIDType>(nextID));
-            pipeline.descriptorSetBuilder = new DescriptorSetBuilderVK(pipelineID, this, shaderHandler, device->_descriptorMegaPool);
+            pipeline.descriptorSetBuilder = new DescriptorSetBuilderVK(pipelineID, this, _shaderHandler, _device->_descriptorMegaPool);
 
             _graphicsPipelines.push_back(pipeline);
 
@@ -471,7 +441,7 @@ namespace Renderer
             return pipelineID;
         }
 
-        ComputePipelineID PipelineHandlerVK::CreatePipeline(RenderDeviceVK* device, ShaderHandlerVK* shaderHandler, ImageHandlerVK* imageHandler, const ComputePipelineDesc& desc)
+        ComputePipelineID PipelineHandlerVK::CreatePipeline(const ComputePipelineDesc& desc)
         {
             return ComputePipelineID();
         }
@@ -480,15 +450,6 @@ namespace Renderer
         {
             GraphicsPipelineCacheDesc cacheDesc;
             cacheDesc.states = desc.states;
-
-            cacheDesc.numSRVs = 0;
-            for (auto& texture : desc.textures)
-            {
-                if (texture == RenderPassResource::Invalid())
-                    break;
-
-                cacheDesc.numSRVs++;
-            }
 
             for (int i = 0; i < MAX_RENDER_TARGETS; i++)
             {
@@ -553,52 +514,47 @@ namespace Renderer
             }
 
             return sets[setNumber];
+        }
 
-            /*
-            // Check if it has been created
-            for (DescriptorSetLayoutData& set : sets)
+        void PipelineHandlerVK::CreateFramebuffer(GraphicsPipeline& pipeline)
+        {
+            u32 numAttachments = pipeline.numRenderTargets;
+            
+            if (pipeline.desc.depthStencil != RenderPassMutableResource::Invalid())
             {
-                if (set.setNumber == setNumber)
-                {
-                    return set;
-                }
+                numAttachments += 1;
             }
 
-            // If not we need to create it, but we are not allowed to have gaps, so we need to check each set from 0 to setNumber as well...
-            // TODO: This can probably be optimized
-            for (u32 i = 0; i < setNumber; i++)
+            std::vector<VkImageView> attachmentViews(numAttachments);
+
+            // Add all color rendertargets as attachments
+            for (u32 i = 0; i < pipeline.numRenderTargets; i++)
             {
-                bool found = false;
-                for (DescriptorSetLayoutData& set : sets)
-                {
-                    if (set.setNumber == setNumber)
-                    {
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found)
-                {
-                    DescriptorSetLayoutData setLayoutData = {};
-                    setLayoutData.setNumber = i;
-
-                    setLayoutData.createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-                    setLayoutData.createInfo.bindingCount = 0;
-                    setLayoutData.createInfo.pBindings = nullptr;
-
-                    sets.push_back(setLayoutData);
-                }
+                ImageID imageID = pipeline.desc.MutableResourceToImageID(pipeline.desc.renderTargets[i]);
+                attachmentViews[i] = _imageHandler->GetColorView(imageID);
+            }
+            // Add depthstencil as attachment
+            if (pipeline.desc.depthStencil != RenderPassMutableResource::Invalid())
+            {
+                DepthImageID depthImageID = pipeline.desc.MutableResourceToDepthImageID(pipeline.desc.depthStencil);
+                attachmentViews[pipeline.numRenderTargets] = _imageHandler->GetDepthView(depthImageID);
             }
 
-            DescriptorSetLayoutData setLayoutData = {};
-            setLayoutData.setNumber = setNumber;
-            setLayoutData.createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            setLayoutData.createInfo.bindingCount = 0;
-            setLayoutData.createInfo.pBindings = nullptr;
+            uvec2 renderSize = _device->GetMainWindowSize();
 
-            sets.push_back(setLayoutData);
-            return sets.back();*/
+            VkFramebufferCreateInfo framebufferInfo = {};
+            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebufferInfo.renderPass = pipeline.renderPass;
+            framebufferInfo.attachmentCount = static_cast<u32>(attachmentViews.size());
+            framebufferInfo.pAttachments = attachmentViews.data();
+            framebufferInfo.width = renderSize.x;
+            framebufferInfo.height = renderSize.y;
+            framebufferInfo.layers = 1;
+
+            if (vkCreateFramebuffer(_device->_device, &framebufferInfo, nullptr, &pipeline.framebuffer) != VK_SUCCESS)
+            {
+                NC_LOG_FATAL("Failed to create framebuffer!");
+            }
         }
     }
 }

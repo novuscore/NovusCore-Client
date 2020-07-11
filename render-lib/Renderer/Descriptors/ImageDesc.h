@@ -8,8 +8,12 @@ namespace Renderer
     struct ImageDesc
     {
         std::string debugName = "";
-        ivec2 dimensions = ivec2(0, 0);
+
+        vec2 dimensions = vec2(0, 0);
+        ImageDimensionType dimensionType = ImageDimensionType::DIMENSION_ABSOLUTE;
+
         u32 depth = 1;
+
         ImageFormat format = IMAGE_FORMAT_UNKNOWN;
         SampleCount sampleCount = SAMPLE_COUNT_1;
         Color clearColor = Color::Clear;

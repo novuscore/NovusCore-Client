@@ -27,11 +27,12 @@ namespace Renderer
             using gIDType = type_safe::underlying_type<GraphicsPipelineID>;
             using cIDType = type_safe::underlying_type<ComputePipelineID>;
         public:
-            PipelineHandlerVK();
-            ~PipelineHandlerVK();
+            void Init(RenderDeviceVK* device, ShaderHandlerVK* shaderHandler, ImageHandlerVK* imageHandler);
 
-            GraphicsPipelineID CreatePipeline(RenderDeviceVK* device, ShaderHandlerVK* shaderHandler, ImageHandlerVK* imageHandler, const GraphicsPipelineDesc& desc);
-            ComputePipelineID CreatePipeline(RenderDeviceVK* device, ShaderHandlerVK* shaderHandler, ImageHandlerVK* imageHandler, const ComputePipelineDesc& desc);
+            void OnWindowResize();
+
+            GraphicsPipelineID CreatePipeline(const GraphicsPipelineDesc& desc);
+            ComputePipelineID CreatePipeline(const ComputePipelineDesc& desc);
 
             const GraphicsPipelineDesc& GetDescriptor(GraphicsPipelineID id) { return _graphicsPipelines[static_cast<gIDType>(id)].desc; }
             const ComputePipelineDesc& GetDescriptor(ComputePipelineID id) { return _computePipelines[static_cast<gIDType>(id)].desc; }
@@ -46,6 +47,7 @@ namespace Renderer
 
             DescriptorSetBuilderVK* GetDescriptorSetBuilder(GraphicsPipelineID id) { return _graphicsPipelines[static_cast<gIDType>(id)].descriptorSetBuilder; }
 
+
         private:
 
             struct GraphicsPipeline
@@ -57,6 +59,8 @@ namespace Renderer
                 
                 VkPipelineLayout pipelineLayout;
                 VkPipeline pipeline;
+
+                u32 numRenderTargets = 0;
                 VkFramebuffer framebuffer;
 
                 std::vector<DescriptorSetLayoutData> descriptorSetLayoutDatas;
@@ -71,7 +75,7 @@ namespace Renderer
             struct GraphicsPipelineCacheDesc
             {
                 GraphicsPipelineDesc::States states;
-                u32 numSRVs = 0;
+
                 ImageID renderTargets[MAX_RENDER_TARGETS] = { ImageID::Invalid(), ImageID::Invalid(), ImageID::Invalid(), ImageID::Invalid(), ImageID::Invalid(), ImageID::Invalid(), ImageID::Invalid(), ImageID::Invalid() };
                 DepthImageID depthStencil = DepthImageID::Invalid();
             };
@@ -88,7 +92,13 @@ namespace Renderer
             bool TryFindExistingCPipeline(u64 descHash, size_t& id);
             DescriptorSetLayoutData& GetDescriptorSet(i32 setNumber, std::vector<DescriptorSetLayoutData>& sets);
             
+            void CreateFramebuffer(GraphicsPipeline& pipeline);
+
         private:
+            RenderDeviceVK* _device;
+            ImageHandlerVK* _imageHandler;
+            ShaderHandlerVK* _shaderHandler;
+
             std::vector<GraphicsPipeline> _graphicsPipelines;
             std::vector<ComputePipeline> _computePipelines;
         };

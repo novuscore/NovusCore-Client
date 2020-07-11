@@ -10,17 +10,12 @@ namespace Renderer
 {
     namespace Backend
     {
-        ModelHandlerVK::ModelHandlerVK()
+        void ModelHandlerVK::Init(RenderDeviceVK* device)
         {
-
+            _device = device;
         }
 
-        ModelHandlerVK::~ModelHandlerVK()
-        {
-
-        }
-
-        ModelID ModelHandlerVK::CreatePrimitiveModel(RenderDeviceVK* device, const PrimitiveModelDesc& desc)
+        ModelID ModelHandlerVK::CreatePrimitiveModel(const PrimitiveModelDesc& desc)
         {
             size_t nextHandle = _models.size();
 
@@ -37,21 +32,21 @@ namespace Renderer
             tempData.vertices = desc.vertices;
             tempData.indices = desc.indices;
 
-            InitializeModel(device, model, tempData);
+            InitializeModel(model, tempData);
 
             _models.push_back(model);
             return ModelID(static_cast<type>(nextHandle));
         }
 
-        void ModelHandlerVK::UpdatePrimitiveModel(RenderDeviceVK* device, ModelID modelID, const PrimitiveModelDesc& desc)
+        void ModelHandlerVK::UpdatePrimitiveModel(ModelID modelID, const PrimitiveModelDesc& desc)
         {
             using type = type_safe::underlying_type<ModelID>;
             Model& model = _models[static_cast<type>(modelID)];
             
-            UpdateVertices(device, model, desc.vertices);
+            UpdateVertices(model, desc.vertices);
         }
 
-        ModelID ModelHandlerVK::LoadModel(RenderDeviceVK* device, const ModelDesc& desc)
+        ModelID ModelHandlerVK::LoadModel(const ModelDesc& desc)
         {
             size_t nextHandle = _models.size();
 
@@ -65,7 +60,7 @@ namespace Renderer
             TempModelData tempData;
 
             LoadFromFile(desc, tempData);
-            InitializeModel(device, model, tempData);
+            InitializeModel(model, tempData);
                 
             _models.push_back(model);
             return ModelID(static_cast<type>(nextHandle));
@@ -202,7 +197,7 @@ namespace Renderer
             }
         }
 
-        void ModelHandlerVK::InitializeModel(RenderDeviceVK* device, Model& model, const TempModelData& data)
+        void ModelHandlerVK::InitializeModel(Model& model, const TempModelData& data)
         {
             model.numVertices = static_cast<u32>(data.vertices.size());
             model.numIndices = static_cast<u32>(data.indices.size());
@@ -212,22 +207,22 @@ namespace Renderer
             if (model.numVertices > 0)
             {
                 VkDeviceSize vertexBufferSize = sizeof(data.vertices[0]) * data.vertices.size();
-                device->CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, model.vertexBuffer, model.vertexBufferAllocation);
+                _device->CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, model.vertexBuffer, model.vertexBufferAllocation);
 
-                DebugMarkerUtilVK::SetObjectName(device->_device, (u64)model.vertexBuffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, model.debugName.c_str());
+                DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)model.vertexBuffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, model.debugName.c_str());
 
-                UpdateVertices(device, model, data.vertices);
+                UpdateVertices(model, data.vertices);
             }
             
             // -- Create index buffer --
             if (model.numIndices > 0)
             {
                 VkDeviceSize indexBufferSize = sizeof(data.indices[0]) * data.indices.size();
-                device->CreateBuffer(indexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, model.indexBuffer, model.indexBufferAllocation);
+                _device->CreateBuffer(indexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, model.indexBuffer, model.indexBufferAllocation);
 
-                DebugMarkerUtilVK::SetObjectName(device->_device, (u64)model.vertexBuffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, model.debugName.c_str());
+                DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)model.vertexBuffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, model.debugName.c_str());
 
-                UpdateIndices(device, model, data.indices);
+                UpdateIndices(model, data.indices);
             }
 
             // -- Create attribute descriptor --
@@ -252,48 +247,48 @@ namespace Renderer
             model.attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
         }
 
-        void ModelHandlerVK::UpdateVertices(RenderDeviceVK* device, Model& model, const std::vector<Vertex>& vertices)
+        void ModelHandlerVK::UpdateVertices(Model& model, const std::vector<Vertex>& vertices)
         {
             VkBuffer stagingBuffer;
             VmaAllocation stagingBufferAllocation;
 
             // Create a staging buffer
             VkDeviceSize vertexBufferSize = sizeof(vertices[0]) * vertices.size();
-            device->CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer, stagingBufferAllocation);
+            _device->CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer, stagingBufferAllocation);
 
             // Copy our vertex data into the staging buffer
             void* vertexData;
-            vmaMapMemory(device->_allocator, stagingBufferAllocation, &vertexData);
+            vmaMapMemory(_device->_allocator, stagingBufferAllocation, &vertexData);
             memcpy(vertexData, vertices.data(), (size_t)vertexBufferSize);
-            vmaUnmapMemory(device->_allocator, stagingBufferAllocation);
+            vmaUnmapMemory(_device->_allocator, stagingBufferAllocation);
 
             // Copy the vertex data from our staging buffer to our vertex buffer
-            device->CopyBuffer(stagingBuffer, model.vertexBuffer, vertexBufferSize);
+            _device->CopyBuffer(stagingBuffer, model.vertexBuffer, vertexBufferSize);
 
             // Destroy and free our staging buffer
-            vmaDestroyBuffer(device->_allocator, stagingBuffer, stagingBufferAllocation);
+            vmaDestroyBuffer(_device->_allocator, stagingBuffer, stagingBufferAllocation);
         }
 
-        void ModelHandlerVK::UpdateIndices(RenderDeviceVK* device, Model& model, const std::vector<u32>& indices)
+        void ModelHandlerVK::UpdateIndices(Model& model, const std::vector<u32>& indices)
         {
             VkBuffer stagingBuffer;
             VmaAllocation stagingBufferAllocation;
 
             // Create a staging buffer
             VkDeviceSize indexBufferSize = sizeof(indices[0]) * indices.size();
-            device->CreateBuffer(indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer, stagingBufferAllocation);
+            _device->CreateBuffer(indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer, stagingBufferAllocation);
 
             // Copy our index data into the staging buffer
             void* indexData;
-            vmaMapMemory(device->_allocator, stagingBufferAllocation, &indexData);
+            vmaMapMemory(_device->_allocator, stagingBufferAllocation, &indexData);
             memcpy(indexData, indices.data(), (size_t)indexBufferSize);
-            vmaUnmapMemory(device->_allocator, stagingBufferAllocation);
+            vmaUnmapMemory(_device->_allocator, stagingBufferAllocation);
 
             // Copy the index data from our staging buffer to our vertex buffer
-            device->CopyBuffer(stagingBuffer, model.indexBuffer, indexBufferSize);
+            _device->CopyBuffer(stagingBuffer, model.indexBuffer, indexBufferSize);
 
             // Destroy and free our staging buffer
-            vmaDestroyBuffer(device->_allocator, stagingBuffer, stagingBufferAllocation);
+            vmaDestroyBuffer(_device->_allocator, stagingBuffer, stagingBufferAllocation);
         }
     }
 }

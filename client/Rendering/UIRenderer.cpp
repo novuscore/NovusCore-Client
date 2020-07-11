@@ -246,28 +246,8 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             pipelineDesc.states.inputLayouts[2].format = Renderer::InputFormat::INPUT_FORMAT_R32G32_FLOAT;
             pipelineDesc.states.inputLayouts[2].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
 
-            // Viewport
-            pipelineDesc.states.viewport.topLeftX = 0;
-            pipelineDesc.states.viewport.topLeftY = 0;
-            pipelineDesc.states.viewport.width = static_cast<f32>(WIDTH);
-            pipelineDesc.states.viewport.height = static_cast<f32>(HEIGHT);
-            pipelineDesc.states.viewport.minDepth = 0.0f;
-            pipelineDesc.states.viewport.maxDepth = 1.0f;
-
-            // ScissorRect
-            pipelineDesc.states.scissorRect.left = 0;
-            pipelineDesc.states.scissorRect.right = WIDTH;
-            pipelineDesc.states.scissorRect.top = 0;
-            pipelineDesc.states.scissorRect.bottom = HEIGHT;
-
             // Rasterizer state
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
-
-            // Samplers TODO: We don't care which samplers we have here, we just need the number of samplers
-            pipelineDesc.states.samplers[0].enabled = true;
-
-            // Textures TODO: We don't care which textures we have here, we just need the number of textures
-            pipelineDesc.textures[0] = Renderer::RenderPassResource(1);
 
             // Render targets
             pipelineDesc.renderTargets[0] = data.renderTarget;

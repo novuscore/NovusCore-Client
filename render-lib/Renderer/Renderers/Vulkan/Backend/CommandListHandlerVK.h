@@ -17,11 +17,10 @@ namespace Renderer
         class CommandListHandlerVK
         {
         public:
-            CommandListHandlerVK();
-            ~CommandListHandlerVK();
+            void Init(RenderDeviceVK* device);
 
-            CommandListID BeginCommandList(RenderDeviceVK* device);
-            void EndCommandList(RenderDeviceVK* device, CommandListID id);
+            CommandListID BeginCommandList();
+            void EndCommandList(CommandListID id);
 
             VkCommandBuffer GetCommandBuffer(CommandListID id);
 
@@ -45,11 +44,13 @@ namespace Renderer
                 GraphicsPipelineID boundGraphicsPipeline = GraphicsPipelineID::Invalid();
             };
 
-            CommandListID CreateCommandList(RenderDeviceVK* device);
+            CommandListID CreateCommandList();
 
         private:
 
         private:
+            RenderDeviceVK* _device;
+
             std::vector<CommandList> _commandLists;
             std::queue<CommandListID> _availableCommandLists;
         };

@@ -18,13 +18,12 @@ namespace Renderer
             // Update the second value of this when the format exported from the converter gets changed
             const NovusTypeHeader EXPECTED_TYPE_HEADER = NovusTypeHeader(42, 2);
         public:
-            ModelHandlerVK();
-            ~ModelHandlerVK();
+            void Init(RenderDeviceVK* device);
 
-            ModelID CreatePrimitiveModel(RenderDeviceVK* device, const PrimitiveModelDesc& desc);
-            void UpdatePrimitiveModel(RenderDeviceVK* device, ModelID model, const PrimitiveModelDesc& desc);
+            ModelID CreatePrimitiveModel(const PrimitiveModelDesc& desc);
+            void UpdatePrimitiveModel(ModelID model, const PrimitiveModelDesc& desc);
 
-            ModelID LoadModel(RenderDeviceVK* device, const ModelDesc& desc);
+            ModelID LoadModel(const ModelDesc& desc);
 
             VkBuffer GetVertexBuffer(ModelID modelID);
 
@@ -58,11 +57,13 @@ namespace Renderer
 
         private:
             void LoadFromFile(const ModelDesc& desc, TempModelData& data);
-            void InitializeModel(RenderDeviceVK* device, Model& model, const TempModelData& data);
-            void UpdateVertices(RenderDeviceVK* device, Model& model, const std::vector<Vertex>& vertices);
-            void UpdateIndices(RenderDeviceVK* device, Model& model, const std::vector<u32>& indices);
+            void InitializeModel(Model& model, const TempModelData& data);
+            void UpdateVertices(Model& model, const std::vector<Vertex>& vertices);
+            void UpdateIndices(Model& model, const std::vector<u32>& indices);
 
         private:
+            RenderDeviceVK* _device;
+
             std::vector<Model> _models;
         };
     }

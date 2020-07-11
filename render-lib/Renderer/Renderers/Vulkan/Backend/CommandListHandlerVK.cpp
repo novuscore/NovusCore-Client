@@ -7,21 +7,8 @@ namespace Renderer
 {
     namespace Backend
     {
-        CommandListHandlerVK::CommandListHandlerVK()
-        {
 
-        }
-
-        CommandListHandlerVK::~CommandListHandlerVK()
-        {
-            for (auto& commandList : _commandLists)
-            {
-                // TODO: Cleanup
-            }
-            _commandLists.clear();
-        }
-
-        CommandListID CommandListHandlerVK::BeginCommandList(RenderDeviceVK* device)
+        CommandListID CommandListHandlerVK::BeginCommandList()
         {
             using type = type_safe::underlying_type<CommandListID>;
 
@@ -34,7 +21,7 @@ namespace Renderer
                 CommandList& commandList = _commandLists[static_cast<type>(id)];
 
                 // Reset commandlist
-                vkResetCommandPool(device->_device, commandList.commandPool, 0);
+                vkResetCommandPool(_device->_device, commandList.commandPool, 0);
                 //vkResetCommandBuffer(commandList.commandBuffer, 0); // Not needed?;
 
                 VkCommandBufferBeginInfo beginInfo = {};
@@ -49,13 +36,18 @@ namespace Renderer
             }
             else
             {
-                return CreateCommandList(device);
+                return CreateCommandList();
             }
 
             return id;
         }
 
-        void CommandListHandlerVK::EndCommandList(RenderDeviceVK* device, CommandListID id)
+        void CommandListHandlerVK::Init(RenderDeviceVK* device)
+        {
+            _device = device;
+        }
+
+        void CommandListHandlerVK::EndCommandList(CommandListID id)
         {
             using type = type_safe::underlying_type<CommandListID>;
             CommandList& commandList = _commandLists[static_cast<type>(id)];
@@ -87,10 +79,10 @@ namespace Renderer
                 submitInfo.pSignalSemaphores = &commandList.signalSemaphore;
             }
 
-            vkQueueSubmit(device->_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+            vkQueueSubmit(_device->_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
             
             // Do syncing stuff
-            vkQueueWaitIdle(device->_graphicsQueue);
+            vkQueueWaitIdle(_device->_graphicsQueue);
 
             commandList.waitSemaphore = NULL;
             commandList.signalSemaphore = NULL;
@@ -189,7 +181,7 @@ namespace Renderer
             return _commandLists[static_cast<type>(id)].boundGraphicsPipeline;
         }
 
-        CommandListID CommandListHandlerVK::CreateCommandList(RenderDeviceVK* device)
+        CommandListID CommandListHandlerVK::CreateCommandList()
         {
             size_t id = _commandLists.size();
             assert(id < CommandListID::MaxValue());
@@ -198,14 +190,14 @@ namespace Renderer
             CommandList commandList;
 
             // Create commandpool
-            QueueFamilyIndices queueFamilyIndices = device->FindQueueFamilies(device->_physicalDevice);
+            QueueFamilyIndices queueFamilyIndices = _device->FindQueueFamilies(_device->_physicalDevice);
 
             VkCommandPoolCreateInfo poolInfo = {};
             poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
             poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
             poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
-            if (vkCreateCommandPool(device->_device, &poolInfo, nullptr, &commandList.commandPool) != VK_SUCCESS)
+            if (vkCreateCommandPool(_device->_device, &poolInfo, nullptr, &commandList.commandPool) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create command pool!");
             }
@@ -217,7 +209,7 @@ namespace Renderer
             allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
             allocInfo.commandBufferCount = 1;
 
-            if (vkAllocateCommandBuffers(device->_device, &allocInfo, &commandList.commandBuffer) != VK_SUCCESS)
+            if (vkAllocateCommandBuffers(_device->_device, &allocInfo, &commandList.commandBuffer) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to allocate command buffers!");
             }

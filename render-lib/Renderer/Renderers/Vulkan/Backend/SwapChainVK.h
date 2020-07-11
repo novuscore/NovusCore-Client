@@ -3,6 +3,8 @@
 #include "../../../SwapChain.h"
 #include <vulkan/vulkan.h>
 
+struct GLFWwindow;
+
 namespace Renderer
 {
     namespace Backend
@@ -108,8 +110,8 @@ namespace Renderer
             }
 
             RenderDeviceVK* device;
+            GLFWwindow* window;
 
-            static const u32 FRAME_BUFFER_COUNT = 2;
             u32 frameIndex = 0;
             u32 bufferCount;
 
@@ -121,12 +123,14 @@ namespace Renderer
 
             VkSurfaceKHR surface;
             VkSwapchainKHR swapChain;
-            VkImage images[FRAME_BUFFER_COUNT];
+
+            static const u32 FRAME_BUFFER_COUNT = 2;
+            FrameResource<VkImage, FRAME_BUFFER_COUNT> images;
             VkFormat imageFormat;
             VkExtent2D extent;
-            VkImageView imageViews[FRAME_BUFFER_COUNT];
-            VkFramebuffer framebuffers[FRAME_BUFFER_COUNT];
-            VkSemaphore imageAvailableSemaphores[FRAME_BUFFER_COUNT];
+            FrameResource<VkImageView, FRAME_BUFFER_COUNT> imageViews;
+            FrameResource<VkFramebuffer, FRAME_BUFFER_COUNT> framebuffers;
+            FrameResource<VkSemaphore, FRAME_BUFFER_COUNT> imageAvailableSemaphores;
         };
     }
 }

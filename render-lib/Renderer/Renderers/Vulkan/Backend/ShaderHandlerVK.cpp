@@ -8,43 +8,24 @@ namespace Renderer
 {
     namespace Backend
     {
-        ShaderHandlerVK::ShaderHandlerVK()
+        void ShaderHandlerVK::Init(RenderDeviceVK* device)
         {
-
+            _device = device;
         }
 
-        ShaderHandlerVK::~ShaderHandlerVK()
+        VertexShaderID ShaderHandlerVK::LoadShader(const VertexShaderDesc& desc)
         {
-            for (Shader& shader : _vertexShaders)
-            {
-                vkDestroyShaderModule(shader.device->_device, shader.module, nullptr);
-            }
-            for (Shader& shader : _pixelShaders)
-            {
-                vkDestroyShaderModule(shader.device->_device, shader.module, nullptr);
-            }
-            for (Shader& shader : _computeShaders)
-            {
-                vkDestroyShaderModule(shader.device->_device, shader.module, nullptr);
-            }
-            _vertexShaders.clear();
-            _pixelShaders.clear();
-            _computeShaders.clear();
+            return LoadShader<VertexShaderID>(desc.path, _vertexShaders);
         }
 
-        VertexShaderID ShaderHandlerVK::LoadShader(RenderDeviceVK* device, const VertexShaderDesc& desc)
+        PixelShaderID ShaderHandlerVK::LoadShader(const PixelShaderDesc& desc)
         {
-            return LoadShader<VertexShaderID>(device, desc.path, _vertexShaders);
+            return LoadShader<PixelShaderID>(desc.path, _pixelShaders);
         }
 
-        PixelShaderID ShaderHandlerVK::LoadShader(RenderDeviceVK* device, const PixelShaderDesc& desc)
+        ComputeShaderID ShaderHandlerVK::LoadShader(const ComputeShaderDesc& desc)
         {
-            return LoadShader<PixelShaderID>(device, desc.path, _pixelShaders);
-        }
-
-        ComputeShaderID ShaderHandlerVK::LoadShader(RenderDeviceVK* device, const ComputeShaderDesc& desc)
-        {
-            return LoadShader<ComputeShaderID>(device, desc.path, _computeShaders);
+            return LoadShader<ComputeShaderID>(desc.path, _computeShaders);
         }
 
         void ShaderHandlerVK::ReadFile(const std::string& filename, ShaderBinary& binary)
@@ -65,7 +46,7 @@ namespace Renderer
             file.close();
         }
 
-        VkShaderModule ShaderHandlerVK::CreateShaderModule(RenderDeviceVK* device, const ShaderBinary& binary)
+        VkShaderModule ShaderHandlerVK::CreateShaderModule(const ShaderBinary& binary)
         {
             VkShaderModuleCreateInfo createInfo = {};
             createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -73,7 +54,7 @@ namespace Renderer
             createInfo.pCode = reinterpret_cast<const uint32_t*>(binary.data());
 
             VkShaderModule shaderModule;
-            if (vkCreateShaderModule(device->_device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+            if (vkCreateShaderModule(_device->_device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create shader module!");
             }

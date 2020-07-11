@@ -23,7 +23,7 @@ namespace Renderer
     RendererVK::RendererVK(TextureDesc& debugTexture)
         : _device(new Backend::RenderDeviceVK())
     {
-        _device->Init();
+        // Create handlers
         _imageHandler = new Backend::ImageHandlerVK();
         _textureHandler = new Backend::TextureHandlerVK();
         _modelHandler = new Backend::ModelHandlerVK();
@@ -32,7 +32,17 @@ namespace Renderer
         _commandListHandler = new Backend::CommandListHandlerVK();
         _samplerHandler = new Backend::SamplerHandlerVK();
 
-        _textureHandler->LoadDebugTexture(_device, debugTexture);
+        // Init
+        _device->Init();
+        _imageHandler->Init(_device);
+        _textureHandler->Init(_device);
+        _modelHandler->Init(_device);
+        _shaderHandler->Init(_device);
+        _pipelineHandler->Init(_device, _shaderHandler, _imageHandler);
+        _commandListHandler->Init(_device);
+        _samplerHandler->Init(_device);
+
+        _textureHandler->LoadDebugTexture(debugTexture);
     }
 
     void RendererVK::InitWindow(Window* window)
@@ -56,53 +66,53 @@ namespace Renderer
 
     ImageID RendererVK::CreateImage(ImageDesc& desc)
     {
-        return _imageHandler->CreateImage(_device, desc);
+        return _imageHandler->CreateImage(desc);
     }
 
     DepthImageID RendererVK::CreateDepthImage(DepthImageDesc& desc)
     {
-        return _imageHandler->CreateDepthImage(_device, desc);
+        return _imageHandler->CreateDepthImage(desc);
     }
 
     SamplerID RendererVK::CreateSampler(SamplerDesc& desc)
     {
-        return _samplerHandler->CreateSampler(_device, desc);
+        return _samplerHandler->CreateSampler(desc);
     }
 
     GraphicsPipelineID RendererVK::CreatePipeline(GraphicsPipelineDesc& desc)
     {
-        return _pipelineHandler->CreatePipeline(_device, _shaderHandler, _imageHandler, desc);
+        return _pipelineHandler->CreatePipeline(desc);
     }
 
     ComputePipelineID RendererVK::CreatePipeline(ComputePipelineDesc& /*desc*/)
     {
-        NC_LOG_FATAL("Not supported yet");
+        NC_LOG_FATAL("Compuer Shaders are not supported yet");
         return ComputePipelineID::Invalid();
     }
 
     ModelID RendererVK::CreatePrimitiveModel(PrimitiveModelDesc& desc)
     {
-        return _modelHandler->CreatePrimitiveModel(_device, desc);
+        return _modelHandler->CreatePrimitiveModel(desc);
     }
 
     void RendererVK::UpdatePrimitiveModel(ModelID model, PrimitiveModelDesc& desc)
     {
-        _modelHandler->UpdatePrimitiveModel(_device, model, desc);
+        _modelHandler->UpdatePrimitiveModel(model, desc);
     }
 
     TextureArrayID RendererVK::CreateTextureArray(TextureArrayDesc& desc)
     {
-        return _textureHandler->CreateTextureArray(_device, desc);
+        return _textureHandler->CreateTextureArray(desc);
     }
 
     TextureID RendererVK::CreateDataTexture(DataTextureDesc& desc)
     {
-        return _textureHandler->CreateDataTexture(_device, desc);
+        return _textureHandler->CreateDataTexture(desc);
     }
 
     TextureID RendererVK::CreateDataTextureIntoArray(DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex)
     {
-        return _textureHandler->CreateDataTextureIntoArray(_device, desc, textureArray, arrayIndex);
+        return _textureHandler->CreateDataTextureIntoArray(desc, textureArray, arrayIndex);
     }
 
     DescriptorSetBackend* RendererVK::CreateDescriptorSetBackend()
@@ -112,37 +122,37 @@ namespace Renderer
 
     ModelID RendererVK::LoadModel(ModelDesc& desc)
     {
-        return _modelHandler->LoadModel(_device, desc);
+        return _modelHandler->LoadModel(desc);
     }
 
     TextureID RendererVK::LoadTexture(TextureDesc& desc)
     {
-        return _textureHandler->LoadTexture(_device, desc);
+        return _textureHandler->LoadTexture(desc);
     }
 
     TextureID RendererVK::LoadTextureIntoArray(TextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex)
     {
-        return _textureHandler->LoadTextureIntoArray(_device, desc, textureArray, arrayIndex);
+        return _textureHandler->LoadTextureIntoArray(desc, textureArray, arrayIndex);
     }
 
     VertexShaderID RendererVK::LoadShader(VertexShaderDesc& desc)
     {
-        return _shaderHandler->LoadShader(_device, desc);
+        return _shaderHandler->LoadShader(desc);
     }
 
     PixelShaderID RendererVK::LoadShader(PixelShaderDesc& desc)
     {
-        return _shaderHandler->LoadShader(_device, desc);
+        return _shaderHandler->LoadShader(desc);
     }
 
     ComputeShaderID RendererVK::LoadShader(ComputeShaderDesc& desc)
     {
-        return _shaderHandler->LoadShader(_device, desc);
+        return _shaderHandler->LoadShader(desc);
     }
 
     CommandListID RendererVK::BeginCommandList()
     {
-        return _commandListHandler->BeginCommandList(_device);
+        return _commandListHandler->BeginCommandList();
     }
 
     void RendererVK::EndCommandList(CommandListID commandListID)
@@ -152,7 +162,7 @@ namespace Renderer
             NC_LOG_FATAL("We found unmatched calls to BeginPipeline in your commandlist, for every BeginPipeline you need to also EndPipeline!");
         }
 
-        _commandListHandler->EndCommandList(_device, commandListID);
+        _commandListHandler->EndCommandList(commandListID);
     }
 
     void RendererVK::Clear(CommandListID commandListID, ImageID imageID, Color color)
@@ -293,13 +303,15 @@ namespace Renderer
         }
         _renderPassOpenCount++;
 
+        uvec2 renderSize = _device->GetMainWindowSize();
+
         // Set up renderpass
         VkRenderPassBeginInfo renderPassInfo = {};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassInfo.renderPass = renderPass;
         renderPassInfo.framebuffer = frameBuffer;
         renderPassInfo.renderArea.offset = { 0, 0 };
-        renderPassInfo.renderArea.extent = { static_cast<u32>(pipelineDesc.states.viewport.width), static_cast<u32>(pipelineDesc.states.viewport.height) };
+        renderPassInfo.renderArea.extent = { renderSize.x, renderSize.y };
 
         // Start renderpass
         vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -330,14 +342,30 @@ namespace Renderer
         
     }
 
-    void RendererVK::SetScissorRect(CommandListID /*commandListID*/, ScissorRect /*scissorRect*/)
+    void RendererVK::SetScissorRect(CommandListID commandListID, ScissorRect scissorRect)
     {
-        
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkRect2D vkScissorRect = {};
+        vkScissorRect.offset = { scissorRect.left, scissorRect.top };
+        vkScissorRect.extent = { static_cast<u32>(scissorRect.right - scissorRect.left), static_cast<u32>(scissorRect.bottom - scissorRect.top) };
+
+        vkCmdSetScissor(commandBuffer, 0, 1, &vkScissorRect);
     }
 
-    void RendererVK::SetViewport(CommandListID /*commandListID*/, Viewport /*viewport*/)
+    void RendererVK::SetViewport(CommandListID commandListID, Viewport viewport)
     {
-        
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkViewport vkViewport = {};
+        vkViewport.x = viewport.topLeftX;
+        vkViewport.y = viewport.topLeftY;
+        vkViewport.width = viewport.width;
+        vkViewport.height = viewport.height;
+        vkViewport.minDepth = viewport.minDepth;
+        vkViewport.maxDepth = viewport.maxDepth;
+
+        vkCmdSetViewport(commandBuffer, 0, 1, &vkViewport);
     }
 
     void RendererVK::SetVertexBuffer(CommandListID commandListID, u32 slot, ModelID modelID)
@@ -478,6 +506,13 @@ namespace Renderer
         }
     }
 
+    void RendererVK::RecreateSwapChain(Backend::SwapChainVK* swapChain)
+    {
+        _device->RecreateSwapChain(_shaderHandler, swapChain);
+        _pipelineHandler->OnWindowResize();
+        _imageHandler->OnWindowResize();
+    }
+
     void RendererVK::BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot,Descriptor* descriptors, u32 numDescriptors, u32 frameIndex)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
@@ -509,13 +544,14 @@ namespace Renderer
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
         Backend::DebugMarkerUtilVK::PushMarker(commandBuffer, Color(1,1,1,1), std::to_string(frameIndex));
+        Backend::DebugMarkerUtilVK::PopMarker(commandBuffer);
 
         _device->_descriptorMegaPool->SetFrame(frameIndex);
     }
 
     void RendererVK::Present(Window* window, ImageID imageID)
     {
-        CommandListID commandListID = _commandListHandler->BeginCommandList(_device);
+        CommandListID commandListID = _commandListHandler->BeginCommandList();
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
         PushMarker(commandListID, Color::Red, "Present Blitting");
 
@@ -525,9 +561,19 @@ namespace Renderer
 
         // Acquire next swapchain image
         u32 frameIndex;
+        VkResult result = vkAcquireNextImageKHR(_device->_device, swapChain->swapChain, UINT64_MAX, swapChain->imageAvailableSemaphores.Get(semaphoreIndex), VK_NULL_HANDLE, &frameIndex);
 
-        vkAcquireNextImageKHR(_device->_device, swapChain->swapChain, UINT64_MAX, swapChain->imageAvailableSemaphores[semaphoreIndex], VK_NULL_HANDLE, &frameIndex);
-        _commandListHandler->SetWaitSemaphore(commandListID, swapChain->imageAvailableSemaphores[semaphoreIndex]);
+        if (result == VK_ERROR_OUT_OF_DATE_KHR)
+        {
+            RecreateSwapChain(swapChain);
+            return;
+        }
+        else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+        {
+            NC_LOG_FATAL("Failed to acquire swap chain image!");
+        }
+
+        _commandListHandler->SetWaitSemaphore(commandListID, swapChain->imageAvailableSemaphores.Get(semaphoreIndex));
 
         ImageDesc imageDesc = _imageHandler->GetImageDesc(imageID);
         ImageComponentType componentType = ToImageComponentType(imageDesc.format);
@@ -570,7 +616,7 @@ namespace Renderer
         VkRenderPassBeginInfo renderPassInfo = {};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassInfo.renderPass = swapChain->renderPass;
-        renderPassInfo.framebuffer = swapChain->framebuffers[frameIndex];
+        renderPassInfo.framebuffer = swapChain->framebuffers.Get(frameIndex);
         renderPassInfo.renderArea.offset = { 0, 0 };
         renderPassInfo.renderArea.extent = swapChain->extent;
 
@@ -595,7 +641,7 @@ namespace Renderer
         _device->TransitionImageLayout(commandBuffer, image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, imageDesc.depth);
         PopMarker(commandListID);
 
-        _commandListHandler->EndCommandList(_device, commandListID);
+        _commandListHandler->EndCommandList(commandListID);
 
         // Present
         VkPresentInfoKHR presentInfo = {};
@@ -608,7 +654,18 @@ namespace Renderer
         presentInfo.pImageIndices = &frameIndex;
         presentInfo.pResults = nullptr; // Optional
 
-        vkQueuePresentKHR(_device->_presentQueue, &presentInfo);
+        result = vkQueuePresentKHR(_device->_presentQueue, &presentInfo);
+
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+        {
+            RecreateSwapChain(swapChain);
+            return;
+        }
+        else if (result != VK_SUCCESS)
+        {
+            NC_LOG_FATAL("Failed to present swap chain image!");
+        }
+
         vkQueueWaitIdle(_device->_presentQueue);
 
         // Flip frameIndex between 0 and 1

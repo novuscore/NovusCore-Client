@@ -48,12 +48,11 @@ namespace Renderer
             using csIDType = type_safe::underlying_type<ComputeShaderID>;
 
         public:
-            ShaderHandlerVK();
-            ~ShaderHandlerVK();
+            void Init(RenderDeviceVK* device);
 
-            VertexShaderID LoadShader(RenderDeviceVK* device, const VertexShaderDesc& desc);
-            PixelShaderID LoadShader(RenderDeviceVK* device, const PixelShaderDesc& desc);
-            ComputeShaderID LoadShader(RenderDeviceVK* device, const ComputeShaderDesc& desc);
+            VertexShaderID LoadShader(const VertexShaderDesc& desc);
+            PixelShaderID LoadShader(const PixelShaderDesc& desc);
+            ComputeShaderID LoadShader(const ComputeShaderDesc& desc);
 
             VkShaderModule GetShaderModule(const VertexShaderID id) { return _vertexShaders[static_cast<vsIDType>(id)].module; }
             VkShaderModule GetShaderModule(const PixelShaderID id) { return _pixelShaders[static_cast<psIDType>(id)].module; }
@@ -73,7 +72,6 @@ namespace Renderer
             {
                 std::string path;
                 VkShaderModule module;
-                RenderDeviceVK* device;
                 ShaderBinary spirv;
 
                 BindReflection bindReflection;
@@ -81,7 +79,7 @@ namespace Renderer
 
         private:
             template <typename T>
-            T LoadShader(RenderDeviceVK* device, const std::string& shaderPath, std::vector<Shader>& shaders)
+            T LoadShader(const std::string& shaderPath, std::vector<Shader>& shaders)
             {
                 size_t id;
                 using idType = type_safe::underlying_type<T>;
@@ -99,8 +97,7 @@ namespace Renderer
                 Shader& shader = shaders.back();
                 ReadFile(shaderPath, shader.spirv);
                 shader.path = shaderPath;
-                shader.module = CreateShaderModule(device, shader.spirv);
-                shader.device = device;
+                shader.module = CreateShaderModule(shader.spirv);
 
                 // Reflect descriptor sets
                 SpvReflectShaderModule reflectModule;
@@ -155,10 +152,12 @@ namespace Renderer
             }
             
             void ReadFile(const std::string& filename, ShaderBinary& binary);
-            VkShaderModule CreateShaderModule(RenderDeviceVK* device, const ShaderBinary& binary);
+            VkShaderModule CreateShaderModule(const ShaderBinary& binary);
             bool TryFindExistingShader(const std::string& shaderPath, std::vector<Shader>& shaders, size_t& id);
 
         private:
+            RenderDeviceVK* _device;
+
             std::vector<Shader> _vertexShaders;
             std::vector<Shader> _pixelShaders;
             std::vector<Shader> _computeShaders;

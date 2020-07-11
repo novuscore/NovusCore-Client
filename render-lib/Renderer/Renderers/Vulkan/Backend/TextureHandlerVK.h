@@ -16,18 +16,17 @@ namespace Renderer
         class TextureHandlerVK
         {
         public:
-            TextureHandlerVK();
-            ~TextureHandlerVK();
+            void Init(RenderDeviceVK* device);
 
-            void LoadDebugTexture(RenderDeviceVK* device, const TextureDesc& desc);
+            void LoadDebugTexture(const TextureDesc& desc);
 
-            TextureID LoadTexture(RenderDeviceVK* device, const TextureDesc& desc);
-            TextureID LoadTextureIntoArray(RenderDeviceVK* device, const TextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex);
+            TextureID LoadTexture(const TextureDesc& desc);
+            TextureID LoadTextureIntoArray(const TextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex);
 
-            TextureArrayID CreateTextureArray(RenderDeviceVK* device, const TextureArrayDesc& desc);
+            TextureArrayID CreateTextureArray(const TextureArrayDesc& desc);
 
-            TextureID CreateDataTexture(RenderDeviceVK* device, const DataTextureDesc& desc);
-            TextureID CreateDataTextureIntoArray(RenderDeviceVK* device, const DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex);
+            TextureID CreateDataTexture(const DataTextureDesc& desc);
+            TextureID CreateDataTextureIntoArray(const DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex);
 
             const std::vector<TextureID>& GetTextureIDsInArray(const TextureArrayID id);
 
@@ -67,9 +66,11 @@ namespace Renderer
             bool TryFindExistingTextureInArray(TextureArrayID arrayID, u64 descHash, size_t& arrayIndex, TextureID& textureId);
 
             u8* ReadFile(const std::string& filename, i32& width, i32& height, VkFormat& format);
-            void CreateTexture(RenderDeviceVK* device, Texture& texture, u8* pixels);
+            void CreateTexture(Texture& texture, u8* pixels);
 
         private:
+            RenderDeviceVK* _device;
+
             Texture _debugTexture;
             std::vector<Texture> _textures;
             std::vector<TextureArray> _textureArrays;

@@ -18,10 +18,9 @@ namespace Renderer
         class SamplerHandlerVK
         {
         public:
-            SamplerHandlerVK();
-            ~SamplerHandlerVK();
+            void Init(RenderDeviceVK* device);
 
-            SamplerID CreateSampler(RenderDeviceVK* device, const SamplerDesc& desc);
+            SamplerID CreateSampler(const SamplerDesc& desc);
 
             VkSampler& GetSampler(const SamplerID samplerID);
 
@@ -43,6 +42,8 @@ namespace Renderer
             bool TryFindExistingSampler(u64 descHash, size_t& id);
 
         private:
+            RenderDeviceVK* _device;
+
             std::vector<Sampler> _samplers;
         };
     }

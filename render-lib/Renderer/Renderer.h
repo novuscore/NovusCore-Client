@@ -14,7 +14,6 @@
 
 // Descriptors
 #include "Descriptors/CommandListDesc.h"
-#include "Descriptors/RendererDesc.h"
 #include "Descriptors/VertexShaderDesc.h"
 #include "Descriptors/PixelShaderDesc.h"
 #include "Descriptors/ComputeShaderDesc.h"

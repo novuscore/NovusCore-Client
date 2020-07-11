@@ -18,13 +18,10 @@ namespace Renderer
 
     struct GraphicsPipelineDesc
     {
-        static const int MAX_CONSTANT_BUFFERS = 8;
         static const int MAX_INPUT_LAYOUTS = 8;
-        static const int MAX_BOUND_TEXTURES = 8;
 
         GraphicsPipelineDesc()
         {
-            std::fill_n(textures, MAX_BOUND_TEXTURES, RenderPassResource::Invalid());
             std::fill_n(renderTargets, MAX_RENDER_TARGETS, RenderPassMutableResource::Invalid());
         }
 
@@ -35,11 +32,8 @@ namespace Renderer
             RasterizerState rasterizerState;
             DepthStencilState depthStencilState;
             BlendState blendState;
-            ConstantBufferState constantBufferStates[MAX_CONSTANT_BUFFERS];
+
             InputLayout inputLayouts[MAX_INPUT_LAYOUTS];
-            Viewport viewport; // TODO: Dynamic viewport
-            ScissorRect scissorRect; // TODO: Dynamic ScissorRect
-            Sampler samplers[MAX_BOUND_TEXTURES];
 
             // Shaders
             VertexShaderID vertexShader = VertexShaderID::Invalid();
@@ -52,9 +46,6 @@ namespace Renderer
         std::function<DepthImageID(RenderPassResource resource)> ResourceToDepthImageID = nullptr;
         std::function<ImageID(RenderPassMutableResource resource)> MutableResourceToImageID = nullptr;
         std::function<DepthImageID(RenderPassMutableResource resource)> MutableResourceToDepthImageID = nullptr;
-
-        // Textures
-        RenderPassResource textures[MAX_BOUND_TEXTURES];
 
         // Rendertargets
         RenderPassMutableResource renderTargets[MAX_RENDER_TARGETS];
