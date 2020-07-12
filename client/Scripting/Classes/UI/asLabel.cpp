@@ -5,8 +5,6 @@
 #include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
 
-#include "../../../ECS/Components/UI/UIDirty.h"
-
 namespace UI
 {
     asLabel::asLabel(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_TEXT) { }

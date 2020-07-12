@@ -6,7 +6,7 @@
 #include "../../../ECS/Components/UI/Singletons/UIAddElementQueueSingleton.h"
 
 #include "../../../ECS/Components/UI/UIVisible.h"
-#include "../../../ECS/Components/UI/UICollision.h"
+#include "../../../ECS/Components/UI/UICollidable.h"
 #include "../../../ECS/Components/UI/UIDirty.h"
 #include "../../../UI/UITransformUtils.h"
 
@@ -330,13 +330,13 @@ namespace UI
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 
                 // Check if collision enabled state is the same as what we are trying to set. If so doing anything would be redundant.
-                if (uiRegistry->has<UICollision>(entId) == enabled)
+                if (uiRegistry->has<UICollidable>(entId) == enabled)
                     return;
 
                 if (enabled)
-                    uiRegistry->emplace<UICollision>(entId);
+                    uiRegistry->emplace<UICollidable>(entId);
                 else
-                    uiRegistry->remove<UICollision>(entId);
+                    uiRegistry->remove<UICollidable>(entId);
             });
     }
 

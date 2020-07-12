@@ -26,7 +26,7 @@
 
 #include "../ECS/Components/UI/UIVisible.h"
 #include "../ECS/Components/UI/UIDirty.h"
-#include "../ECS/Components/UI/UICollision.h"
+#include "../ECS/Components/UI/UICollidable.h"
 
 #include "../Scripting/Classes/UI/asInputfield.h"
 
@@ -379,7 +379,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
         dataSingleton.focusedWidget = entt::null;
     }
 
-    auto eventGroup = registry->group<UITransformEvents>(entt::get<UITransform, UICollision, UIVisible>);
+    auto eventGroup = registry->group<UITransformEvents>(entt::get<UITransform, UICollidable, UIVisible>);
     eventGroup.sort<UITransform>([](const UITransform& left, const UITransform& right) { return left.sortKey > right.sortKey; });
     for (auto entity : eventGroup)
     {
