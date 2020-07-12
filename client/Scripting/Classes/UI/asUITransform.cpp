@@ -458,13 +458,15 @@ namespace UI
         if (!parent.includeChildBounds)
             return;
 
-        if (childMin.x < parent.minBound.x) parent.minBound.x = childMin.x;
-        if (childMin.y < parent.minBound.y) parent.minBound.y = childMin.y;
+        bool boundsChanged = false;
 
-        if (childMax.x > parent.maxBound.x) parent.maxBound.x = childMax.x;
-        if (childMax.y > parent.maxBound.y) parent.maxBound.y = childMax.y;
+        if (childMin.x < parent.minBound.x) { parent.minBound.x = childMin.x; boundsChanged = true; }
+        if (childMin.y < parent.minBound.y) { parent.minBound.y = childMin.y; boundsChanged = true; }
 
-        if (parent.parent)
+        if (childMax.x > parent.maxBound.x) { parent.maxBound.x = childMax.x; boundsChanged = true; }
+        if (childMax.y > parent.maxBound.y) { parent.maxBound.y = childMax.y; boundsChanged = true; }
+
+        if (parent.parent && boundsChanged)
             UpdateParentBounds(uiRegistry, uiRegistry->get<UITransform>(entt::entity(parent.parent)), parent.minBound, parent.maxBound);
     }
 }
