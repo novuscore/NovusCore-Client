@@ -18,9 +18,6 @@ namespace UI
 
         static void RegisterType();
 
-        //Transform Functions.
-        virtual void SetSize(const vec2& size);
-
         //Button Functions.
         const bool IsClickable() const { return _events.IsClickable(); }
         void SetOnClickCallback(asIScriptFunction* callback);

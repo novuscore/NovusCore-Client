@@ -12,7 +12,7 @@ namespace UI
     asCheckbox::asCheckbox(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_CHECKBOX)
     {
         checkPanel = asPanel::CreatePanel();
-        checkPanel->SetAnchor(vec2(0, 0));
+        checkPanel->SetFillParentSize(true);
         checkPanel->SetParent(this);
     }
 

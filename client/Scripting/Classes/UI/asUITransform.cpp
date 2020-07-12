@@ -68,10 +68,9 @@ namespace UI
     {
         _transform.anchor = anchor;
 
-        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-        UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
-        auto entityToAsObjectIterator = uiDataSingleton.entityToAsObject.find(entt::entity(_transform.parent));
-        if (entityToAsObjectIterator != uiDataSingleton.entityToAsObject.end())
+        UIDataSingleton& uiDataSingleton = ServiceLocator::GetUIRegistry()->ctx<UIDataSingleton>();
+        auto& entityToAsObject = uiDataSingleton.entityToAsObject;
+        if (auto entityToAsObjectIterator = entityToAsObject.find(entt::entity(_transform.parent)); entityToAsObjectIterator != entityToAsObject.end())
         {
             UITransform& parent = entityToAsObjectIterator->getSecond()->_transform;
 
@@ -80,13 +79,9 @@ namespace UI
 
         UpdateChildTransformsAngelScript(uiDataSingleton, _transform);
 
-        _transform.minBound = UITransformUtils::GetMinBounds(_transform);
-        _transform.maxBound = UITransformUtils::GetMaxBounds(_transform);
-
         // TRANSACTION
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([anchor, entId]()
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([anchor, entId]()
             {
                 entt::registry* registry = ServiceLocator::GetUIRegistry();
                 UITransform& transform = registry->get<UITransform>(entId);
@@ -113,17 +108,11 @@ namespace UI
     {
         _transform.localAnchor = localAnchor;
 
-        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-        UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
-        UpdateChildTransformsAngelScript(uiDataSingleton, _transform);
-
-        _transform.minBound = UITransformUtils::GetMinBounds(_transform);
-        _transform.maxBound = UITransformUtils::GetMaxBounds(_transform);
+        UpdateChildTransformsAngelScript(ServiceLocator::GetUIRegistry()->ctx<UIDataSingleton>(), _transform);
 
         // TRANSACTION
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([localAnchor, entId]()
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([localAnchor, entId]()
             {
                 entt::registry* registry = ServiceLocator::GetUIRegistry();
                 UITransform& transform = registry->get<UITransform>(entId);
@@ -143,17 +132,11 @@ namespace UI
     {
         _transform.size = size;
 
-        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-        UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
-        UpdateChildTransformsAngelScript(uiDataSingleton, _transform);
-
-        _transform.minBound = UITransformUtils::GetMinBounds(_transform);
-        _transform.maxBound = UITransformUtils::GetMaxBounds(_transform);
+        UpdateChildTransformsAngelScript(ServiceLocator::GetUIRegistry()->ctx<UIDataSingleton>(), _transform);
 
         // TRANSACTION
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([size, entId]()
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([size, entId]()
             {
                 entt::registry* registry = ServiceLocator::GetUIRegistry();
                 UITransform& transform = registry->get<UITransform>(entId);
@@ -169,14 +152,49 @@ namespace UI
             });
     }
 
+    void asUITransform::SetFillParentSize(bool fillParent)
+    {
+        //Check so we are actually changing the state.
+        if (fillParent == _transform.fillParentSize)
+            return;
+
+        _transform.fillParentSize = fillParent;
+
+        if (_transform.parent && fillParent)
+        {
+            auto& entityToAsObject = ServiceLocator::GetUIRegistry()->ctx<UIDataSingleton>().entityToAsObject;
+            if (auto itr = entityToAsObject.find(entt::entity(_transform.parent)); itr != entityToAsObject.end())
+                _transform.size = itr->second->GetSize();
+        }
+
+        // TRANSACTION
+        entt::entity entId = _entityId;
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([fillParent, entId]()
+            {
+                entt::registry* registry = ServiceLocator::GetUIRegistry();
+                UITransform& transform = registry->get<UITransform>(entId);
+
+                transform.fillParentSize = fillParent;
+
+                if (transform.parent && fillParent)
+                {
+                    UITransform& parentTransform = registry->get<UITransform>(entt::entity(transform.parent));
+
+                    transform.size = parentTransform.size;
+
+                    UpdateBounds(registry, transform);
+                    MarkDirty(registry, entId);
+                }
+            });
+    }
+
     void asUITransform::SetDepth(const u16 depth)
     {
         _transform.sortData.depth = depth;
 
         // TRANSACTION
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([depth, entId]()
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([depth, entId]()
             {
                 entt::registry* registry = ServiceLocator::GetUIRegistry();
                 UITransform& transform = registry->get<UITransform>(entId);
@@ -189,8 +207,7 @@ namespace UI
 
     void asUITransform::SetParent(asUITransform* parent)
     {
-        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-        UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
+        UIDataSingleton& uiDataSingleton = ServiceLocator::GetUIRegistry()->ctx<UIDataSingleton>();
 
         // Remove old parent.
         if (_transform.parent)
@@ -232,13 +249,12 @@ namespace UI
         UpdateChildVisibilityAngelScript(uiDataSingleton, _transform, _visibility.parentVisible && _visibility.visible);
 
         // TRANSACTION
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity parentEntityId = parent->GetEntityId();
         entt::entity entityId = _entityId;
         UIElementType elementType = _elementType;
         vec2 newPosition = _transform.position;
         vec2 newLocalPosition = _transform.localPosition;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([parentEntityId, entityId, elementType, newPosition, newLocalPosition]()
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([parentEntityId, entityId, elementType, newPosition, newLocalPosition]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& transform = uiRegistry->get<UITransform>(entityId);
@@ -286,8 +302,7 @@ namespace UI
 
     void asUITransform::SetVisible(bool visible)
     {
-        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-        UIDataSingleton& uiDataSingleton = uiRegistry->ctx<UIDataSingleton>();
+        UIDataSingleton& uiDataSingleton = ServiceLocator::GetUIRegistry()->ctx<UIDataSingleton>();
 
         //Don't do anything if new visibility isn't different from the old one.
         if (_visibility.visible != visible)
@@ -298,9 +313,8 @@ namespace UI
         }
 
         // TRANSACTION
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([visible, entId]()
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([visible, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UIVisibility& uiVisibility = uiRegistry->get<UIVisibility>(entId);
@@ -323,9 +337,8 @@ namespace UI
 
     void asUITransform::SetCollisionEnabled(bool enabled)
     {
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([enabled, entId]()
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([enabled, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 
@@ -342,9 +355,8 @@ namespace UI
 
     void asUITransform::Destroy()
     {
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
         entt::entity entId = _entityId;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([entId]()
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId]()
             {
                 entt::registry* registry = ServiceLocator::GetUIRegistry();
                 UIDataSingleton& dataSingleton = registry->ctx<UIDataSingleton>();
@@ -364,11 +376,12 @@ namespace UI
         for (UIChild& child : parent.children)
         {
             entt::entity entId = entt::entity(child.entity);
-            UITransform& uiChildTransform = uiRegistry->get<UITransform>(entId);
+            UITransform& childTransform = uiRegistry->get<UITransform>(entId);
 
-            uiChildTransform.position = UITransformUtils::GetAnchorPosition(parent, uiChildTransform.anchor);
+            childTransform.position = UITransformUtils::GetAnchorPosition(parent, childTransform.anchor);
+            if (childTransform.fillParentSize) childTransform.size = parent.size;
 
-            UpdateChildTransforms(uiRegistry, uiChildTransform);
+            UpdateChildTransforms(uiRegistry, childTransform);
 
             MarkDirty(uiRegistry, entId);
         }
@@ -379,15 +392,16 @@ namespace UI
     {
         for (UIChild& child : parent.children)
         {
-            auto iterator = uiDataSingleton.entityToAsObject.find(entt::entity(child.entity));
-            if (iterator == uiDataSingleton.entityToAsObject.end())
+            auto itr = uiDataSingleton.entityToAsObject.find(entt::entity(child.entity));
+            if (itr == uiDataSingleton.entityToAsObject.end())
                 continue;
 
-            UITransform& asChildTransform = iterator->getSecond()->_transform;
+            UITransform& childTransform = itr->getSecond()->_transform;
 
-            asChildTransform.position = UITransformUtils::GetAnchorPosition(parent, asChildTransform.anchor);
+            childTransform.position = UITransformUtils::GetAnchorPosition(parent, childTransform.anchor);
+            if (childTransform.fillParentSize) childTransform.size = parent.size;
 
-            UpdateChildTransformsAngelScript(uiDataSingleton, asChildTransform);
+            UpdateChildTransformsAngelScript(uiDataSingleton, childTransform);
         }
     }
 
@@ -396,15 +410,15 @@ namespace UI
         for (const UIChild& child : parent.children)
         {
             const entt::entity childEntity = entt::entity(child.entity);
-            UIVisibility& uiChildVisibility = uiRegistry->get<UIVisibility>(childEntity);
+            UIVisibility& childVisibility = uiRegistry->get<UIVisibility>(childEntity);
 
-            const bool visibilityChanged = uiChildVisibility.parentVisible != parentVisibility;
-            if (!visibilityChanged)
+            //Check so visibility state is actually changing. Doing anything if it is not would be redundant.
+            if (!childVisibility.parentVisible != parentVisibility)
                 continue;
 
-            uiChildVisibility.parentVisible = parentVisibility;
+            childVisibility.parentVisible = parentVisibility;
 
-            const bool newVisibility = uiChildVisibility.parentVisible && uiChildVisibility.visible;
+            const bool newVisibility = childVisibility.parentVisible && childVisibility.visible;
             UpdateChildVisibility(uiRegistry, uiRegistry->get<UITransform>(childEntity), newVisibility);
 
             if (newVisibility)
@@ -424,8 +438,8 @@ namespace UI
             asUITransform* asChild = iterator->getSecond();
             UIVisibility& uiChildVisibility = asChild->_visibility;
 
-            const bool visibilityChanged = uiChildVisibility.parentVisible != parentVisibility;
-            if (!visibilityChanged)
+            //Check so visibility state is actually changing. Doing anything if it is not would be redundant.
+            if (!uiChildVisibility.parentVisible != parentVisibility)
                 continue;
 
             uiChildVisibility.parentVisible = parentVisibility;

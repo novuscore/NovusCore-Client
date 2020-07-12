@@ -36,6 +36,8 @@ namespace UI
             r = ScriptEngine::RegisterScriptClassFunction("void SetLocalAnchor(vec2 anchor)", asMETHOD(T, SetLocalAnchor)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetSize()", asMETHOD(T, GetSize)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetSize(vec2 size)", asMETHOD(T, SetSize)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("bool GetFillParentSize()", asMETHOD(T, GetFillParentSize)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetFillParentSize(bool fillParent)", asMETHOD(T, SetFillParentSize)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("float GetDepth()", asMETHOD(T, GetDepth)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetDepth(uint16 depth)", asMETHOD(T, SetDepth)); assert(r >= 0);
 
@@ -94,6 +96,12 @@ namespace UI
         }
         virtual void SetSize(const vec2& size);
         
+        virtual const bool GetFillParentSize()
+        {
+            return _transform.fillParentSize;
+        }
+        virtual void SetFillParentSize(bool fillParent);
+
         virtual const u16 GetDepth() const
         {
             return _transform.sortData.depth;
@@ -113,6 +121,7 @@ namespace UI
         void SetCollisionEnabled(bool enabled);
 
         virtual void Destroy();
+
 protected:
         static void MarkDirty(entt::registry* registry, entt::entity entId);
     

@@ -12,11 +12,16 @@ namespace UI
     asButton::asButton(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_BUTTON) 
     {
         _panel = asPanel::CreatePanel();
+        _panel->SetFillParentSize(true);
+        _panel->SetAnchor(vec2(0.5, 0.5));
+        _panel->SetLocalAnchor(vec2(0.5, 0.5));
         _panel->SetParent(this);
 
         _label = asLabel::CreateLabel();
-        _label->SetParent(this);
+        _label->SetFillParentSize(true);
         _label->SetAnchor(vec2(0.5, 0.5));
+        _label->SetLocalAnchor(vec2(0.5, 0.5));
+        _label->SetParent(this);
     }
     
     void asButton::RegisterType()
@@ -46,15 +51,6 @@ namespace UI
         r = ScriptEngine::RegisterScriptClassFunction("void SetTexture(string Texture)", asMETHOD(asButton, SetTexture)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("Color GetColor()", asMETHOD(asButton, GetColor)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetColor(Color color)", asMETHOD(asButton, SetColor)); assert(r >= 0);
-    }
-
-    void asButton::SetSize(const vec2& size)
-    {
-        asUITransform::SetSize(size);
-
-        //This should be replaced by a system for filling parent size.
-        _panel->SetSize(size);
-        _label->SetSize(size);
     }
 
     void asButton::SetOnClickCallback(asIScriptFunction* callback)

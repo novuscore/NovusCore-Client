@@ -62,6 +62,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
 
 void UIRenderer::Update(f32 deltaTime)
 {
+    ZoneScoped;
     entt::registry* registry = ServiceLocator::GetUIRegistry();
 
     auto imageView = registry->view<UITransform, UIImage, UIDirty>();
@@ -229,6 +230,8 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
         },
         [&](UIPassData& data, Renderer::CommandList& commandList) // Execute
         {
+            ZoneScopedN("Renderer - UIPass");
+
             Renderer::GraphicsPipelineDesc pipelineDesc;
             renderGraph->InitializePipelineDesc(pipelineDesc);
 
@@ -285,86 +288,88 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
-            ZoneScopedNC("UIRenderer::AddUIPass - Render", tracy::Color::Red)
+            {
+                ZoneScopedNC("UIRenderer::AddUIPass - Render", tracy::Color::Red)
 
-            entt::registry* registry = ServiceLocator::GetUIRegistry();
-            auto renderGroup = registry->group<UITransform>(entt::get<UIRenderable, UIVisible>);
-            renderGroup.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
-            renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &panelPipeline](const auto entity, UITransform& transform)
-                {
-                    switch (transform.sortData.type)
+                entt::registry* registry = ServiceLocator::GetUIRegistry();
+                auto renderGroup = registry->group<UITransform>(entt::get<UIRenderable, UIVisible>);
+                renderGroup.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
+                renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &panelPipeline](const auto entity, UITransform& transform)
                     {
-                    case UI::UIElementType::UITYPE_TEXT:
-                    case UI::UIElementType::UITYPE_INPUTFIELD:
-                    {
-                        UIText& text = registry->get<UIText>(entity);
-                        if (!text.constantBuffer)
-                            return;
-
-                        if (activePipeline != textPipeline)
+                        switch (transform.sortData.type)
                         {
-                            commandList.EndPipeline(activePipeline);
-                            commandList.BeginPipeline(textPipeline);
-                            activePipeline = textPipeline;
+                        case UI::UIElementType::UITYPE_TEXT:
+                        case UI::UIElementType::UITYPE_INPUTFIELD:
+                        {
+                            UIText& text = registry->get<UIText>(entity);
+                            if (!text.constantBuffer)
+                                return;
+
+                            if (activePipeline != textPipeline)
+                            {
+                                commandList.EndPipeline(activePipeline);
+                                commandList.BeginPipeline(textPipeline);
+                                activePipeline = textPipeline;
+                            }
+
+                            commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
+
+                            // Bind textdata descriptor
+                            _drawDescriptorSet.Bind("_textData"_h, text.constantBuffer);
+
+                            // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
+                            size_t glyphs = text.models.size();
+                            for (u32 i = 0; i < glyphs; i++)
+                            {
+                                // Bind texture descriptor
+                                _drawDescriptorSet.Bind("_texture"_h, text.textures[i]);
+
+                                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
+
+                                // Draw
+                                commandList.Draw(text.models[i]);
+                            }
+
+                            commandList.PopMarker();
+                            break;
                         }
-
-                        commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
-
-                        // Bind textdata descriptor
-                        _drawDescriptorSet.Bind("_textData"_h, text.constantBuffer);
-
-                        // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
-                        size_t glyphs = text.models.size();
-                        for (u32 i = 0; i < glyphs; i++)
+                        default:
                         {
-                            // Bind texture descriptor
-                            _drawDescriptorSet.Bind("_texture"_h, text.textures[i]);
+                            UIImage& image = registry->get<UIImage>(entity);
+                            if (!image.constantBuffer)
+                                return;
+
+                            if (activePipeline != panelPipeline)
+                            {
+                                commandList.EndPipeline(activePipeline);
+                                commandList.BeginPipeline(panelPipeline);
+                                activePipeline = panelPipeline;
+                            }
+
+                            commandList.PushMarker("Image", Color(0.0f, 0.1f, 0.0f));
+
+                            // Bind descriptors
+                            _drawDescriptorSet.Bind("_panelData"_h, image.constantBuffer);
+                            _drawDescriptorSet.Bind("_texture"_h, image.textureID);
 
                             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
 
                             // Draw
-                            commandList.Draw(text.models[i]);
+                            commandList.Draw(image.modelID);
+
+                            commandList.PopMarker();
+                            break;
                         }
-
-                        commandList.PopMarker();
-                        break;
-                    }
-                    default:
-                    {
-                        UIImage& image = registry->get<UIImage>(entity);
-                        if (!image.constantBuffer)
-                            return;
-
-                        if (activePipeline != panelPipeline)
-                        {
-                            commandList.EndPipeline(activePipeline);
-                            commandList.BeginPipeline(panelPipeline);
-                            activePipeline = panelPipeline;
                         }
-
-                        commandList.PushMarker("Image", Color(0.0f, 0.1f, 0.0f));
-
-                        // Bind descriptors
-                        _drawDescriptorSet.Bind("_panelData"_h, image.constantBuffer);
-                        _drawDescriptorSet.Bind("_texture"_h, image.textureID);
-
-                        commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
-
-                        // Draw
-                        commandList.Draw(image.modelID);
-
-                        commandList.PopMarker();
-                        break;
-                    }
-                    }
-                });
-
-            commandList.EndPipeline(panelPipeline);
+                    });
+                commandList.EndPipeline(activePipeline);
+            }
         });
 }
 
 bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
 {
+    ZoneScoped;
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
 

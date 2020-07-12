@@ -20,6 +20,7 @@ struct UITransform
     vec2 anchor = vec2(0, 0);
     vec2 localAnchor = vec2(0, 0);
     vec2 size = vec2(0, 0);
+    bool fillParentSize = false;
     union
     {
         u64 sortKey = 0;
