@@ -13,6 +13,7 @@
 #include "../../Components/UI/UIVisible.h"
 #include "../../Components/UI/UIVisibility.h"
 #include "../../Components/UI/UIInputField.h"
+#include "../../Components/UI/UICheckbox.h"
 
 void AddElementSystem::Update(entt::registry& registry)
 {
@@ -46,14 +47,18 @@ void AddElementSystem::Update(entt::registry& registry)
             inputField.asObject = element.asObject;
             break;
         }
+        case UI::UIElementType::UITYPE_CHECKBOX:
+        {
+            UICheckbox& checkBox = registry.emplace<UICheckbox>(element.entityId);
+            checkBox.asObject = element.asObject;
+            break;
+        }
         default:
             break;
         }
 
         if (registry.any<UIImage, UIText>(element.entityId))
-        {
             registry.emplace<UIRenderable>(element.entityId);
-        }
 
         if (element.type != UI::UIElementType::UITYPE_TEXT)
         {
