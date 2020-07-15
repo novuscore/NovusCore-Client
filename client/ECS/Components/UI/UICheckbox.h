@@ -7,6 +7,8 @@ struct UICheckbox
 public:
     UICheckbox() { }
 
+    bool checked = false;
+
     asIScriptFunction* onChecked = nullptr;
     asIScriptFunction* onUnchecked = nullptr;
     void* asObject = nullptr;

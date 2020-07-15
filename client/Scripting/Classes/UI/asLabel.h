@@ -17,6 +17,8 @@ namespace UI
         void SetText(const std::string& text);
         const std::string GetText() const { return _text.text; }
 
+        void SetFont(const std::string& fontPath, f32 fontSize);
+
         void SetColor(const Color& color);
         const Color& GetColor() const { return _text.color; }
 
@@ -25,8 +27,6 @@ namespace UI
 
         void SetOutlineWidth(f32 outlineWidth);
         const f32 GetOutlineWidth() const { return _text.outlineWidth; }
-
-        void SetFont(const std::string& fontPath, f32 fontSize);
 
         static asLabel* CreateLabel();
 

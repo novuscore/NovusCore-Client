@@ -26,17 +26,29 @@ namespace UI
         void SetOnDragCallback(asIScriptFunction* callback);
         void SetOnFocusCallback(asIScriptFunction* callback);
 
-        // Renderable Functions
+        // Background Functions
         void SetBackgroundTexture(const std::string& texture);
         const std::string& GetBackgroundTexture() const { return _image.texture; }
 
         void SetBackgroundColor(const Color& color);
         const Color GetBackgroundColor() const { return _image.color; }
 
+        // Check Functions
+        void SetCheckTexture(const std::string& texture);
+        const std::string& GetCheckTexture() const;
+
+        void SetCheckColor(const Color& color);
+        const Color GetCheckColor() const;
+
+        // Checkbox Functions
+        void SetChecked(bool checked);
+        bool IsChecked() { return _checkBox.checked; }
+
         static asCheckbox* CreateCheckbox();
 
     private:
         UITransformEvents _events;
+        UICheckbox _checkBox;
         UIImage _image;
 
         asPanel* checkPanel;
