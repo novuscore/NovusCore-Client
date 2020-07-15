@@ -22,13 +22,15 @@
 #include "../ECS/Components/UI/UIImage.h"
 #include "../ECS/Components/UI/UIText.h"
 
-#include "../ECS/Components/UI/UIInputField.h"
-
 #include "../ECS/Components/UI/UIVisible.h"
 #include "../ECS/Components/UI/UIDirty.h"
 #include "../ECS/Components/UI/UICollidable.h"
 
+#include "../ECS/Components/UI/UIInputField.h"
+#include "../ECS/Components/UI/UICheckbox.h"
+
 #include "../Scripting/Classes/UI/asInputfield.h"
+#include "../Scripting/Classes/UI/asCheckbox.h"
 
 const u32 WIDTH = 1920;
 const u32 HEIGHT = 1080;
@@ -46,11 +48,18 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     registry->prepare<UITransform>();
     registry->prepare<UITransformEvents>();
+    registry->prepare<UIRenderable>();
     registry->prepare<UIImage>();
     registry->prepare<UIText>();
 
     registry->prepare<UIVisible>();
     registry->prepare<UIVisibility>();
+
+    registry->prepare<UIDirty>();
+    registry->prepare<UICollidable>();
+
+    registry->prepare<UIInputField>();
+    registry->prepare<UICheckbox>();
 
     // Register UI singletons.
     registry->set<UI::UIDataSingleton>();

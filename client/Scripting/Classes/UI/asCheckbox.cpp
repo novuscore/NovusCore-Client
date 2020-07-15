@@ -35,11 +35,19 @@ namespace UI
         r = ScriptEngine::RegisterScriptClassFunction("void OnDragged(CheckboxEventCallback@ cb)", asMETHOD(asCheckbox, SetOnDragCallback)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void OnFocused(CheckboxEventCallback@ cb)", asMETHOD(asCheckbox, SetOnFocusCallback)); assert(r >= 0);
 
-        // Renderable Functions
-        r = ScriptEngine::RegisterScriptClassFunction("string GetBackgroundTexture()", asMETHOD(asCheckbox, GetBackgroundTexture)); assert(r >= 0);
+        // Rendering Functions
         r = ScriptEngine::RegisterScriptClassFunction("void SetBackgroundTexture(string Texture)", asMETHOD(asCheckbox, SetBackgroundTexture)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("Color GetBackgroundColor()", asMETHOD(asCheckbox, GetBackgroundColor)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("string GetBackgroundTexture()", asMETHOD(asCheckbox, GetBackgroundTexture)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetBackgroundColor(Color color)", asMETHOD(asCheckbox, SetBackgroundColor)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("Color GetBackgroundColor()", asMETHOD(asCheckbox, GetBackgroundColor)); assert(r >= 0);
+
+        r = ScriptEngine::RegisterScriptClassFunction("void SetCheckTexture(string Texture)", asMETHOD(asCheckbox, SetCheckTexture)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("string GetCheckTexture()", asMETHOD(asCheckbox, GetCheckTexture)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetCheckColor(Color color)", asMETHOD(asCheckbox, SetCheckColor)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("Color GetCheckColor()", asMETHOD(asCheckbox, GetCheckColor)); assert(r >= 0);
+
+        // Checkbox Functions
+        r = ScriptEngine::RegisterScriptClassFunction("void SetChecked(bool checked)", asMETHOD(asCheckbox, SetChecked)); assert(r >= 0);
     }
 
     void asCheckbox::SetOnClickCallback(asIScriptFunction* callback)
