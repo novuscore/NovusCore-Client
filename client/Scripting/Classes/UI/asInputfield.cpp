@@ -27,6 +27,7 @@ namespace UI
         r = ScriptEngine::RegisterScriptClassFunction("void OnSubmit(InputFieldEventCallback@ cb)", asMETHOD(asInputField, SetOnSubmitCallback)); assert(r >= 0);
 
         // TransformEvents Functions
+        r = ScriptEngine::RegisterScriptClassFunction("void SetFocusable(bool focusable)", asMETHOD(asInputField, SetFocusable)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("bool IsFocusable()", asMETHOD(asInputField, IsFocusable)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void OnFocus(InputFieldEventCallback@ cb)", asMETHOD(asInputField, SetOnFocusCallback)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void OnLostFocus(InputFieldEventCallback@ cb)", asMETHOD(asInputField, SetOnUnFocusCallback)); assert(r >= 0);
@@ -210,7 +211,7 @@ namespace UI
     {
         _text.text = text;
 
-        UI::TextUtils::SetText(text, _entityId);
+        UI::TextUtils::SetText(_entityId, text);
 
         if(updateWriteHead)
             SetWriteHeadPosition(static_cast<u32>(text.length()));
@@ -220,28 +221,28 @@ namespace UI
     {
         _text.color = color;
 
-        UI::TextUtils::SetColor(color, _entityId);
+        UI::TextUtils::SetColor(_entityId, color);
     }
 
     void asInputField::SetTextOutlineColor(const Color& outlineColor)
     {
         _text.outlineColor = outlineColor;
 
-        UI::TextUtils::SetOutlineColor(outlineColor, _entityId);
+        UI::TextUtils::SetOutlineColor(_entityId, outlineColor);
     }
 
     void asInputField::SetTextOutlineWidth(f32 outlineWidth)
     {
         _text.outlineWidth = outlineWidth;
 
-        UI::TextUtils::SetOutlineWidth(outlineWidth, _entityId);
+        UI::TextUtils::SetOutlineWidth(_entityId, outlineWidth);
     }
 
     void asInputField::SetTextFont(const std::string& fontPath, f32 fontSize)
     {
         _text.fontPath = fontPath;
 
-        UI::TextUtils::SetFont(fontPath, fontSize, _entityId);
+        UI::TextUtils::SetFont(_entityId, fontPath, fontSize);
     }
 
     asInputField* asInputField::CreateInputField()

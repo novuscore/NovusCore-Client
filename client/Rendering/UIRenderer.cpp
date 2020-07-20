@@ -435,6 +435,22 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             {
                 events.OnClick();
             }
+
+            switch (transform.sortData.type)
+            {
+            case UI::UIElementType::UITYPE_CHECKBOX:
+            {
+                UI::asCheckbox* checkBox = reinterpret_cast<UI::asCheckbox*>(transform.asObject);
+                if (events.IsClickable())
+                {
+                    checkBox->ToggleChecked();
+                }
+
+                break;
+            }
+            default:
+                break;
+            }
         }
 
         return true;
@@ -473,6 +489,12 @@ bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifi
     {
         UI::asInputField* inputFieldAS = reinterpret_cast<UI::asInputField*>(transform.asObject);
         inputFieldAS->HandleKeyInput(key);
+        break;
+    }
+    case UI::UIElementType::UITYPE_CHECKBOX:
+    {
+        UI::asCheckbox* checkBoxAS = reinterpret_cast<UI::asCheckbox*>(transform.asObject);
+        checkBoxAS->HandleKeyInput(key);
         break;
     }
     default:

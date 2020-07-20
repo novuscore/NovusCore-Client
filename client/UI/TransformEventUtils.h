@@ -9,9 +9,29 @@
 
 namespace UI::TransformEventUtils
 {
-    inline static void SetOnClickCallback(asIScriptFunction* callback, entt::entity entId)
+    inline static void SetFlag(entt::entity entId, UITransformEventsFlags flag)
     {
-        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, flag]()
+            {
+                UITransformEvents& events = ServiceLocator::GetUIRegistry()->get<UITransformEvents>(entId);
+
+                events.SetFlag(flag);
+            });
+    }
+
+    inline static void UnsetFlag(entt::entity entId, UITransformEventsFlags flag)
+    {
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, flag]()
+            {
+                UITransformEvents& events = ServiceLocator::GetUIRegistry()->get<UITransformEvents>(entId);
+
+                events.UnsetFlag(flag);
+            });
+    }
+
+    inline static void SetOnClickCallback(entt::entity entId, asIScriptFunction* callback)
+    {
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, callback]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransformEvents& events = uiRegistry->get<UITransformEvents>(entId);
@@ -21,9 +41,9 @@ namespace UI::TransformEventUtils
             });
     }
 
-    inline static void SetOnDragCallback(asIScriptFunction* callback, entt::entity entId)
+    inline static void SetOnDragCallback(entt::entity entId, asIScriptFunction* callback)
     {
-        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, callback]()
             {
                 UITransformEvents& events = ServiceLocator::GetUIRegistry()->get<UITransformEvents>(entId);
 
@@ -32,9 +52,9 @@ namespace UI::TransformEventUtils
             });
     }
 
-    inline static void SetOnFocusCallback(asIScriptFunction* callback, entt::entity entId)
+    inline static void SetOnFocusCallback(entt::entity entId, asIScriptFunction* callback)
     {
-        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, callback]()
             {
                 UITransformEvents& events = ServiceLocator::GetUIRegistry()->get<UITransformEvents>(entId);
 

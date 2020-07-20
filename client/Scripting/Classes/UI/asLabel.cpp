@@ -32,35 +32,35 @@ namespace UI
     {
         _text.text = text;
 
-        UI::TextUtils::SetText(text, _entityId);
+        UI::TextUtils::SetText(_entityId, text);
     }
 
     void asLabel::SetFont(const std::string& fontPath, f32 fontSize)
     {
         _text.fontPath = fontPath;
 
-        UI::TextUtils::SetFont(fontPath, fontSize, _entityId);
+        UI::TextUtils::SetFont(_entityId, fontPath, fontSize);
     }
 
     void asLabel::SetColor(const Color& color)
     {
         _text.color = color;
 
-        UI::TextUtils::SetColor(color, _entityId);
+        UI::TextUtils::SetColor(_entityId, color);
     }
 
     void asLabel::SetOutlineColor(const Color& outlineColor)
     {
         _text.outlineColor = outlineColor;
 
-        UI::TextUtils::SetOutlineColor(outlineColor, _entityId);
+        UI::TextUtils::SetOutlineColor(_entityId, outlineColor);
     }
 
     void asLabel::SetOutlineWidth(f32 outlineWidth)
     {
         _text.outlineWidth = outlineWidth;
 
-        UI::TextUtils::SetOutlineWidth(outlineWidth, _entityId);
+        UI::TextUtils::SetOutlineWidth(_entityId, outlineWidth);
     }
 
     asLabel* asLabel::CreateLabel()

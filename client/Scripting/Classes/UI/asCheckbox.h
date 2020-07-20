@@ -1,5 +1,5 @@
 #pragma once
-#include "../../../ECS/Components/UI/UITransform.h"
+
 #include "../../../ECS/Components/UI/UITransformEvents.h"
 #include "../../../ECS/Components/UI/UIImage.h"
 #include "../../../ECS/Components/UI/UICheckbox.h"
@@ -17,8 +17,8 @@ namespace UI
         static void RegisterType();
 
         // TransformEvents Functions
-        void SetEventFlag(const UITransformEventsFlags flags) { _events.SetFlag(flags); }
-        void UnsetEventFlag(const UITransformEventsFlags flags) { _events.UnsetFlag(flags); }
+        void SetEventFlag(const UITransformEventsFlags flags);
+        void UnsetEventFlag(const UITransformEventsFlags flags);
         const bool IsClickable() const { return _events.IsClickable(); }
         const bool IsDraggable() const { return _events.IsDraggable(); }
         const bool IsFocusable() const { return _events.IsFocusable(); }
@@ -41,8 +41,11 @@ namespace UI
         const Color GetCheckColor() const;
 
         // Checkbox Functions
+        void ToggleChecked();
         void SetChecked(bool checked);
         bool IsChecked() { return _checkBox.checked; }
+
+        void HandleKeyInput(i32 key);
 
         static asCheckbox* CreateCheckbox();
 
