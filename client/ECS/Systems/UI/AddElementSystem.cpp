@@ -49,6 +49,7 @@ void AddElementSystem::Update(entt::registry& registry)
         }
         case UI::UIElementType::UITYPE_CHECKBOX:
         {
+            registry.emplace<UIImage>(element.entityId);
             UICheckbox& checkBox = registry.emplace<UICheckbox>(element.entityId);
             checkBox.asObject = element.asObject;
             break;

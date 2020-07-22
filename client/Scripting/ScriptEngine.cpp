@@ -15,6 +15,7 @@
 #include "Classes/UI/asLabel.h"
 #include "Classes/UI/asButton.h"
 #include "Classes/UI/asInputfield.h"
+#include "Classes/UI/asCheckbox.h"
 
 #include <entity/entity.hpp>
 
@@ -102,10 +103,7 @@ void ScriptEngine::RegisterFunctions()
     RegisterStdStringUtils(_scriptEngine);
 
     // Entity type
-    RegisterScriptClass("Entity", sizeof(entt::entity),
-        asOBJ_VALUE |
-        asOBJ_POD |
-        asOBJ_APP_PRIMITIVE);
+    RegisterScriptClass("Entity", sizeof(entt::entity), asOBJ_VALUE | asOBJ_POD | asOBJ_APP_PRIMITIVE);
 
     // NovusCore Types
     ASMath::RegisterNamespace();
@@ -119,6 +117,7 @@ void ScriptEngine::RegisterFunctions()
     UI::asLabel::RegisterType();
     UI::asButton::RegisterType();
     UI::asInputField::RegisterType();
+    UI::asCheckbox::RegisterType();
 
     ScriptEngine::RegisterScriptFunction("void Print(string msg)", asFUNCTION(ScriptEngine::Print));
 }

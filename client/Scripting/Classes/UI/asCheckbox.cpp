@@ -17,6 +17,7 @@ namespace UI
         checkPanel = asPanel::CreatePanel();
         checkPanel->SetFillParentSize(true);
         checkPanel->SetParent(this);
+        checkPanel->SetCollisionEnabled(false);
 
         SetEventFlag(UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }

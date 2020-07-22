@@ -280,7 +280,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             pixelShaderDesc.path = "Data/shaders/panel.ps.hlsl.spv";
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
-            Renderer::GraphicsPipelineID panelPipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+            Renderer::GraphicsPipelineID imagePipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
 
             // Text Shaders
             vertexShaderDesc.path = "Data/shaders/text.vs.hlsl.spv";
@@ -292,8 +292,8 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             Renderer::GraphicsPipelineID textPipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
 
             // Set pipeline
-            commandList.BeginPipeline(panelPipeline);
-            Renderer::GraphicsPipelineID activePipeline = panelPipeline;
+            commandList.BeginPipeline(imagePipeline);
+            Renderer::GraphicsPipelineID activePipeline = imagePipeline;
 
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
@@ -303,7 +303,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                 entt::registry* registry = ServiceLocator::GetUIRegistry();
                 auto renderGroup = registry->group<UITransform>(entt::get<UIRenderable, UIVisible>);
                 renderGroup.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
-                renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &panelPipeline](const auto entity, UITransform& transform)
+                renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UITransform& transform)
                     {
                         switch (transform.sortData.type)
                         {
@@ -348,11 +348,11 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                             if (!image.constantBuffer)
                                 return;
 
-                            if (activePipeline != panelPipeline)
+                            if (activePipeline != imagePipeline)
                             {
                                 commandList.EndPipeline(activePipeline);
-                                commandList.BeginPipeline(panelPipeline);
-                                activePipeline = panelPipeline;
+                                commandList.BeginPipeline(imagePipeline);
+                                activePipeline = imagePipeline;
                             }
 
                             commandList.PushMarker("Image", Color(0.0f, 0.1f, 0.0f));
@@ -445,7 +445,6 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
                 {
                     checkBox->ToggleChecked();
                 }
-
                 break;
             }
             default:
