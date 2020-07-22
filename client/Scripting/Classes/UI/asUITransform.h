@@ -45,8 +45,7 @@ namespace UI
             r = ScriptEngine::RegisterScriptClassFunction("void SetParent(UITransform@ parent)", asMETHOD(T, SetParent)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void Destroy()", asMETHOD(T, Destroy)); assert(r >= 0);
 
-            r = ScriptEngine::RegisterScriptClassFunction("vec2 GetMinBound()", asMETHOD(T, GetMinBound)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("vec2 GetMaxBound()", asMETHOD(T, GetMaxBound)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetExpandBoundsToChildren(bool enabled)", asMETHOD(T, SetExpandBoundsToChildren)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("bool IsVisible()", asMETHOD(T, IsVisible)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("bool IsLocallyVisible()", asMETHOD(T, IsLocallyVisible)); assert(r >= 0);
@@ -113,8 +112,7 @@ namespace UI
 
         virtual void SetParent(asUITransform* parent);
         
-        const vec2 GetMinBound() const;
-        const vec2 GetMaxBound() const;
+        virtual void SetExpandBoundsToChildren(bool expand);
 
         const bool IsVisible() const { return _visibility.visible && _visibility.parentVisible; }
         const bool IsLocallyVisible() const { return _visibility.visible; }
@@ -135,7 +133,7 @@ protected:
         static void UpdateChildVisibilityAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisibility);
 
         static void UpdateBounds(entt::registry* uiRegistry, UITransform& transform);
-        static void UpdateParentBounds(entt::registry* uiRegistry, UITransform& parent, vec2 childMin, vec2 childMax);
+        static void ShallowUpdateBounds(entt::registry* uiRegistry, UITransform& parent);
 
     protected:
         entt::entity _entityId;
