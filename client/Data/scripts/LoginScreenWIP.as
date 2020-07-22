@@ -100,10 +100,11 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	checkBox.SetBackgroundTexture("Data/textures/NovusUIPanel.png");
 	checkBox.SetCheckTexture("Data/textures/NovusUIPanel.png");
 	checkBox.SetCheckColor(Color(0,1,0));
+	checkBox.SetExpandBoundsToChildren(true);
 
 	Label@ rememberAccountLabel = CreateLabel();
 	rememberAccountLabel.SetParent(checkBox);
-	rememberAccountLabel.SetPosition(vec2(25,0));
+	rememberAccountLabel.SetTransform(vec2(25,0), vec2(SIZE.x - 25, 25));
 	rememberAccountLabel.SetFont(FONT, 25);
 	rememberAccountLabel.SetColor(TEXTCOLOR);
 	rememberAccountLabel.SetText("Remember Account Name");
