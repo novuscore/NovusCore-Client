@@ -159,8 +159,8 @@ void UIRenderer::Update(f32 deltaTime)
             }
 
             vec2 currentPosition = vec2(UITransformUtils::GetMinBounds(transform));
-            currentPosition.y -= text.font->GetChar('A').yOffset * 1.15f; //TODO Get line height in a less hacky way. (This was done to make text anchors also be the top-left as other widgets)
-
+            currentPosition.y += text.fontSize;
+            
             size_t glyph = 0;
             for (char character : text.text)
             {
@@ -434,21 +434,12 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             if (events.IsClickable())
             {
                 events.OnClick();
-            }
-
-            switch (transform.sortData.type)
-            {
-            case UI::UIElementType::UITYPE_CHECKBOX:
-            {
-                UI::asCheckbox* checkBox = reinterpret_cast<UI::asCheckbox*>(transform.asObject);
-                if (events.IsClickable())
+                
+                if (transform.sortData.type == UI::UIElementType::UITYPE_CHECKBOX)
                 {
+                    UI::asCheckbox* checkBox = reinterpret_cast<UI::asCheckbox*>(transform.asObject);
                     checkBox->ToggleChecked();
                 }
-                break;
-            }
-            default:
-                break;
             }
         }
 
