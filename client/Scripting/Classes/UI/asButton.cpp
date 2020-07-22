@@ -3,6 +3,7 @@
 #include "asPanel.h"
 #include "../../ScriptEngine.h"
 #include "../../../Utils/ServiceLocator.h"
+#include "../../../UI/TransformEventUtils.h"
 
 #include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
@@ -16,12 +17,14 @@ namespace UI
         _panel->SetAnchor(vec2(0.5, 0.5));
         _panel->SetLocalAnchor(vec2(0.5, 0.5));
         _panel->SetParent(this);
+        _panel->SetCollisionEnabled(false);
 
         _label = asLabel::CreateLabel();
         _label->SetFillParentSize(true);
         _label->SetAnchor(vec2(0.5, 0.5));
         _label->SetLocalAnchor(vec2(0.5, 0.5));
         _label->SetParent(this);
+        _label->SetCollisionEnabled(false);
     }
     
     void asButton::RegisterType()
@@ -58,16 +61,7 @@ namespace UI
         _events.onClickCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
-        entt::entity entId = _entityId;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
-            {
-                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UITransformEvents& events = uiRegistry->get<UITransformEvents>(entId);
-
-                events.onClickCallback = callback;
-                events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
-            });
+        UI::TransformEventUtils::SetOnClickCallbackTransaction(_entityId, callback);
     }
 
     void asButton::SetText(const std::string& text)

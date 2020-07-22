@@ -211,7 +211,7 @@ namespace UI
     {
         _text.text = text;
 
-        UI::TextUtils::SetText(_entityId, text);
+        UI::TextUtils::SetTextTransaction(_entityId, text);
 
         if(updateWriteHead)
             SetWriteHeadPosition(static_cast<u32>(text.length()));
@@ -221,28 +221,28 @@ namespace UI
     {
         _text.color = color;
 
-        UI::TextUtils::SetColor(_entityId, color);
+        UI::TextUtils::SetColorTransaction(_entityId, color);
     }
 
     void asInputField::SetTextOutlineColor(const Color& outlineColor)
     {
         _text.outlineColor = outlineColor;
 
-        UI::TextUtils::SetOutlineColor(_entityId, outlineColor);
+        UI::TextUtils::SetOutlineColorTransaction(_entityId, outlineColor);
     }
 
     void asInputField::SetTextOutlineWidth(f32 outlineWidth)
     {
         _text.outlineWidth = outlineWidth;
 
-        UI::TextUtils::SetOutlineWidth(_entityId, outlineWidth);
+        UI::TextUtils::SetOutlineWidthTransaction(_entityId, outlineWidth);
     }
 
     void asInputField::SetTextFont(const std::string& fontPath, f32 fontSize)
     {
         _text.fontPath = fontPath;
 
-        UI::TextUtils::SetFont(_entityId, fontPath, fontSize);
+        UI::TextUtils::SetFontTransaction(_entityId, fontPath, fontSize);
     }
 
     asInputField* asInputField::CreateInputField()

@@ -57,14 +57,14 @@ namespace UI
     {
         _events.SetFlag(flags);
 
-        UI::TransformEventUtils::SetFlag(_entityId, flags);
+        UI::TransformEventUtils::SetFlagTransaction(_entityId, flags);
     }
 
     void asCheckbox::UnsetEventFlag(const UITransformEventsFlags flags)
     {
         _events.UnsetFlag(flags);
 
-        UI::TransformEventUtils::UnsetFlag(_entityId, flags);
+        UI::TransformEventUtils::UnsetFlagTransaction(_entityId, flags);
     }
 
     void asCheckbox::SetOnClickCallback(asIScriptFunction* callback)
@@ -72,7 +72,7 @@ namespace UI
         _events.onClickCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
-        UI::TransformEventUtils::SetOnClickCallback(_entityId, callback);
+        UI::TransformEventUtils::SetOnClickCallbackTransaction(_entityId, callback);
     }
 
     void asCheckbox::SetOnDragCallback(asIScriptFunction* callback)
@@ -80,7 +80,7 @@ namespace UI
         _events.onDraggedCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
 
-        UI::TransformEventUtils::SetOnDragCallback(_entityId, callback);
+        UI::TransformEventUtils::SetOnDragCallbackTransaction(_entityId, callback);
     }
 
     void asCheckbox::SetOnFocusCallback(asIScriptFunction* callback)
@@ -88,7 +88,7 @@ namespace UI
         _events.onFocusedCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
 
-        UI::TransformEventUtils::SetOnFocusCallback(_entityId, callback);
+        UI::TransformEventUtils::SetOnFocusCallbackTransaction(_entityId, callback);
     }
 
     void asCheckbox::SetBackgroundTexture(const std::string& texture)

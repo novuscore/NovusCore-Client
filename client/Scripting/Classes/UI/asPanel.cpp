@@ -40,7 +40,7 @@ namespace UI
         _events.onClickCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
-        UI::TransformEventUtils::SetOnClickCallback(_entityId, callback);
+        UI::TransformEventUtils::SetOnClickCallbackTransaction(_entityId, callback);
     }
 
     void asPanel::SetOnDragCallback(asIScriptFunction* callback)
@@ -48,7 +48,7 @@ namespace UI
         _events.onDraggedCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
 
-        UI::TransformEventUtils::SetOnDragCallback(_entityId, callback);
+        UI::TransformEventUtils::SetOnDragCallbackTransaction(_entityId, callback);
     }
 
     void asPanel::SetOnFocusCallback(asIScriptFunction* callback)
@@ -56,7 +56,7 @@ namespace UI
         _events.onFocusedCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
 
-        UI::TransformEventUtils::SetOnFocusCallback(_entityId, callback);
+        UI::TransformEventUtils::SetOnFocusCallbackTransaction(_entityId, callback);
     }
 
     void asPanel::SetTexture(const std::string& texture)

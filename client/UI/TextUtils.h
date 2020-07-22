@@ -18,7 +18,7 @@ namespace UI::TextUtils
             uiRegistry->emplace<UIDirty>(entId);
     }
 
-    inline static void SetText(entt::entity entId, const std::string& text)
+    inline static void SetTextTransaction(entt::entity entId, const std::string& text)
     {
         ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, text]()
             {
@@ -29,7 +29,7 @@ namespace UI::TextUtils
             });
     }
 
-    inline static void SetFont(entt::entity entId, const std::string& fontPath, f32 fontSize)
+    inline static void SetFontTransaction(entt::entity entId, const std::string& fontPath, f32 fontSize)
     {
         ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, fontPath, fontSize]()
             {
@@ -41,7 +41,7 @@ namespace UI::TextUtils
             });
     }
 
-    inline static void SetColor(entt::entity entId, const Color& color)
+    inline static void SetColorTransaction(entt::entity entId, const Color& color)
     {
         ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, color]()
             {
@@ -52,7 +52,7 @@ namespace UI::TextUtils
             });
     }
 
-    inline static void SetOutlineColor(entt::entity entId, const Color& color)
+    inline static void SetOutlineColorTransaction(entt::entity entId, const Color& color)
     {
         ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, color]()
             {
@@ -63,7 +63,7 @@ namespace UI::TextUtils
             });
     }
 
-    inline static void SetOutlineWidth(entt::entity entId, f32 width)
+    inline static void SetOutlineWidthTransaction(entt::entity entId, f32 width)
     {
         ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, width]()
             {
