@@ -158,7 +158,34 @@ void UIRenderer::Update(f32 deltaTime)
                 }
             }
 
-            vec2 currentPosition = vec2(UITransformUtils::GetMinBounds(transform));
+            f32 textWidth = 0.f;
+            for (char character : text.text)
+            {
+                if (character == ' ')
+                    textWidth += text.fontSize * 0.15f;
+                else
+                    textWidth += text.font->GetChar(character).width;
+            }
+
+            float textAlignment = 0.f;
+            switch (text.textAlignment)
+            {
+            case TextAlignment::LEFT:
+                textAlignment = 0.f;
+                break;
+            case TextAlignment::CENTER:
+                textAlignment = 0.5f;
+                break;
+            case TextAlignment::RIGHT:
+                textAlignment = 1.f;
+                break;
+            default:
+                assert(false); // We should never get here.
+                break;
+            }
+
+            vec2 currentPosition = UITransformUtils::GetAnchorPosition(transform, vec2(textAlignment, 0));
+            currentPosition.x -= textWidth * textAlignment;
             currentPosition.y += text.fontSize;
             
             size_t glyph = 0;

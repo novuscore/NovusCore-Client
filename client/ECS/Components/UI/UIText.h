@@ -3,6 +3,13 @@
 #include <Renderer/Renderer.h>
 #include <vector>
 
+enum class TextAlignment
+{
+    LEFT,
+    CENTER,
+    RIGHT
+};
+
 struct UIText
 {
 public:
@@ -16,21 +23,23 @@ public:
     };
 
 public:
-    UIText() : text(), glyphCount(), color(1, 1, 1, 1), outlineColor(0, 0, 0, 1), outlineWidth(0.0f), fontPath(), fontSize(), font(), models(), textures(), constantBuffer(nullptr) { }
+    UIText() { }
 
-    std::string text;
-    u32 glyphCount;
+    std::string text = "";
+    u32 glyphCount = 0;
 
-    Color color;
-    Color outlineColor;
-    f32 outlineWidth;
+    Color color = Color(1,1,1,1);
+    Color outlineColor = Color(0,0,0,0);
+    f32 outlineWidth = 0.f;
+    
+    TextAlignment textAlignment = TextAlignment::LEFT;
 
-    std::string fontPath;
-    f32 fontSize;
-    Renderer::Font* font;
+    std::string fontPath = "";
+    f32 fontSize = 0;
+    Renderer::Font* font = nullptr;
 
     std::vector<Renderer::ModelID> models;
     std::vector<Renderer::TextureID> textures;
 
-    Renderer::ConstantBuffer<TextConstantBuffer>* constantBuffer;
+    Renderer::ConstantBuffer<TextConstantBuffer>* constantBuffer = nullptr;
 };
