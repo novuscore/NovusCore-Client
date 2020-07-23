@@ -10,6 +10,25 @@ enum class TextAlignment
     RIGHT
 };
 
+namespace UI::Text 
+{
+    static float GetTextAlignment(TextAlignment alignment)
+    {
+        switch (alignment)
+        {
+        case TextAlignment::LEFT:
+            return 0.f;
+        case TextAlignment::CENTER:
+            return 0.5f;
+        case TextAlignment::RIGHT:
+            return 1.f;
+        default:
+            assert(false); // We should never get here.
+            return 0.f;
+        }
+    }
+}
+
 struct UIText
 {
 public:

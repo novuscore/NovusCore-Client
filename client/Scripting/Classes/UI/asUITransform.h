@@ -28,6 +28,7 @@ namespace UI
         {
             i32 r = ScriptEngine::RegisterScriptClassFunction("Entity GetEntityId()", asMETHOD(T, GetEntityId)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetTransform(vec2 position, vec2 size)", asMETHOD(T, SetTransform)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("vec2 GetScreenPosition()", asMETHOD(T, GetScreenPosition)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetLocalPosition()", asMETHOD(T, GetLocalPosition)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetParentPosition()", asMETHOD(T, GetParentPosition)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetPosition()", asMETHOD(T, GetPosition)); assert(r >= 0);
@@ -58,7 +59,7 @@ namespace UI
             return _entityId;
         }
 
-        virtual const UIElementType GetEntityType() const
+        virtual const UIElementType GetType() const
         {
             return _elementType;
         }
@@ -66,6 +67,10 @@ namespace UI
         // Transform Functions
         virtual void SetTransform(const vec2& position, const vec2& size);
 
+        virtual const vec2 GetScreenPosition() const
+        {
+            return _transform.position + _transform.localPosition;
+        }
         virtual const vec2 GetLocalPosition() const
         {
             return _transform.parent ? _transform.localPosition : vec2(0, 0);

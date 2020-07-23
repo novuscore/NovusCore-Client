@@ -41,6 +41,17 @@ namespace UI::TextUtils
             });
     }
 
+    inline static void SetTextAlignmentTransaction(entt::entity entId, TextAlignment alignment)
+    {
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, alignment]()
+            {
+                UIText& uiText = ServiceLocator::GetUIRegistry()->get<UIText>(entId);
+                uiText.textAlignment = alignment;
+
+                MarkDirty(entId);
+            });
+    }
+
     inline static void SetColorTransaction(entt::entity entId, const Color& color)
     {
         ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, color]()

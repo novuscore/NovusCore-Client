@@ -158,39 +158,56 @@ void UIRenderer::Update(f32 deltaTime)
                 }
             }
 
-            f32 textWidth = 0.f;
-            for (char character : text.text)
+            std::vector<f32> lineWidth;
+            std::vector<u32> lineBreakPoint;
+            lineWidth.push_back(0);
+            u32 line = 0;
+            u32 lastWordStart = 0;
+            f32 wordWidth = 0.f;
+            for (u32 i = 0; i < text.text.length(); i++)
             {
-                if (character == ' ')
-                    textWidth += text.fontSize * 0.15f;
+                bool isWhitespace = text.text[i] == ' ';
+                f32 advance = isWhitespace ? text.fontSize * 0.15f : text.font->GetChar(text.text[i]).advance;
+                
+                if (lineWidth[line] + advance > transform.size.x)
+                {
+                    lineWidth.push_back(0);
+                    lineBreakPoint.push_back(i);
+                    line++;
+                }
+
+                lineWidth[line] += advance;
+                
+                if (isWhitespace)
+                {
+                    lastWordStart = i+1;
+                    wordWidth = 0.f;
+                }
                 else
-                    textWidth += text.font->GetChar(character).width;
+                {
+                    wordWidth += advance;
+                }
             }
 
-            float textAlignment = 0.f;
-            switch (text.textAlignment)
-            {
-            case TextAlignment::LEFT:
-                textAlignment = 0.f;
-                break;
-            case TextAlignment::CENTER:
-                textAlignment = 0.5f;
-                break;
-            case TextAlignment::RIGHT:
-                textAlignment = 1.f;
-                break;
-            default:
-                assert(false); // We should never get here.
-                break;
-            }
-
+            f32 textAlignment = UI::Text::GetTextAlignment(text.textAlignment);
             vec2 currentPosition = UITransformUtils::GetAnchorPosition(transform, vec2(textAlignment, 0));
-            currentPosition.x -= textWidth * textAlignment;
+            f32 startX = currentPosition.x;
+            currentPosition.x -= lineWidth[0] * textAlignment;
             currentPosition.y += text.fontSize;
-            
+
             size_t glyph = 0;
+            size_t i = 0;
+            size_t currentLine = 0;
             for (char character : text.text)
             {
+                if (currentLine < lineBreakPoint.size() && lineBreakPoint[currentLine] == i)
+                {
+                    currentLine++;
+                    currentPosition.y += text.fontSize * 1.15f;
+                    currentPosition.x = startX - lineWidth[currentLine] * textAlignment;
+                }
+                i++;
+
                 if (character == ' ')
                 {
                     currentPosition.x += text.fontSize * 0.15f;
