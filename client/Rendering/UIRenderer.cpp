@@ -136,16 +136,10 @@ void UIRenderer::Update(f32 deltaTime)
             if (glyphCount != textLengthWithoutSpaces)
             {
                 text.models.resize(textLengthWithoutSpaces);
-                for (size_t i = glyphCount; i < textLengthWithoutSpaces; i++)
-                {
-                    text.models[i] = Renderer::ModelID::Invalid();
-                }
-            }
-            if (text.textures.size() != textLengthWithoutSpaces)
-            {
                 text.textures.resize(textLengthWithoutSpaces);
                 for (size_t i = glyphCount; i < textLengthWithoutSpaces; i++)
                 {
+                    text.models[i] = Renderer::ModelID::Invalid();
                     text.textures[i] = Renderer::TextureID::Invalid();
                 }
             }

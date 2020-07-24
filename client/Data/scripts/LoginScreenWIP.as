@@ -1,7 +1,7 @@
 /*
 *	NOVUSCORE LOGIN SCREEN
 *	Version 0.1
-*	Updated 22/07/2020
+*	Updated 24/07/2020
 */
 
 void Login()
@@ -20,7 +20,6 @@ void OnFieldSubmit(InputField@ inputField)
 
 void OnLoginButtonClick(Button@ button)
 {
-	Print("Button Clicked!");
 	Login();
 }
 
