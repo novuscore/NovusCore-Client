@@ -50,7 +50,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
     registry->prepare<UITransformEvents>();
     registry->prepare<UIRenderable>();
     registry->prepare<UIImage>();
-    registry->prepare<UIText>();
+    registry->prepare<UI::UIText>();
 
     registry->prepare<UIVisible>();
     registry->prepare<UIVisibility>();
@@ -77,12 +77,10 @@ void UIRenderer::Update(f32 deltaTime)
     auto imageView = registry->view<UITransform, UIImage, UIDirty>();
     imageView.each([this, registry](const auto entity, UITransform& transform, UIImage& image)
         {
+            ZoneScoped;
             // Renderable Updates
             if (image.texture.length() == 0)
-            {
-                image.textureID = Renderer::TextureID::Invalid();
                 return;
-            }
 
             // (Re)load texture
             image.textureID = ReloadTexture(image.texture);
@@ -124,23 +122,17 @@ void UIRenderer::Update(f32 deltaTime)
             }
         });
 
-    auto textView = registry->view<UITransform, UIText, UIDirty>();
-    textView.each([this, registry](const auto entity, UITransform& transform, UIText& text)
+    auto textView = registry->view<UITransform, UI::UIText, UIDirty>();
+    textView.each([this, registry](const auto entity, UITransform& transform, UI::UIText& text)
         {
+            ZoneScoped;
             if (text.fontPath.length() == 0)
-            {
-                text.font = nullptr;
                 return;
-            }
 
             text.font = Renderer::Font::GetFont(_renderer, text.fontPath, text.fontSize);
 
-            size_t textLengthWithoutSpaces = std::count_if(text.text.begin(), text.text.end(), [](char c)
-                {
-                    return c != ' ';
-                });
-
             size_t glyphCount = text.models.size();
+            size_t textLengthWithoutSpaces = std::count_if(text.text.begin(), text.text.end(), [](char c) { return !std::isspace(c); });
             if (glyphCount != textLengthWithoutSpaces)
             {
                 text.models.resize(textLengthWithoutSpaces);
@@ -158,47 +150,57 @@ void UIRenderer::Update(f32 deltaTime)
                 }
             }
 
-            std::vector<f32> lineWidth;
-            std::vector<u32> lineBreakPoint;
-            lineWidth.push_back(0);
-            u32 line = 0;
-            u32 lastWordStart = 0;
-            f32 wordWidth = 0.f;
-            for (u32 i = 0; i < text.text.length(); i++)
-            {
-                bool isWhitespace = text.text[i] == ' ';
-                f32 advance = isWhitespace ? text.fontSize * 0.15f : text.font->GetChar(text.text[i]).advance;
-                
-                if (lineWidth[line] + advance > transform.size.x)
-                {
-                    lineWidth.push_back(0);
-                    lineBreakPoint.push_back(i);
-                    line++;
-                }
+            const char BREAKLINE = 0x0a;
 
-                lineWidth[line] += advance;
-                
-                if (isWhitespace)
+            std::vector<f32> lineWidth = { 0 };
+            std::vector<u32> lineBreakPoint;
+            {
+                u32 currentLine = 0;
+                u32 lastWordStart = 0;
+                f32 wordWidth = 0.f;
+                for (u32 i = 0; i < text.text.length(); i++)
                 {
-                    lastWordStart = i+1;
-                    wordWidth = 0.f;
-                }
-                else
-                {
-                    wordWidth += advance;
+                    f32 advance = 0.f;
+
+                    if (text.text[i] == BREAKLINE)
+                    {
+                        lineWidth.push_back(0);
+                        lineBreakPoint.push_back(i);
+                        currentLine++;
+                    }
+                    else if (std::isspace(text.text[i]))
+                    {
+                        advance = text.fontSize * 0.15f;
+                        lastWordStart = i + 1;
+                        wordWidth = 0.f;
+                    }
+                    else
+                    {
+                        advance = text.font->GetChar(text.text[i]).advance;
+                        wordWidth += advance;
+                    }
+
+                    if (lineWidth[currentLine] + advance > transform.size.x)
+                    {
+                        lineWidth.push_back(0);
+                        lineBreakPoint.push_back(lastWordStart);
+                        currentLine++;
+                    }
+
+                    lineWidth[currentLine] += advance;
                 }
             }
 
-            f32 textAlignment = UI::Text::GetTextAlignment(text.textAlignment);
+            f32 textAlignment = UI::GetTextAlignment(text.textAlignment);
             vec2 currentPosition = UITransformUtils::GetAnchorPosition(transform, vec2(textAlignment, 0));
             f32 startX = currentPosition.x;
             currentPosition.x -= lineWidth[0] * textAlignment;
             currentPosition.y += text.fontSize;
 
-            size_t glyph = 0;
-            size_t i = 0;
             size_t currentLine = 0;
-            for (char character : text.text)
+            size_t i = 0;
+            size_t glyph = 0;
+            for (const char character : text.text)
             {
                 if (currentLine < lineBreakPoint.size() && lineBreakPoint[currentLine] == i)
                 {
@@ -208,14 +210,17 @@ void UIRenderer::Update(f32 deltaTime)
                 }
                 i++;
 
-                if (character == ' ')
+                if (character == BREAKLINE)
+                {
+                    continue;
+                }
+                else if (std::isspace(character))
                 {
                     currentPosition.x += text.fontSize * 0.15f;
                     continue;
                 }
 
-                Renderer::FontChar fontChar = text.font->GetChar(character);
-
+                const Renderer::FontChar fontChar = text.font->GetChar(character);
                 const vec2& pos = currentPosition + vec2(fontChar.xOffset, fontChar.yOffset);
                 const vec2& size = vec2(fontChar.width, fontChar.height);
 
@@ -251,10 +256,9 @@ void UIRenderer::Update(f32 deltaTime)
             }
 
             // Create constant buffer if necessary
-            if (text.constantBuffer == nullptr)
-            {
-                text.constantBuffer = _renderer->CreateConstantBuffer<UIText::TextConstantBuffer>();
-            }
+            if (!text.constantBuffer)
+                text.constantBuffer = _renderer->CreateConstantBuffer<UI::UIText::TextConstantBuffer>();
+
             text.constantBuffer->resource.textColor = text.color;
             text.constantBuffer->resource.outlineColor = text.outlineColor;
             text.constantBuffer->resource.outlineWidth = text.outlineWidth;
@@ -344,7 +348,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             {
                 ZoneScopedNC("UIRenderer::AddUIPass - Render", tracy::Color::Red)
 
-                entt::registry* registry = ServiceLocator::GetUIRegistry();
+                    entt::registry* registry = ServiceLocator::GetUIRegistry();
                 auto renderGroup = registry->group<UITransform>(entt::get<UIRenderable, UIVisible>);
                 renderGroup.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
                 renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UITransform& transform)
@@ -354,7 +358,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                         case UI::UIElementType::UITYPE_TEXT:
                         case UI::UIElementType::UITYPE_INPUTFIELD:
                         {
-                            UIText& text = registry->get<UIText>(entity);
+                            UI::UIText& text = registry->get<UI::UIText>(entity);
                             if (!text.constantBuffer)
                                 return;
 
@@ -478,7 +482,7 @@ bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
             if (events.IsClickable())
             {
                 events.OnClick();
-                
+
                 if (transform.sortData.type == UI::UIElementType::UITYPE_CHECKBOX)
                 {
                     UI::asCheckbox* checkBox = reinterpret_cast<UI::asCheckbox*>(transform.asObject);

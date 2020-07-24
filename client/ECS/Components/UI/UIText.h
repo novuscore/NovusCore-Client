@@ -3,15 +3,15 @@
 #include <Renderer/Renderer.h>
 #include <vector>
 
-enum class TextAlignment
+namespace UI
 {
-    LEFT,
-    CENTER,
-    RIGHT
-};
+    enum class TextAlignment
+    {
+        LEFT,
+        CENTER,
+        RIGHT
+    };
 
-namespace UI::Text 
-{
     static float GetTextAlignment(TextAlignment alignment)
     {
         switch (alignment)
@@ -27,38 +27,38 @@ namespace UI::Text
             return 0.f;
         }
     }
-}
 
-struct UIText
-{
-public:
-    struct TextConstantBuffer
+    struct UIText
     {
-        Color textColor; // 16 bytes
-        Color outlineColor; // 16 bytes
-        f32 outlineWidth; // 4 bytes
+    public:
+        struct TextConstantBuffer
+        {
+            Color textColor; // 16 bytes
+            Color outlineColor; // 16 bytes
+            f32 outlineWidth; // 4 bytes
 
-        u8 padding[220] = {};
+            u8 padding[220] = {};
+        };
+
+    public:
+        UIText() { }
+
+        std::string text = "";
+        u32 glyphCount = 0;
+
+        Color color = Color(1, 1, 1, 1);
+        Color outlineColor = Color(0, 0, 0, 0);
+        f32 outlineWidth = 0.f;
+
+        UI::TextAlignment textAlignment = UI::TextAlignment::LEFT;
+
+        std::string fontPath = "";
+        f32 fontSize = 0;
+        Renderer::Font* font = nullptr;
+
+        std::vector<Renderer::ModelID> models;
+        std::vector<Renderer::TextureID> textures;
+
+        Renderer::ConstantBuffer<TextConstantBuffer>* constantBuffer = nullptr;
     };
-
-public:
-    UIText() { }
-
-    std::string text = "";
-    u32 glyphCount = 0;
-
-    Color color = Color(1,1,1,1);
-    Color outlineColor = Color(0,0,0,0);
-    f32 outlineWidth = 0.f;
-    
-    TextAlignment textAlignment = TextAlignment::LEFT;
-
-    std::string fontPath = "";
-    f32 fontSize = 0;
-    Renderer::Font* font = nullptr;
-
-    std::vector<Renderer::ModelID> models;
-    std::vector<Renderer::TextureID> textures;
-
-    Renderer::ConstantBuffer<TextConstantBuffer>* constantBuffer = nullptr;
-};
+}

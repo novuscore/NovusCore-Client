@@ -35,14 +35,14 @@ void AddElementSystem::Update(entt::registry& registry)
         switch (element.type)
         {
         case UI::UIElementType::UITYPE_TEXT:
-            registry.emplace<UIText>(element.entityId);
+            registry.emplace<UI::UIText>(element.entityId);
             break;
         case UI::UIElementType::UITYPE_PANEL:
             registry.emplace<UIImage>(element.entityId);
             break;
         case UI::UIElementType::UITYPE_INPUTFIELD:
         {
-            registry.emplace<UIText>(element.entityId);
+            registry.emplace<UI::UIText>(element.entityId);
             UIInputField& inputField = registry.emplace<UIInputField>(element.entityId);
             inputField.asObject = element.asObject;
             break;
@@ -58,7 +58,7 @@ void AddElementSystem::Update(entt::registry& registry)
             break;
         }
 
-        if (registry.any<UIImage, UIText>(element.entityId))
+        if (registry.any<UIImage, UI::UIText>(element.entityId))
             registry.emplace<UIRenderable>(element.entityId);
 
         if (element.type != UI::UIElementType::UITYPE_TEXT)
