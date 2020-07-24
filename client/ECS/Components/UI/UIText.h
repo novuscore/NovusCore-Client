@@ -12,6 +12,12 @@ namespace UI
         RIGHT
     };
 
+    enum class TextType
+    {
+        SINGLELINE,
+        MULTILINE
+    };
+
     static float GetTextAlignment(TextAlignment alignment)
     {
         switch (alignment)
@@ -44,13 +50,16 @@ namespace UI
         UIText() { }
 
         std::string text = "";
-        u32 glyphCount = 0;
+        size_t glyphCount = 0;
 
         Color color = Color(1, 1, 1, 1);
         Color outlineColor = Color(0, 0, 0, 0);
         f32 outlineWidth = 0.f;
 
-        UI::TextAlignment textAlignment = UI::TextAlignment::LEFT;
+        TextAlignment textAlignment = TextAlignment::LEFT;
+        TextType textType = TextType::MULTILINE;
+
+        f32 lineHeight = 1.15f;
 
         std::string fontPath = "";
         f32 fontSize = 0;
