@@ -33,9 +33,9 @@ namespace UI
     public:
         struct TextConstantBuffer
         {
-            Color textColor; // 16 bytes
-            Color outlineColor; // 16 bytes
-            f32 outlineWidth; // 4 bytes
+            Color textColor = Color(); // 16 bytes
+            Color outlineColor = Color(); // 16 bytes
+            f32 outlineWidth = 0.f; // 4 bytes
 
             u8 padding[220] = {};
         };
