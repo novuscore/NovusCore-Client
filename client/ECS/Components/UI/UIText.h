@@ -51,13 +51,14 @@ namespace UI
 
         std::string text = "";
         size_t glyphCount = 0;
+        size_t pushbackCount = 0;
 
         Color color = Color(1, 1, 1, 1);
         Color outlineColor = Color(0, 0, 0, 0);
         f32 outlineWidth = 0.f;
 
         TextAlignment textAlignment = TextAlignment::LEFT;
-        TextType textType = TextType::MULTILINE;
+        TextType textType = TextType::SINGLELINE;
 
         f32 lineHeight = 1.15f;
 

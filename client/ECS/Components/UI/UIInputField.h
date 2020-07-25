@@ -8,7 +8,7 @@ struct UIInputField
 public:
     UIInputField() { }
 
-    u32 writeHeadIndex = 0;
+    size_t writeHeadIndex = 0;
     asIScriptFunction* onSubmitCallback = nullptr;
     void* asObject = nullptr;
 

@@ -131,48 +131,41 @@ void UIRenderer::Update(f32 deltaTime)
 
             text.font = Renderer::Font::GetFont(_renderer, text.fontPath, text.fontSize);
 
-            size_t glyphCount = text.models.size();
-            size_t textLengthWithoutSpaces = std::count_if(text.text.begin(), text.text.end(), [](char c) { return !std::isspace(c); });
-            if (glyphCount < textLengthWithoutSpaces)
-            {
-                text.models.resize(textLengthWithoutSpaces);
-                text.textures.resize(textLengthWithoutSpaces);
-
-                for (size_t i = glyphCount; i < textLengthWithoutSpaces; i++)
-                {
-                    text.models[i] = Renderer::ModelID::Invalid();
-                    text.textures[i] = Renderer::TextureID::Invalid();
-                }
-            }
-            text.glyphCount = textLengthWithoutSpaces;
-            
             std::vector<f32> lineWidth = { 0 };
-            std::vector<u32> lineBreakPoint;
+            std::vector<size_t> lineBreakPoint;
+            size_t finalCharacter = text.text.length();
             {
+                u32 maxLines = static_cast<u32>(text.textType == UI::TextType::SINGLELINE ? 1 : transform.size.y / (text.fontSize * text.lineHeight)) - 1;
                 u32 currentLine = 0;
-                u32 lastWordStart = 0;
+                size_t lastWordStart = 0;
                 f32 wordWidth = 0.f;
 
-                auto BreakLine = [&](f32 newLineWidth, u32 breakPoint)
+                auto BreakLine = [&](f32 newLineWidth, size_t breakPoint)
                 {
+                    currentLine++;
                     lineWidth.push_back(newLineWidth);
                     lineBreakPoint.push_back(breakPoint);
-                    currentLine++;
                 };
 
-                for (u32 i = 0; i < text.text.length(); i++)
+                for (size_t i = text.pushbackCount; i < text.text.length(); i++)
                 {
                     // Handle line break character.
-                    if (text.textType == UI::TextType::MULTILINE && text.text[i] == '\n')
+                    if (text.text[i] == '\n')
                     {
+                        if (currentLine == maxLines)
+                        {
+                            finalCharacter = i - 1;
+                            break;
+                        }
+
                         BreakLine(0.f, i);
 
                         lastWordStart = i + 1;
                         wordWidth = 0.f;
-                        
+
                         continue;
                     }
-                    
+
                     f32 advance = 0.f;
                     if (std::isspace(text.text[i]))
                     {
@@ -189,28 +182,36 @@ void UIRenderer::Update(f32 deltaTime)
                     // Check if adding this character would break the line
                     if (lineWidth[currentLine] + advance > transform.size.x)
                     {
-                        if (text.textType == UI::TextType::MULTILINE)
+                        if (currentLine == maxLines)
                         {
-                            // If the word takes up less than a line break before it else just break in the middle of it.
-                            if (wordWidth < transform.size.x)
-                            {
-                                lineWidth[currentLine] -= wordWidth;
-                                BreakLine(wordWidth, lastWordStart);
-                            }
-                            else
-                            {
-                                BreakLine(0, i);
-                            }
+                            finalCharacter = i - 1;
+                            break;
+                        }
+
+                        // If the word takes up less than a line break before it else just break in the middle of it.
+                        if (wordWidth < transform.size.x)
+                        {
+                            lineWidth[currentLine] -= wordWidth;
+                            BreakLine(wordWidth, lastWordStart);
                         }
                         else
                         {
-                            //TODO PUSHBACK.
+                            BreakLine(0, i);
                         }
                     }
 
                     lineWidth[currentLine] += advance;
                 }
             }
+
+            size_t textLengthWithoutSpaces = std::count_if(text.text.begin() + text.pushbackCount, text.text.end() - (text.text.length() - finalCharacter), [](char c) { return !std::isspace(c); });
+            if (text.models.size() < textLengthWithoutSpaces)
+            {
+                size_t difference = textLengthWithoutSpaces - text.glyphCount;
+                text.models.insert(text.models.end(), difference, Renderer::ModelID::Invalid());
+                text.textures.insert(text.textures.end(), difference, Renderer::TextureID::Invalid());
+            }
+            text.glyphCount = textLengthWithoutSpaces;
 
             f32 textAlignment = UI::GetTextAlignment(text.textAlignment);
             vec2 currentPosition = UITransformUtils::GetAnchorPosition(transform, vec2(textAlignment, 0));
@@ -219,17 +220,16 @@ void UIRenderer::Update(f32 deltaTime)
             currentPosition.y += text.fontSize;
 
             size_t currentLine = 0;
-            size_t i = 0;
             size_t glyph = 0;
-            for (const char character : text.text)
+            for (size_t i = text.pushbackCount; i < finalCharacter; i++)
             {
+                const char character = text.text[i];
                 if (currentLine < lineBreakPoint.size() && lineBreakPoint[currentLine] == i)
                 {
                     currentLine++;
                     currentPosition.y += text.fontSize * text.lineHeight;
                     currentPosition.x = startX - lineWidth[currentLine] * textAlignment;
                 }
-                i++;
 
                 if (character == '\n')
                 {

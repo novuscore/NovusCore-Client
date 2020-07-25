@@ -63,6 +63,13 @@ namespace UI
         UI::TextUtils::SetOutlineWidthTransaction(_entityId, outlineWidth);
     }
 
+    void asLabel::SetTextAlignment(TextAlignment textAlignment)
+    {
+        _text.textAlignment = textAlignment;
+
+        UI::TextUtils::SetTextAlignmentTransaction(_entityId, textAlignment);
+    }
+
     asLabel* asLabel::CreateLabel()
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();

@@ -28,6 +28,8 @@ namespace UI
         void SetOutlineWidth(f32 outlineWidth);
         const f32 GetOutlineWidth() const { return _text.outlineWidth; }
 
+        void SetTextAlignment(TextAlignment textAlignment);
+
         static asLabel* CreateLabel();
 
     private:

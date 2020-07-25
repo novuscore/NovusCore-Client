@@ -24,6 +24,7 @@ namespace UI::TextUtils
             {
                 UIText& uiText = ServiceLocator::GetUIRegistry()->get<UIText>(entId);
                 uiText.text = text;
+                uiText.pushbackCount = Math::Min(uiText.pushbackCount, text.length() - 1);
 
                 MarkDirty(entId);
             });

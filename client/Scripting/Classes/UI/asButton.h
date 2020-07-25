@@ -36,7 +36,7 @@ namespace UI
         const f32 GetTextOutlineWidth() const;
 
         void SetTextFont(std::string fontPath, f32 fontSize);
-    
+
         //Panel Functions        
         void SetTexture(const std::string& texture);
         const std::string& GetTexture() const;

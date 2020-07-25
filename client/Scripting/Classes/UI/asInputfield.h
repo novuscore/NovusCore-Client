@@ -30,7 +30,9 @@ namespace UI
         void MovePointerLeft();
         void MovePointerRight();
 
-        void SetWriteHeadPosition(u32 position);
+        void SetWriteHeadPosition(size_t position);
+
+        static size_t CalculatePushback(const UIText& text, size_t writeHead, f32 maxWidth);
 
         void SetOnSubmitCallback(asIScriptFunction* callback);
 

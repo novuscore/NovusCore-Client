@@ -10,8 +10,8 @@
 
 namespace UI
 {
-    asInputField::asInputField(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_INPUTFIELD) 
-    { 
+    asInputField::asInputField(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_INPUTFIELD)
+    {
         SetFocusable(true);
     }
 
@@ -62,12 +62,19 @@ namespace UI
             break;
         case GLFW_KEY_ENTER:
         {
-            entt::registry* registry = ServiceLocator::GetUIRegistry();
-            entt::entity Id = GetEntityId();
-            registry->get<UIInputField>(Id).OnSubmit();
-            registry->get<UITransformEvents>(Id).OnUnfocused();
+            if (_text.textType == TextType::SINGLELINE)
+            {
+                entt::registry* registry = ServiceLocator::GetUIRegistry();
+                entt::entity Id = GetEntityId();
+                registry->get<UIInputField>(Id).OnSubmit();
+                registry->get<UITransformEvents>(Id).OnUnfocused();
 
-            registry->ctx<UI::UIDataSingleton>().focusedWidget = entt::null;
+                registry->ctx<UI::UIDataSingleton>().focusedWidget = entt::null;
+            }
+            else
+            {
+                HandleCharInput('\n');
+            }
             break;
         }
         default:
@@ -117,7 +124,8 @@ namespace UI
 
     void asInputField::MovePointerLeft()
     {
-        SetWriteHeadPosition(_inputField.writeHeadIndex - 1);
+        if(_inputField.writeHeadIndex > 0)
+            SetWriteHeadPosition(_inputField.writeHeadIndex - 1);
     }
 
     void asInputField::MovePointerRight()
@@ -125,9 +133,9 @@ namespace UI
         SetWriteHeadPosition(_inputField.writeHeadIndex + 1);
     }
 
-    void asInputField::SetWriteHeadPosition(u32 position)
+    void asInputField::SetWriteHeadPosition(size_t position)
     {
-        u32 clampedPosition = position <= GetText().length() ? position : static_cast<u32>(GetText().length());
+        size_t clampedPosition = position <= GetText().length() ? position : GetText().length();
 
         if (clampedPosition == _inputField.writeHeadIndex)
             return;
@@ -137,15 +145,83 @@ namespace UI
         entt::entity entId = _entityId;
         ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, clampedPosition]()
             {
-                UIInputField& inputField = ServiceLocator::GetUIRegistry()->get<UIInputField>(entId);
+                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+
+                UIInputField& inputField = uiRegistry->get<UIInputField>(entId);
                 inputField.writeHeadIndex = clampedPosition;
+
+                UIText& text = uiRegistry->get<UIText>(entId);
+                text.pushbackCount = CalculatePushback(text, inputField.writeHeadIndex, uiRegistry->get<UITransform>(entId).size.x);
+                NC_LOG_MESSAGE("Pointer is now: %d, Pushback is now: %d", clampedPosition, text.pushbackCount);
+
+                MarkDirty(uiRegistry, entId);
             });
+    }
+
+    size_t asInputField::CalculatePushback(const UIText& text, size_t writeHead, f32 maxWidth)
+    {
+        if (!text.font)
+            return 0;
+
+        size_t pushbackCount = Math::Min(text.pushbackCount, text.text.length() - 1);
+
+        /*
+        *   TODO:
+        *   - Move entire lines for multi-line fields.
+        */
+
+        if (pushbackCount <= writeHead)
+        {
+            f32 lineLength = 0.f;
+            std::vector<size_t> pushBackPoint;
+            bool reachedPercent = false;
+            bool overflowed = false;
+            for (size_t i = pushbackCount; i < writeHead; i++)
+            {
+                if (std::isspace(text.text[i]))
+                    lineLength += text.fontSize * 0.15f;
+                else
+                    lineLength += text.font->GetChar(text.text[i]).advance;
+
+                if (!reachedPercent && lineLength > maxWidth * 0.2f)
+                {
+                    reachedPercent = true;
+                    pushBackPoint.push_back(i);
+                }
+                else if (lineLength > maxWidth)
+                {
+                    reachedPercent = false;
+                    overflowed = true;
+                    lineLength = 0.f;
+                }
+            }
+
+            if (overflowed)
+                return pushBackPoint[pushBackPoint.size() - 1];
+            else
+                return pushbackCount;
+        }
+
+        f32 lineLength = 0.f;
+        for (size_t i = pushbackCount; i > 0; i--)
+        {
+            if (std::isspace(text.text[i]))
+                lineLength += text.fontSize * 0.15f;
+            else
+                lineLength += text.font->GetChar(text.text[i]).advance;
+
+            if (lineLength > maxWidth * 0.2f)
+                return i;
+        }
+
+        return 0;
     }
 
     void asInputField::SetOnSubmitCallback(asIScriptFunction* callback)
     {
         _inputField.onSubmitCallback = callback;
 
+        // TRANSACTION
         entt::entity entId = _entityId;
         ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
             {
@@ -161,6 +237,7 @@ namespace UI
         else
             _events.UnsetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
 
+        // TRANSACTION
         entt::entity entId = _entityId;
         ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([focusable, entId]()
             {
@@ -178,9 +255,9 @@ namespace UI
         _events.onFocusedCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
 
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        // TRANSACTION
         entt::entity entId = _entityId;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransformEvents& events = uiRegistry->get<UITransformEvents>(entId);
@@ -195,9 +272,9 @@ namespace UI
         _events.onUnfocusedCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
 
-        entt::registry* gameRegistry = ServiceLocator::GetGameRegistry();
+        // TRANSACTION
         entt::entity entId = _entityId;
-        gameRegistry->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
             {
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransformEvents& events = uiRegistry->get<UITransformEvents>(entId);
@@ -211,10 +288,23 @@ namespace UI
     {
         _text.text = text;
 
-        UI::TextUtils::SetTextTransaction(_entityId, text);
+        if (updateWriteHead)
+            _inputField.writeHeadIndex = text.length() - 1;
 
-        if(updateWriteHead)
-            SetWriteHeadPosition(static_cast<u32>(text.length()));
+        // TRANSACTION
+        entt::entity entId = _entityId;
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, text, updateWriteHead]()
+            {
+                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+                UIText& uiText = uiRegistry->get<UIText>(entId);
+                UIInputField& inputField = uiRegistry->get<UIInputField>(entId);
+                uiText.text = text;
+
+                if (updateWriteHead)
+                    inputField.writeHeadIndex = text.length() - 1;
+
+                MarkDirty(uiRegistry, entId);
+            });
     }
 
     void asInputField::SetTextColor(const Color& color)
