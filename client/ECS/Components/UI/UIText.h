@@ -5,11 +5,18 @@
 
 namespace UI
 {
-    enum class TextAlignment
+    enum class TextHorizontalAlignment
     {
         LEFT,
         CENTER,
         RIGHT
+    };
+    
+    enum class TextVerticalAlignment
+    {
+        TOP,
+        CENTER,
+        BOTTOM
     };
 
     enum class TextType
@@ -17,22 +24,6 @@ namespace UI
         SINGLELINE,
         MULTILINE
     };
-
-    static float GetTextAlignment(TextAlignment alignment)
-    {
-        switch (alignment)
-        {
-        case TextAlignment::LEFT:
-            return 0.f;
-        case TextAlignment::CENTER:
-            return 0.5f;
-        case TextAlignment::RIGHT:
-            return 1.f;
-        default:
-            assert(false); // We should never get here.
-            return 0.f;
-        }
-    }
 
     struct UIText
     {
@@ -57,7 +48,9 @@ namespace UI
         Color outlineColor = Color(0, 0, 0, 0);
         f32 outlineWidth = 0.f;
 
-        TextAlignment textAlignment = TextAlignment::LEFT;
+
+        TextHorizontalAlignment horizontalAlignment = TextHorizontalAlignment::LEFT;
+        TextVerticalAlignment verticalAlignment = TextVerticalAlignment::TOP;
         TextType textType = TextType::SINGLELINE;
 
         f32 lineHeight = 1.15f;

@@ -1,8 +1,8 @@
 #include "asPanel.h"
 #include "../../ScriptEngine.h"
 #include "../../../Utils/ServiceLocator.h"
-#include "../../../UI/ImageUtils.h"
-#include "../../../UI/TransformEventUtils.h"
+#include "../../../UI/ImageUtilsTransactions.h"
+#include "../../../UI/TransformEventUtilsTransactions.h"
 
 #include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
@@ -40,7 +40,7 @@ namespace UI
         _events.onClickCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
-        UI::TransformEventUtils::SetOnClickCallbackTransaction(_entityId, callback);
+        UI::TransformEventUtils::Transactions::SetOnClickCallbackTransaction(_entityId, callback);
     }
 
     void asPanel::SetOnDragCallback(asIScriptFunction* callback)
@@ -48,7 +48,7 @@ namespace UI
         _events.onDraggedCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
 
-        UI::TransformEventUtils::SetOnDragCallbackTransaction(_entityId, callback);
+        UI::TransformEventUtils::Transactions::SetOnDragCallbackTransaction(_entityId, callback);
     }
 
     void asPanel::SetOnFocusCallback(asIScriptFunction* callback)
@@ -56,20 +56,20 @@ namespace UI
         _events.onFocusedCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
 
-        UI::TransformEventUtils::SetOnFocusCallbackTransaction(_entityId, callback);
+        UI::TransformEventUtils::Transactions::SetOnFocusCallbackTransaction(_entityId, callback);
     }
 
     void asPanel::SetTexture(const std::string& texture)
     {
         _image.texture = texture;
 
-        UI::ImageUtils::SetTexture(texture, _entityId);
+        UI::ImageUtils::Transactions::SetTextureTransaction(texture, _entityId);
     }
     void asPanel::SetColor(const Color& color)
     {
         _image.color = color;
 
-        UI::ImageUtils::SetColor(color, _entityId);
+        UI::ImageUtils::Transactions::SetColorTransaction(color, _entityId);
     }
 
     asPanel* asPanel::CreatePanel()

@@ -64,8 +64,8 @@ namespace UI::TextUtils
 
     size_t CalculateLineWidthsAndBreaks(const UIText& text, f32 maxWidth, f32 maxHeight, std::vector<f32>& lineWidths, std::vector<size_t> lineBreakPoints)
     {
-        assert(text.font);
         ZoneScoped;
+        assert(text.font);
 
         lineWidths.clear();
         lineWidths.push_back(0);

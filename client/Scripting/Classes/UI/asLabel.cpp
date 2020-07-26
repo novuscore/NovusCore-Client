@@ -63,11 +63,18 @@ namespace UI
         UI::TextUtils::Transactions::SetOutlineWidthTransaction(_entityId, outlineWidth);
     }
 
-    void asLabel::SetTextAlignment(TextAlignment textAlignment)
+    void asLabel::SetHorizontalAlignment(TextHorizontalAlignment alignment)
     {
-        _text.textAlignment = textAlignment;
+        _text.horizontalAlignment = alignment;
 
-        UI::TextUtils::Transactions::SetTextAlignmentTransaction(_entityId, textAlignment);
+        UI::TextUtils::Transactions::SetHorizontalAlignmentTransaction(_entityId, alignment);
+    }
+
+    void asLabel::SetVerticalAlignment(TextVerticalAlignment alignment)
+    {
+        _text.verticalAlignment = alignment;
+
+        UI::TextUtils::Transactions::SetVerticalAlignmentTransaction(_entityId, alignment);
     }
 
     asLabel* asLabel::CreateLabel()

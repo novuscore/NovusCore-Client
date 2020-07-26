@@ -25,7 +25,7 @@ namespace UI
         _label->SetLocalAnchor(vec2(0.5, 0.5));
         _label->SetParent(this);
         _label->SetCollisionEnabled(false);
-        _label->SetTextAlignment(TextAlignment::CENTER);
+        _label->SetHorizontalAlignment(TextHorizontalAlignment::CENTER);
     }
     
     void asButton::RegisterType()

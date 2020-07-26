@@ -145,12 +145,13 @@ void UIRenderer::Update(f32 deltaTime)
             }
             text.glyphCount = textLengthWithoutSpaces;
 
-            f32 textAlignment = UI::GetTextAlignment(text.textAlignment);
-            vec2 currentPosition = UI::TransformUtils::GetAnchorPosition(transform, vec2(textAlignment, 0));
+            f32 horizontalAlignment = UI::TextUtils::GetHorizontalAlignment(text.horizontalAlignment);
+            f32 verticalAlignment = UI::TextUtils::GetVerticalAlignment(text.verticalAlignment);
+            vec2 currentPosition = UI::TransformUtils::GetAnchorPosition(transform, vec2(horizontalAlignment, verticalAlignment));
             f32 startX = currentPosition.x;
-            currentPosition.x -= lineWidths[0] * textAlignment;
-            currentPosition.y += text.fontSize;
-
+            currentPosition.x -= lineWidths[0] * horizontalAlignment;
+            currentPosition.y += text.fontSize * (1 - verticalAlignment);
+            
             size_t currentLine = 0;
             size_t glyph = 0;
             for (size_t i = text.pushback; i < finalCharacter; i++)
@@ -160,7 +161,7 @@ void UIRenderer::Update(f32 deltaTime)
                 {
                     currentLine++;
                     currentPosition.y += text.fontSize * text.lineHeight;
-                    currentPosition.x = startX - lineWidths[currentLine] * textAlignment;
+                    currentPosition.x = startX - lineWidths[currentLine] * horizontalAlignment;
                 }
 
                 if (character == '\n')
@@ -173,7 +174,7 @@ void UIRenderer::Update(f32 deltaTime)
                     continue;
                 }
 
-                const Renderer::FontChar fontChar = text.font->GetChar(character);
+                const Renderer::FontChar& fontChar = text.font->GetChar(character);
                 const vec2& pos = currentPosition + vec2(fontChar.xOffset, fontChar.yOffset);
                 const vec2& size = vec2(fontChar.width, fontChar.height);
 

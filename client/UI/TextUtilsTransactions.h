@@ -42,12 +42,23 @@ namespace UI::TextUtils::Transactions
             });
     }
 
-    inline static void SetTextAlignmentTransaction(entt::entity entId, TextAlignment alignment)
+    inline static void SetHorizontalAlignmentTransaction(entt::entity entId, TextHorizontalAlignment alignment)
     {
         ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, alignment]()
             {
                 UIText& uiText = ServiceLocator::GetUIRegistry()->get<UIText>(entId);
-                uiText.textAlignment = alignment;
+                uiText.horizontalAlignment = alignment;
+
+                MarkDirty(entId);
+            });
+    }
+
+    inline static void SetVerticalAlignmentTransaction(entt::entity entId, TextVerticalAlignment alignment)
+    {
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, alignment]()
+            {
+                UIText& uiText = ServiceLocator::GetUIRegistry()->get<UIText>(entId);
+                uiText.verticalAlignment = alignment;
 
                 MarkDirty(entId);
             });

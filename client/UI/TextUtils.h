@@ -4,15 +4,31 @@
 
 namespace UI::TextUtils
 {
-    inline static float GetTextAlignment(TextAlignment alignment)
+    inline static float GetHorizontalAlignment(TextHorizontalAlignment alignment)
     {
         switch (alignment)
         {
-        case TextAlignment::LEFT:
+        case TextHorizontalAlignment::LEFT:
             return 0.f;
-        case TextAlignment::CENTER:
+        case TextHorizontalAlignment::CENTER:
             return 0.5f;
-        case TextAlignment::RIGHT:
+        case TextHorizontalAlignment::RIGHT:
+            return 1.f;
+        default:
+            assert(false); // We should never get here.
+            return 0.f;
+        }
+    }
+
+    inline static float GetVerticalAlignment(TextVerticalAlignment alignment)
+    {
+        switch (alignment)
+        {
+        case TextVerticalAlignment::TOP:
+            return 0.f;
+        case TextVerticalAlignment::CENTER:
+            return 0.5f;
+        case TextVerticalAlignment::BOTTOM:
             return 1.f;
         default:
             assert(false); // We should never get here.
