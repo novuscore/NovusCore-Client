@@ -32,8 +32,6 @@ namespace UI
 
         void SetWriteHeadPosition(size_t position);
 
-        static size_t CalculatePushback(const UIText& text, size_t writeHead, f32 maxWidth);
-
         void SetOnSubmitCallback(asIScriptFunction* callback);
 
         // TransformEvents Functions

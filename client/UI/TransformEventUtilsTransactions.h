@@ -7,7 +7,7 @@
 #include "../ECS/Components/Singletons/ScriptSingleton.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
 
-namespace UI::TransformEventUtils
+namespace UI::TransformEventUtils::Transactions
 {
     inline static void SetFlagTransaction(entt::entity entId, UITransformEventsFlags flag)
     {

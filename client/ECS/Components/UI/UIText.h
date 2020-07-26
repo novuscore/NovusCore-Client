@@ -51,7 +51,7 @@ namespace UI
 
         std::string text = "";
         size_t glyphCount = 0;
-        size_t pushbackCount = 0;
+        size_t pushback = 0;
 
         Color color = Color(1, 1, 1, 1);
         Color outlineColor = Color(0, 0, 0, 0);

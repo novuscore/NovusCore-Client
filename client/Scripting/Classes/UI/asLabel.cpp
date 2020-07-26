@@ -1,7 +1,7 @@
 #include "asLabel.h"
 #include "../../ScriptEngine.h"
 #include "../../../Utils/ServiceLocator.h"
-#include "../../../UI/TextUtils.h"
+#include "../../../UI/TextUtilsTransactions.h"
 
 #include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
@@ -32,42 +32,42 @@ namespace UI
     {
         _text.text = text;
 
-        UI::TextUtils::SetTextTransaction(_entityId, text);
+        UI::TextUtils::Transactions::SetTextTransaction(_entityId, text);
     }
 
     void asLabel::SetFont(const std::string& fontPath, f32 fontSize)
     {
         _text.fontPath = fontPath;
 
-        UI::TextUtils::SetFontTransaction(_entityId, fontPath, fontSize);
+        UI::TextUtils::Transactions::SetFontTransaction(_entityId, fontPath, fontSize);
     }
 
     void asLabel::SetColor(const Color& color)
     {
         _text.color = color;
 
-        UI::TextUtils::SetColorTransaction(_entityId, color);
+        UI::TextUtils::Transactions::SetColorTransaction(_entityId, color);
     }
 
     void asLabel::SetOutlineColor(const Color& outlineColor)
     {
         _text.outlineColor = outlineColor;
 
-        UI::TextUtils::SetOutlineColorTransaction(_entityId, outlineColor);
+        UI::TextUtils::Transactions::SetOutlineColorTransaction(_entityId, outlineColor);
     }
 
     void asLabel::SetOutlineWidth(f32 outlineWidth)
     {
         _text.outlineWidth = outlineWidth;
 
-        UI::TextUtils::SetOutlineWidthTransaction(_entityId, outlineWidth);
+        UI::TextUtils::Transactions::SetOutlineWidthTransaction(_entityId, outlineWidth);
     }
 
     void asLabel::SetTextAlignment(TextAlignment textAlignment)
     {
         _text.textAlignment = textAlignment;
 
-        UI::TextUtils::SetTextAlignmentTransaction(_entityId, textAlignment);
+        UI::TextUtils::Transactions::SetTextAlignmentTransaction(_entityId, textAlignment);
     }
 
     asLabel* asLabel::CreateLabel()

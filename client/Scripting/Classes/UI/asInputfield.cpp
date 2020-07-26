@@ -2,6 +2,7 @@
 #include "../../ScriptEngine.h"
 #include "../../../Utils/ServiceLocator.h"
 #include "../../../UI/TextUtils.h"
+#include "../../../UI/TextUtilsTransactions.h"
 
 #include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
@@ -151,70 +152,11 @@ namespace UI
                 inputField.writeHeadIndex = clampedPosition;
 
                 UIText& text = uiRegistry->get<UIText>(entId);
-                text.pushbackCount = CalculatePushback(text, inputField.writeHeadIndex, uiRegistry->get<UITransform>(entId).size.x);
-                NC_LOG_MESSAGE("Pointer is now: %d, Pushback is now: %d", clampedPosition, text.pushbackCount);
+                text.pushback = UI::TextUtils::CalculatePushback(text, inputField.writeHeadIndex, 0.2f, uiRegistry->get<UITransform>(entId).size.x);
+                NC_LOG_MESSAGE("Pointer is now: %d, Pushback is now: %d", clampedPosition, text.pushback);
 
                 MarkDirty(uiRegistry, entId);
             });
-    }
-
-    size_t asInputField::CalculatePushback(const UIText& text, size_t writeHead, f32 maxWidth)
-    {
-        if (!text.font)
-            return 0;
-
-        size_t pushbackCount = Math::Min(text.pushbackCount, text.text.length() - 1);
-
-        /*
-        *   TODO:
-        *   - Move entire lines for multi-line fields.
-        */
-
-        if (pushbackCount <= writeHead)
-        {
-            f32 lineLength = 0.f;
-            std::vector<size_t> pushBackPoint;
-            bool reachedPercent = false;
-            bool overflowed = false;
-            for (size_t i = pushbackCount; i < writeHead; i++)
-            {
-                if (std::isspace(text.text[i]))
-                    lineLength += text.fontSize * 0.15f;
-                else
-                    lineLength += text.font->GetChar(text.text[i]).advance;
-
-                if (!reachedPercent && lineLength > maxWidth * 0.2f)
-                {
-                    reachedPercent = true;
-                    pushBackPoint.push_back(i);
-                }
-                else if (lineLength > maxWidth)
-                {
-                    reachedPercent = false;
-                    overflowed = true;
-                    lineLength = 0.f;
-                }
-            }
-
-            if (overflowed)
-                return pushBackPoint[pushBackPoint.size() - 1];
-            else
-                return pushbackCount;
-        }
-
-        f32 lineLength = 0.f;
-        for (size_t i = pushbackCount; i > 0; i--)
-        {
-            if (std::isspace(text.text[i]))
-                lineLength += text.fontSize * 0.15f;
-            else
-                lineLength += text.font->GetChar(text.text[i]).advance;
-
-            if (lineLength > maxWidth * 0.2f)
-                return i;
-        }
-
-        return 0;
     }
 
     void asInputField::SetOnSubmitCallback(asIScriptFunction* callback)
@@ -311,28 +253,28 @@ namespace UI
     {
         _text.color = color;
 
-        UI::TextUtils::SetColorTransaction(_entityId, color);
+        UI::TextUtils::Transactions::SetColorTransaction(_entityId, color);
     }
 
     void asInputField::SetTextOutlineColor(const Color& outlineColor)
     {
         _text.outlineColor = outlineColor;
 
-        UI::TextUtils::SetOutlineColorTransaction(_entityId, outlineColor);
+        UI::TextUtils::Transactions::SetOutlineColorTransaction(_entityId, outlineColor);
     }
 
     void asInputField::SetTextOutlineWidth(f32 outlineWidth)
     {
         _text.outlineWidth = outlineWidth;
 
-        UI::TextUtils::SetOutlineWidthTransaction(_entityId, outlineWidth);
+        UI::TextUtils::Transactions::SetOutlineWidthTransaction(_entityId, outlineWidth);
     }
 
     void asInputField::SetTextFont(const std::string& fontPath, f32 fontSize)
     {
         _text.fontPath = fontPath;
 
-        UI::TextUtils::SetFontTransaction(_entityId, fontPath, fontSize);
+        UI::TextUtils::Transactions::SetFontTransaction(_entityId, fontPath, fontSize);
     }
 
     asInputField* asInputField::CreateInputField()

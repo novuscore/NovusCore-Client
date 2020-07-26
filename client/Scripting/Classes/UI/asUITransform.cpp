@@ -8,7 +8,7 @@
 #include "../../../ECS/Components/UI/UIVisible.h"
 #include "../../../ECS/Components/UI/UICollidable.h"
 #include "../../../ECS/Components/UI/UIDirty.h"
-#include "../../../UI/UITransformUtils.h"
+#include "../../../UI/TransformUtils.h"
 
 namespace UI
 {
@@ -128,7 +128,7 @@ namespace UI
         {
             UITransform& parent = entityToAsObjectIterator->getSecond()->_transform;
 
-            _transform.position = UITransformUtils::GetAnchorPosition(parent, _transform.anchor);
+            _transform.position = UI::TransformUtils::GetAnchorPosition(parent, _transform.anchor);
         }
 
         UpdateChildTransformsAngelScript(uiDataSingleton, _transform);
@@ -146,7 +146,7 @@ namespace UI
                 {
                     UITransform& parent = registry->get<UITransform>(entId);
 
-                    transform.position = UITransformUtils::GetAnchorPosition(parent, transform.anchor);
+                    transform.position = UI::TransformUtils::GetAnchorPosition(parent, transform.anchor);
                 }
 
                 UpdateChildTransforms(registry, transform);
@@ -263,11 +263,11 @@ namespace UI
             {
                 UITransform& oldParentTransform = entityToAsObjectIterator->getSecond()->_transform;
 
-                UITransformUtils::RemoveChild(oldParentTransform, _entityId);
+                UI::TransformUtils::RemoveChild(oldParentTransform, _entityId);
             }
 
             // Keep same screen position.
-            _transform.position = UITransformUtils::GetScreenPosition(_transform);
+            _transform.position = UI::TransformUtils::GetScreenPosition(_transform);
         }
 
         // Set new parent.
@@ -275,7 +275,7 @@ namespace UI
 
         // Calculate origin.
         UITransform& parentTransform = parent->_transform;
-        vec2 NewOrigin = UITransformUtils::GetAnchorPosition(parentTransform, _transform.anchor);
+        vec2 NewOrigin = UI::TransformUtils::GetAnchorPosition(parentTransform, _transform.anchor);
 
         // Recalculate new local position whilst keeping screen position.
         _transform.localPosition = (NewOrigin + parentTransform.localPosition) - _transform.position;
@@ -287,7 +287,7 @@ namespace UI
         UpdateChildTransformsAngelScript(uiDataSingleton, _transform);
 
         // Add ourselves to parent's angelscript object children
-        UITransformUtils::AddChild(parentTransform, _entityId, _elementType);
+        UI::TransformUtils::AddChild(parentTransform, _entityId, _elementType);
 
         // Update visibility
         UIVisibility& parentVisibility = parent->_visibility;
@@ -313,7 +313,7 @@ namespace UI
                     UITransform& oldParentTransform = uiRegistry->get<UITransform>(entt::entity(transform.parent));
 
                     //Remove from parents children.
-                    UITransformUtils::RemoveChild(oldParentTransform, entId);
+                    UI::TransformUtils::RemoveChild(oldParentTransform, entId);
                 }
 
                 // Set new parent.
@@ -324,7 +324,7 @@ namespace UI
                 transform.localPosition = newLocalPosition;
 
                 // Add this to parent's children.
-                UITransformUtils::AddChild(parentTransform, entId, elementType);
+                UI::TransformUtils::AddChild(parentTransform, entId, elementType);
 
                 if (transform.fillParentSize)
                     transform.size = parentTransform.size;
@@ -437,7 +437,7 @@ namespace UI
             entt::entity entId = entt::entity(child.entity);
             UITransform& childTransform = uiRegistry->get<UITransform>(entId);
 
-            childTransform.position = UITransformUtils::GetAnchorPosition(parent, childTransform.anchor);
+            childTransform.position = UI::TransformUtils::GetAnchorPosition(parent, childTransform.anchor);
             if (childTransform.fillParentSize) childTransform.size = parent.size;
 
             UpdateChildTransforms(uiRegistry, childTransform);
@@ -457,7 +457,7 @@ namespace UI
 
             UITransform& childTransform = itr->getSecond()->_transform;
 
-            childTransform.position = UITransformUtils::GetAnchorPosition(parent, childTransform.anchor);
+            childTransform.position = UI::TransformUtils::GetAnchorPosition(parent, childTransform.anchor);
             if (childTransform.fillParentSize) childTransform.size = parent.size;
 
             UpdateChildTransformsAngelScript(uiDataSingleton, childTransform);
@@ -504,8 +504,8 @@ namespace UI
 
     void asUITransform::UpdateBounds(entt::registry* uiRegistry, UITransform& transform)
     {
-        transform.minBound = UITransformUtils::GetMinBounds(transform);
-        transform.maxBound = UITransformUtils::GetMaxBounds(transform);
+        transform.minBound = UI::TransformUtils::GetMinBounds(transform);
+        transform.maxBound = UI::TransformUtils::GetMaxBounds(transform);
 
         if (transform.includeChildBounds)
         {
@@ -522,8 +522,8 @@ namespace UI
     }
     void asUITransform::ShallowUpdateBounds(entt::registry* uiRegistry, UITransform& parent)
     {
-        parent.minBound = UITransformUtils::GetMinBounds(parent);
-        parent.maxBound = UITransformUtils::GetMaxBounds(parent);
+        parent.minBound = UI::TransformUtils::GetMinBounds(parent);
+        parent.maxBound = UI::TransformUtils::GetMaxBounds(parent);
 
         if (!parent.includeChildBounds)
             return;

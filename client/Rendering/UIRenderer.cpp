@@ -9,7 +9,8 @@
 #include <tracy/Tracy.hpp>
 
 #include "../Utils/ServiceLocator.h"
-#include "../UI/UITransformUtils.h"
+#include "../UI/TransformUtils.h"
+#include "../UI/TextUtils.h"
 
 #include "../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../ECS/Components/UI/Singletons/UIAddElementQueueSingleton.h"
@@ -96,7 +97,7 @@ void UIRenderer::Update(f32 deltaTime)
             constantBuffer->ApplyAll();
 
             // Transform Updates.
-            const vec2& pos = vec2(UITransformUtils::GetMinBounds(transform));
+            const vec2& pos = vec2(UI::TransformUtils::GetMinBounds(transform));
             const vec2& size = transform.size;
 
             // Update vertex buffer
@@ -131,80 +132,11 @@ void UIRenderer::Update(f32 deltaTime)
 
             text.font = Renderer::Font::GetFont(_renderer, text.fontPath, text.fontSize);
 
-            std::vector<f32> lineWidth = { 0 };
-            std::vector<size_t> lineBreakPoint;
-            size_t finalCharacter = text.text.length();
-            {
-                u32 maxLines = static_cast<u32>(text.textType == UI::TextType::SINGLELINE ? 1 : transform.size.y / (text.fontSize * text.lineHeight)) - 1;
-                u32 currentLine = 0;
-                size_t lastWordStart = 0;
-                f32 wordWidth = 0.f;
+            std::vector<f32> lineWidths;
+            std::vector<size_t> lineBreakPoints;
+            size_t finalCharacter = UI::TextUtils::CalculateLineWidthsAndBreaks(text, transform.size.x, transform.size.y, lineWidths, lineBreakPoints);
 
-                auto BreakLine = [&](f32 newLineWidth, size_t breakPoint)
-                {
-                    currentLine++;
-                    lineWidth.push_back(newLineWidth);
-                    lineBreakPoint.push_back(breakPoint);
-                };
-
-                for (size_t i = text.pushbackCount; i < text.text.length(); i++)
-                {
-                    // Handle line break character.
-                    if (text.text[i] == '\n')
-                    {
-                        if (currentLine == maxLines)
-                        {
-                            finalCharacter = i - 1;
-                            break;
-                        }
-
-                        BreakLine(0.f, i);
-
-                        lastWordStart = i + 1;
-                        wordWidth = 0.f;
-
-                        continue;
-                    }
-
-                    f32 advance = 0.f;
-                    if (std::isspace(text.text[i]))
-                    {
-                        advance = text.fontSize * 0.15f;
-                        lastWordStart = i + 1;
-                        wordWidth = 0.f;
-                    }
-                    else
-                    {
-                        advance = text.font->GetChar(text.text[i]).advance;
-                        wordWidth += advance;
-                    }
-
-                    // Check if adding this character would break the line
-                    if (lineWidth[currentLine] + advance > transform.size.x)
-                    {
-                        if (currentLine == maxLines)
-                        {
-                            finalCharacter = i - 1;
-                            break;
-                        }
-
-                        // If the word takes up less than a line break before it else just break in the middle of it.
-                        if (wordWidth < transform.size.x)
-                        {
-                            lineWidth[currentLine] -= wordWidth;
-                            BreakLine(wordWidth, lastWordStart);
-                        }
-                        else
-                        {
-                            BreakLine(0, i);
-                        }
-                    }
-
-                    lineWidth[currentLine] += advance;
-                }
-            }
-
-            size_t textLengthWithoutSpaces = std::count_if(text.text.begin() + text.pushbackCount, text.text.end() - (text.text.length() - finalCharacter), [](char c) { return !std::isspace(c); });
+            size_t textLengthWithoutSpaces = std::count_if(text.text.begin() + text.pushback, text.text.end() - (text.text.length() - finalCharacter), [](char c) { return !std::isspace(c); });
             if (text.models.size() < textLengthWithoutSpaces)
             {
                 size_t difference = textLengthWithoutSpaces - text.glyphCount;
@@ -214,21 +146,21 @@ void UIRenderer::Update(f32 deltaTime)
             text.glyphCount = textLengthWithoutSpaces;
 
             f32 textAlignment = UI::GetTextAlignment(text.textAlignment);
-            vec2 currentPosition = UITransformUtils::GetAnchorPosition(transform, vec2(textAlignment, 0));
+            vec2 currentPosition = UI::TransformUtils::GetAnchorPosition(transform, vec2(textAlignment, 0));
             f32 startX = currentPosition.x;
-            currentPosition.x -= lineWidth[0] * textAlignment;
+            currentPosition.x -= lineWidths[0] * textAlignment;
             currentPosition.y += text.fontSize;
 
             size_t currentLine = 0;
             size_t glyph = 0;
-            for (size_t i = text.pushbackCount; i < finalCharacter; i++)
+            for (size_t i = text.pushback; i < finalCharacter; i++)
             {
                 const char character = text.text[i];
-                if (currentLine < lineBreakPoint.size() && lineBreakPoint[currentLine] == i)
+                if (currentLine < lineBreakPoints.size() && lineBreakPoints[currentLine] == i)
                 {
                     currentLine++;
                     currentPosition.y += text.fontSize * text.lineHeight;
-                    currentPosition.x = startX - lineWidth[currentLine] * textAlignment;
+                    currentPosition.x = startX - lineWidths[currentLine] * textAlignment;
                 }
 
                 if (character == '\n')

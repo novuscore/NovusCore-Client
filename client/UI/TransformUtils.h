@@ -2,7 +2,7 @@
 #include <NovusTypes.h>
 #include "../ECS/Components/UI/UITransform.h"
 
-namespace UITransformUtils
+namespace UI::TransformUtils
 {
     inline static const vec2 GetScreenPosition(const UITransform& transform)
     {

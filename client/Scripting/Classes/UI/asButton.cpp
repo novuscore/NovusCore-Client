@@ -3,7 +3,7 @@
 #include "asPanel.h"
 #include "../../ScriptEngine.h"
 #include "../../../Utils/ServiceLocator.h"
-#include "../../../UI/TransformEventUtils.h"
+#include "../../../UI/TransformEventUtilsTransactions.h"
 
 #include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
@@ -62,7 +62,7 @@ namespace UI
         _events.onClickCallback = callback;
         _events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
-        UI::TransformEventUtils::SetOnClickCallbackTransaction(_entityId, callback);
+        UI::TransformEventUtils::Transactions::SetOnClickCallbackTransaction(_entityId, callback);
     }
 
     void asButton::SetText(const std::string& text)

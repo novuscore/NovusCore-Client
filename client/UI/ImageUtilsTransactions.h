@@ -7,7 +7,7 @@
 #include "../ECS/Components/UI/UIImage.h"
 #include "../ECS/Components/UI/UIDirty.h"
 
-namespace UI::ImageUtils
+namespace UI::ImageUtils::Transactions
 {
     inline static void MarkDirty(entt::entity entId)
     {
@@ -17,7 +17,7 @@ namespace UI::ImageUtils
             uiRegistry->emplace<UIDirty>(entId);
     }
 
-    inline static void SetTexture(const std::string& texture, entt::entity entId)
+    inline static void SetTextureTransaction(const std::string& texture, entt::entity entId)
     {
         ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([texture, entId]()
             {
@@ -28,7 +28,7 @@ namespace UI::ImageUtils
             });
     }
 
-    inline static void SetColor(const Color& color, entt::entity entId)
+    inline static void SetColorTransaction(const Color& color, entt::entity entId)
     {
         ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([color, entId]()
             {
