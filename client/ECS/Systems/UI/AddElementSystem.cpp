@@ -17,8 +17,6 @@
 
 void AddElementSystem::Update(entt::registry& registry)
 {
-    ZoneScopedNC("AddElementSystem::Update", tracy::Color::Blue);
-
     UI::UIAddElementQueueSingleton& uiAddElementQueueSingleton = registry.ctx<UI::UIAddElementQueueSingleton>();
 
     UI::UIElementCreationData element;

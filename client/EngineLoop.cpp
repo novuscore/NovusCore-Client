@@ -28,6 +28,7 @@
 // Systems
 #include "ECS/Systems/Network/ConnectionSystems.h"
 #include "ECS/Systems/UI/AddElementSystem.h"
+#include "ECS/Systems/UI/UpdateElementSystem.h"
 #include "ECS/Systems/Rendering/RenderModelSystem.h"
 #include "ECS/Systems/MovementSystem.h"
 
@@ -182,6 +183,7 @@ void EngineLoop::Run()
             break;
 
         Render();
+        FrameMark;
 
         // Wait for tick rate, this might be an overkill implementation but it has the most even tickrate I've seen - MPursche
         for (deltaTime = timer.GetDeltaTime(); deltaTime < targetDelta - 0.0025f; deltaTime = timer.GetDeltaTime())
@@ -275,11 +277,20 @@ void EngineLoop::SetupUpdateFramework()
     // AddElementSystem
     tf::Task addElementSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
         {
-            ZoneScopedNC("AddElementSystem::Update", tracy::Color::Blue2)
+            ZoneScopedNC("AddElementSystem::Update", tracy::Color::Gainsboro)
                 AddElementSystem::Update(uiRegistry);
             gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
         });
     addElementSystemTask.gather(connectionUpdateSystemTask);
+
+    // UpdateElementSystem
+    tf::Task updateElementSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+        {
+            ZoneScopedNC("UpdateElementSystem::Update", tracy::Color::Gainsboro)
+                UpdateElementSystem::Update(uiRegistry);
+            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+        });
+    updateElementSystemTask.gather(addElementSystemTask);
 
     // MovementSystem
     tf::Task movementSystemTask = framework.emplace([&gameRegistry]()
@@ -306,7 +317,7 @@ void EngineLoop::SetupUpdateFramework()
             gameRegistry.ctx<ScriptSingleton>().ExecuteTransactions();
             gameRegistry.ctx<ScriptSingleton>().ResetCompletedSystems();
         });
-    scriptSingletonTask.gather(addElementSystemTask);
+    scriptSingletonTask.gather(updateElementSystemTask);
     scriptSingletonTask.gather(renderModelSystemTask);
 }
 void EngineLoop::SetMessageHandler()
@@ -323,13 +334,13 @@ void EngineLoop::SetMessageHandler()
 }
 void EngineLoop::UpdateSystems()
 {
-    ZoneScopedNC("UpdateSystems", tracy::Color::Blue2)
+    ZoneScopedNC("UpdateSystems", tracy::Color::DarkBlue)
     {
-        ZoneScopedNC("Taskflow::Run", tracy::Color::Blue2)
+        ZoneScopedNC("Taskflow::Run", tracy::Color::DarkBlue)
             _updateFramework.taskflow.run(_updateFramework.framework);
     }
     {
-        ZoneScopedNC("Taskflow::WaitForAll", tracy::Color::Blue2)
+        ZoneScopedNC("Taskflow::WaitForAll", tracy::Color::DarkBlue)
             _updateFramework.taskflow.wait_for_all();
     }
 }
