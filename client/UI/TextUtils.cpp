@@ -1,9 +1,11 @@
 #include "TextUtils.h"
+#include <tracy/Tracy.hpp>
 
 namespace UI::TextUtils
 {
     size_t CalculatePushback(const UIText& text, size_t writeHead, f32 bufferDecimal, f32 maxWidth)
     {     
+        ZoneScoped;
         /*
         *   TODO:
         *   - Move entire lines for multi-line fields.
@@ -63,6 +65,7 @@ namespace UI::TextUtils
     size_t CalculateLineWidthsAndBreaks(const UIText& text, f32 maxWidth, f32 maxHeight, std::vector<f32>& lineWidths, std::vector<size_t> lineBreakPoints)
     {
         assert(text.font);
+        ZoneScoped;
 
         lineWidths.clear();
         lineWidths.push_back(0);
