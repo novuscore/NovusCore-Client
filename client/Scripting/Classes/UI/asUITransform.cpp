@@ -4,6 +4,7 @@
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
 #include "../../../ECS/Components/UI/Singletons/UIDataSingleton.h"
 #include "../../../ECS/Components/UI/Singletons/UIAddElementQueueSingleton.h"
+#include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 
 #include "../../../ECS/Components/UI/UIVisible.h"
 #include "../../../ECS/Components/UI/UICollidable.h"
@@ -38,17 +39,12 @@ namespace UI
         return oldVisibility != newVisibility;
     }
 
-    asUITransform::asUITransform(entt::entity entityId, UIElementType elementType) : _entityId(entityId), _elementType(elementType)
+    asUITransform::asUITransform(UIElementType elementType) : _elementType(elementType)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-
-        UIElementCreationData elementData{ entityId, elementType, this };
-
-        UIAddElementQueueSingleton& addElementQueue = registry->ctx<UIAddElementQueueSingleton>();
-        addElementQueue.elementPool.enqueue(elementData);
-
-        UIDataSingleton& uiDataSingleton = registry->ctx<UIDataSingleton>();
-        uiDataSingleton.entityToAsObject[entityId] = this;
+        _entityId = registry->ctx<UIEntityPoolSingleton>().GetId();
+        registry->ctx<UIAddElementQueueSingleton>().elementPool.enqueue({ _entityId, elementType, this });
+        registry->ctx<UIDataSingleton>().entityToAsObject[_entityId] = this;
     }
 
     void asUITransform::SetTransform(const vec2& position, const vec2& size)

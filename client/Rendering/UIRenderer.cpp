@@ -1,11 +1,7 @@
 #include "UIRenderer.h"
 
 #include <Renderer/Renderer.h>
-#include <Renderer/Renderers/Vulkan/RendererVK.h>
 #include <Renderer/Descriptors/FontDesc.h>
-#include <Window/Window.h>
-#include <InputManager.h>
-#include <GLFW/glfw3.h>
 #include <tracy/Tracy.hpp>
 
 #include "../Utils/ServiceLocator.h"
@@ -22,14 +18,14 @@
 #include "../ECS/Components/UI/UIText.h"
 
 #include "../ECS/Components/UI/UIVisible.h"
+#include "../ECS/Components/UI/UIVisibility.h"
 #include "../ECS/Components/UI/UIDirty.h"
 #include "../ECS/Components/UI/UICollidable.h"
 
 #include "../ECS/Components/UI/UIInputField.h"
 #include "../ECS/Components/UI/UICheckbox.h"
 
-#include "../Scripting/Classes/UI/asInputfield.h"
-#include "../Scripting/Classes/UI/asCheckbox.h"
+#include "../ECS/Systems/UI/UIInputSystem.h"
 
 const u32 WIDTH = 1920;
 const u32 HEIGHT = 1080;
@@ -38,11 +34,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
 {
     CreatePermanentResources();
 
-    InputManager* inputManager = ServiceLocator::GetInputManager();
-    inputManager->RegisterKeybind("UI Click Checker", GLFW_MOUSE_BUTTON_LEFT, KEYBIND_ACTION_CLICK, KEYBIND_MOD_ANY, std::bind(&UIRenderer::OnMouseClick, this, std::placeholders::_1, std::placeholders::_2));
-    inputManager->RegisterMousePositionCallback("UI Mouse Position Checker", std::bind(&UIRenderer::OnMousePositionUpdate, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-    inputManager->RegisterKeyboardInputCallback("UI Keyboard Input Checker"_h, std::bind(&UIRenderer::OnKeyboardInput, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
-    inputManager->RegisterCharInputCallback("UI Char Input Checker"_h, std::bind(&UIRenderer::OnCharInput, this, std::placeholders::_1, std::placeholders::_2));
+    UI::InputSystem::RegisterCallbacks();
 
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     registry->prepare<UITransform>();
@@ -65,10 +57,6 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
 
     // Register entity pool.
     registry->set<UI::UIEntityPoolSingleton>().AllocatePool();
-}
-
-void UIRenderer::Update(f32 deltaTime)
-{
 }
 
 void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex)
@@ -150,7 +138,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             {
                 ZoneScopedNC("UIRenderer::AddUIPass - Render", tracy::Color::Red)
 
-                    entt::registry* registry = ServiceLocator::GetUIRegistry();
+                entt::registry* registry = ServiceLocator::GetUIRegistry();
                 auto renderGroup = registry->group<UITransform>(entt::get<UIRenderable, UIVisible>);
                 renderGroup.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
                 renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UITransform& transform)
@@ -223,146 +211,6 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                 commandList.EndPipeline(activePipeline);
             }
         });
-}
-
-bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
-{
-    ZoneScoped;
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
-    UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
-
-    const vec2 mouse = ServiceLocator::GetInputManager()->GetMousePosition();
-
-    //Unfocus last focused widget.
-    entt::entity lastFocusedWidget = dataSingleton.focusedWidget;
-    if (dataSingleton.focusedWidget != entt::null)
-    {
-        registry->get<UITransformEvents>(dataSingleton.focusedWidget).OnUnfocused();
-
-        dataSingleton.focusedWidget = entt::null;
-    }
-
-    auto eventGroup = registry->group<UITransformEvents>(entt::get<UITransform, UICollidable, UIVisible>);
-    eventGroup.sort<UITransform>([](const UITransform& left, const UITransform& right) { return left.sortKey > right.sortKey; });
-    for (auto entity : eventGroup)
-    {
-        const UITransform& transform = eventGroup.get<UITransform>(entity);
-        UITransformEvents& events = eventGroup.get<UITransformEvents>(entity);
-
-        const vec2 minBounds = transform.minBound;
-        const vec2 maxBounds = transform.maxBound;
-
-        // Check so mouse if within widget bounds.
-        if (!((mouse.x > minBounds.x && mouse.x < maxBounds.x) && (mouse.y > minBounds.y && mouse.y < maxBounds.y)))
-            continue;
-
-        // Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it. But we still need to block clicking through it.
-        if (lastFocusedWidget == entity)
-            return true;
-
-        // Check if we have any events we can actually call else exit out early. It needs to still block clicking through though.
-        if (!events.flags)
-            return true;
-
-        if (keybind->state == GLFW_PRESS)
-        {
-            if (events.IsDraggable())
-            {
-                // TODO FEATURE: Dragging
-            }
-        }
-        else
-        {
-            if (events.IsFocusable())
-            {
-                dataSingleton.focusedWidget = entity;
-
-                events.OnFocused();
-            }
-
-            if (events.IsClickable())
-            {
-                events.OnClick();
-
-                if (transform.sortData.type == UI::UIElementType::UITYPE_CHECKBOX)
-                {
-                    UI::asCheckbox* checkBox = reinterpret_cast<UI::asCheckbox*>(transform.asObject);
-                    checkBox->ToggleChecked();
-                }
-            }
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
-void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
-{
-    // TODO FEATURE: Handle Dragging
-}
-
-bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
-{
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
-    UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
-
-    if (dataSingleton.focusedWidget == entt::null || action != GLFW_RELEASE)
-        return false;
-
-    UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
-    UITransformEvents& events = registry->get<UITransformEvents>(dataSingleton.focusedWidget);
-
-    if (key == GLFW_KEY_ESCAPE)
-    {
-        events.OnUnfocused();
-        dataSingleton.focusedWidget = entt::null;
-
-        return true;
-    }
-
-    switch (transform.sortData.type)
-    {
-    case UI::UIElementType::UITYPE_INPUTFIELD:
-    {
-        UI::asInputField* inputFieldAS = reinterpret_cast<UI::asInputField*>(transform.asObject);
-        inputFieldAS->HandleKeyInput(key);
-        break;
-    }
-    case UI::UIElementType::UITYPE_CHECKBOX:
-    {
-        UI::asCheckbox* checkBoxAS = reinterpret_cast<UI::asCheckbox*>(transform.asObject);
-        checkBoxAS->HandleKeyInput(key);
-        break;
-    }
-    default:
-        if (key == GLFW_KEY_ENTER && events.IsClickable())
-        {
-            events.OnClick();
-        }
-        break;
-    }
-
-    return true;
-}
-
-bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
-{
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
-    UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
-
-    if (dataSingleton.focusedWidget == entt::null)
-        return false;
-
-    UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
-    if (transform.sortData.type == UI::UIElementType::UITYPE_INPUTFIELD)
-    {
-        UI::asInputField* inputField = reinterpret_cast<UI::asInputField*>(transform.asObject);
-        inputField->HandleCharInput((char)unicodeKey);
-    }
-
-    return true;
 }
 
 void UIRenderer::CreatePermanentResources()

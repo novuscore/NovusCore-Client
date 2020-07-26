@@ -1,7 +1,7 @@
 /*
 *	NOVUSCORE LOGIN SCREEN
 *	Version 0.1
-*	Updated 24/07/2020
+*	Updated 27/07/2020
 */
 
 void Login()
@@ -30,6 +30,9 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 
 	vec2 SIZE = vec2(300,50);
 
+	uint LABELFONTSIZE = 50;
+	uint INPUTFIELDFONTSIZE = 35;
+
 	Color TEXTCOLOR = Color(0,0,0.5);
 	string FONT = "Data/fonts/Ubuntu/Ubuntu-Regular.ttf";
 
@@ -42,7 +45,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	Label@ userNameLabel = CreateLabel();
 	userNameLabel.SetTransform(vec2(CENTERX, CENTERY - 50), SIZE);
 	userNameLabel.SetLocalAnchor(vec2(0.5,1));
-	userNameLabel.SetFont(FONT, 50);
+	userNameLabel.SetFont(FONT, LABELFONTSIZE);
 	userNameLabel.SetColor(TEXTCOLOR);
 	userNameLabel.SetText("Username");
 
@@ -56,7 +59,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	usernameField.SetParent(userNameFieldPanel);
 	usernameField.SetPosition(vec2(0,0));
 	usernameField.SetFillParentSize(true);
-	usernameField.SetFont(FONT, 50);
+	usernameField.SetFont(FONT, INPUTFIELDFONTSIZE);
 	usernameField.OnSubmit(OnFieldSubmit);
 	DataStorage::EmplaceEntity("LOGIN-usernameField", usernameField.GetEntityId());
 	
@@ -64,7 +67,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	Label@ passwordLabel = CreateLabel();
 	passwordLabel.SetTransform(vec2(CENTERX, CENTERY + 50), SIZE);
 	passwordLabel.SetLocalAnchor(vec2(0.5,1));
-	passwordLabel.SetFont(FONT, 50);
+	passwordLabel.SetFont(FONT, LABELFONTSIZE);
 	passwordLabel.SetColor(TEXTCOLOR);
 	passwordLabel.SetText("Password");
 
@@ -78,7 +81,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	passwordField.SetParent(passwordFieldPanel);
 	passwordField.SetPosition(vec2(0,0));
 	passwordField.SetFillParentSize(true);
-	passwordField.SetFont(FONT, 50);
+	passwordField.SetFont(FONT, INPUTFIELDFONTSIZE);
 	passwordField.OnSubmit(OnFieldSubmit);
 	DataStorage::EmplaceEntity("LOGIN-passwordField", passwordField.GetEntityId());
 
@@ -88,7 +91,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	submitButton.SetSize(SIZE);
 	submitButton.SetLocalAnchor(vec2(0.5,0));
 	submitButton.SetTexture("Data/textures/NovusUIPanel.png");
-	submitButton.SetFont(FONT, 50);
+	submitButton.SetFont(FONT, INPUTFIELDFONTSIZE);
 	submitButton.SetText("Submit");
 	submitButton.OnClick(OnLoginButtonClick);
 

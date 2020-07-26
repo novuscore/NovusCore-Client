@@ -4,12 +4,11 @@
 #include "../../../UI/ImageUtilsTransactions.h"
 #include "../../../UI/TransformEventUtilsTransactions.h"
 
-#include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
 
 namespace UI
 {
-    asPanel::asPanel(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_PANEL) { }
+    asPanel::asPanel() : asUITransform(UIElementType::UITYPE_PANEL) { }
 
     void asPanel::RegisterType()
     {
@@ -74,10 +73,7 @@ namespace UI
 
     asPanel* asPanel::CreatePanel()
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
-
-        asPanel* panel = new asPanel(entityPool.GetId());
+        asPanel* panel = new asPanel();
         
         return panel;
     }

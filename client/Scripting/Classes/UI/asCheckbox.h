@@ -12,7 +12,7 @@ namespace UI
     class asCheckbox : public asUITransform
     {
     public:
-        asCheckbox(entt::entity entityId);
+        asCheckbox();
 
         static void RegisterType();
 

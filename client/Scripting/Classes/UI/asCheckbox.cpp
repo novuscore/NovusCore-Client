@@ -5,14 +5,13 @@
 #include "../../../UI/ImageUtilsTransactions.h"
 #include "../../../UI/TransformEventUtilsTransactions.h"
 
-#include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
 
 #include <GLFW/glfw3.h>
 
 namespace UI
 {
-    asCheckbox::asCheckbox(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_CHECKBOX)
+    asCheckbox::asCheckbox() : asUITransform(UIElementType::UITYPE_CHECKBOX)
     {
         checkPanel = asPanel::CreatePanel();
         checkPanel->SetFillParentSize(true);
@@ -159,9 +158,7 @@ namespace UI
 
     asCheckbox* asCheckbox::CreateCheckbox()
     {
-        UIEntityPoolSingleton& entityPool = ServiceLocator::GetUIRegistry()->ctx<UIEntityPoolSingleton>();
-
-        asCheckbox* checkbox = new asCheckbox(entityPool.GetId());
+        asCheckbox* checkbox = new asCheckbox();
         
         return checkbox;
     }

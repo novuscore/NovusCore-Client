@@ -15,7 +15,7 @@ namespace UI
     class asInputField : public asUITransform
     {
     public:
-        asInputField(entt::entity entityId);
+        asInputField();
 
         static void RegisterType();
 

@@ -4,14 +4,13 @@
 #include "../../../UI/TextUtils.h"
 #include "../../../UI/TextUtilsTransactions.h"
 
-#include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
 
 #include <GLFW/glfw3.h>
 
 namespace UI
 {
-    asInputField::asInputField(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_INPUTFIELD)
+    asInputField::asInputField() : asUITransform(UIElementType::UITYPE_INPUTFIELD)
     {
         SetFocusable(true);
     }
@@ -279,10 +278,7 @@ namespace UI
 
     asInputField* asInputField::CreateInputField()
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
-
-        asInputField* inputField = new asInputField(entityPool.GetId());
+        asInputField* inputField = new asInputField();
 
         return inputField;
     }

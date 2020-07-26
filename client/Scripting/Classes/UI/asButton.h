@@ -14,7 +14,7 @@ namespace UI
     class asButton : public asUITransform
     {
     public:
-        asButton(entt::entity entityId);
+        asButton();
 
         static void RegisterType();
 

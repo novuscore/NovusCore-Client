@@ -10,7 +10,7 @@ namespace UI
     class asPanel : public asUITransform
     {
     public:
-        asPanel(entt::entity entityId);
+        asPanel();
 
         static void RegisterType();
 

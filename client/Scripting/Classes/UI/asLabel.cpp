@@ -3,12 +3,11 @@
 #include "../../../Utils/ServiceLocator.h"
 #include "../../../UI/TextUtilsTransactions.h"
 
-#include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
 
 namespace UI
 {
-    asLabel::asLabel(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_TEXT) { }
+    asLabel::asLabel() : asUITransform(UIElementType::UITYPE_TEXT) { }
     
     void asLabel::RegisterType()
     {
@@ -79,10 +78,7 @@ namespace UI
 
     asLabel* asLabel::CreateLabel()
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
-
-        asLabel* label = new asLabel(entityPool.GetId());
+        asLabel* label = new asLabel();
 
         return label;
     }

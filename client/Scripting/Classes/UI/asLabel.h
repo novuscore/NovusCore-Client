@@ -9,7 +9,7 @@ namespace UI
     class asLabel : public asUITransform
     {
     public:
-        asLabel(entt::entity entityId);
+        asLabel();
 
         static void RegisterType();
 

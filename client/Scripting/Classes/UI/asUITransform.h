@@ -12,7 +12,7 @@ namespace UI
     class asUITransform
     {
     public:
-        asUITransform(entt::entity entityId, UIElementType elementType);
+        asUITransform(UIElementType elementType);
 
         static void RegisterType()
         {

@@ -1,6 +1,5 @@
 #include "UpdateElementSystem.h"
 #include <entity/registry.hpp>
-#include <entity/entity.hpp>
 #include <tracy/Tracy.hpp>
 #include "../../../Utils/ServiceLocator.h"
 #include "../../../Rendering/UIRenderer.h"
@@ -18,9 +17,10 @@ void UpdateElementSystem::Update(entt::registry& registry)
     auto renderer = ServiceLocator::GetRenderer();
 
     auto imageView = registry.view<UITransform, UIImage, UIDirty>();
-    imageView.each([&](const auto entity, UITransform& transform, UIImage& image)
+    imageView.each([&](UITransform& transform, UIImage& image)
         {
-            ZoneScopedNC("UpdateElementSystem::ImageView", tracy::Color::RoyalBlue);
+            ZoneScopedNC("UpdateElementSystem::ImageView", tracy::Color::RoyalBlue)
+
             // Renderable Updates
             if (image.texture.length() == 0)
                 return;
@@ -69,7 +69,7 @@ void UpdateElementSystem::Update(entt::registry& registry)
         });
 
     auto textView = registry.view<UITransform, UI::UIText, UIDirty>();
-    textView.each([&](const auto entity, UITransform& transform, UI::UIText& text)
+    textView.each([&](UITransform& transform, UI::UIText& text)
         {
             ZoneScopedNC("UpdateElementSystem::TextView", tracy::Color::SkyBlue)
             if (text.fontPath.length() == 0)

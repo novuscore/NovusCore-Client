@@ -5,12 +5,11 @@
 #include "../../../Utils/ServiceLocator.h"
 #include "../../../UI/TransformEventUtilsTransactions.h"
 
-#include "../../../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
 
 namespace UI
 {
-    asButton::asButton(entt::entity entityId) : asUITransform(entityId, UIElementType::UITYPE_BUTTON) 
+    asButton::asButton() : asUITransform(UIElementType::UITYPE_BUTTON) 
     {
         _panel = asPanel::CreatePanel();
         _panel->SetFillParentSize(true);
@@ -128,10 +127,7 @@ namespace UI
 
     asButton* asButton::CreateButton()
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIEntityPoolSingleton& entityPool = registry->ctx<UIEntityPoolSingleton>();
-
-        asButton* button = new asButton(entityPool.GetId());
+        asButton* button = new asButton();
 
         return button;
     }
