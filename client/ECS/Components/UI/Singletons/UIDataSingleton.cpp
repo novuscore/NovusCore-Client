@@ -1,16 +1,13 @@
 #include "UIDataSingleton.h"
-
 #include "../../../../Utils/ServiceLocator.h"
-
+#include "../../../../UI/TransformUtils.h"
 #include "../../../../Scripting/Classes/UI/asUITransform.h"
 
 namespace UI
 {
     void UIDataSingleton::ClearWidgets()
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-
-        std::vector<entt::entity> entityIds = std::vector<entt::entity>();
+        std::vector<entt::entity> entityIds;
         entityIds.reserve(entityToAsObject.size());
 
         for (auto asObject : entityToAsObject)
@@ -21,19 +18,29 @@ namespace UI
         entityToAsObject.clear();
 
         // Delete entities.
-        registry->destroy(entityIds.begin(), entityIds.end());
+        ServiceLocator::GetUIRegistry()->destroy(entityIds.begin(), entityIds.end());
 
         focusedWidget = entt::null;
     }
 
     void UIDataSingleton::DestroyWidget(entt::entity entId)
     {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UITransform& transform = registry->get<UITransform>(entId);
+        for (UIChild& child : transform.children)
+        {
+            UI::TransformUtils::RemoveParent(registry->get<UITransform>(entt::entity(child.entity)));
+
+            if (auto itr = entityToAsObject.find(entId); itr != entityToAsObject.end())
+                UI::TransformUtils::RemoveParent(itr->second->_transform);
+        }
+
         if (auto itr = entityToAsObject.find(entId); itr != entityToAsObject.end())
         {
             delete itr->second;
             entityToAsObject.erase(entId);
         }
 
-        ServiceLocator::GetUIRegistry()->destroy(entId);
+        registry->destroy(entId);
     }
 }

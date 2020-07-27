@@ -11,6 +11,8 @@ namespace UI
 {
     class asUITransform
     {
+        friend struct UIDataSingleton;
+
     public:
         asUITransform(UIElementType elementType);
 
@@ -44,6 +46,7 @@ namespace UI
             r = ScriptEngine::RegisterScriptClassFunction("void SetDepth(uint16 depth)", asMETHOD(T, SetDepth)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("void SetParent(UITransform@ parent)", asMETHOD(T, SetParent)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void UnsetParent()", asMETHOD(T, UnsetParent)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void Destroy()", asMETHOD(T, Destroy)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("void SetExpandBoundsToChildren(bool enabled)", asMETHOD(T, SetExpandBoundsToChildren)); assert(r >= 0);
@@ -116,7 +119,8 @@ namespace UI
         virtual void SetDepth(const u16 depth);
 
         virtual void SetParent(asUITransform* parent);
-        
+        virtual void UnsetParent();
+
         virtual void SetExpandBoundsToChildren(bool expand);
 
         const bool IsVisible() const { return _visibility.visible && _visibility.parentVisible; }
@@ -137,8 +141,8 @@ protected:
         static void UpdateChildVisibility(entt::registry* uiRegistry, const UITransform& parent, bool parentVisibility);
         static void UpdateChildVisibilityAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisibility);
 
-        static void UpdateBounds(entt::registry* uiRegistry, UITransform& transform);
-        static void ShallowUpdateBounds(entt::registry* uiRegistry, UITransform& parent);
+        static void UpdateChildBounds(entt::registry* uiRegistry, UITransform& transform);
+        static void UpdateBounds(entt::registry* uiRegistry, UITransform& parent);
 
     protected:
         entt::entity _entityId;

@@ -1,4 +1,5 @@
 #include "asUITransform.h"
+#include <tracy/Tracy.hpp>
 #include "../../../Utils/ServiceLocator.h"
 
 #include "../../../ECS/Components/Singletons/ScriptSingleton.h"
@@ -223,7 +224,7 @@ namespace UI
 
                     transform.size = parentTransform.size;
 
-                    UpdateBounds(registry, transform);
+                    UpdateChildTransforms(registry, transform);
                     MarkDirty(registry, entId);
                 }
             });
@@ -254,10 +255,10 @@ namespace UI
         if (_transform.parent)
         {
             // Find parent transform as object.
-            auto entityToAsObjectIterator = uiDataSingleton.entityToAsObject.find(entt::entity(_transform.parent));
-            if (entityToAsObjectIterator != uiDataSingleton.entityToAsObject.end())
+            auto itr = uiDataSingleton.entityToAsObject.find(entt::entity(_transform.parent));
+            if (itr != uiDataSingleton.entityToAsObject.end())
             {
-                UITransform& oldParentTransform = entityToAsObjectIterator->getSecond()->_transform;
+                UITransform& oldParentTransform = itr->getSecond()->_transform;
 
                 UI::TransformUtils::RemoveChild(oldParentTransform, _entityId);
             }
@@ -274,7 +275,7 @@ namespace UI
         vec2 NewOrigin = UI::TransformUtils::GetAnchorPosition(parentTransform, _transform.anchor);
 
         // Recalculate new local position whilst keeping screen position.
-        _transform.localPosition = (NewOrigin + parentTransform.localPosition) - _transform.position;
+        _transform.localPosition = _transform.position - NewOrigin;
         _transform.position = NewOrigin;
 
         if (_transform.fillParentSize)
@@ -301,7 +302,6 @@ namespace UI
                 entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
                 UITransform& transform = uiRegistry->get<UITransform>(entId);
                 UITransform& parentTransform = uiRegistry->get<UITransform>(parentEntityId);
-                
 
                 // Remove old parent.
                 if (transform.parent)
@@ -344,6 +344,22 @@ namespace UI
             });
     }
 
+    void asUITransform::UnsetParent()
+    {
+        if (!_transform.parent)
+            return;
+    
+        UI::TransformUtils::RemoveParent(_transform);
+
+        // TRANSACTION
+        entt::entity entId = _entityId;
+        ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId]()
+            {
+                entt::registry* registry = ServiceLocator::GetUIRegistry();
+                UI::TransformUtils::RemoveParent(registry->get<UITransform>(entId));
+            });
+    }
+
     void asUITransform::SetExpandBoundsToChildren(bool expand)
     {
         _transform.includeChildBounds = expand;
@@ -356,7 +372,7 @@ namespace UI
                 UITransform& transform = registry->get<UITransform>(entId);
                 transform.includeChildBounds = expand;
 
-                UpdateBounds(registry, transform);
+                UpdateChildBounds(registry, transform);
             });
     }
 
@@ -428,6 +444,7 @@ namespace UI
 
     void asUITransform::UpdateChildTransforms(entt::registry* uiRegistry, UITransform& parent)
     {
+        ZoneScoped;
         for (UIChild& child : parent.children)
         {
             entt::entity entId = entt::entity(child.entity);
@@ -441,10 +458,11 @@ namespace UI
             MarkDirty(uiRegistry, entId);
         }
 
-        UpdateBounds(uiRegistry, parent);
+        UpdateChildBounds(uiRegistry, parent);
     }
     void asUITransform::UpdateChildTransformsAngelScript(UI::UIDataSingleton& uiDataSingleton, UITransform& parent)
     {
+        ZoneScoped;
         for (UIChild& child : parent.children)
         {
             auto itr = uiDataSingleton.entityToAsObject.find(entt::entity(child.entity));
@@ -462,6 +480,7 @@ namespace UI
 
     void asUITransform::UpdateChildVisibility(entt::registry* uiRegistry, const UITransform& parent, bool parentVisibility)
     {
+        ZoneScoped;
         for (const UIChild& child : parent.children)
         {
             const entt::entity childEntity = entt::entity(child.entity);
@@ -481,6 +500,7 @@ namespace UI
     }
     void asUITransform::UpdateChildVisibilityAngelScript(UI::UIDataSingleton& uiDataSingleton, const UITransform& parent, bool parentVisibility)
     {
+        ZoneScoped;
         for (const UIChild& child : parent.children)
         {
             auto iterator = uiDataSingleton.entityToAsObject.find(entt::entity(child.entity));
@@ -498,8 +518,9 @@ namespace UI
         }
     }
 
-    void asUITransform::UpdateBounds(entt::registry* uiRegistry, UITransform& transform)
+    void asUITransform::UpdateChildBounds(entt::registry* uiRegistry, UITransform& transform)
     {
+        ZoneScoped;
         transform.minBound = UI::TransformUtils::GetMinBounds(transform);
         transform.maxBound = UI::TransformUtils::GetMaxBounds(transform);
 
@@ -507,35 +528,40 @@ namespace UI
         {
             for (const UIChild& child : transform.children)
             {
-                UpdateBounds(uiRegistry, uiRegistry->get<UITransform>(entt::entity(child.entity)));
+                UpdateChildBounds(uiRegistry, uiRegistry->get<UITransform>(entt::entity(child.entity)));
             }
         }
 
         if (!transform.parent)
             return;
 
-        ShallowUpdateBounds(uiRegistry, uiRegistry->get<UITransform>(entt::entity(transform.parent)));
+        UpdateBounds(uiRegistry, uiRegistry->get<UITransform>(entt::entity(transform.parent)));
     }
-    void asUITransform::ShallowUpdateBounds(entt::registry* uiRegistry, UITransform& parent)
+    void asUITransform::UpdateBounds(entt::registry* uiRegistry, UITransform& transform)
     {
-        parent.minBound = UI::TransformUtils::GetMinBounds(parent);
-        parent.maxBound = UI::TransformUtils::GetMaxBounds(parent);
+        ZoneScoped;
+        transform.minBound = UI::TransformUtils::GetMinBounds(transform);
+        transform.maxBound = UI::TransformUtils::GetMaxBounds(transform);
 
-        if (!parent.includeChildBounds)
-            return;
-
-        for (const UIChild& child : parent.children)
+        if (transform.includeChildBounds)
         {
-            UITransform& childTransform = uiRegistry->get<UITransform>(entt::entity(child.entity));
+            for (const UIChild& child : transform.children)
+            {
+                UITransform& childTransform = uiRegistry->get<UITransform>(entt::entity(child.entity));
 
-            if (childTransform.minBound.x < parent.minBound.x) { parent.minBound.x = childTransform.minBound.x; }
-            if (childTransform.minBound.y < parent.minBound.y) { parent.minBound.y = childTransform.minBound.y; }
+                if (childTransform.minBound.x < transform.minBound.x) { transform.minBound.x = childTransform.minBound.x; }
+                if (childTransform.minBound.y < transform.minBound.y) { transform.minBound.y = childTransform.minBound.y; }
 
-            if (childTransform.maxBound.x > parent.maxBound.x) { parent.maxBound.x = childTransform.maxBound.x; }
-            if (childTransform.maxBound.y > parent.maxBound.y) { parent.maxBound.y = childTransform.maxBound.y; }
+                if (childTransform.maxBound.x > transform.maxBound.x) { transform.maxBound.x = childTransform.maxBound.x; }
+                if (childTransform.maxBound.y > transform.maxBound.y) { transform.maxBound.y = childTransform.maxBound.y; }
+            }
         }
 
-        if (parent.parent)
-            ShallowUpdateBounds(uiRegistry, uiRegistry->get<UITransform>(entt::entity(parent.parent)));
+        if (!transform.parent)
+            return;
+
+        UITransform& parentTransform = uiRegistry->get<UITransform>(entt::entity(transform.parent));
+        if(parentTransform.includeChildBounds)
+            UpdateBounds(uiRegistry, parentTransform);
     }
 }

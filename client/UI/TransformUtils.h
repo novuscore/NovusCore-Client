@@ -35,12 +35,16 @@ namespace UI::TransformUtils
 
     inline static void RemoveChild(UITransform& transform, entt::entity childEntityId)
     {
-        auto position = std::find_if(transform.children.begin(), transform.children.end(), [childEntityId](UIChild& uiChild)
-            {
-                return uiChild.entity == entt::to_integral(childEntityId);
-            });
+        auto itr = std::find_if(transform.children.begin(), transform.children.end(), [childEntityId](UIChild& uiChild) { return uiChild.entity == entt::to_integral(childEntityId); });
 
-        if (position != transform.children.end())
-            transform.children.erase(position);
+        if (itr != transform.children.end())
+            transform.children.erase(itr);
+    }
+
+    inline static void RemoveParent(UITransform& transform)
+    {
+        transform.position = transform.position + transform.localPosition;
+        transform.localPosition = vec2(0, 0);
+        transform.parent = 0;
     }
 };
