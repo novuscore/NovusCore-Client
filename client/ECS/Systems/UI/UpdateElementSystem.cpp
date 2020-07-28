@@ -59,12 +59,12 @@ void CalculateVertices(const vec2& pos, const vec2& size, std::vector<Renderer::
 
 void UpdateElementSystem::Update(entt::registry& registry)
 {
-    auto renderer = ServiceLocator::GetRenderer();
+    Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
 
     auto imageView = registry.view<UITransform, UIImage, UIDirty>();
     imageView.each([&](UITransform& transform, UIImage& image)
         {
-            ZoneScopedNC("UpdateElementSystem::ImageView", tracy::Color::RoyalBlue)
+            ZoneScopedNC("UpdateElementSystem::Update::ImageView", tracy::Color::RoyalBlue)
 
             // Renderable Updates
             if (image.texture.length() == 0)
@@ -116,7 +116,7 @@ void UpdateElementSystem::Update(entt::registry& registry)
     auto textView = registry.view<UITransform, UI::UIText, UIDirty>();
     textView.each([&](UITransform& transform, UI::UIText& text)
         {
-            ZoneScopedNC("UpdateElementSystem::TextView", tracy::Color::SkyBlue)
+            ZoneScopedNC("UpdateElementSystem::Update::TextView", tracy::Color::SkyBlue)
             if (text.fontPath.length() == 0)
                 return;
 
