@@ -454,7 +454,6 @@ namespace UI
             if (childTransform.fillParentSize) childTransform.size = parent.size;
 
             UpdateChildTransforms(uiRegistry, childTransform);
-
             MarkDirty(uiRegistry, entId);
         }
 

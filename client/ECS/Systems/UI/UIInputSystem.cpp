@@ -69,13 +69,13 @@ namespace UI::InputSystem
 
                 if (events.IsClickable())
                 {
-                    events.OnClick();
-
                     if (transform.sortData.type == UI::UIElementType::UITYPE_CHECKBOX)
                     {
                         UI::asCheckbox* checkBox = reinterpret_cast<UI::asCheckbox*>(transform.asObject);
                         checkBox->ToggleChecked();
                     }
+
+                    events.OnClick();
                 }
             }
 
@@ -95,7 +95,7 @@ namespace UI::InputSystem
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
 
-        if (dataSingleton.focusedWidget == entt::null || action == GLFW_PRESS)
+        if (dataSingleton.focusedWidget == entt::null || action != GLFW_RELEASE)
             return false;
 
         UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);

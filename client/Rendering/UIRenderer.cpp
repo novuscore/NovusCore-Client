@@ -2,33 +2,28 @@
 
 #include <Renderer/Renderer.h>
 #include <Renderer/Descriptors/FontDesc.h>
+#include <Renderer/Descriptors/TextureDesc.h>
+#include <Renderer/Descriptors/SamplerDesc.h>
+#include <Renderer/ConstantBuffer.h>
 #include <tracy/Tracy.hpp>
-
 #include "../Utils/ServiceLocator.h"
 
 #include "../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
 #include "../ECS/Components/UI/Singletons/UIAddElementQueueSingleton.h"
 #include "../ECS/Components/UI/Singletons/UIDataSingleton.h"
-
 #include "../ECS/Components/UI/UITransform.h"
 #include "../ECS/Components/UI/UITransformEvents.h"
-
 #include "../ECS/Components/UI/UIRenderable.h"
 #include "../ECS/Components/UI/UIImage.h"
 #include "../ECS/Components/UI/UIText.h"
-
 #include "../ECS/Components/UI/UIVisible.h"
 #include "../ECS/Components/UI/UIVisibility.h"
 #include "../ECS/Components/UI/UIDirty.h"
 #include "../ECS/Components/UI/UICollidable.h"
-
 #include "../ECS/Components/UI/UIInputField.h"
 #include "../ECS/Components/UI/UICheckbox.h"
 
 #include "../ECS/Systems/UI/UIInputSystem.h"
-
-const u32 WIDTH = 1920;
-const u32 HEIGHT = 1080;
 
 UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
 {
@@ -62,13 +57,12 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
 void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex)
 {
     // UI Pass
-
     struct UIPassData
     {
         Renderer::RenderPassMutableResource renderTarget;
     };
 
-    renderGraph->AddPass<UIPassData>("UI Pass",
+    renderGraph->AddPass<UIPassData>("UIPass",
         [&](UIPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
             data.renderTarget = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_LOAD);
@@ -77,7 +71,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
         },
         [&](UIPassData& data, Renderer::CommandList& commandList) // Execute
         {
-            ZoneScopedN("Renderer - UIPass");
+            ZoneScopedNC("Renderer - UIPass", tracy::Color::Red);
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
             renderGraph->InitializePipelineDesc(pipelineDesc);
@@ -135,81 +129,77 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
-            {
-                ZoneScopedNC("UIRenderer::AddUIPass - Render", tracy::Color::Red)
-
-                entt::registry* registry = ServiceLocator::GetUIRegistry();
-                auto renderGroup = registry->group<UITransform>(entt::get<UIRenderable, UIVisible>);
-                renderGroup.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
-                renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UITransform& transform)
+            entt::registry* registry = ServiceLocator::GetUIRegistry();
+            auto renderGroup = registry->group<UITransform>(entt::get<UIRenderable, UIVisible>);
+            renderGroup.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
+            renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UITransform& transform)
+                {
+                    switch (transform.sortData.type)
                     {
-                        switch (transform.sortData.type)
+                    case UI::UIElementType::UITYPE_TEXT:
+                    case UI::UIElementType::UITYPE_INPUTFIELD:
+                    {
+                        UI::UIText& text = registry->get<UI::UIText>(entity);
+                        if (!text.constantBuffer)
+                            return;
+
+                        if (activePipeline != textPipeline)
                         {
-                        case UI::UIElementType::UITYPE_TEXT:
-                        case UI::UIElementType::UITYPE_INPUTFIELD:
-                        {
-                            UI::UIText& text = registry->get<UI::UIText>(entity);
-                            if (!text.constantBuffer)
-                                return;
-
-                            if (activePipeline != textPipeline)
-                            {
-                                commandList.EndPipeline(activePipeline);
-                                commandList.BeginPipeline(textPipeline);
-                                activePipeline = textPipeline;
-                            }
-
-                            commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
-
-                            // Bind textdata descriptor
-                            _drawDescriptorSet.Bind("_textData"_h, text.constantBuffer);
-
-                            // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
-                            for (u32 i = 0; i < text.glyphCount; i++)
-                            {
-                                // Bind texture descriptor
-                                _drawDescriptorSet.Bind("_texture"_h, text.textures[i]);
-
-                                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
-
-                                // Draw
-                                commandList.Draw(text.models[i]);
-                            }
-
-                            commandList.PopMarker();
-                            break;
+                            commandList.EndPipeline(activePipeline);
+                            commandList.BeginPipeline(textPipeline);
+                            activePipeline = textPipeline;
                         }
-                        default:
+
+                        commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
+
+                        // Bind textdata descriptor
+                        _drawDescriptorSet.Bind("_textData"_h, text.constantBuffer);
+
+                        // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
+                        for (u32 i = 0; i < text.glyphCount; i++)
                         {
-                            UIImage& image = registry->get<UIImage>(entity);
-                            if (!image.constantBuffer)
-                                return;
-
-                            if (activePipeline != imagePipeline)
-                            {
-                                commandList.EndPipeline(activePipeline);
-                                commandList.BeginPipeline(imagePipeline);
-                                activePipeline = imagePipeline;
-                            }
-
-                            commandList.PushMarker("Image", Color(0.0f, 0.1f, 0.0f));
-
-                            // Bind descriptors
-                            _drawDescriptorSet.Bind("_panelData"_h, image.constantBuffer);
-                            _drawDescriptorSet.Bind("_texture"_h, image.textureID);
+                            // Bind texture descriptor
+                            _drawDescriptorSet.Bind("_texture"_h, text.textures[i]);
 
                             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
 
                             // Draw
-                            commandList.Draw(image.modelID);
+                            commandList.Draw(text.models[i]);
+                        }
 
-                            commandList.PopMarker();
-                            break;
+                        commandList.PopMarker();
+                        break;
+                    }
+                    default:
+                    {
+                        UIImage& image = registry->get<UIImage>(entity);
+                        if (!image.constantBuffer)
+                            return;
+
+                        if (activePipeline != imagePipeline)
+                        {
+                            commandList.EndPipeline(activePipeline);
+                            commandList.BeginPipeline(imagePipeline);
+                            activePipeline = imagePipeline;
                         }
-                        }
-                    });
-                commandList.EndPipeline(activePipeline);
-            }
+
+                        commandList.PushMarker("Image", Color(0.0f, 0.1f, 0.0f));
+
+                        // Bind descriptors
+                        _drawDescriptorSet.Bind("_panelData"_h, image.constantBuffer);
+                        _drawDescriptorSet.Bind("_texture"_h, image.textureID);
+
+                        commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
+
+                        // Draw
+                        commandList.Draw(image.modelID);
+
+                        commandList.PopMarker();
+                        break;
+                    }
+                    }
+                });
+            commandList.EndPipeline(activePipeline);
         });
 }
 
@@ -231,53 +221,4 @@ void UIRenderer::CreatePermanentResources()
     _passDescriptorSet.Bind("_sampler"_h, _linearSampler);
 
     _drawDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
-}
-
-Renderer::TextureID UIRenderer::ReloadTexture(const std::string& texturePath)
-{
-    Renderer::TextureDesc textureDesc;
-    textureDesc.path = texturePath;
-
-    return _renderer->LoadTexture(textureDesc);
-}
-
-void UIRenderer::CalculateVertices(const vec2& pos, const vec2& size, std::vector<Renderer::Vertex>& vertices)
-{
-    vec3 upperLeftPos = vec3(pos.x, pos.y, 0.f);
-    vec3 upperRightPos = vec3(pos.x + size.x, pos.y, 0.f);
-    vec3 lowerLeftPos = vec3(pos.x, pos.y + size.y, 0.f);
-    vec3 lowerRightPos = vec3(pos.x + size.x, pos.y + size.y, 0.f);
-
-    // UV space
-    // TODO: Do scaling depending on rendertargets actual size instead of assuming 1080p (which is our reference resolution)
-    upperLeftPos /= vec3(WIDTH, HEIGHT, 1.0f);
-    upperRightPos /= vec3(WIDTH, HEIGHT, 1.0f);
-    lowerLeftPos /= vec3(WIDTH, HEIGHT, 1.0f);
-    lowerRightPos /= vec3(WIDTH, HEIGHT, 1.0f);
-
-    // Vertices
-    Renderer::Vertex upperLeft;
-    upperLeft.pos = upperLeftPos;
-    upperLeft.normal = vec3(0, 1, 0);
-    upperLeft.texCoord = vec2(0, 0);
-
-    Renderer::Vertex upperRight;
-    upperRight.pos = upperRightPos;
-    upperRight.normal = vec3(0, 1, 0);
-    upperRight.texCoord = vec2(1, 0);
-
-    Renderer::Vertex lowerLeft;
-    lowerLeft.pos = lowerLeftPos;
-    lowerLeft.normal = vec3(0, 1, 0);
-    lowerLeft.texCoord = vec2(0, 1);
-
-    Renderer::Vertex lowerRight;
-    lowerRight.pos = lowerRightPos;
-    lowerRight.normal = vec3(0, 1, 0);
-    lowerRight.texCoord = vec2(1, 1);
-
-    vertices.push_back(upperLeft);
-    vertices.push_back(upperRight);
-    vertices.push_back(lowerLeft);
-    vertices.push_back(lowerRight);
 }

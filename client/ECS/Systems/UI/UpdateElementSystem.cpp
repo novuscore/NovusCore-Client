@@ -2,15 +2,60 @@
 #include <entity/registry.hpp>
 #include <tracy/Tracy.hpp>
 #include "../../../Utils/ServiceLocator.h"
-#include "../../../Rendering/UIRenderer.h"
 
 #include "../../Components/UI/UITransform.h"
 #include "../../Components/UI/UIImage.h"
 #include "../../Components/UI/UIText.h"
 #include "../../Components/UI/UIDirty.h"
-
+#include "../../Components/UI/Singletons/UIDataSingleton.h"
 #include "../../../UI/TransformUtils.h"
 #include "../../../UI/TextUtils.h"
+
+#include "../../render-lib/Renderer/Descriptors/ModelDesc.h"
+
+void CalculateVertices(const vec2& pos, const vec2& size, std::vector<Renderer::Vertex>& vertices)
+{
+    const UI::UIDataSingleton& dataSingleton = ServiceLocator::GetUIRegistry()->ctx<UI::UIDataSingleton>();
+
+    vec3 upperLeftPos = vec3(pos.x, pos.y, 0.f);
+    vec3 upperRightPos = vec3(pos.x + size.x, pos.y, 0.f);
+    vec3 lowerLeftPos = vec3(pos.x, pos.y + size.y, 0.f);
+    vec3 lowerRightPos = vec3(pos.x + size.x, pos.y + size.y, 0.f);
+
+    // UV space
+    // TODO: Do scaling depending on rendertargets actual size instead of assuming 1080p (which is our reference resolution)
+    upperLeftPos /= vec3(dataSingleton.UIRESOLUTION, 1.f);
+    upperRightPos /= vec3(dataSingleton.UIRESOLUTION, 1.f);
+    lowerLeftPos /= vec3(dataSingleton.UIRESOLUTION, 1.f);
+    lowerRightPos /= vec3(dataSingleton.UIRESOLUTION, 1.f);
+
+    // Vertices
+    Renderer::Vertex upperLeft;
+    upperLeft.pos = upperLeftPos;
+    upperLeft.normal = vec3(0, 1, 0);
+    upperLeft.texCoord = vec2(0, 0);
+
+    Renderer::Vertex upperRight;
+    upperRight.pos = upperRightPos;
+    upperRight.normal = vec3(0, 1, 0);
+    upperRight.texCoord = vec2(1, 0);
+
+    Renderer::Vertex lowerLeft;
+    lowerLeft.pos = lowerLeftPos;
+    lowerLeft.normal = vec3(0, 1, 0);
+    lowerLeft.texCoord = vec2(0, 1);
+
+    Renderer::Vertex lowerRight;
+    lowerRight.pos = lowerRightPos;
+    lowerRight.normal = vec3(0, 1, 0);
+    lowerRight.texCoord = vec2(1, 1);
+
+    vertices.reserve(4);
+    vertices.push_back(upperLeft);
+    vertices.push_back(upperRight);
+    vertices.push_back(lowerLeft);
+    vertices.push_back(lowerRight);
+}
 
 void UpdateElementSystem::Update(entt::registry& registry)
 {
@@ -42,12 +87,12 @@ void UpdateElementSystem::Update(entt::registry& registry)
             constantBuffer->ApplyAll();
 
             // Transform Updates.
-            const vec2& pos = vec2(UI::TransformUtils::GetMinBounds(transform));
+            const vec2& pos = UI::TransformUtils::GetMinBounds(transform);
             const vec2& size = transform.size;
 
             // Update vertex buffer
             Renderer::PrimitiveModelDesc primitiveModelDesc;
-            UIRenderer::CalculateVertices(pos, size, primitiveModelDesc.vertices);
+            CalculateVertices(pos, size, primitiveModelDesc.vertices);
 
             // If the primitive model hasn't been created yet, create it
             if (image.modelID == Renderer::ModelID::Invalid())
@@ -75,10 +120,7 @@ void UpdateElementSystem::Update(entt::registry& registry)
             if (text.fontPath.length() == 0)
                 return;
 
-            {
-                ZoneScopedNC("GetFont", tracy::Color::SkyBlue)
-                text.font = Renderer::Font::GetFont(renderer, text.fontPath, text.fontSize);
-            }
+            text.font = Renderer::Font::GetFont(renderer, text.fontPath, text.fontSize);
 
             std::vector<f32> lineWidths;
             std::vector<size_t> lineBreakPoints;
@@ -129,7 +171,7 @@ void UpdateElementSystem::Update(entt::registry& registry)
                 Renderer::PrimitiveModelDesc primitiveModelDesc;
                 primitiveModelDesc.debugName = "Text " + character;
 
-                UIRenderer::CalculateVertices(pos, size, primitiveModelDesc.vertices);
+                CalculateVertices(pos, size, primitiveModelDesc.vertices);
 
                 Renderer::ModelID& modelID = text.models[glyph];
 

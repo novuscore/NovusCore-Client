@@ -2,10 +2,7 @@
 #include <NovusTypes.h>
 
 #include <Renderer/Descriptors/ImageDesc.h>
-#include <Renderer/Descriptors/TextureDesc.h>
 #include <Renderer/Descriptors/ModelDesc.h>
-#include <Renderer/Descriptors/SamplerDesc.h>
-#include <Renderer/ConstantBuffer.h>
 #include <Renderer/DescriptorSet.h>
 
 namespace Renderer
@@ -25,11 +22,6 @@ public:
 
 private:
     void CreatePermanentResources();
-
-    // Helper functions
-    Renderer::TextureID ReloadTexture(const std::string& texturePath);
-public:
-    static void CalculateVertices(const vec2& pos, const vec2& size, std::vector<Renderer::Vertex>& vertices);
 
 private:
     Renderer::Renderer* _renderer;
