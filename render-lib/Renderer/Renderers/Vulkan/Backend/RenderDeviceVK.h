@@ -5,8 +5,6 @@
 #include <vulkan/vulkan.h>
 #include "vk_mem_alloc.h"
 
-#include "BufferBackendVK.h"
-
 #include "../../../Descriptors/ImageDesc.h"
 #include "../../../Descriptors/DepthImageDesc.h"
 

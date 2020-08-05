@@ -1,5 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
+#include "Descriptors/BufferDesc.h"
 #include "Descriptors/SamplerDesc.h"
 #include "Descriptors/TextureDesc.h"
 #include "Descriptors/TextureArrayDesc.h"
