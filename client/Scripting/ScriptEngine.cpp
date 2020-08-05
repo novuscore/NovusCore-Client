@@ -10,11 +10,12 @@
 #include "Classes/SceneManager/SceneManagerUtils.h"
 #include "Classes/Player.h"
 
-#include "Classes/UI/asUITransform.h"
-#include "Classes/UI/asPanel.h"
-#include "Classes/UI/asLabel.h"
-#include "Classes/UI/asButton.h"
-#include "Classes/UI/asInputfield.h"
+#include "../UI/angelscript/BaseElement.h"
+#include "../UI/angelscript/Panel.h"
+#include "../UI/angelscript/Label.h"
+#include "../UI/angelscript/Button.h"
+#include "../UI/angelscript/Inputfield.h"
+#include "../UI/angelscript/Checkbox.h"
 
 #include <entity/entity.hpp>
 
@@ -102,10 +103,7 @@ void ScriptEngine::RegisterFunctions()
     RegisterStdStringUtils(_scriptEngine);
 
     // Entity type
-    RegisterScriptClass("Entity", sizeof(entt::entity),
-        asOBJ_VALUE |
-        asOBJ_POD |
-        asOBJ_APP_PRIMITIVE);
+    RegisterScriptClass("Entity", sizeof(entt::entity), asOBJ_VALUE | asOBJ_POD | asOBJ_APP_PRIMITIVE);
 
     // NovusCore Types
     ASMath::RegisterNamespace();
@@ -114,11 +112,12 @@ void ScriptEngine::RegisterFunctions()
     ASSceneManagerUtils::RegisterNamespace();
 
     Player::RegisterType();
-    UI::asUITransform::RegisterType();
-    UI::asPanel::RegisterType();
-    UI::asLabel::RegisterType();
-    UI::asButton::RegisterType();
-    UI::asInputField::RegisterType();
+    UIScripting::BaseElement::RegisterType();
+    UIScripting::Panel::RegisterType();
+    UIScripting::Label::RegisterType();
+    UIScripting::Button::RegisterType();
+    UIScripting::InputField::RegisterType();
+    UIScripting::Checkbox::RegisterType();
 
     ScriptEngine::RegisterScriptFunction("void Print(string msg)", asFUNCTION(ScriptEngine::Print));
 }

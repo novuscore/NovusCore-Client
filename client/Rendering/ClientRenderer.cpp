@@ -121,7 +121,6 @@ void ClientRenderer::Update(f32 deltaTime)
     mainLayer.RegisterModel(_cubeModel, &_cubeModelInstance);
 
     _terrainRenderer->Update(deltaTime);
-    _uiRenderer->Update(deltaTime);
 }
 
 void ClientRenderer::Render()

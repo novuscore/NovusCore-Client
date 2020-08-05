@@ -25,6 +25,9 @@ private:
     Window* _window;
     vec3 _position;
 
+    // Rotation Matrix
+    mat4x4 _rotation;
+
     // Direction vectors
     vec3 _front;
     vec3 _up;

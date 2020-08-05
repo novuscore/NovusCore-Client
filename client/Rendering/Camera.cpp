@@ -3,6 +3,7 @@
 #include <InputManager.h>
 #include "../Utils/ServiceLocator.h"
 #include <glm/gtx/rotate_vector.hpp>
+#include <glm/gtx/euler_angles.hpp>
 #include <GLFW/glfw3.h>
 #include <Window/Window.h>
 #include <Utils/DebugHandler.h>
@@ -56,7 +57,7 @@ void Camera::Init()
             vec2 mousePosition = vec2(xPos, yPos);
             vec2 deltaPosition = _prevMousePosition - mousePosition;
 
-            _yaw += deltaPosition.x * _mouseSensitivity;
+            _yaw -= deltaPosition.x * _mouseSensitivity;
             _pitch += deltaPosition.y * _mouseSensitivity;
 
             _prevMousePosition = mousePosition;
@@ -122,50 +123,38 @@ void Camera::Update(f32 deltaTime)
     }
     if (inputManager->IsKeyPressed("Camera Up"_h))
     {
-        _position += _up * _movementSpeed * deltaTime;
+        _position += _worldUp * _movementSpeed * deltaTime;
     }
     if (inputManager->IsKeyPressed("Camera Down"_h))
     {
-        _position -= _up * _movementSpeed * deltaTime;
+        _position -= _worldUp * _movementSpeed * deltaTime;
     }
 
     // Constrain pitch
-    if (_pitch > 89.0f)
-    {
-        _pitch = 89.0f;
-    }
-    if (_pitch < -89.0f)
-    {
-        _pitch = -89.0f;
-    }
+    _pitch = Math::Clamp(_pitch, -89.0f, 89.0f);
 
     UpdateCameraVectors();
 }
 
 mat4x4 Camera::GetViewMatrix() const
 {
-    return glm::lookAt(_position, _position + _front, _up);
+    return glm::inverse(GetCameraMatrix());
 }
 
 mat4x4 Camera::GetCameraMatrix() const
 {
-    return glm::inverse(GetViewMatrix());
+    mat4x4 viewMatrix(1);
+    viewMatrix = glm::translate(viewMatrix, _position) * _rotation;
+
+    return viewMatrix; 
 }
 
 void Camera::UpdateCameraVectors()
 {
-    const f32 cosPitch = Math::Cos(glm::radians(_pitch));
+    _rotation = glm::yawPitchRoll(glm::radians(_yaw), glm::radians(_pitch), 0.0f);
 
-    // Calculate the new front vector
-    vec3 front;
-    front.x = Math::Cos(glm::radians(_yaw)) * cosPitch;
-    front.y = Math::Sin(glm::radians(_pitch));
-    front.z = Math::Sin(glm::radians(_yaw)) * cosPitch;
-
-    _front = glm::normalize(front);
-
-    // Recalculate the left and up vector
-    _left = glm::normalize(glm::cross(_front, _worldUp));
-    _up = glm::normalize(glm::cross(_left, _front));
+    _left = _rotation[0];
+    _up = _rotation[1];
+    _front = -_rotation[2];
 }
 

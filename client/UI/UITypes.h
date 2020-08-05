@@ -1,8 +1,9 @@
 #pragma once
+#include <NovusTypes.h>
 
 namespace UI
 {
-    enum class UIElementType : u16
+    enum class UIElementType : u8
     {
         UITYPE_NONE,
 

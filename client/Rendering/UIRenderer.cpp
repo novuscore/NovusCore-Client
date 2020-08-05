@@ -1,221 +1,64 @@
 #include "UIRenderer.h"
 
 #include <Renderer/Renderer.h>
-#include <Renderer/Renderers/Vulkan/RendererVK.h>
 #include <Renderer/Descriptors/FontDesc.h>
-#include <Window/Window.h>
-#include <InputManager.h>
-#include <GLFW/glfw3.h>
+#include <Renderer/Descriptors/TextureDesc.h>
+#include <Renderer/Descriptors/SamplerDesc.h>
+#include <Renderer/ConstantBuffer.h>
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyVulkan.hpp>
 
 #include "../Utils/ServiceLocator.h"
-#include "../UI/UITransformUtils.h"
 
-#include "../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
-#include "../ECS/Components/UI/Singletons/UIAddElementQueueSingleton.h"
-#include "../ECS/Components/UI/Singletons/UIDataSingleton.h"
+#include "../UI/ECS/Components/Singletons/UIEntityPoolSingleton.h"
+#include "../UI/ECS/Components/Singletons/UIAddElementQueueSingleton.h"
+#include "../UI/ECS/Components/Singletons/UIDataSingleton.h"
+#include "../UI/ECS/Components/Transform.h"
+#include "../UI/ECS/Components/TransformEvents.h"
+#include "../UI/ECS/Components/Renderable.h"
+#include "../UI/ECS/Components/Image.h"
+#include "../UI/ECS/Components/Text.h"
+#include "../UI/ECS/Components/Visible.h"
+#include "../UI/ECS/Components/Visibility.h"
+#include "../UI/ECS/Components/Dirty.h"
+#include "../UI/ECS/Components/Collidable.h"
+#include "../UI/ECS/Components/InputField.h"
+#include "../UI/ECS/Components/Checkbox.h"
 
-#include "../ECS/Components/UI/UITransform.h"
-#include "../ECS/Components/UI/UITransformEvents.h"
-
-#include "../ECS/Components/UI/UIRenderable.h"
-#include "../ECS/Components/UI/UIImage.h"
-#include "../ECS/Components/UI/UIText.h"
-
-#include "../ECS/Components/UI/UIInputField.h"
-
-#include "../ECS/Components/UI/UIVisible.h"
-#include "../ECS/Components/UI/UIDirty.h"
-#include "../ECS/Components/UI/UICollision.h"
-
-#include "../Scripting/Classes/UI/asInputfield.h"
-
-const u32 WIDTH = 1920;
-const u32 HEIGHT = 1080;
+#include "../UI/UIInputHandler.h"
 
 UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
 {
     CreatePermanentResources();
 
-    InputManager* inputManager = ServiceLocator::GetInputManager();
-    inputManager->RegisterKeybind("UI Click Checker", GLFW_MOUSE_BUTTON_LEFT, KEYBIND_ACTION_CLICK, KEYBIND_MOD_ANY, std::bind(&UIRenderer::OnMouseClick, this, std::placeholders::_1, std::placeholders::_2));
-    inputManager->RegisterMousePositionCallback("UI Mouse Position Checker", std::bind(&UIRenderer::OnMousePositionUpdate, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-    inputManager->RegisterKeyboardInputCallback("UI Keyboard Input Checker"_h, std::bind(&UIRenderer::OnKeyboardInput, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
-    inputManager->RegisterCharInputCallback("UI Char Input Checker"_h, std::bind(&UIRenderer::OnCharInput, this, std::placeholders::_1, std::placeholders::_2));
+    UIInput::RegisterCallbacks();
 
     entt::registry* registry = ServiceLocator::GetUIRegistry();
-    registry->prepare<UITransform>();
-    registry->prepare<UITransformEvents>();
-    registry->prepare<UIImage>();
-    registry->prepare<UIText>();
+    registry->prepare<UIComponent::Transform>();
+    registry->prepare<UIComponent::TransformEvents>();
+    registry->prepare<UIComponent::Renderable>();
+    registry->prepare<UIComponent::Image>();
+    registry->prepare<UIComponent::Text>();
 
-    registry->prepare<UIVisible>();
-    registry->prepare<UIVisibility>();
+    registry->prepare<UIComponent::Visible>();
+    registry->prepare<UIComponent::Visibility>();
+    registry->prepare<UIComponent::Dirty>();
+    registry->prepare<UIComponent::Collidable>();
+
+    registry->prepare<UIComponent::InputField>();
+    registry->prepare<UIComponent::Checkbox>();
 
     // Register UI singletons.
-    registry->set<UI::UIDataSingleton>();
-    registry->set<UI::UIAddElementQueueSingleton>();
+    registry->set<UISingleton::UIDataSingleton>();
+    registry->set<UISingleton::UIAddElementQueueSingleton>();
 
     // Register entity pool.
-    registry->set<UI::UIEntityPoolSingleton>().AllocatePool();
-}
-
-void UIRenderer::Update(f32 deltaTime)
-{
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
-
-    auto imageView = registry->view<UITransform, UIImage, UIDirty>();
-    imageView.each([this, registry](const auto entity, UITransform& transform, UIImage& image)
-        {
-            // Renderable Updates
-            if (image.texture.length() == 0)
-            {
-                image.textureID = Renderer::TextureID::Invalid();
-                return;
-            }
-
-            // (Re)load texture
-            image.textureID = ReloadTexture(image.texture);
-
-            // Create constant buffer if necessary
-            auto constantBuffer = image.constantBuffer;
-            if (constantBuffer == nullptr)
-            {
-                constantBuffer = _renderer->CreateConstantBuffer<UIImage::ImageConstantBuffer>();
-                image.constantBuffer = constantBuffer;
-            }
-            constantBuffer->resource.color = image.color;
-            constantBuffer->ApplyAll();
-
-            // Transform Updates.
-            const vec2& pos = vec2(UITransformUtils::GetMinBounds(transform));
-            const vec2& size = transform.size;
-
-            // Update vertex buffer
-            Renderer::PrimitiveModelDesc primitiveModelDesc;
-            CalculateVertices(pos, size, primitiveModelDesc.vertices);
-
-            // If the primitive model hasn't been created yet, create it
-            if (image.modelID == Renderer::ModelID::Invalid())
-            {
-                // Indices
-                primitiveModelDesc.indices.push_back(0);
-                primitiveModelDesc.indices.push_back(1);
-                primitiveModelDesc.indices.push_back(2);
-                primitiveModelDesc.indices.push_back(1);
-                primitiveModelDesc.indices.push_back(3);
-                primitiveModelDesc.indices.push_back(2);
-
-                image.modelID = _renderer->CreatePrimitiveModel(primitiveModelDesc);
-            }
-            else // Otherwise we just update the already existing primitive model
-            {
-                _renderer->UpdatePrimitiveModel(image.modelID, primitiveModelDesc);
-            }
-        });
-
-    auto textView = registry->view<UITransform, UIText, UIDirty>();
-    textView.each([this, registry](const auto entity, UITransform& transform, UIText& text)
-        {
-            if (text.fontPath.length() == 0)
-            {
-                text.font = nullptr;
-                return;
-            }
-
-            text.font = Renderer::Font::GetFont(_renderer, text.fontPath, text.fontSize);
-
-            size_t textLengthWithoutSpaces = std::count_if(text.text.begin(), text.text.end(), [](char c)
-                {
-                    return c != ' ';
-                });
-
-            size_t glyphCount = text.models.size();
-            if (glyphCount != textLengthWithoutSpaces)
-            {
-                text.models.resize(textLengthWithoutSpaces);
-                for (size_t i = glyphCount; i < textLengthWithoutSpaces; i++)
-                {
-                    text.models[i] = Renderer::ModelID::Invalid();
-                }
-            }
-            if (text.textures.size() != textLengthWithoutSpaces)
-            {
-                text.textures.resize(textLengthWithoutSpaces);
-                for (size_t i = glyphCount; i < textLengthWithoutSpaces; i++)
-                {
-                    text.textures[i] = Renderer::TextureID::Invalid();
-                }
-            }
-
-            vec2 currentPosition = vec2(UITransformUtils::GetMinBounds(transform));
-            currentPosition.y -= text.font->GetChar('A').yOffset * 1.15f; //TODO Get line height in a less hacky way. (This was done to make text anchors also be the top-left as other widgets)
-
-            size_t glyph = 0;
-            for (char character : text.text)
-            {
-                if (character == ' ')
-                {
-                    currentPosition.x += text.fontSize * 0.15f;
-                    continue;
-                }
-
-                Renderer::FontChar fontChar = text.font->GetChar(character);
-
-                const vec2& pos = currentPosition + vec2(fontChar.xOffset, fontChar.yOffset);
-                const vec2& size = vec2(fontChar.width, fontChar.height);
-
-                Renderer::PrimitiveModelDesc primitiveModelDesc;
-                primitiveModelDesc.debugName = "Text " + character;
-
-                CalculateVertices(pos, size, primitiveModelDesc.vertices);
-
-                Renderer::ModelID& modelID = text.models[glyph];
-
-                // If the primitive model hasn't been created yet, create it
-                if (modelID == Renderer::ModelID::Invalid())
-                {
-                    // Indices
-                    primitiveModelDesc.indices.push_back(0);
-                    primitiveModelDesc.indices.push_back(1);
-                    primitiveModelDesc.indices.push_back(2);
-                    primitiveModelDesc.indices.push_back(1);
-                    primitiveModelDesc.indices.push_back(3);
-                    primitiveModelDesc.indices.push_back(2);
-
-                    modelID = _renderer->CreatePrimitiveModel(primitiveModelDesc);
-                }
-                else // Otherwise we just update the already existing primitive model
-                {
-                    _renderer->UpdatePrimitiveModel(modelID, primitiveModelDesc);
-                }
-
-                text.textures[glyph] = fontChar.texture;
-
-                currentPosition.x += fontChar.advance;
-                glyph++;
-            }
-
-            // Create constant buffer if necessary
-            if (text.constantBuffer == nullptr)
-            {
-                text.constantBuffer = _renderer->CreateConstantBuffer<UIText::TextConstantBuffer>();
-            }
-            text.constantBuffer->resource.textColor = text.color;
-            text.constantBuffer->resource.outlineColor = text.outlineColor;
-            text.constantBuffer->resource.outlineWidth = text.outlineWidth;
-            text.constantBuffer->Apply(0);
-            text.constantBuffer->Apply(1);
-        });
-
-    registry->clear<UIDirty>();
+    registry->set<UISingleton::UIEntityPoolSingleton>().AllocatePool();
 }
 
 void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex)
 {
     // UI Pass
-
     struct UIPassData
     {
         Renderer::RenderPassMutableResource renderTarget;
@@ -272,7 +115,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             pixelShaderDesc.path = "Data/shaders/panel.ps.hlsl.spv";
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
-            Renderer::GraphicsPipelineID panelPipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+            Renderer::GraphicsPipelineID imagePipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
 
             // Text Shaders
             vertexShaderDesc.path = "Data/shaders/text.vs.hlsl.spv";
@@ -284,24 +127,22 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             Renderer::GraphicsPipelineID textPipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
 
             // Set pipeline
-            commandList.BeginPipeline(panelPipeline);
-            Renderer::GraphicsPipelineID activePipeline = panelPipeline;
+            commandList.BeginPipeline(imagePipeline);
+            Renderer::GraphicsPipelineID activePipeline = imagePipeline;
 
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
-            ZoneScopedNC("UIRenderer::AddUIPass - Render", tracy::Color::Red)
-
             entt::registry* registry = ServiceLocator::GetUIRegistry();
-            auto renderGroup = registry->group<UITransform>(entt::get<UIRenderable, UIVisible>);
-            renderGroup.sort<UITransform>([](UITransform& first, UITransform& second) { return first.sortKey < second.sortKey; });
-            renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &panelPipeline](const auto entity, UITransform& transform)
+            auto renderGroup = registry->group<UIComponent::Transform>(entt::get<UIComponent::Renderable, UIComponent::Visible>);
+            renderGroup.sort<UIComponent::Transform>([](UIComponent::Transform& first, UIComponent::Transform& second) { return first.sortKey < second.sortKey; });
+            renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UIComponent::Transform& transform)
                 {
                     switch (transform.sortData.type)
                     {
                     case UI::UIElementType::UITYPE_TEXT:
                     case UI::UIElementType::UITYPE_INPUTFIELD:
                     {
-                        UIText& text = registry->get<UIText>(entity);
+                        UIComponent::Text& text = registry->get<UIComponent::Text>(entity);
                         if (!text.constantBuffer)
                             return;
 
@@ -318,8 +159,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                         _drawDescriptorSet.Bind("_textData"_h, text.constantBuffer);
 
                         // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
-                        size_t glyphs = text.models.size();
-                        for (u32 i = 0; i < glyphs; i++)
+                        for (u32 i = 0; i < text.glyphCount; i++)
                         {
                             // Bind texture descriptor
                             _drawDescriptorSet.Bind("_texture"_h, text.textures[i]);
@@ -335,15 +175,15 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                     }
                     default:
                     {
-                        UIImage& image = registry->get<UIImage>(entity);
+                        UIComponent::Image& image = registry->get<UIComponent::Image>(entity);
                         if (!image.constantBuffer)
                             return;
 
-                        if (activePipeline != panelPipeline)
+                        if (activePipeline != imagePipeline)
                         {
                             commandList.EndPipeline(activePipeline);
-                            commandList.BeginPipeline(panelPipeline);
-                            activePipeline = panelPipeline;
+                            commandList.BeginPipeline(imagePipeline);
+                            activePipeline = imagePipeline;
                         }
 
                         commandList.PushMarker("Image", Color(0.0f, 0.1f, 0.0f));
@@ -363,136 +203,9 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                     }
                 });
 
-            commandList.EndPipeline(panelPipeline);
+            commandList.EndPipeline(activePipeline);
             commandList.EndTrace();
         });
-}
-
-bool UIRenderer::OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
-{
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
-    UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
-
-    const vec2 mouse = ServiceLocator::GetInputManager()->GetMousePosition();
-
-    //Unfocus last focused widget.
-    entt::entity lastFocusedWidget = dataSingleton.focusedWidget;
-    if (dataSingleton.focusedWidget != entt::null)
-    {
-        registry->get<UITransformEvents>(dataSingleton.focusedWidget).OnUnfocused();
-
-        dataSingleton.focusedWidget = entt::null;
-    }
-
-    auto eventGroup = registry->group<UITransformEvents>(entt::get<UITransform, UICollision, UIVisible>);
-    eventGroup.sort<UITransform>([](const UITransform& left, const UITransform& right) { return left.sortKey > right.sortKey; });
-    for (auto entity : eventGroup)
-    {
-        const UITransform& transform = eventGroup.get<UITransform>(entity);
-        UITransformEvents& events = eventGroup.get<UITransformEvents>(entity);
-
-        const vec2 minBounds = transform.minBound;
-        const vec2 maxBounds = transform.maxBound;
-
-        // Check so mouse if within widget bounds.
-        if (!((mouse.x > minBounds.x && mouse.x < maxBounds.x) && (mouse.y > minBounds.y && mouse.y < maxBounds.y)))
-            continue;
-
-        // Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it. But we still need to block clicking through it.
-        if (lastFocusedWidget == entity)
-            return true;
-
-        // Check if we have any events we can actually call else exit out early. It needs to still block clicking through though.
-        if (!events.flags)
-            return true;
-
-        if (keybind->state == GLFW_PRESS)
-        {
-            if (events.IsDraggable())
-            {
-                // TODO FEATURE: Dragging
-            }
-        }
-        else
-        {
-            if (events.IsFocusable())
-            {
-                dataSingleton.focusedWidget = entity;
-
-                events.OnFocused();
-            }
-
-            if (events.IsClickable())
-            {
-                events.OnClick();
-            }
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
-void UIRenderer::OnMousePositionUpdate(Window* window, f32 x, f32 y)
-{
-    // TODO FEATURE: Handle Dragging
-}
-
-bool UIRenderer::OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
-{
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
-    UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
-
-    if (dataSingleton.focusedWidget == entt::null || action != GLFW_RELEASE)
-        return false;
-
-    UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
-    UITransformEvents& events = registry->get<UITransformEvents>(dataSingleton.focusedWidget);
-
-    if (key == GLFW_KEY_ESCAPE)
-    {
-        events.OnUnfocused();
-        dataSingleton.focusedWidget = entt::null;
-
-        return true;
-    }
-
-    switch (transform.sortData.type)
-    {
-    case UI::UIElementType::UITYPE_INPUTFIELD:
-    {
-        UI::asInputField* inputFieldAS = reinterpret_cast<UI::asInputField*>(transform.asObject);
-        inputFieldAS->HandleKeyInput(key);
-        break;
-    }
-    default:
-        if (key == GLFW_KEY_ENTER && events.IsClickable())
-        {
-            events.OnClick();
-        }
-        break;
-    }
-
-    return true;
-}
-
-bool UIRenderer::OnCharInput(Window* window, u32 unicodeKey)
-{
-    entt::registry* registry = ServiceLocator::GetUIRegistry();
-    UI::UIDataSingleton& dataSingleton = registry->ctx<UI::UIDataSingleton>();
-
-    if (dataSingleton.focusedWidget == entt::null)
-        return false;
-
-    UITransform& transform = registry->get<UITransform>(dataSingleton.focusedWidget);
-    if (transform.sortData.type == UI::UIElementType::UITYPE_INPUTFIELD)
-    {
-        UI::asInputField* inputField = reinterpret_cast<UI::asInputField*>(transform.asObject);
-        inputField->HandleCharInput((char)unicodeKey);
-    }
-
-    return true;
 }
 
 void UIRenderer::CreatePermanentResources()
@@ -513,53 +226,4 @@ void UIRenderer::CreatePermanentResources()
     _passDescriptorSet.Bind("_sampler"_h, _linearSampler);
 
     _drawDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
-}
-
-Renderer::TextureID UIRenderer::ReloadTexture(const std::string& texturePath)
-{
-    Renderer::TextureDesc textureDesc;
-    textureDesc.path = texturePath;
-
-    return _renderer->LoadTexture(textureDesc);
-}
-
-void UIRenderer::CalculateVertices(const vec2& pos, const vec2& size, std::vector<Renderer::Vertex>& vertices)
-{
-    vec3 upperLeftPos = vec3(pos.x, pos.y, 0.f);
-    vec3 upperRightPos = vec3(pos.x + size.x, pos.y, 0.f);
-    vec3 lowerLeftPos = vec3(pos.x, pos.y + size.y, 0.f);
-    vec3 lowerRightPos = vec3(pos.x + size.x, pos.y + size.y, 0.f);
-
-    // UV space
-    // TODO: Do scaling depending on rendertargets actual size instead of assuming 1080p (which is our reference resolution)
-    upperLeftPos /= vec3(WIDTH, HEIGHT, 1.0f);
-    upperRightPos /= vec3(WIDTH, HEIGHT, 1.0f);
-    lowerLeftPos /= vec3(WIDTH, HEIGHT, 1.0f);
-    lowerRightPos /= vec3(WIDTH, HEIGHT, 1.0f);
-
-    // Vertices
-    Renderer::Vertex upperLeft;
-    upperLeft.pos = upperLeftPos;
-    upperLeft.normal = vec3(0, 1, 0);
-    upperLeft.texCoord = vec2(0, 0);
-
-    Renderer::Vertex upperRight;
-    upperRight.pos = upperRightPos;
-    upperRight.normal = vec3(0, 1, 0);
-    upperRight.texCoord = vec2(1, 0);
-
-    Renderer::Vertex lowerLeft;
-    lowerLeft.pos = lowerLeftPos;
-    lowerLeft.normal = vec3(0, 1, 0);
-    lowerLeft.texCoord = vec2(0, 1);
-
-    Renderer::Vertex lowerRight;
-    lowerRight.pos = lowerRightPos;
-    lowerRight.normal = vec3(0, 1, 0);
-    lowerRight.texCoord = vec2(1, 1);
-
-    vertices.push_back(upperLeft);
-    vertices.push_back(upperRight);
-    vertices.push_back(lowerLeft);
-    vertices.push_back(lowerRight);
 }

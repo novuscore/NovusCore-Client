@@ -1,11 +1,19 @@
+/*
+*	NOVUSCORE LOGIN SCREEN
+*	Version 0.1
+*	Updated 27/07/2020
+*/
+
 void Login()
 {
 	//LOGIN
 	Entity usernameFieldId;
-	DataStorage::GetEntity("LGSC-usernameField", usernameFieldId);
+	DataStorage::GetEntity("LOGIN-usernameField", usernameFieldId);
+
+	Print("Login!");
 }
 
-void OnPasswordFieldSubmit(InputField@ inputField)
+void OnFieldSubmit(InputField@ inputField)
 {
 	Login();
 }
@@ -17,29 +25,32 @@ void OnLoginButtonClick(Button@ button)
 
 void OnLoginScreenLoaded(uint SceneLoaded)
 {
-	uint CENTERX = 1920/2;
-	uint CENTERY = 1080/2;
+	uint CENTERX = 960;
+	uint CENTERY = 540;
+
+	vec2 SIZE = vec2(300,50);
+
+	uint LABELFONTSIZE = 50;
+	uint INPUTFIELDFONTSIZE = 35;
 
 	Color TEXTCOLOR = Color(0,0,0.5);
-	
-	string FONTPATH = "Data/fonts/Ubuntu/Ubuntu-Regular.ttf";
+	string FONT = "Data/fonts/Ubuntu/Ubuntu-Regular.ttf";
 
+	//Background
 	Panel@ ICCLoadScreen = CreatePanel();
 	ICCLoadScreen.SetSize(vec2(1920,1080));
 	ICCLoadScreen.SetTexture("Data/extracted/textures/Interface/Glues/LoadingScreens/LoadScreenIcecrownCitadel.dds");
 
 	//Username
 	Label@ userNameLabel = CreateLabel();
-	userNameLabel.SetPosition(vec2(CENTERX, CENTERY - 50));
-	userNameLabel.SetSize(vec2(300, 50));
+	userNameLabel.SetTransform(vec2(CENTERX, CENTERY - 50), SIZE);
 	userNameLabel.SetLocalAnchor(vec2(0.5,1));
-	userNameLabel.SetFont(FONTPATH, 50);
+	userNameLabel.SetFont(FONT, LABELFONTSIZE);
 	userNameLabel.SetColor(TEXTCOLOR);
 	userNameLabel.SetText("Username");
 
 	Panel@ userNameFieldPanel = CreatePanel();
-	userNameFieldPanel.SetPosition(vec2(CENTERX, CENTERY - 50));
-	userNameFieldPanel.SetSize(vec2(300, 50));
+	userNameFieldPanel.SetTransform(vec2(CENTERX, CENTERY - 50), SIZE);
 	userNameFieldPanel.SetLocalAnchor(vec2(0.5,0));
 	//userNameFieldPanel.SetTexture("Data/extracted/textures/Interface/Tooltips/UI-Tooltip-Background.dds");
 	userNameFieldPanel.SetTexture("Data/textures/NovusUIPanel.png");
@@ -47,22 +58,21 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	InputField@ usernameField = CreateInputField();
 	usernameField.SetParent(userNameFieldPanel);
 	usernameField.SetPosition(vec2(0,0));
-	usernameField.SetSize(vec2(300,50)); //TODO Fill to parent size?
-	usernameField.SetFont(FONTPATH, 50);
-	DataStorage::EmplaceEntity("LGSC-usernameField", usernameField.GetEntityId());
+	usernameField.SetFillParentSize(true);
+	usernameField.SetFont(FONT, INPUTFIELDFONTSIZE);
+	usernameField.OnSubmit(OnFieldSubmit);
+	DataStorage::EmplaceEntity("LOGIN-usernameField", usernameField.GetEntityId());
 	
 	//Password
 	Label@ passwordLabel = CreateLabel();
-	passwordLabel.SetSize(vec2(300, 50));
-	passwordLabel.SetPosition(vec2(CENTERX, CENTERY + 50));
+	passwordLabel.SetTransform(vec2(CENTERX, CENTERY + 50), SIZE);
 	passwordLabel.SetLocalAnchor(vec2(0.5,1));
-	passwordLabel.SetFont("Data/fonts/Ubuntu/Ubuntu-Regular.ttf", 50);
+	passwordLabel.SetFont(FONT, LABELFONTSIZE);
 	passwordLabel.SetColor(TEXTCOLOR);
 	passwordLabel.SetText("Password");
 
 	Panel@ passwordFieldPanel = CreatePanel();
-	passwordFieldPanel.SetPosition(vec2(CENTERX, CENTERY + 50));
-	passwordFieldPanel.SetSize(vec2(300, 50));
+	passwordFieldPanel.SetTransform(vec2(CENTERX, CENTERY + 50), SIZE);
 	passwordFieldPanel.SetLocalAnchor(vec2(0.5,0));
 	//userNameFieldPanel.SetTexture("Data/extracted/textures/Interface/Tooltips/UI-Tooltip-Background.dds");
 	passwordFieldPanel.SetTexture("Data/textures/NovusUIPanel.png");
@@ -70,10 +80,36 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	InputField@ passwordField = CreateInputField();
 	passwordField.SetParent(passwordFieldPanel);
 	passwordField.SetPosition(vec2(0,0));
-	passwordField.SetSize(vec2(300,50)); //TODO Fill to parent size?
-	passwordField.SetFont(FONTPATH, 50);
-	passwordField.OnSubmit(OnPasswordFieldSubmit);
-	DataStorage::EmplaceEntity("LGSC-password", passwordField.GetEntityId());
+	passwordField.SetFillParentSize(true);
+	passwordField.SetFont(FONT, INPUTFIELDFONTSIZE);
+	passwordField.OnSubmit(OnFieldSubmit);
+	DataStorage::EmplaceEntity("LOGIN-passwordField", passwordField.GetEntityId());
+
+	//Submit
+	Button@ submitButton = CreateButton();
+	submitButton.SetPosition(vec2(CENTERX, CENTERY +  SIZE.y * 2.5f));
+	submitButton.SetSize(SIZE);
+	submitButton.SetLocalAnchor(vec2(0.5,0));
+	submitButton.SetTexture("Data/textures/NovusUIPanel.png");
+	submitButton.SetFont(FONT, INPUTFIELDFONTSIZE);
+	submitButton.SetText("Submit");
+	submitButton.OnClick(OnLoginButtonClick);
+
+	//Remember account name.
+	Checkbox@ checkBox = CreateCheckbox();
+	checkBox.SetPosition(vec2(CENTERX - SIZE.x/2 + 5, CENTERY +  SIZE.y * 4));
+	checkBox.SetSize(vec2(25,25));
+	checkBox.SetBackgroundTexture("Data/textures/NovusUIPanel.png");
+	checkBox.SetCheckTexture("Data/textures/NovusUIPanel.png");
+	checkBox.SetCheckColor(Color(0,1,0));
+	checkBox.SetExpandBoundsToChildren(true);
+
+	Label@ rememberAccountLabel = CreateLabel();
+	rememberAccountLabel.SetParent(checkBox);
+	rememberAccountLabel.SetTransform(vec2(25,0), vec2(SIZE.x - 25, 25));
+	rememberAccountLabel.SetFont(FONT, 25);
+	rememberAccountLabel.SetColor(TEXTCOLOR);
+	rememberAccountLabel.SetText("Remember Account Name");
 }
 
 void main()
