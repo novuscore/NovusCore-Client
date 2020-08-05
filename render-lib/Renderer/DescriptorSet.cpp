@@ -92,7 +92,7 @@ namespace Renderer
             if (nameHash == _boundDescriptors[i].nameHash)
             {
                 _boundDescriptors[i].descriptorType = DescriptorType::DESCRIPTOR_TYPE_CONSTANT_BUFFER;
-                _boundDescriptors[i].constantBuffer = constantBuffer;
+                //_boundDescriptors[i].constantBuffer = constantBuffer;
                 return;
             }
         }
@@ -101,7 +101,7 @@ namespace Renderer
         Descriptor& boundDescriptor = _boundDescriptors.emplace_back();
         boundDescriptor.nameHash = nameHash;
         boundDescriptor.descriptorType = DESCRIPTOR_TYPE_CONSTANT_BUFFER;
-        boundDescriptor.constantBuffer = constantBuffer;
+        //boundDescriptor.constantBuffer = constantBuffer;
     }
 
     void DescriptorSet::Bind(const std::string& name, IStorageBuffer* storageBuffer)
@@ -117,7 +117,7 @@ namespace Renderer
             if (nameHash == _boundDescriptors[i].nameHash)
             {
                 _boundDescriptors[i].descriptorType = DescriptorType::DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                _boundDescriptors[i].storageBuffer = storageBuffer;
+                //_boundDescriptors[i].storageBuffer = storageBuffer;
                 return;
             }
         }
@@ -126,6 +126,6 @@ namespace Renderer
         Descriptor& boundDescriptor = _boundDescriptors.emplace_back();
         boundDescriptor.nameHash = nameHash;
         boundDescriptor.descriptorType = DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        boundDescriptor.storageBuffer = storageBuffer;
+        //boundDescriptor.storageBuffer = storageBuffer;
     }
 }
