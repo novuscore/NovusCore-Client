@@ -62,19 +62,16 @@ namespace UI
             break;
         case GLFW_KEY_ENTER:
         {
-            if (_text.textType == TextType::SINGLELINE)
-            {
-                entt::registry* registry = ServiceLocator::GetUIRegistry();
-                entt::entity Id = GetEntityId();
-                registry->get<UIInputField>(Id).OnSubmit();
-                registry->get<UITransformEvents>(Id).OnUnfocused();
-
-                registry->ctx<UI::UIDataSingleton>().focusedWidget = entt::null;
-            }
-            else
+            if (_text.isMultiline)
             {
                 HandleCharInput('\n');
+                break;
             }
+
+            entt::registry* registry = ServiceLocator::GetUIRegistry();
+            registry->get<UIInputField>(_entityId).OnSubmit();
+            registry->get<UITransformEvents>(_entityId).OnUnfocused();
+            registry->ctx<UI::UIDataSingleton>().focusedWidget = entt::null;
             break;
         }
         default:
@@ -124,7 +121,7 @@ namespace UI
 
     void asInputField::MovePointerLeft()
     {
-        if(_inputField.writeHeadIndex > 0)
+        if (_inputField.writeHeadIndex > 0)
             SetWriteHeadPosition(_inputField.writeHeadIndex - 1);
     }
 
@@ -151,7 +148,8 @@ namespace UI
                 inputField.writeHeadIndex = clampedPosition;
 
                 UIText& text = uiRegistry->get<UIText>(entId);
-                text.pushback = UI::TextUtils::CalculatePushback(text, inputField.writeHeadIndex, 0.2f, uiRegistry->get<UITransform>(entId).size.x);
+                const vec2& size = uiRegistry->get<UITransform>(entId).size;
+                text.pushback = UI::TextUtils::CalculatePushback(text, inputField.writeHeadIndex, 0.2f, size.x, size.y);
                 NC_LOG_MESSAGE("Pointer is now: %d, Pushback is now: %d", clampedPosition, text.pushback);
 
                 MarkDirty(uiRegistry, entId);

@@ -19,12 +19,6 @@ namespace UI
         BOTTOM
     };
 
-    enum class TextType
-    {
-        SINGLELINE,
-        MULTILINE
-    };
-
     struct UIText
     {
     public:
@@ -51,7 +45,7 @@ namespace UI
 
         TextHorizontalAlignment horizontalAlignment = TextHorizontalAlignment::LEFT;
         TextVerticalAlignment verticalAlignment = TextVerticalAlignment::TOP;
-        TextType textType = TextType::SINGLELINE;
+        bool isMultiline = false;
 
         f32 lineHeight = 1.15f;
 
