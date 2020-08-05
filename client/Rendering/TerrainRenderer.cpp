@@ -6,6 +6,7 @@
 
 #include <Renderer/Renderer.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <tracy/TracyVulkan.hpp>
 
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
@@ -43,10 +44,13 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
             
             return true;// Return true from setup to enable this pass, return false to disable it
         },
-            [=, &renderGraph](TerrainDepthPrepassData& data, Renderer::CommandList& commandList) // Execute
+            [=](TerrainDepthPrepassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
         {
+            TracySourceLocation(terrainDepth, "TerrainDepth", tracy::Color::Yellow2);
+            commandList.BeginTrace(&terrainDepth);
+
             Renderer::GraphicsPipelineDesc pipelineDesc;
-            renderGraph->InitializePipelineDesc(pipelineDesc);
+            resources.InitializePipelineDesc(pipelineDesc);
 
             // Shader
             Renderer::VertexShaderDesc vertexShaderDesc;
@@ -95,7 +99,7 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
                     TerrainInstanceData* terrainInstanceData = instance->GetOptional<TerrainInstanceData>();
 
                     _drawDescriptorSet.Bind("ModelData"_h, instance->GetConstantBuffer());
-                    _drawDescriptorSet.Bind("_vertexData"_h, terrainInstanceData->vertexBuffer);
+                    _drawDescriptorSet.Bind("_vertexHeights"_h, terrainInstanceData->vertexBuffer);
                     _drawDescriptorSet.Bind("ChunkData"_h, terrainInstanceData->chunkData);
 
                     commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
@@ -105,6 +109,7 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
                 }
             }
             commandList.EndPipeline(pipeline);
+            commandList.EndTrace();
         });
     }
 }
@@ -127,10 +132,13 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
 
             return true; // Return true from setup to enable this pass, return false to disable it
         },
-            [=, &renderGraph](TerrainPassData& data, Renderer::CommandList& commandList) // Execute
+            [=](TerrainPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
         {
+            TracySourceLocation(terrainPass, "TerrainPass", tracy::Color::Yellow2);
+            commandList.BeginTrace(&terrainPass);
+
             Renderer::GraphicsPipelineDesc pipelineDesc;
-            renderGraph->InitializePipelineDesc(pipelineDesc);
+            resources.InitializePipelineDesc(pipelineDesc);
 
             // Shaders
             Renderer::VertexShaderDesc vertexShaderDesc;
@@ -189,7 +197,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                     TerrainInstanceData* terrainInstanceData = instance->GetOptional<TerrainInstanceData>();
 
                     _drawDescriptorSet.Bind("ModelData"_h, instance->GetConstantBuffer());
-                    _drawDescriptorSet.Bind("_vertexData"_h, terrainInstanceData->vertexBuffer);
+                    _drawDescriptorSet.Bind("_vertexHeights"_h, terrainInstanceData->vertexBuffer);
                     _drawDescriptorSet.Bind("ChunkData"_h, terrainInstanceData->chunkData);
 
                     commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
@@ -199,6 +207,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                 }
             }
             commandList.EndPipeline(pipeline);
+            commandList.EndTrace();
         });
     }
 }
@@ -372,45 +381,6 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
 
             terrainInstanceData->chunkData->resource[i].diffuseIDs[layerCount++] = diffuseID;
         }
-
-        const u32 cellX = i % Terrain::MAP_CELLS_PER_CHUNK_SIDE;
-        const u32 cellY = i / Terrain::MAP_CELLS_PER_CHUNK_SIDE;
-
-        const f32 cellPosX = -static_cast<f32>(cellX) * Terrain::CELL_SIZE;
-        const f32 cellPosZ = static_cast<f32>(cellY) * Terrain::CELL_SIZE;
-
-        // Vertices
-        const size_t cellOffset = i * Terrain::CELL_TOTAL_GRID_SIZE;
-        size_t vertex = 0;
-        for (size_t row = 0; row < Terrain::CELL_TOTAL_GRID_SIDE; row++)
-        {
-            bool isEvenRow = (row % 2) == 0;
-            size_t rowLength = isEvenRow ? Terrain::CELL_OUTER_GRID_SIDE : Terrain::CELL_INNER_GRID_SIDE;
-            f32 offset = isEvenRow ? 0.0f : 0.5f;
-
-            for (size_t col = 0; col < rowLength; col++)
-            {
-                f32 vertexPosX = -(((static_cast<f32>(col) + offset) / 8.0f) * Terrain::CELL_SIZE) - (Terrain::CELL_SIZE / 2.0f);
-                f32 vertexPosY = cell.heightData[vertex];
-                f32 vertexPosZ = (((static_cast<f32>(row) * 0.5f) / 8.0f) * Terrain::CELL_SIZE) - (Terrain::CELL_SIZE / 2.0f);
-
-                chunkVertices[vertex + cellOffset].position = vec4(vertexPosX + cellPosX, vertexPosY, vertexPosZ + cellPosZ, 0.0f);
-
-                vec2 uv = vec2(static_cast<f32>(vertex % 17), Math::Floor(static_cast<f32>(vertex) / 17.0f));
-
-                // Handle UV offsets for the inner array
-                if (uv.x > 8.01f)
-                {
-                    uv.x = uv.x - 8.5f;
-                    uv.y = uv.y + 0.5f;
-                }
-
-                chunkVertices[vertex + cellOffset].texCoord = vec4(uv, 0.0f, 0.0f);
-                //chunkVertices[vertex + cellOffset].vertex.normal = vec3(0.0f, 1.0f, 0.0f); // TODO: Actual normals for  terrain
-
-                vertex++;
-            }
-        }
     }
 
     // ADTs store their alphamaps on a per-cell basis, one alphamap per used texture layer up to 4 different alphamaps
@@ -481,7 +451,12 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
     terrainInstanceData->vertexBuffer = _renderer->CreateStorageBuffer<std::array<TerrainVertex, Terrain::NUM_VERTICES_PER_CHUNK>>();
 
     // Set vertex and index buffers to the vectors we created above
-    memcpy(terrainInstanceData->vertexBuffer->resource.data(), chunkVertices.data(), chunkVertices.size() * sizeof(TerrainVertex));
+    for (u32 i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i++)
+    {
+        void* src = &terrainInstanceData->vertexBuffer->resource.data()[i * Terrain::CELL_TOTAL_GRID_SIZE];
+        memcpy(src, &chunk.cells[i].heightData[0], Terrain::CELL_TOTAL_GRID_SIZE * sizeof(TerrainVertex));
+    }
+    //memcpy(terrainInstanceData->vertexBuffer->resource.data(), chunkVertices.data(), chunkVertices.size() * sizeof(TerrainVertex));
 
     // Apply buffers
     chunkInstance.ApplyAll();

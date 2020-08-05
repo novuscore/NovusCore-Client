@@ -1,5 +1,6 @@
 #include "RenderGraph.h"
 #include "RenderGraphBuilder.h"
+#include <tracy/Tracy.hpp>
 
 #include "Renderer.h"
 
@@ -28,10 +29,24 @@ namespace Renderer
         _passes.push_back(pass);
     }*/
 
+    void RenderGraph::AddSignalSemaphore(GPUSemaphoreID semaphoreID)
+    {
+        _signalSemaphores.Insert(semaphoreID);
+    }
+
+    void RenderGraph::AddWaitSemaphore(GPUSemaphoreID semaphoreID)
+    {
+        _waitSemaphores.Insert(semaphoreID);
+    }
+
     void RenderGraph::Setup()
     {
+        ZoneScopedNC("RenderGraph::Setup", tracy::Color::Red2)
         for (IRenderPass* pass : _passes)
         {
+            ZoneScopedC(tracy::Color::Red2)
+            ZoneName(pass->_name, pass->_nameLength)
+
             if (pass->Setup(_renderGraphBuilder))
             {
                 _executingPasses.Insert(pass);
@@ -41,34 +56,40 @@ namespace Renderer
 
     void RenderGraph::Execute()
     {
-        // TODO: Parallel_for this
+
+        ZoneScopedNC("RenderGraph::Execute", tracy::Color::Red2);
+
+        RenderGraphResources& resources = _renderGraphBuilder->GetResources();
+        
         CommandList commandList(_renderer, _desc.allocator);
+
+        // Add semaphores
+        for (GPUSemaphoreID signalSemaphore : _signalSemaphores)
+        {
+            commandList.AddSignalSemaphore(signalSemaphore);
+        }
+
+        for (GPUSemaphoreID waitSemaphore : _waitSemaphores)
+        {
+            commandList.AddWaitSemaphore(waitSemaphore);
+        }
+
+        // TODO: Parallel_for this
         commandList.PushMarker("RenderGraph", Color(0.0f, 0.0f, 0.4f));
         for (IRenderPass* pass : _executingPasses)
         {
-            pass->Execute(commandList);
+            ZoneScopedC(tracy::Color::Red2)
+            ZoneName(pass->_name, pass->_nameLength)
+
+            pass->Execute(resources, commandList);
         }
         commandList.PopMarker();
-        commandList.Execute();
+        
+        {
+            ZoneScopedNC("CommandList::Execute", tracy::Color::Red2)
+            commandList.Execute();
+        }
     }
 
-    void RenderGraph::InitializePipelineDesc(GraphicsPipelineDesc& desc) const
-    {
-        desc.ResourceToImageID = [&](RenderPassResource resource) 
-        {
-            return _renderGraphBuilder->GetImage(resource);
-        };
-        desc.ResourceToDepthImageID = [&](RenderPassResource resource) 
-        {
-            return _renderGraphBuilder->GetDepthImage(resource);
-        };
-        desc.MutableResourceToImageID = [&](RenderPassMutableResource resource) 
-        {
-            return _renderGraphBuilder->GetImage(resource);
-        };
-        desc.MutableResourceToDepthImageID = [&](RenderPassMutableResource resource) 
-        {
-            return _renderGraphBuilder->GetDepthImage(resource);
-        };
-    }
+    
 }

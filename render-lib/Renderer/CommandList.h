@@ -21,6 +21,10 @@
 #include "Commands/SetBuffer.h"
 #include "Commands/BindDescriptorSet.h"
 #include "Commands/MarkFrameStart.h"
+#include "Commands/BeginTrace.h"
+#include "Commands/EndTrace.h"
+#include "Commands/AddSignalSemaphore.h"
+#include "Commands/AddWaitSemaphore.h"
 
 namespace Renderer
 {
@@ -38,6 +42,9 @@ namespace Renderer
         }
 
         void MarkFrameStart(u32 frameIndex);
+
+        void BeginTrace(const tracy::SourceLocationData* sourceLocation);
+        void EndTrace();
 
         void PushMarker(std::string marker, Color color);
         void PopMarker();
@@ -60,6 +67,9 @@ namespace Renderer
         void Draw(ModelID modelID);
         void DrawBindless(u32 numVertices, u32 numInstances);
         void DrawIndexedBindless(ModelID modelID, u32 numVertices, u32 numInstances);
+
+        void AddSignalSemaphore(GPUSemaphoreID semaphoreID);
+        void AddWaitSemaphore(GPUSemaphoreID semaphoreID);
 
     private:
         // Execute gets friend-called from RenderGraph
@@ -101,6 +111,8 @@ namespace Renderer
 
         DynamicArray<BackendDispatchFunction> _functions;
         DynamicArray<void*> _data;
+
+        bool _isTracing = false;
 
         friend class RenderGraph;
     };

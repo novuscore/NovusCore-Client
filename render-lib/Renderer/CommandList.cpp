@@ -1,6 +1,7 @@
 #pragma once
 #include "CommandList.h"
 #include "Renderer.h"
+#include <tracy/Tracy.hpp>
 
 namespace Renderer
 {
@@ -10,10 +11,13 @@ namespace Renderer
 
         CommandListID commandList = _renderer->BeginCommandList();
 
-        // Execute each command
-        for (int i = 0; i < _functions.Count(); i++)
         {
-            _functions[i](_renderer, commandList, _data[i]);
+            ZoneScopedNC("Record commandlist", tracy::Color::Red2)
+            // Execute each command
+            for (int i = 0; i < _functions.Count(); i++)
+            {
+                _functions[i](_renderer, commandList, _data[i]);
+            }
         }
 
         _renderer->EndCommandList(commandList);
@@ -23,6 +27,17 @@ namespace Renderer
     {
         Commands::MarkFrameStart* command = AddCommand<Commands::MarkFrameStart>();
         command->frameIndex = frameIndex;
+    }
+
+    void CommandList::BeginTrace(const tracy::SourceLocationData* sourceLocation)
+    {
+        Commands::BeginTrace* command = AddCommand<Commands::BeginTrace>();
+        command->sourceLocation = sourceLocation;
+    }
+
+    void CommandList::EndTrace()
+    {
+        AddCommand<Commands::EndTrace>();
     }
 
     void CommandList::PushMarker(std::string marker, Color color)
@@ -152,5 +167,17 @@ namespace Renderer
         command->modelID = modelID;
         command->numVertices = numVertices;
         command->numInstances = numInstances;
+    }
+
+    void CommandList::AddSignalSemaphore(GPUSemaphoreID semaphoreID)
+    {
+        Commands::AddSignalSemaphore* command = AddCommand<Commands::AddSignalSemaphore>();
+        command->semaphore = semaphoreID;
+    }
+
+    void CommandList::AddWaitSemaphore(GPUSemaphoreID semaphoreID)
+    {
+        Commands::AddWaitSemaphore* command = AddCommand<Commands::AddWaitSemaphore>();
+        command->semaphore = semaphoreID;
     }
 }

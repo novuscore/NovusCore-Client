@@ -13,13 +13,17 @@ namespace Renderer
     class RenderLayer;
     class RenderGraph;
     class RenderGraphBuilder;
+    class RenderGraphResources;
 
     class IRenderPass
     {
     public:
         virtual bool Setup(RenderGraphBuilder* renderGraphBuilder) = 0;
-        virtual void Execute(CommandList& commandList) = 0;
+        virtual void Execute(RenderGraphResources& resources, CommandList& commandList) = 0;
         virtual void DeInit() = 0;
+
+        char _name[16];
+        u8 _nameLength = 0;
     };
 
     template <typename PassData>
@@ -27,7 +31,7 @@ namespace Renderer
     {
     public:
         typedef std::function<bool(PassData&, RenderGraphBuilder&)> SetupFunction;
-        typedef std::function<void(PassData&, CommandList&)> ExecuteFunction;
+        typedef std::function<void(PassData&, RenderGraphResources&, CommandList&)> ExecuteFunction;
     
         RenderPass(std::string& name, SetupFunction onSetup, ExecuteFunction onExecute)
             : _onSetup(onSetup)
@@ -39,6 +43,7 @@ namespace Renderer
             }
 
             strcpy_s(_name, name.c_str());
+            _nameLength = static_cast<u8>(name.length());
         }
 
     private:
@@ -47,10 +52,10 @@ namespace Renderer
             return _onSetup(_data, *renderGraphBuilder);
         }
 
-        void Execute(CommandList& commandList) override
+        void Execute(RenderGraphResources& resources, CommandList& commandList) override
         {
             commandList.PushMarker(_name, Color(0.0f, 0.4f, 0.0f));
-            _onExecute(_data, commandList);
+            _onExecute(_data, resources, commandList);
             commandList.PopMarker();
         }
 
@@ -64,7 +69,6 @@ namespace Renderer
     private:
 
     private:
-        char _name[16];
         SetupFunction _onSetup;
         ExecuteFunction _onExecute;
 

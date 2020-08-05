@@ -1,6 +1,8 @@
 #include "RenderDeviceVK.h"
 #include <Utils/DebugHandler.h>
 #include <vector>
+#include "vk_format_utils.h"
+#include <tracy/TracyVulkan.hpp>
 
 #include "../../../../Window/Window.h"
 #include "DebugMarkerUtilVK.h"
@@ -18,6 +20,7 @@
 #include <map>
 #include <set>
 
+#define NOVUSCORE_RENDERER_DEBUG_OVERRIDE 1
 #define NOVUSCORE_RENDERER_GPU_VALIDATION 1
 
 namespace Renderer
@@ -106,7 +109,8 @@ namespace Renderer
                 CreateBuffer(bufferSize, flags, VMA_MEMORY_USAGE_CPU_TO_GPU, backend->buffers.Get(i), backend->allocations.Get(i));
 
                 char debugName[16];
-                snprintf(debugName, sizeof(debugName), "%s%i", "ConstantBuffer", i);
+
+                snprintf(debugName, sizeof(debugName), "%s%i", "Buffer", i);
                 DebugMarkerUtilVK::SetObjectName(_device, (u64)backend->buffers.Get(i), VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, debugName);
             }
 
@@ -148,7 +152,7 @@ namespace Renderer
 
         void RenderDeviceVK::InitOnce()
         {
-#ifdef _DEBUG
+#if _DEBUG || NOVUSCORE_RENDERER_DEBUG_OVERRIDE
             DebugMarkerUtilVK::SetDebugMarkersEnabled(true);
 #endif
             InitVulkan();
@@ -157,6 +161,7 @@ namespace Renderer
             CreateLogicalDevice();
             CreateAllocator();
             CreateCommandPool();
+            CreateTracyContext();
 
             _descriptorMegaPool = new DescriptorMegaPoolVK();
             _descriptorMegaPool->Init(FRAME_INDEX_COUNT, this);
@@ -166,7 +171,7 @@ namespace Renderer
 
         void RenderDeviceVK::InitVulkan()
         {
-#if _DEBUG
+#if _DEBUG || NOVUSCORE_RENDERER_DEBUG_OVERRIDE
             // Check validation layer support
             CheckValidationLayerSupport();
 #endif
@@ -180,7 +185,7 @@ namespace Renderer
             appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
             appInfo.apiVersion = VK_API_VERSION_1_0;
 
-#if NOVUSCORE_RENDERER_GPU_VALIDATION
+#if (_DEBUG || NOVUSCORE_RENDERER_DEBUG_OVERRIDE) && NOVUSCORE_RENDERER_GPU_VALIDATION
             VkValidationFeatureEnableEXT gpuValidationFeature = VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT;
 
             VkValidationFeaturesEXT validationFeatures = {};
@@ -210,8 +215,8 @@ namespace Renderer
             createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
             createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
+#if _DEBUG || NOVUSCORE_RENDERER_DEBUG_OVERRIDE
             VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
-#ifdef _DEBUG
             createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
             createInfo.ppEnabledLayerNames = validationLayers.data();
 
@@ -259,7 +264,7 @@ namespace Renderer
 
         void RenderDeviceVK::SetupDebugMessenger()
         {
-#if _DEBUG
+#if _DEBUG || NOVUSCORE_RENDERER_DEBUG_OVERRIDE
             VkDebugUtilsMessengerCreateInfoEXT createInfo;
             PopulateDebugMessengerCreateInfo(createInfo);
 
@@ -351,7 +356,7 @@ namespace Renderer
             createInfo.enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size());
             createInfo.ppEnabledExtensionNames = enabledExtensions.data();
 
-#if _DEBUG
+#if _DEBUG || NOVUSCORE_RENDERER_DEBUG_OVERRIDE
             std::vector<const char*> enabledLayers;
             for (const char* layer : validationLayers)
             {
@@ -393,12 +398,29 @@ namespace Renderer
             VkCommandPoolCreateInfo poolInfo = {};
             poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
             poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-            poolInfo.flags = 0; // Optional
+            poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT; // Optional
 
             if (vkCreateCommandPool(_device, &poolInfo, nullptr, &_commandPool) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create command pool!");
             }
+        }
+
+        void RenderDeviceVK::CreateTracyContext()
+        {
+            VkCommandBufferAllocateInfo allocInfo = {};
+            allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            allocInfo.commandPool = _commandPool;
+            allocInfo.commandBufferCount = 1;
+
+            VkCommandBuffer tracyBuffer;
+            vkAllocateCommandBuffers(_device, &allocInfo, &tracyBuffer);
+
+            _tracyContext = TracyVkContext(_physicalDevice, _device, _graphicsQueue, tracyBuffer);
+
+            vkQueueWaitIdle(_graphicsQueue);
+            vkFreeCommandBuffers(_device, _commandPool, 1, &tracyBuffer);
         }
 
         void RenderDeviceVK::CreateSurface(GLFWwindow* window, SwapChainVK* swapChain)
@@ -504,6 +526,11 @@ namespace Renderer
                 if (vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &swapChain->imageAvailableSemaphores.Get(i)) != VK_SUCCESS)
                 {
                     NC_LOG_FATAL("Failed to create image available semaphore!");
+                }
+
+                if (vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &swapChain->blitFinishedSemaphores.Get(i)) != VK_SUCCESS)
+                {
+                    NC_LOG_FATAL("Failed to create blit finished semaphore!");
                 }
             }
         }
@@ -663,15 +690,15 @@ namespace Renderer
             // Create descriptor pool
             VkDescriptorPoolSize descriptorPoolSizes[2] = {};
             descriptorPoolSizes[0].type = VK_DESCRIPTOR_TYPE_SAMPLER;
-            descriptorPoolSizes[0].descriptorCount = 1;
+            descriptorPoolSizes[0].descriptorCount = 3;
             descriptorPoolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            descriptorPoolSizes[1].descriptorCount = 1;
+            descriptorPoolSizes[1].descriptorCount = 3;
 
             VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
             descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
             descriptorPoolInfo.poolSizeCount = 2;
             descriptorPoolInfo.pPoolSizes = descriptorPoolSizes;
-            descriptorPoolInfo.maxSets = 1;
+            descriptorPoolInfo.maxSets = 2;
 
             if (vkCreateDescriptorPool(_device, &descriptorPoolInfo, nullptr, &pipeline.descriptorPool) != VK_SUCCESS)
             {
@@ -685,9 +712,13 @@ namespace Renderer
             allocInfo.descriptorSetCount = 1;
             allocInfo.pSetLayouts = &pipeline.descriptorSetLayout;
 
-            if (vkAllocateDescriptorSets(_device, &allocInfo, &pipeline.descriptorSet) != VK_SUCCESS)
+            for (u32 i = 0; i < pipeline.descriptorSets.Num; i++)
             {
-                NC_LOG_FATAL("Failed to allocate descriptor sets!");
+                VkResult result = vkAllocateDescriptorSets(_device, &allocInfo, &pipeline.descriptorSets.Get(i));
+                if (result != VK_SUCCESS)
+                {
+                    NC_LOG_FATAL("Failed to allocate descriptor sets!");
+                }
             }
 
             // No vertex info
@@ -848,7 +879,11 @@ namespace Renderer
             {
                 vkDestroySemaphore(_device, swapChain->imageAvailableSemaphores.Get(i), nullptr);
             }
-
+            for (u32 i = 0; i < swapChain->blitFinishedSemaphores.Num; i++)
+            {
+                vkDestroySemaphore(_device, swapChain->blitFinishedSemaphores.Get(i), nullptr);
+            }
+            
             // Destroy swap chain
             vkDestroySwapchainKHR(_device, swapChain->swapChain, nullptr);
 
@@ -1029,7 +1064,7 @@ namespace Renderer
 
             std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-#if _DEBUG
+#if _DEBUG || NOVUSCORE_RENDERER_DEBUG_OVERRIDE
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
             extensions.push_back("VK_KHR_get_physical_device_properties2");
@@ -1102,49 +1137,83 @@ namespace Renderer
             EndSingleTimeCommands(commandBuffer);
         }
 
-        void RenderDeviceVK::CopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, u32 width, u32 height, u32 numLayers)
+        void RenderDeviceVK::CopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, VkFormat format, u32 width, u32 height, u32 numLayers, u32 numMipLevels)
         {
+            VkDeviceSize bufferOffset = 0;
+
             VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
 
-            VkBufferImageCopy region = {};
-            region.bufferOffset = 0;
-            region.bufferRowLength = 0;
-            region.bufferImageHeight = 0;
+            std::vector<VkBufferImageCopy> regions;
+            regions.reserve(numMipLevels);
 
-            region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            region.imageSubresource.mipLevel = 0;
-            region.imageSubresource.baseArrayLayer = 0;
-            region.imageSubresource.layerCount = numLayers;
+            u32 curWidth = width;
+            u32 curHeight = height;
 
-            region.imageOffset = { 0, 0, 0 };
-            region.imageExtent = {
-                width,
-                height,
-                1
-            };
+            for (u32 i = 0; i < numMipLevels; i++)
+            {
+                VkBufferImageCopy& region = regions.emplace_back();
 
+                region.bufferOffset = bufferOffset;
+                region.bufferRowLength = 0;
+                region.bufferImageHeight = 0;
+
+                region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                region.imageSubresource.mipLevel = i;
+                region.imageSubresource.baseArrayLayer = 0;
+                region.imageSubresource.layerCount = numLayers;
+
+                region.imageOffset = { 0, 0, 0 };
+                region.imageExtent = {
+                    curWidth,
+                    curHeight,
+                    1
+                };
+
+                if (!FormatIsCompressed(format)) // Uncompressed
+                {
+                    bufferOffset += static_cast<VkDeviceSize>(glm::ceil(curWidth * curHeight * FormatTexelSize(format)));
+                }
+                else if (FormatIsCompressed_BC(format)) // BC compression
+                {
+                    VkExtent3D texelExtent = FormatTexelBlockExtent(format);
+
+                    vec2 blocks = vec2(curWidth, curHeight) / vec2(texelExtent.width, texelExtent.height); // Calculate how many blocks we have 
+                    blocks = glm::ceil(blocks); // If we have fractional blocks, ceil it
+                    u32 blockSize = FormatElementSize(format, VK_IMAGE_ASPECT_COLOR_BIT); // Get size in bytes per block
+
+                    bufferOffset += static_cast<VkDeviceSize>(blocks.x * blocks.y * blockSize);
+                }
+                else
+                {
+                    NC_LOG_FATAL("Tried to use a format that wasn't uncompressed or used BC compression, what is this? id: %u", format)
+                }
+
+                curWidth /= 2;
+                curHeight /= 2;
+            }
+            
             vkCmdCopyBufferToImage(
                 commandBuffer,
                 srcBuffer,
                 dstImage,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                1,
-                &region
+                numMipLevels,
+                regions.data()
             );
 
             EndSingleTimeCommands(commandBuffer);
         }
 
-        void RenderDeviceVK::TransitionImageLayout(VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout, u32 numLayers)
+        void RenderDeviceVK::TransitionImageLayout(VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout, u32 numLayers, u32 numMipLevels)
         {
             VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
 
-            TransitionImageLayout(commandBuffer, image, aspects, oldLayout, newLayout, numLayers);
+            TransitionImageLayout(commandBuffer, image, aspects, oldLayout, newLayout, numLayers, numMipLevels);
 
             EndSingleTimeCommands(commandBuffer);
         }
 
-        void RenderDeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout, u32 numLayers)
+        void RenderDeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout, u32 numLayers, u32 numMipLevels)
         {
             VkImageMemoryBarrier imageBarrier = {};
             imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1154,7 +1223,7 @@ namespace Renderer
             imageBarrier.image = image;
             imageBarrier.subresourceRange.aspectMask = aspects;
             imageBarrier.subresourceRange.baseMipLevel = 0;
-            imageBarrier.subresourceRange.levelCount = 1;
+            imageBarrier.subresourceRange.levelCount = numMipLevels;
             imageBarrier.subresourceRange.layerCount = numLayers;
 
             VkPipelineStageFlagBits srcFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;

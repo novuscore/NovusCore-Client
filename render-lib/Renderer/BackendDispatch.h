@@ -18,6 +18,8 @@ namespace Renderer
         static void DrawIndexedBindless(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void MarkFrameStart(Renderer* renderer, CommandListID commandList, const void* data);
+        static void BeginTrace(Renderer* renderer, CommandListID commandList, const void* data);
+        static void EndTrace(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void PopMarker(Renderer* renderer, CommandListID commandList, const void* data);
         static void PushMarker(Renderer* renderer, CommandListID commandList, const void* data);
@@ -34,5 +36,8 @@ namespace Renderer
         static void SetVertexBuffer(Renderer* renderer, CommandListID commandList, const void* data);
         static void SetIndexBuffer(Renderer* renderer, CommandListID commandList, const void* data);
         static void SetBuffer(Renderer* renderer, CommandListID commandList, const void* data);
+
+        static void AddSignalSemaphore(Renderer* renderer, CommandListID commandList, const void* data);
+        static void AddWaitSemaphore(Renderer* renderer, CommandListID commandList, const void* data);
     };
 }

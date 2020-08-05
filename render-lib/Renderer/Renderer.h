@@ -23,9 +23,15 @@
 #include "Descriptors/DepthImageDesc.h"
 #include "Descriptors/ModelDesc.h"
 #include "Descriptors/SamplerDesc.h"
+#include "Descriptors/GPUSemaphoreDesc.h"
 #include "Descriptors/FontDesc.h"
 
 class Window;
+
+namespace tracy
+{
+    struct SourceLocationData;
+}
 
 namespace Renderer
 {
@@ -45,6 +51,7 @@ namespace Renderer
         virtual DepthImageID CreateDepthImage(DepthImageDesc& desc) = 0;
 
         virtual SamplerID CreateSampler(SamplerDesc& sampler) = 0;
+        virtual GPUSemaphoreID CreateGPUSemaphore() = 0;
 
         virtual GraphicsPipelineID CreatePipeline(GraphicsPipelineDesc& desc) = 0;
         virtual ComputePipelineID CreatePipeline(ComputePipelineDesc& desc) = 0;
@@ -87,6 +94,8 @@ namespace Renderer
         virtual PixelShaderID LoadShader(PixelShaderDesc& desc) = 0;
         virtual ComputeShaderID LoadShader(ComputeShaderDesc& desc) = 0;
 
+        virtual void FlipFrame(u32 frameIndex) = 0;
+
         // Command List Functions
         virtual CommandListID BeginCommandList() = 0;
         virtual void EndCommandList(CommandListID commandListID) = 0;
@@ -107,10 +116,14 @@ namespace Renderer
         virtual void SetBuffer(CommandListID commandListID, u32 slot, void* buffer) = 0;
         virtual void BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex) = 0;
         virtual void MarkFrameStart(CommandListID commandListID, u32 frameIndex) = 0;
+        virtual void BeginTrace(CommandListID commandListID, const tracy::SourceLocationData* sourceLocation) = 0;
+        virtual void EndTrace(CommandListID commandListID) = 0;
+        virtual void AddSignalSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) = 0;
+        virtual void AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) = 0;
 
-        // Non-commandlist based present functions
-        virtual void Present(Window* window, ImageID image) = 0;
-        virtual void Present(Window* window, DepthImageID image) = 0;
+        // Present functions
+        virtual void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) = 0;
+        virtual void Present(Window* window, DepthImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) = 0;
 
     protected:
         Renderer() {}; // Pure virtual class, disallow creation of it

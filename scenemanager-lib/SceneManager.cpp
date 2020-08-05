@@ -67,9 +67,3 @@ bool SceneManager::UnregisterSceneLoadedCallback(u32 callbackNameHashed)
     _sceneAnyLoadedCallback.erase(itr);
     return true;
 }
-
-inline bool SceneManager::SceneExists(u32 sceneNameHashed)
-{
-    auto itr = std::find(_sceneNameHashes.begin(), _sceneNameHashes.end(), sceneNameHashed);
-    return itr != _sceneNameHashes.end();
-}

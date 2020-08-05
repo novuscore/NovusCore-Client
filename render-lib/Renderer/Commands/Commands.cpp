@@ -13,6 +13,10 @@
 #include "SetBuffer.h"
 #include "BindDescriptorSet.h"
 #include "MarkFrameStart.h"
+#include "BeginTrace.h"
+#include "EndTrace.h"
+#include "AddSignalSemaphore.h"
+#include "AddWaitSemaphore.h"
 
 namespace Renderer
 {
@@ -35,5 +39,9 @@ namespace Renderer
         const BackendDispatchFunction SetBuffer::DISPATCH_FUNCTION = &BackendDispatch::SetBuffer;
         const BackendDispatchFunction BindDescriptorSet::DISPATCH_FUNCTION = &BackendDispatch::BindDescriptorSet;
         const BackendDispatchFunction MarkFrameStart::DISPATCH_FUNCTION = &BackendDispatch::MarkFrameStart;
+        const BackendDispatchFunction BeginTrace::DISPATCH_FUNCTION = &BackendDispatch::BeginTrace;
+        const BackendDispatchFunction EndTrace::DISPATCH_FUNCTION = &BackendDispatch::EndTrace;
+        const BackendDispatchFunction AddSignalSemaphore::DISPATCH_FUNCTION = &BackendDispatch::AddSignalSemaphore;
+        const BackendDispatchFunction AddWaitSemaphore::DISPATCH_FUNCTION = &BackendDispatch::AddWaitSemaphore;
     }
 }

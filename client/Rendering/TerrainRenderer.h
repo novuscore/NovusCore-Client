@@ -49,8 +49,7 @@ private:
 
     struct TerrainVertex
     {
-        vec4 position = vec4(0, 0, 0, 0);
-        vec4 texCoord = vec4(0, 0, 0, 0);
+        f32 height = 0.0f;
     };
 
     struct TerrainChunkData

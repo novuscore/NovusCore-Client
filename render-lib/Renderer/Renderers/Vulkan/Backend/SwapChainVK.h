@@ -24,7 +24,7 @@ namespace Renderer
             VkPipelineLayout pipelineLayout;
             VkDescriptorPool descriptorPool;
             VkDescriptorSetLayout descriptorSetLayout;
-            VkDescriptorSet descriptorSet;
+            FrameResource<VkDescriptorSet, 2> descriptorSets;
             VkPipeline pipeline;
         };
 
@@ -130,7 +130,9 @@ namespace Renderer
             VkExtent2D extent;
             FrameResource<VkImageView, FRAME_BUFFER_COUNT> imageViews;
             FrameResource<VkFramebuffer, FRAME_BUFFER_COUNT> framebuffers;
+
             FrameResource<VkSemaphore, FRAME_BUFFER_COUNT> imageAvailableSemaphores;
+            FrameResource<VkSemaphore, FRAME_BUFFER_COUNT> blitFinishedSemaphores;
         };
     }
 }

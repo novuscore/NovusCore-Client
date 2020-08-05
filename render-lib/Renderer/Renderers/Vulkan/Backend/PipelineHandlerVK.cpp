@@ -88,6 +88,8 @@ namespace Renderer
             subpass.colorAttachmentCount = numAttachments;
             subpass.pColorAttachments = colorAttachmentRefs.data();
 
+            VkAttachmentReference depthDescriptionRef = {};
+
             // If we have a depthstencil, add an attachment for that
             if (desc.depthStencil != RenderPassMutableResource::Invalid())
             {
@@ -96,7 +98,8 @@ namespace Renderer
 
                 u32 attachmentSlot = numAttachments++;
                 
-                VkAttachmentDescription depthDescription = {};
+                VkAttachmentDescription& depthDescription = attachments.emplace_back();
+                depthDescription = {};
                 depthDescription.format = FormatConverterVK::ToVkFormat(imageDesc.format);
                 depthDescription.samples = FormatConverterVK::ToVkSampleCount(imageDesc.sampleCount);
                 depthDescription.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -106,9 +109,6 @@ namespace Renderer
                 depthDescription.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 depthDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-                attachments.push_back(depthDescription);
-
-                VkAttachmentReference depthDescriptionRef = {};
                 depthDescriptionRef.attachment = attachmentSlot;
                 depthDescriptionRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 

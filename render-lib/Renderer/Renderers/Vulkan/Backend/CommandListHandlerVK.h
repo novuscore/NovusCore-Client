@@ -3,10 +3,16 @@
 #include <vector>
 #include <queue>
 #include <vulkan/vulkan.h>
+#include "../../../FrameResource.h"
 
 #include "../../../Descriptors/CommandListDesc.h"
 #include "../../../Descriptors/GraphicsPipelineDesc.h"
 
+
+namespace tracy
+{
+    class VkCtxManualScope;
+}
 
 namespace Renderer
 {
@@ -19,27 +25,34 @@ namespace Renderer
         public:
             void Init(RenderDeviceVK* device);
 
+            void FlipFrame();
+            void ResetCommandBuffers();
+
             CommandListID BeginCommandList();
-            void EndCommandList(CommandListID id);
+            void EndCommandList(CommandListID id, VkFence fence);
 
             VkCommandBuffer GetCommandBuffer(CommandListID id);
 
-            bool GetWaitSemaphore(CommandListID id, VkSemaphore& semaphore);
-            void SetWaitSemaphore(CommandListID id, VkSemaphore semaphore);
-
-            bool GetSignalSemaphore(CommandListID id, VkSemaphore& semaphore);
-            void SetSignalSemaphore(CommandListID id, VkSemaphore semaphore);
+            void AddWaitSemaphore(CommandListID id, VkSemaphore semaphore);
+            void AddSignalSemaphore(CommandListID id, VkSemaphore semaphore);
 
             void SetBoundGraphicsPipeline(CommandListID id, GraphicsPipelineID pipelineID);
             GraphicsPipelineID GetBoundGraphicsPipeline(CommandListID id);
 
+            tracy::VkCtxManualScope*& GetTracyScope(CommandListID id);
+
+            VkFence GetCurrentFence();
+
         private:
             struct CommandList
             {
-                VkSemaphore waitSemaphore = NULL;
-                VkSemaphore signalSemaphore = NULL;
+                std::vector<VkSemaphore> waitSemaphores;
+                std::vector<VkSemaphore> signalSemaphores;
+
                 VkCommandBuffer commandBuffer;
                 VkCommandPool commandPool;
+
+                tracy::VkCtxManualScope* tracyScope = nullptr;
 
                 GraphicsPipelineID boundGraphicsPipeline = GraphicsPipelineID::Invalid();
             };
@@ -53,6 +66,11 @@ namespace Renderer
 
             std::vector<CommandList> _commandLists;
             std::queue<CommandListID> _availableCommandLists;
+            
+            u8 _frameIndex = 0;
+            FrameResource<std::queue<CommandListID>, 2> _closedCommandLists;
+
+            FrameResource<VkFence, 2> _frameFences;
         };
     }
 }

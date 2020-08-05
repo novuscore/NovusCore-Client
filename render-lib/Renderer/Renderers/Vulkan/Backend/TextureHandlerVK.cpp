@@ -20,20 +20,20 @@ namespace Renderer
         void TextureHandlerVK::Init(RenderDeviceVK* device)
         {
             _device = device;
+
+            DataTextureDesc dataTextureDesc;
+            dataTextureDesc.width = 1;
+            dataTextureDesc.height = 1;
+            dataTextureDesc.layers = 256;
+            dataTextureDesc.format = ImageFormat::IMAGE_FORMAT_R8G8B8A8_UNORM;
+            dataTextureDesc.data = new u8[1 * 1 * 256 * 4]{ 1 };
+
+            _debugOnionTexture = CreateDataTexture(dataTextureDesc);
         }
 
         void TextureHandlerVK::LoadDebugTexture(const TextureDesc& desc)
         {
-            _debugTexture.debugName = desc.path;
-            
-            u8* pixels;
-            pixels = ReadFile(desc.path, _debugTexture.width, _debugTexture.height, _debugTexture.format);
-            if (!pixels)
-            {
-                NC_LOG_FATAL("Failed to load debug texture!");
-            }
-
-            CreateTexture(_debugTexture, pixels);
+            _debugTexture = LoadTexture(desc);
         }
 
         TextureID TextureHandlerVK::LoadTexture(const TextureDesc& desc)
@@ -58,7 +58,7 @@ namespace Renderer
             texture.debugName = desc.path;
 
             u8* pixels;
-            pixels = ReadFile(desc.path, texture.width, texture.height, texture.format);
+            pixels = ReadFile(desc.path, texture.width, texture.height, texture.mipLevels, texture.format, texture.fileSize);
             if (!pixels)
             {
                 NC_LOG_FATAL("Failed to load texture!");
@@ -140,7 +140,9 @@ namespace Renderer
             texture.width = desc.width;
             texture.height = desc.height;
             texture.layers = desc.layers;
+            texture.mipLevels = 1;
             texture.format = FormatConverterVK::ToVkFormat(desc.format);
+            texture.fileSize = Math::RoofToInt(static_cast<f64>(texture.width) * static_cast<f64>(texture.height) * static_cast<f64>(texture.layers) * FormatTexelSize(texture.format));
 
             CreateTexture(texture, desc.data);
 
@@ -175,6 +177,15 @@ namespace Renderer
             return _textureArrays[static_cast<type>(id)].textures;
         }
 
+        bool TextureHandlerVK::IsOnionTexture(const TextureID id)
+        {
+            using type = type_safe::underlying_type<TextureID>;
+
+            // Lets make sure this id exists
+            assert(_textures.size() > static_cast<type>(id));
+            return _textures[static_cast<type>(id)].layers != 1;
+        }
+
         VkImageView TextureHandlerVK::GetImageView(const TextureID id)
         {
             using type = type_safe::underlying_type<TextureID>;
@@ -186,7 +197,12 @@ namespace Renderer
 
         VkImageView TextureHandlerVK::GetDebugTextureImageView()
         {
-            return _debugTexture.imageView;
+            return GetImageView(_debugTexture);
+        }
+
+        VkImageView TextureHandlerVK::GetDebugOnionTextureImageView()
+        {
+            return GetImageView(_debugOnionTexture);
         }
 
         u32 TextureHandlerVK::GetTextureArraySize(const TextureArrayID id)
@@ -241,12 +257,13 @@ namespace Renderer
             return false;
         }
 
-        u8* TextureHandlerVK::ReadFile(const std::string& filename, i32& width, i32& height, VkFormat& format)
+        u8* TextureHandlerVK::ReadFile(const std::string& filename, i32& width, i32& height, i32& mipLevels, VkFormat& format, size_t& fileSize)
         {
             format = VK_FORMAT_R8G8B8A8_UNORM;
             int channels;
             stbi_uc* pixels = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
             u8* textureMemory = nullptr;
+            mipLevels = 1; // If we are not loading using gli we don't support mips, so don't bother with it
 
             if (!pixels)
             {
@@ -258,19 +275,20 @@ namespace Renderer
 
                 width = texture.extent().x;
                 height = texture.extent().y;
+                mipLevels = static_cast<i32>(texture.levels());
 
                 format = vkGetFormatFromOpenGLInternalFormat(gliFormat.Internal);
-                size_t textureMemorySize = Math::RoofToInt(static_cast<f64>(width) * static_cast<f64>(height) * FormatTexelSize(format));
+                fileSize = texture.size();
                 
-                textureMemory = new u8[textureMemorySize];
-                memcpy(textureMemory, texture.data(), textureMemorySize);
+                textureMemory = new u8[fileSize];
+                memcpy(textureMemory, texture.data(), fileSize);
             }
             else
             {
-                size_t textureMemorySize = width * height * 4;
+                fileSize = width * height * 4;
 
-                textureMemory = new u8[textureMemorySize];
-                memcpy(textureMemory, pixels, textureMemorySize);
+                textureMemory = new u8[fileSize];
+                memcpy(textureMemory, pixels, fileSize);
             }
 
             return textureMemory;
@@ -282,13 +300,11 @@ namespace Renderer
             VkBuffer stagingBuffer;
             VmaAllocation stagingBufferAllocation;
 
-            VkDeviceSize imageSize = Math::RoofToInt(static_cast<f64>(texture.width) * static_cast<f64>(texture.height) * static_cast<f64>(texture.layers) * FormatTexelSize(texture.format));
-
-            _device->CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer, stagingBufferAllocation);
+            _device->CreateBuffer(texture.fileSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer, stagingBufferAllocation);
 
             void* data;
             vmaMapMemory(_device->_allocator, stagingBufferAllocation, &data);
-            memcpy(data, pixels, static_cast<size_t>(imageSize));
+            memcpy(data, pixels, texture.fileSize);
             vmaUnmapMemory(_device->_allocator, stagingBufferAllocation);
 
             delete[] pixels;
@@ -300,7 +316,7 @@ namespace Renderer
             imageInfo.extent.width = static_cast<u32>(texture.width);
             imageInfo.extent.height = static_cast<u32>(texture.height);
             imageInfo.extent.depth = 1;
-            imageInfo.mipLevels = 1;
+            imageInfo.mipLevels = texture.mipLevels;
             imageInfo.arrayLayers = texture.layers;
             imageInfo.format = texture.format;
             imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -321,9 +337,9 @@ namespace Renderer
             DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)texture.image, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, texture.debugName.c_str());
 
             // Copy data from stagingBuffer into image
-            _device->TransitionImageLayout(texture.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture.layers);
-            _device->CopyBufferToImage(stagingBuffer, texture.image, static_cast<u32>(texture.width), static_cast<u32>(texture.height), texture.layers);
-            _device->TransitionImageLayout(texture.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.layers);
+            _device->TransitionImageLayout(texture.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture.layers, texture.mipLevels);
+            _device->CopyBufferToImage(stagingBuffer, texture.image, texture.format, static_cast<u32>(texture.width), static_cast<u32>(texture.height), texture.layers, texture.mipLevels);
+            _device->TransitionImageLayout(texture.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.layers, texture.mipLevels);
 
             // Create color view
             VkImageViewCreateInfo viewInfo = {};
@@ -333,7 +349,7 @@ namespace Renderer
             viewInfo.format = texture.format;
             viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             viewInfo.subresourceRange.baseMipLevel = 0;
-            viewInfo.subresourceRange.levelCount = 1;
+            viewInfo.subresourceRange.levelCount = texture.mipLevels;
             viewInfo.subresourceRange.baseArrayLayer = 0;
             viewInfo.subresourceRange.layerCount = texture.layers;
 

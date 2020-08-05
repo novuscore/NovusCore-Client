@@ -9,7 +9,7 @@ struct FrameResource
         return items[frame % NumFrames];
     }
 
-    std::array<T, NumFrames> items = { 0 };
+    std::array<T, NumFrames> items = { };
 
     static constexpr size_t Num = NumFrames;
 };

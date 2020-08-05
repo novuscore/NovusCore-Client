@@ -148,8 +148,8 @@ namespace UI
                 inputField.writeHeadIndex = clampedPosition;
 
                 UIText& text = uiRegistry->get<UIText>(entId);
-                const vec2& size = uiRegistry->get<UITransform>(entId).size;
-                text.pushback = UI::TextUtils::CalculatePushback(text, inputField.writeHeadIndex, 0.2f, size.x, size.y);
+                const UITransform& transform = uiRegistry->get<UITransform>(entId);
+                text.pushback = UI::TextUtils::CalculatePushback(text, inputField.writeHeadIndex, 0.2f, transform.size.x, transform.size.y);
                 NC_LOG_MESSAGE("Pointer is now: %d, Pushback is now: %d", clampedPosition, text.pushback);
 
                 MarkDirty(uiRegistry, entId);

@@ -22,18 +22,19 @@ namespace Renderer
         ~RenderGraph();
 
         template <typename PassData>
-        void AddPass(std::string name, std::function<bool(PassData&, RenderGraphBuilder&)> onSetup, std::function<void(PassData&, CommandList&)> onExecute)
+        void AddPass(std::string name, std::function<bool(PassData&, RenderGraphBuilder&)> onSetup, std::function<void(PassData&, RenderGraphResources&, CommandList&)> onExecute)
         {
             IRenderPass* pass = Memory::Allocator::New<RenderPass<PassData>>(_desc.allocator, name, onSetup, onExecute);
             _passes.Insert(pass);
         }
 
+        void AddSignalSemaphore(GPUSemaphoreID semaphoreID);
+        void AddWaitSemaphore(GPUSemaphoreID semaphoreID);
+
         void Setup();
         void Execute();
 
         RenderGraphBuilder* GetBuilder() { return _renderGraphBuilder; }
-
-        void InitializePipelineDesc(GraphicsPipelineDesc& desc) const;
 
     private:
         RenderGraph(Memory::Allocator* allocator, Renderer* renderer)
@@ -41,6 +42,8 @@ namespace Renderer
             , _renderGraphBuilder(nullptr)
             , _passes(allocator, 32)
             , _executingPasses(allocator, 32)
+            , _signalSemaphores(allocator, 4)
+            , _waitSemaphores(allocator, 4)
         {
         
         } // This gets friend-created by Renderer
@@ -54,6 +57,9 @@ namespace Renderer
 
         DynamicArray<IRenderPass*> _passes;
         DynamicArray<IRenderPass*> _executingPasses;
+
+        DynamicArray<GPUSemaphoreID> _signalSemaphores;
+        DynamicArray<GPUSemaphoreID> _waitSemaphores;
 
         Renderer* _renderer;
         RenderGraphBuilder* _renderGraphBuilder;

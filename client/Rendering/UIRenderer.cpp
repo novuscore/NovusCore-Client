@@ -6,6 +6,8 @@
 #include <Renderer/Descriptors/SamplerDesc.h>
 #include <Renderer/ConstantBuffer.h>
 #include <tracy/Tracy.hpp>
+#include <tracy/TracyVulkan.hpp>
+
 #include "../Utils/ServiceLocator.h"
 
 #include "../ECS/Components/UI/Singletons/UIEntityPoolSingleton.h"
@@ -63,18 +65,19 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
     };
 
     renderGraph->AddPass<UIPassData>("UIPass",
-        [&](UIPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
+        [=](UIPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
             data.renderTarget = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_LOAD);
 
             return true; // Return true from setup to enable this pass, return false to disable it
         },
-        [&](UIPassData& data, Renderer::CommandList& commandList) // Execute
+        [=](UIPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
         {
-            ZoneScopedNC("Renderer - UIPass", tracy::Color::Red);
+            TracySourceLocation(uiPass, "UIPass", tracy::Color::Yellow2);
+            commandList.BeginTrace(&uiPass);
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
-            renderGraph->InitializePipelineDesc(pipelineDesc);
+            resources.InitializePipelineDesc(pipelineDesc);
 
             // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
             pipelineDesc.states.inputLayouts[0].enabled = true;
@@ -199,7 +202,9 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                     }
                     }
                 });
+
             commandList.EndPipeline(activePipeline);
+            commandList.EndTrace();
         });
 }
 

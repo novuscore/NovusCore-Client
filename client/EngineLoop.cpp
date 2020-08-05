@@ -188,13 +188,17 @@ void EngineLoop::Run()
         // Wait for tick rate, this might be an overkill implementation but it has the most even tickrate I've seen - MPursche
         for (deltaTime = timer.GetDeltaTime(); deltaTime < targetDelta - 0.0025f; deltaTime = timer.GetDeltaTime())
         {
+            ZoneScopedNC("WaitForTickRate::Sleep", tracy::Color::AntiqueWhite1)
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
         for (deltaTime = timer.GetDeltaTime(); deltaTime < targetDelta; deltaTime = timer.GetDeltaTime())
         {
+            ZoneScopedNC("WaitForTickRate::Yield", tracy::Color::AntiqueWhite1)
             std::this_thread::yield();
         }
+
+        FrameMark
     }
 
     // Clean up stuff here
@@ -253,6 +257,7 @@ bool EngineLoop::Update(f32 deltaTime)
 
 void EngineLoop::Render()
 {
+    ZoneScopedNC("EngineLoop::Render", tracy::Color::Red2)
     _clientRenderer->Render();
 }
 

@@ -15,6 +15,7 @@ namespace Renderer
         class PipelineHandlerVK;
         class CommandListHandlerVK;
         class SamplerHandlerVK;
+        class SemaphoreHandlerVK;
         struct BindInfo;
         class DescriptorSetBuilderVK;
         struct SwapChainVK;
@@ -33,6 +34,7 @@ namespace Renderer
         DepthImageID CreateDepthImage(DepthImageDesc& desc) override;
 
         SamplerID CreateSampler(SamplerDesc& desc) override;
+        GPUSemaphoreID CreateGPUSemaphore() override;
 
         GraphicsPipelineID CreatePipeline(GraphicsPipelineDesc& desc) override;
         ComputePipelineID CreatePipeline(ComputePipelineDesc& desc) override;
@@ -57,6 +59,8 @@ namespace Renderer
         PixelShaderID LoadShader(PixelShaderDesc& desc) override;
         ComputeShaderID LoadShader(ComputeShaderDesc& desc) override;
 
+        void FlipFrame(u32 frameIndex) override;
+
         // Command List Functions
         CommandListID BeginCommandList() override;
         void EndCommandList(CommandListID commandListID) override;
@@ -77,10 +81,14 @@ namespace Renderer
         void SetBuffer(CommandListID commandListID, u32 slot, void* buffer) override;
         void BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex) override;
         void MarkFrameStart(CommandListID commandListID, u32 frameIndex) override;
+        void BeginTrace(CommandListID commandListID, const tracy::SourceLocationData* sourceLocation) override;
+        void EndTrace(CommandListID commandListID) override;
+        void AddSignalSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) override;
+        void AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) override;
 
         // Non-commandlist based present functions
-        void Present(Window* window, ImageID image) override;
-        void Present(Window* window, DepthImageID image) override;
+        void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;
+        void Present(Window* window, DepthImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;
         
     protected:
         Backend::BufferBackend* CreateBufferBackend(size_t size, Backend::BufferBackend::Type type) override;
@@ -100,6 +108,7 @@ namespace Renderer
         Backend::PipelineHandlerVK* _pipelineHandler = nullptr;
         Backend::CommandListHandlerVK* _commandListHandler = nullptr;
         Backend::SamplerHandlerVK* _samplerHandler = nullptr;
+        Backend::SemaphoreHandlerVK* _semaphoreHandler = nullptr;
 
         ModelID _boundModelIndexBuffer = ModelID::Invalid(); // TODO: Move these into CommandListHandler I guess?
 

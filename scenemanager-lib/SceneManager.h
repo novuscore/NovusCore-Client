@@ -28,7 +28,11 @@ public:
         }
     }
 
-    inline bool SceneExists(u32 sceneNameHashed);
+    inline bool SceneExists(u32 sceneNameHashed)
+    {
+        auto itr = std::find(_sceneNameHashes.begin(), _sceneNameHashes.end(), sceneNameHashed);
+        return itr != _sceneNameHashes.end();
+    }
     bool LoadScene(u32 sceneNameHashed);
     u32 GetScene() { return _currentSceneNameHashed; }
 

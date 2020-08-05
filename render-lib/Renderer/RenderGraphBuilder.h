@@ -3,7 +3,7 @@
 #include <vector>
 #include <functional>
 
-#include <Containers/DynamicArray.h>
+#include "RenderGraphResources.h"
 
 #include "RenderStates.h"
 #include "RenderPassResources.h"
@@ -66,19 +66,9 @@ namespace Renderer
         void SetRasterizerState(RasterizerState& rasterizerState) { _rasterizerState = rasterizerState; }
         void SetDepthStencilState(DepthStencilState& depthStencilState) { _depthStencilState = depthStencilState; }
 
-        ImageID GetImage(RenderPassResource resource);
-        ImageID GetImage(RenderPassMutableResource resource);
-        DepthImageID GetDepthImage(RenderPassResource resource);
-        DepthImageID GetDepthImage(RenderPassMutableResource resource);
-
     private:
         void Compile(CommandList* commandList);
-        
-        RenderPassResource GetResource(ImageID id);
-        RenderPassResource GetResource(TextureID id);
-        RenderPassResource GetResource(DepthImageID id);
-        RenderPassMutableResource GetMutableResource(ImageID id);
-        RenderPassMutableResource GetMutableResource(DepthImageID id);
+        RenderGraphResources& GetResources();
 
     private:
         Memory::Allocator* _allocator;
@@ -86,8 +76,8 @@ namespace Renderer
         DepthStencilState _depthStencilState;
         Renderer* _renderer;
 
-        DynamicArray<ImageID> _trackedImages;
-        DynamicArray<TextureID> _trackedTextures;
-        DynamicArray<DepthImageID> _trackedDepthImages;
+        RenderGraphResources _resources;
+
+        friend class RenderGraph;
     };
 }
