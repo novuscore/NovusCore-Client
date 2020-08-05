@@ -6,6 +6,7 @@
 #include <tracy/TracyVulkan.hpp>
 
 #include "Backend/RenderDeviceVK.h"
+#include "Backend/BufferHandlerVK.h"
 #include "Backend/ImageHandlerVK.h"
 #include "Backend/TextureHandlerVK.h"
 #include "Backend/ModelHandlerVK.h"
@@ -16,7 +17,6 @@
 #include "Backend/SemaphoreHandlerVK.h"
 #include "Backend/SwapChainVK.h"
 #include "Backend/DebugMarkerUtilVK.h"
-#include "Backend/BufferBackendVK.h"
 #include "Backend/DescriptorSetBackendVK.h"
 #include "Backend/DescriptorSetBuilderVK.h"
 
@@ -26,6 +26,7 @@ namespace Renderer
         : _device(new Backend::RenderDeviceVK())
     {
         // Create handlers
+        _bufferHandler = new Backend::BufferHandlerVK();
         _imageHandler = new Backend::ImageHandlerVK();
         _textureHandler = new Backend::TextureHandlerVK();
         _modelHandler = new Backend::ModelHandlerVK();
@@ -37,6 +38,7 @@ namespace Renderer
 
         // Init
         _device->Init();
+        _bufferHandler->Init(_device);
         _imageHandler->Init(_device);
         _textureHandler->Init(_device);
         _modelHandler->Init(_device);
@@ -59,6 +61,7 @@ namespace Renderer
         _device->FlushGPU(); // Make sure it has finished rendering
 
         delete(_device);
+        delete(_bufferHandler);
         delete(_imageHandler);
         delete(_textureHandler);
         delete(_modelHandler);
@@ -67,6 +70,11 @@ namespace Renderer
         delete(_commandListHandler);
         delete(_samplerHandler);
         delete(_semaphoreHandler);
+    }
+
+    BufferID RendererVK::CreateBuffer(BufferDesc& desc)
+    {
+        return _bufferHandler->CreateBuffer(desc);
     }
 
     ImageID RendererVK::CreateImage(ImageDesc& desc)
@@ -311,6 +319,16 @@ namespace Renderer
         
         // Draw
         vkCmdDrawIndexed(commandBuffer, numVertices, numInstances, 0, 0, 0);
+    }
+
+    void RendererVK::DrawIndexedIndirectCount(CommandListID commandListID, void* argumentBuffer, u32 argumentBufferOffset, void* drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkBuffer vkArgumentBuffer = *static_cast<VkBuffer*>(argumentBuffer);
+        VkBuffer vkDrawCountBuffer = *static_cast<VkBuffer*>(drawCountBuffer);
+
+        vkCmdDrawIndexedIndirectCount(commandBuffer, vkArgumentBuffer, argumentBufferOffset, vkDrawCountBuffer, drawCountBufferOffset, maxDrawCount, sizeof(VkDrawIndexedIndirectCommand));
     }
 
     void RendererVK::PopMarker(CommandListID commandListID)
@@ -798,8 +816,8 @@ namespace Renderer
         
     }
 
-    Backend::BufferBackend* RendererVK::CreateBufferBackend(size_t size, Backend::BufferBackend::Type type)
+    Backend::BufferBackend* RendererVK::CreateBufferBackend(size_t size, Backend::BufferBackend::Type type, Backend::BufferBackend::Usage usage)
     {
-        return _device->CreateBufferBackend(size, type);
+        return _device->CreateBufferBackend(size, type, usage);
     }
 }

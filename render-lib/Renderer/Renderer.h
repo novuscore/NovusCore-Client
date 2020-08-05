@@ -13,6 +13,7 @@
 #include "DescriptorSet.h"
 
 // Descriptors
+#include "Descriptors/BufferDesc.h"
 #include "Descriptors/CommandListDesc.h"
 #include "Descriptors/VertexShaderDesc.h"
 #include "Descriptors/PixelShaderDesc.h"
@@ -47,6 +48,8 @@ namespace Renderer
         RenderLayer& GetRenderLayer(u32 layerHash);
 
         // Creation
+        virtual BufferID CreateBuffer(BufferDesc& desc) = 0;
+
         virtual ImageID CreateImage(ImageDesc& desc) = 0;
         virtual DepthImageID CreateDepthImage(DepthImageDesc& desc) = 0;
 
@@ -55,24 +58,6 @@ namespace Renderer
 
         virtual GraphicsPipelineID CreatePipeline(GraphicsPipelineDesc& desc) = 0;
         virtual ComputePipelineID CreatePipeline(ComputePipelineDesc& desc) = 0;
-
-        template <typename T>
-        ConstantBuffer<T>* CreateConstantBuffer()
-        {
-            ConstantBuffer<T>* buffer = new ConstantBuffer<T>();
-            buffer->backend = CreateBufferBackend(buffer->GetSize(), Backend::BufferBackend::TYPE_CONSTANT_BUFFER);
-
-            return buffer;
-        }
-
-        template <typename T>
-        StorageBuffer<T>* CreateStorageBuffer()
-        {
-            StorageBuffer<T>* buffer = new StorageBuffer<T>();
-            buffer->backend = CreateBufferBackend(buffer->GetSize(), Backend::BufferBackend::TYPE_STORAGE_BUFFER);
-
-            return buffer;
-        }
 
         virtual ModelID CreatePrimitiveModel(PrimitiveModelDesc& desc) = 0;
         virtual void UpdatePrimitiveModel(ModelID model, PrimitiveModelDesc& desc) = 0;
@@ -104,6 +89,7 @@ namespace Renderer
         virtual void Draw(CommandListID commandListID, ModelID modelID) = 0;
         virtual void DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances) = 0;
         virtual void DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances) = 0;
+        virtual void DrawIndexedIndirectCount(CommandListID commandListID, void* argumentBuffer, u32 argumentBufferOffset, void* drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount) = 0;
         virtual void PopMarker(CommandListID commandListID) = 0;
         virtual void PushMarker(CommandListID commandListID, Color color, std::string name) = 0;
         virtual void BeginPipeline(CommandListID commandListID, GraphicsPipelineID pipeline) = 0;
@@ -128,7 +114,7 @@ namespace Renderer
     protected:
         Renderer() {}; // Pure virtual class, disallow creation of it
 
-        virtual Backend::BufferBackend* CreateBufferBackend(size_t size, Backend::BufferBackend::Type type) = 0;
+        virtual Backend::BufferBackend* CreateBufferBackend(size_t size, Backend::BufferBackend::Type type, Backend::BufferBackend::Usage usage) = 0;
 
     protected:
         robin_hood::unordered_map<u32, RenderLayer> _renderLayers;

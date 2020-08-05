@@ -6,6 +6,7 @@
 #include "Commands/Draw.h"
 #include "Commands/DrawBindless.h"
 #include "Commands/DrawIndexedBindless.h"
+#include "Commands/DrawIndexedIndirectCount.h"
 #include "Commands/PopMarker.h"
 #include "Commands/PushMarker.h"
 #include "Commands/SetPipeline.h"
@@ -55,6 +56,13 @@ namespace Renderer
         ZoneScopedC(tracy::Color::Red3);
         const Commands::DrawIndexedBindless* actualData = static_cast<const Commands::DrawIndexedBindless*>(data);
         renderer->DrawIndexedBindless(commandList, actualData->modelID, actualData->numVertices, actualData->numInstances);
+    }
+
+    void BackendDispatch::DrawIndexedIndirectCount(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::DrawIndexedIndirectCount* actualData = static_cast<const Commands::DrawIndexedIndirectCount*>(data);
+        renderer->DrawIndexedIndirectCount(commandList, actualData->argumentBuffer, actualData->argumentBufferOffset, actualData->drawCountBuffer, actualData->drawCountBufferOffset, actualData->maxDrawCount);
     }
 
     void BackendDispatch::MarkFrameStart(Renderer* renderer, CommandListID commandList, const void* data)

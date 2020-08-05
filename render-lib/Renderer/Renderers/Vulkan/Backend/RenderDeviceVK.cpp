@@ -20,8 +20,8 @@
 #include <map>
 #include <set>
 
-#define NOVUSCORE_RENDERER_DEBUG_OVERRIDE 1
-#define NOVUSCORE_RENDERER_GPU_VALIDATION 1
+#define NOVUSCORE_RENDERER_DEBUG_OVERRIDE 0
+#define NOVUSCORE_RENDERER_GPU_VALIDATION 0
 
 namespace Renderer
 {
@@ -85,7 +85,7 @@ namespace Renderer
             CreateBlitPipeline(shaderHandler, swapChain, "blitInt", IMAGE_COMPONENT_TYPE_SINT);
         }
 
-        BufferBackend* RenderDeviceVK::CreateBufferBackend(size_t size, Backend::BufferBackend::Type type)
+        BufferBackend* RenderDeviceVK::CreateBufferBackend(size_t size, Backend::BufferBackend::Type type, Backend::BufferBackend::Usage usage)
         {
             BufferBackendVK* backend = new BufferBackendVK();
             backend->device = this;
@@ -102,6 +102,11 @@ namespace Renderer
             else
             {
                 flags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            }
+
+            if (usage & Backend::BufferBackend::Usage::USAGE_INDIRECT_ARGUMENT_BUFFER)
+            {
+                flags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
             }
 
             for (int i = 0; i < backend->buffers.Num; i++)
@@ -183,7 +188,7 @@ namespace Renderer
             appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
             appInfo.pEngineName = "NovusCore";
             appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-            appInfo.apiVersion = VK_API_VERSION_1_0;
+            appInfo.apiVersion = VK_API_VERSION_1_2;
 
 #if (_DEBUG || NOVUSCORE_RENDERER_DEBUG_OVERRIDE) && NOVUSCORE_RENDERER_GPU_VALIDATION
             VkValidationFeatureEnableEXT gpuValidationFeature = VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT;
@@ -335,6 +340,7 @@ namespace Renderer
             deviceFeatures.features.samplerAnisotropy = VK_TRUE;
             deviceFeatures.features.fragmentStoresAndAtomics = VK_TRUE;
             deviceFeatures.features.vertexPipelineStoresAndAtomics = VK_TRUE;
+            deviceFeatures.features.multiDrawIndirect = VK_TRUE;
             deviceFeatures.pNext = &descriptorIndexingFeatures;
 
 

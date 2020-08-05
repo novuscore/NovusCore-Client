@@ -454,6 +454,15 @@ namespace Renderer
         DIMENSION_SCALE     // vec2(1,1) means 100% of window size
     };
 
+    enum BufferUsage
+    {
+        BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER   = (1 << 0),
+        BUFFER_USAGE_STORAGE_BUFFER             = (1 << 1),
+        BUFFER_USAGE_VERTEX_BUFFER              = (1 << 2),
+        BUFFER_USAGE_INDEX_BUFFER               = (1 << 3),
+        BUFFER_USAGE_UNIFORM_BUFFER             = (1 << 4),
+    };
+
     inline ImageComponentType ToImageComponentType(ImageFormat imageFormat)
     {
         switch (imageFormat)

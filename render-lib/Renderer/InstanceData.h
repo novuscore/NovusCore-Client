@@ -16,7 +16,7 @@ namespace Renderer
 
     struct InstanceDataBackend
     {
-        ConstantBuffer<ModelCB>* cb = nullptr;
+        //ConstantBuffer<ModelCB>* cb = nullptr;
         void* optional = nullptr;
     };
 
@@ -32,7 +32,7 @@ namespace Renderer
         void* GetDescriptor(u32 frameIndex);
         void* GetBuffer(u32 frameIndex);
 
-        IConstantBuffer* GetConstantBuffer() { return _cb; }
+        //IConstantBuffer* GetConstantBuffer() { return _cb; }
 
         template<typename T>
         void SetOptional(T* optional)
@@ -48,6 +48,6 @@ namespace Renderer
 
     private:
         InstanceDataBackend _backend;
-        ConstantBuffer<ModelCB>* _cb = nullptr;
+        //ConstantBuffer<ModelCB>* _cb = nullptr;
     };
 }

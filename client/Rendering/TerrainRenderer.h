@@ -74,6 +74,9 @@ private:
     Renderer::ModelID _chunkModel = Renderer::ModelID::Invalid();
     std::vector<Renderer::InstanceData> _chunkModelInstances;
 
+    Renderer::StorageBuffer<std::array<VkDrawIndexedIndirectCommand, 1024>>* _argumentBuffer = nullptr;
+    Renderer::StorageBuffer<u32>* _drawCountBuffer = nullptr;
+
     Renderer::ConstantBuffer<TerrainDebugData>* _terrainDebugData = nullptr;
 
     Renderer::ConstantBuffer<std::array<u32, Terrain::MAP_CELLS_PER_CHUNK>>* _terrainInstanceIDs = nullptr;
@@ -86,4 +89,6 @@ private:
 
     Renderer::DescriptorSet _passDescriptorSet;
     Renderer::DescriptorSet _drawDescriptorSet;
+
+    
 };

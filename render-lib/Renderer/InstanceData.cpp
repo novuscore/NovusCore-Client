@@ -5,16 +5,16 @@ namespace Renderer
 {
     void InstanceData::Init(Renderer* renderer)
     {
-        _cb = renderer->CreateConstantBuffer<ModelCB>();
+        //_cb = renderer->CreateConstantBuffer<ModelCB>();
     }
 
     void InstanceData::Apply(u32 frameIndex)
     {
-        assert(_cb != nullptr); // Check if we have initialized
-
-        _cb->resource.colorMultiplier = colorMultiplier;
-        _cb->resource.modelMatrix = modelMatrix;
-        _cb->Apply(frameIndex);
+        //assert(_cb != nullptr); // Check if we have initialized
+        //
+        //_cb->resource.colorMultiplier = colorMultiplier;
+        //_cb->resource.modelMatrix = modelMatrix;
+        //_cb->Apply(frameIndex);
     }
 
     void InstanceData::ApplyAll()
@@ -27,16 +27,16 @@ namespace Renderer
 
     void* InstanceData::GetDescriptor(u32 frameIndex)
     {
-        assert(_cb != nullptr); // Check if we have initialized
-
-        return _cb->GetDescriptor(frameIndex);
+        //assert(_cb != nullptr); // Check if we have initialized
+        //
+        //return _cb->GetDescriptor(frameIndex);
     }
 
     void* InstanceData::GetBuffer(u32 frameIndex)
     {
-        assert(_cb != nullptr); // Check if we have initialized
-
-        return _cb->GetBuffer(frameIndex);
+        //assert(_cb != nullptr); // Check if we have initialized
+        //
+        //return _cb->GetBuffer(frameIndex);
     }
 
 }

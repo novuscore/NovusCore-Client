@@ -47,7 +47,7 @@ namespace Renderer
             void Init();
             void InitWindow(ShaderHandlerVK* shaderHandler, Window* window);
 
-            BufferBackend* CreateBufferBackend(size_t size, Backend::BufferBackend::Type type);
+            BufferBackend* CreateBufferBackend(size_t size, Backend::BufferBackend::Type type, Backend::BufferBackend::Usage usage);
 
             u32 GetFrameIndex() { return _frameIndex; }
             void EndFrame() { _frameIndex = (_frameIndex + 1) % FRAME_INDEX_COUNT; }

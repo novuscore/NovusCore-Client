@@ -8,8 +8,16 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <tracy/TracyVulkan.hpp>
 
+#include <Renderer/BufferBackend.h>
+
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
+
+struct ChunkInstanceData
+{
+    uint16_t chunkIndex;
+    uint16_t patchIndex;
+};
 
 TerrainRenderer::TerrainRenderer(Renderer::Renderer* renderer)
     : _renderer(renderer)
@@ -108,6 +116,21 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
                     commandList.DrawIndexedBindless(_chunkModel, Terrain::NUM_INDICES_PER_CHUNK, Terrain::MAP_CELLS_PER_CHUNK);
                 }
             }
+
+            // todo
+            //{
+            //    auto const& instance = mainLayer.GetModels().cbegin()->second[0];
+            //    TerrainInstanceData* terrainInstanceData = instance->GetOptional<TerrainInstanceData>();
+            //
+            //    _drawDescriptorSet.Bind("ModelData"_h, instance->GetConstantBuffer());
+            //    _drawDescriptorSet.Bind("_vertexHeights"_h, terrainInstanceData->vertexBuffer);
+            //    _drawDescriptorSet.Bind("ChunkData"_h, terrainInstanceData->chunkData);
+            //
+            //    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
+            //}
+
+            commandList.DrawIndexedIndirectCount(_argumentBuffer->GetBuffer(frameIndex), 0, _drawCountBuffer->GetBuffer(frameIndex), 0, 1024 );
+
             commandList.EndPipeline(pipeline);
             commandList.EndTrace();
         });
@@ -206,6 +229,9 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                     commandList.DrawIndexedBindless(_chunkModel, Terrain::NUM_INDICES_PER_CHUNK, Terrain::MAP_CELLS_PER_CHUNK);
                 }
             }
+
+            commandList.DrawIndexedIndirectCount(_argumentBuffer->GetBuffer(frameIndex), 0, _drawCountBuffer->GetBuffer(frameIndex), 0, 1024);
+
             commandList.EndPipeline(pipeline);
             commandList.EndTrace();
         });
@@ -333,6 +359,18 @@ void TerrainRenderer::CreatePermanentResources()
         _terrainInstanceIDs->resource[i] = i;
     }
     _terrainInstanceIDs->ApplyAll();
+
+    _argumentBuffer = _renderer->CreateStorageBuffer<std::array<VkDrawIndexedIndirectCommand, 1024>>(Renderer::Backend::BufferBackend::Usage::USAGE_INDIRECT_ARGUMENT_BUFFER);
+    _argumentBuffer->resource[0].indexCount = Terrain::NUM_INDICES_PER_CHUNK;
+    _argumentBuffer->resource[0].instanceCount = 256;
+    _argumentBuffer->resource[0].firstIndex = 0;
+    _argumentBuffer->resource[0].vertexOffset = 0;
+    _argumentBuffer->resource[0].firstInstance = 0;
+    _argumentBuffer->ApplyAll();
+
+    _drawCountBuffer = _renderer->CreateStorageBuffer<u32>(Renderer::Backend::BufferBackend::USAGE_INDIRECT_ARGUMENT_BUFFER);
+    _drawCountBuffer->resource = 1;
+    _drawCountBuffer->ApplyAll();
 }
 
 void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)

@@ -11,6 +11,7 @@
 #include "Commands/Draw.h"
 #include "Commands/DrawBindless.h"
 #include "Commands/DrawIndexedBindless.h"
+#include "Commands/DrawIndexedIndirectCount.h"
 #include "Commands/PopMarker.h"
 #include "Commands/PushMarker.h"
 #include "Commands/SetPipeline.h"
@@ -67,6 +68,7 @@ namespace Renderer
         void Draw(ModelID modelID);
         void DrawBindless(u32 numVertices, u32 numInstances);
         void DrawIndexedBindless(ModelID modelID, u32 numVertices, u32 numInstances);
+        void DrawIndexedIndirectCount(void* argumentBuffer, u32 argumentBufferOffset, void* drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount);
 
         void AddSignalSemaphore(GPUSemaphoreID semaphoreID);
         void AddWaitSemaphore(GPUSemaphoreID semaphoreID);

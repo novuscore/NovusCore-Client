@@ -169,6 +169,18 @@ namespace Renderer
         command->numInstances = numInstances;
     }
 
+    void CommandList::DrawIndexedIndirectCount(void* argumentBuffer, u32 argumentBufferOffset, void* drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount)
+    {
+        assert(argumentBuffer);
+        assert(drawCountBuffer);
+        Commands::DrawIndexedIndirectCount* command = AddCommand<Commands::DrawIndexedIndirectCount>();
+        command->argumentBuffer = argumentBuffer;
+        command->argumentBufferOffset = argumentBufferOffset;
+        command->drawCountBuffer = drawCountBuffer;
+        command->drawCountBufferOffset = drawCountBufferOffset;
+        command->maxDrawCount = maxDrawCount;
+    }
+
     void CommandList::AddSignalSemaphore(GPUSemaphoreID semaphoreID)
     {
         Commands::AddSignalSemaphore* command = AddCommand<Commands::AddSignalSemaphore>();

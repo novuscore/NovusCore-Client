@@ -28,8 +28,9 @@ namespace Renderer
         TextureID textureID;
         SamplerID samplerID;
         TextureArrayID textureArrayID;
-        IConstantBuffer* constantBuffer;
-        IStorageBuffer* storageBuffer;
+        BufferID bufferID;
+        //IConstantBuffer* constantBuffer;
+        //IStorageBuffer* storageBuffer;
     };
 
     enum DescriptorSetSlot

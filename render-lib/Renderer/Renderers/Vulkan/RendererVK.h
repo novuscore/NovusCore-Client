@@ -8,6 +8,7 @@ namespace Renderer
     namespace Backend
     {
         class RenderDeviceVK;
+        class BufferHandlerVK;
         class ImageHandlerVK;
         class TextureHandlerVK;
         class ModelHandlerVK;
@@ -30,6 +31,8 @@ namespace Renderer
         void Deinit() override;
 
         // Creation
+        BufferID CreateBuffer(BufferDesc& desc) override;
+
         ImageID CreateImage(ImageDesc& desc) override;
         DepthImageID CreateDepthImage(DepthImageDesc& desc) override;
 
@@ -69,6 +72,7 @@ namespace Renderer
         void Draw(CommandListID commandListID, ModelID modelID) override;
         void DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances) override;
         void DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances) override;
+        void DrawIndexedIndirectCount(CommandListID commandListID, void* argumentBuffer, u32 argumentBufferOffset, void* drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount) override;
         void PopMarker(CommandListID commandListID) override;
         void PushMarker(CommandListID commandListID, Color color, std::string name) override;
         void BeginPipeline(CommandListID commandListID, GraphicsPipelineID pipeline) override;
@@ -91,7 +95,7 @@ namespace Renderer
         void Present(Window* window, DepthImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;
         
     protected:
-        Backend::BufferBackend* CreateBufferBackend(size_t size, Backend::BufferBackend::Type type) override;
+        Backend::BufferBackend* CreateBufferBackend(size_t size, Backend::BufferBackend::Type type, Backend::BufferBackend::Usage usage = Backend::BufferBackend::USAGE_NONE) override;
 
     private:
         bool ReflectDescriptorSet(const std::string& name, u32 nameHash, u32 type, i32& set, const std::vector<Backend::BindInfo>& bindInfos, u32& outBindInfoIndex, VkDescriptorSetLayoutBinding* outDescriptorLayoutBinding);
@@ -101,6 +105,7 @@ namespace Renderer
 
     private:
         Backend::RenderDeviceVK* _device = nullptr;
+        Backend::BufferHandlerVK* _bufferHandler = nullptr;
         Backend::ImageHandlerVK* _imageHandler = nullptr;
         Backend::TextureHandlerVK* _textureHandler = nullptr;
         Backend::ModelHandlerVK* _modelHandler = nullptr;

@@ -3,7 +3,7 @@
 
 namespace Renderer
 {
-    struct IConstantBuffer
+    /*struct IConstantBuffer
     {
         virtual size_t GetSize() = 0;
         virtual void* GetDescriptor(u32 frameIndex) = 0;
@@ -49,5 +49,5 @@ namespace Renderer
         ConstantBuffer() {}; // This has to be created through Renderer::CreateConstantBuffer<T>
 
         friend class Renderer;
-    };
+    };*/
 }
