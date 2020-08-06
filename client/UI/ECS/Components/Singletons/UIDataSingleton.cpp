@@ -29,7 +29,7 @@ namespace UISingleton
         UIComponent::Transform& transform = registry->get<UIComponent::Transform>(entId);
         for (UI::UIChild& child : transform.children)
         {
-            UIUtils::Transform::RemoveParent(registry->get<UIComponent::Transform>(entt::entity(child.entity)));
+            UIUtils::Transform::RemoveParent(&registry->get<UIComponent::Transform>(entt::entity(child.entity)));
 
             if (auto itr = entityToAsObject.find(entId); itr != entityToAsObject.end())
                 UIUtils::Transform::RemoveParent(itr->second->_transform);

@@ -19,7 +19,7 @@ namespace UIScripting
         static void RegisterType();
 
         //Button Functions.
-        const bool IsClickable() const { return _events.IsClickable(); }
+        const bool IsClickable() const { return _events->IsClickable(); }
         void SetOnClickCallback(asIScriptFunction* callback);
 
         //Label Functions
@@ -50,6 +50,6 @@ namespace UIScripting
         Label* _label;
         Panel* _panel;
 
-        UIComponent::TransformEvents _events;
+        UIComponent::TransformEvents* _events;
     };
 }

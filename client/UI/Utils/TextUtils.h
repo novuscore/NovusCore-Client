@@ -44,9 +44,9 @@ namespace UIUtils::Text
     *   maxWidth: Max width of a line.
     *   maxHeight: Max height of the text.
     */
-    size_t CalculatePushback(const UIComponent::Text& text, size_t writeHead, f32 bufferDecimal, f32 maxWidth, f32 maxHeight);
-    size_t CalculateSinglelinePushback(const UIComponent::Text& text, const size_t writeHead, const f32 maxWidth, const f32 bufferDecimal);
-    size_t CalculateMultilinePushback(const UIComponent::Text& text, const size_t writeHead, const f32 maxWidth, const f32 maxHeight);
+    size_t CalculatePushback(const UIComponent::Text* text, size_t writeHead, f32 bufferDecimal, f32 maxWidth, f32 maxHeight);
+    size_t CalculateSinglelinePushback(const UIComponent::Text* text, const size_t writeHead, const f32 maxWidth, const f32 bufferDecimal);
+    size_t CalculateMultilinePushback(const UIComponent::Text* text, const size_t writeHead, const f32 maxWidth, const f32 maxHeight);
 
 
     /*
@@ -57,10 +57,10 @@ namespace UIUtils::Text
     *   lineWidths: Calculated line widths.
     *   lineBreakPoints: Calculated line breakpoints.
     */
-    size_t CalculateLineWidthsAndBreaks(const UIComponent::Text& text, f32 maxWidth, f32 maxHeight, std::vector<f32>& lineWidths, std::vector<size_t>& lineBreakPoints);
+    size_t CalculateLineWidthsAndBreaks(const UIComponent::Text* text, f32 maxWidth, f32 maxHeight, std::vector<f32>& lineWidths, std::vector<size_t>& lineBreakPoints);
     /*
     *   Calculate Line Widths & Line Break points indepentent from pushback.
     */
-    void CalculateAllLineWidthsAndBreaks(const UIComponent::Text& text, f32 maxWidth, std::vector<f32>& lineWidths, std::vector<size_t>& lineBreakPoints);
+    void CalculateAllLineWidthsAndBreaks(const UIComponent::Text* text, f32 maxWidth, std::vector<f32>& lineWidths, std::vector<size_t>& lineBreakPoints);
 
 };

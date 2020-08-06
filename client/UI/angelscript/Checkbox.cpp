@@ -5,10 +5,39 @@
 
 #include <GLFW/glfw3.h>
 
+#include "../ECS/Components/Singletons/UILockSingleton.h"
+#include "../ECS/Components/Visible.h"
+#include "../ECS/Components/Renderable.h"
+#include "../ECS/Components/Collidable.h"
+
 namespace UIScripting
 {
     Checkbox::Checkbox() : BaseElement(UI::UIElementType::UITYPE_CHECKBOX)
     {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+
+        UISingleton::UILockSingleton& uiLockSingleton = registry->ctx<UISingleton::UILockSingleton>();
+        uiLockSingleton.mutex.lock();
+        {
+            _transform = &registry->emplace<UIComponent::Transform>(_entityId);
+            _transform->sortData.entId = _entityId;
+            _transform->sortData.type = _elementType;
+            _transform->asObject = this;
+
+            registry->emplace<UIComponent::Visible>(_entityId);
+            _visibility = &registry->emplace<UIComponent::Visibility>(_entityId);
+            _image = &registry->emplace<UIComponent::Image>(_entityId);
+            _checkBox = &registry->emplace<UIComponent::Checkbox>(_entityId);
+            _checkBox->asObject = this;
+
+            registry->emplace<UIComponent::Renderable>(_entityId);
+            registry->emplace<UIComponent::Collidable>(_entityId);
+
+            _events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
+            _events->asObject = this;
+        }
+        uiLockSingleton.mutex.unlock();
+
         checkPanel = Panel::CreatePanel();
         checkPanel->SetFillParentSize(true);
         checkPanel->SetParent(this);
@@ -51,53 +80,43 @@ namespace UIScripting
 
     void Checkbox::SetEventFlag(const UI::UITransformEventsFlags flags)
     {
-        _events.SetFlag(flags);
-
-        //UI::TransformEventUtils::Transactions::SetFlagTransaction(_entityId, flags);
+        _events->SetFlag(flags);
     }
 
     void Checkbox::UnsetEventFlag(const UI::UITransformEventsFlags flags)
     {
-        _events.UnsetFlag(flags);
-
-        //UI::TransformEventUtils::Transactions::UnsetFlagTransaction(_entityId, flags);
+        _events->UnsetFlag(flags);
     }
 
     void Checkbox::SetOnClickCallback(asIScriptFunction* callback)
     {
-        _events.onClickCallback = callback;
-        _events.SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
-
-        //UI::TransformEventUtils::Transactions::SetOnClickCallbackTransaction(_entityId, callback);
+        _events->onClickCallback = callback;
+        _events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }
 
     void Checkbox::SetOnDragCallback(asIScriptFunction* callback)
     {
-        _events.onDraggedCallback = callback;
-        _events.SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
-
-        //UI::TransformEventUtils::Transactions::SetOnDragCallbackTransaction(_entityId, callback);
+        _events->onDraggedCallback = callback;
+        _events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
     }
 
     void Checkbox::SetOnFocusCallback(asIScriptFunction* callback)
     {
-        _events.onFocusedCallback = callback;
-        _events.SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
-
-        //UI::TransformEventUtils::Transactions::SetOnFocusCallbackTransaction(_entityId, callback);
+        _events->onFocusedCallback = callback;
+        _events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
     }
 
     void Checkbox::SetBackgroundTexture(const std::string& texture)
     {
-        _image.texture = texture;
+        _image->texture = texture;
 
-        //UI::ImageUtils::Transactions::SetTextureTransaction(texture, _entityId);
+        MarkDirty(ServiceLocator::GetUIRegistry(), _entityId);
     }
     void Checkbox::SetBackgroundColor(const Color& color)
     {
-        _image.color = color;
+        _image->color = color;
 
-        //UI::ImageUtils::Transactions::SetColorTransaction(color, _entityId);
+        MarkDirty(ServiceLocator::GetUIRegistry(), _entityId);
     }
 
     void Checkbox::SetCheckTexture(const std::string& texture)
@@ -127,21 +146,14 @@ namespace UIScripting
 
     void Checkbox::SetChecked(bool checked)
     {
-        _checkBox.checked = checked;
+        _checkBox->checked = checked;
 
         checkPanel->SetVisible(checked);
-        
-        entt::entity entId = _entityId;
-        /*ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([checked, entId]()
-            {
-                Checkbox checkBox = ServiceLocator::GetUIRegistry()->get<Checkbox>(entId);
-                checkBox.checked = checked;
-            });*/
 
         if (checked)
-            _checkBox.OnChecked();
+            _checkBox->OnChecked();
         else
-            _checkBox.OnUnchecked();
+            _checkBox->OnUnchecked();
     }
 
     void Checkbox::HandleKeyInput(i32 key)

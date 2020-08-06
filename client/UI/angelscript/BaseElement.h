@@ -1,17 +1,20 @@
 #pragma once
 #include <NovusTypes.h>
 #include <entity/entity.hpp>
+#include <shared_mutex>
 
 #include "../../Scripting/ScriptEngine.h"
 #include "../ECS/Components/Transform.h"
 #include "../ECS/Components/Visibility.h"
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
+#include "LockToken.h"
 
 namespace UIScripting
 {
     class BaseElement
     {
         friend struct ::UISingleton::UIDataSingleton;
+        friend class LockToken;
 
     public:
         BaseElement(UI::UIElementType elementType);
@@ -55,6 +58,7 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("bool IsLocallyVisible()", asMETHOD(T, IsLocallyVisible)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("bool IsParentVisible()", asMETHOD(T, IsParentVisible)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetVisible(bool visible)", asMETHOD(T, SetVisible)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("LockToken@ GetLock(int lockState)", asMETHOD(T, GetLock)); assert(r >= 0);
         }
 
         virtual const entt::entity GetEntityId() const
@@ -72,49 +76,49 @@ namespace UIScripting
 
         virtual const vec2 GetScreenPosition() const
         {
-            return _transform.position + _transform.localPosition;
+            return _transform->position + _transform->localPosition;
         }
         virtual const vec2 GetLocalPosition() const
         {
-            return _transform.parent ? _transform.localPosition : vec2(0, 0);
+            return _transform->parent ? _transform->localPosition : vec2(0, 0);
         }
         virtual const vec2 GetParentPosition() const
         {
-            return _transform.parent ? _transform.position : vec2(0, 0);
+            return _transform->parent ? _transform->position : vec2(0, 0);
         }
         virtual const vec2 GetPosition() const
         {
-            return _transform.position + _transform.localPosition;
+            return _transform->position + _transform->localPosition;
         }
         virtual void SetPosition(const vec2& position);
         
         virtual const vec2 GetAnchor() const
         {
-            return _transform.anchor;
+            return _transform->anchor;
         }
         virtual void SetAnchor(const vec2& anchor);
 
         virtual const vec2 GetLocalAnchor() const
         {
-            return _transform.localAnchor;
+            return _transform->localAnchor;
         }
         virtual void SetLocalAnchor(const vec2& localAnchor);
         
         virtual const vec2 GetSize() const
         {
-            return _transform.size;
+            return _transform->size;
         }
         virtual void SetSize(const vec2& size);
         
         virtual const bool GetFillParentSize()
         {
-            return _transform.fillParentSize;
+            return _transform->fillParentSize;
         }
         virtual void SetFillParentSize(bool fillParent);
 
         virtual const u16 GetDepth() const
         {
-            return _transform.sortData.depth;
+            return _transform->sortData.depth;
         }
         virtual void SetDepth(const u16 depth);
 
@@ -123,9 +127,9 @@ namespace UIScripting
 
         virtual void SetExpandBoundsToChildren(bool expand);
 
-        const bool IsVisible() const { return _visibility.visible && _visibility.parentVisible; }
-        const bool IsLocallyVisible() const { return _visibility.visible; }
-        const bool IsParentVisible() const { return _visibility.parentVisible; }
+        const bool IsVisible() const { return _visibility->visible && _visibility->parentVisible; }
+        const bool IsLocallyVisible() const { return _visibility->visible; }
+        const bool IsParentVisible() const { return _visibility->parentVisible; }
         virtual void SetVisible(bool visible);
     
         void SetCollisionEnabled(bool enabled);
@@ -135,20 +139,25 @@ namespace UIScripting
 protected:
         static void MarkDirty(entt::registry* registry, entt::entity entId);
     
-        static void UpdateChildTransforms(entt::registry* uiRegistry, UIComponent::Transform& parent);
-        static void UpdateChildTransformsAngelScript(UISingleton::UIDataSingleton& uiDataSingleton, UIComponent::Transform& parent);
+        static void UpdateChildTransforms(entt::registry* uiRegistry, UIComponent::Transform* parent);
 
-        static void UpdateChildVisibility(entt::registry* uiRegistry, const UIComponent::Transform& parent, bool parentVisibility);
-        static void UpdateChildVisibilityAngelScript(UISingleton::UIDataSingleton& uiDataSingleton, const UIComponent::Transform& parent, bool parentVisibility);
+        static void UpdateChildVisibility(entt::registry* uiRegistry, const UIComponent::Transform* parent, bool parentVisibility);
 
-        static void UpdateChildBounds(entt::registry* uiRegistry, UIComponent::Transform& transform);
-        static void UpdateBounds(entt::registry* uiRegistry, UIComponent::Transform& parent);
+        static void UpdateChildBounds(entt::registry* uiRegistry, UIComponent::Transform* transform);
+        static void UpdateBounds(entt::registry* uiRegistry, UIComponent::Transform* parent);
+
+        inline LockToken* GetLock(LockState state)
+        {
+            return new LockToken(_mutex, state);
+        }
 
     protected:
         entt::entity _entityId;
         UI::UIElementType _elementType;
 
-        UIComponent::Transform _transform;
-        UIComponent::Visibility _visibility;
+        UIComponent::Transform* _transform = nullptr;
+        UIComponent::Visibility* _visibility = nullptr;
+
+        std::shared_mutex _mutex;
     };
 }

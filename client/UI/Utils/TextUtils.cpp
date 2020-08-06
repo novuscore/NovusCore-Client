@@ -3,26 +3,22 @@
 
 namespace UIUtils::Text
 {
-    size_t CalculatePushback(const UIComponent::Text& text, size_t writeHead, f32 bufferDecimal, f32 maxWidth, f32 maxHeight)
+    size_t CalculatePushback(const UIComponent::Text* text, size_t writeHead, f32 bufferDecimal, f32 maxWidth, f32 maxHeight)
     {     
         ZoneScoped;
-        /*
-        *   TODO:
-        *   - Move entire lines for multi-line fields.
-        */
 
-        if (!text.font)
+        if (!text->font)
             return 0;
 
-        if (text.isMultiline)
+        if (text->isMultiline)
             return CalculateMultilinePushback(text, writeHead, maxWidth, maxHeight);
         else
             return CalculateSinglelinePushback(text, writeHead, maxWidth, bufferDecimal);
     }
 
-    size_t CalculateSinglelinePushback(const UIComponent::Text& text, const size_t writeHead, const f32 maxWidth, const f32 bufferDecimal)
+    size_t CalculateSinglelinePushback(const UIComponent::Text* text, const size_t writeHead, const f32 maxWidth, const f32 bufferDecimal)
     {
-        size_t oldPushback = Math::Min(text.pushback, text.text.length() - 1);
+        size_t oldPushback = Math::Min(text->pushback, text->text.length() - 1);
 
         f32 lineLength = 0.f;
         if (oldPushback <= writeHead)
@@ -31,10 +27,10 @@ namespace UIUtils::Text
             bool reachedPercent = false;
             for (size_t i = oldPushback; i < writeHead; i++)
             {
-                if (std::isspace(text.text[i]))
-                    lineLength += text.fontSize * 0.15f;
+                if (std::isspace(text->text[i]))
+                    lineLength += text->fontSize * 0.15f;
                 else
-                    lineLength += text.font->GetChar(text.text[i]).advance;
+                    lineLength += text->font->GetChar(text->text[i]).advance;
 
                 if (!reachedPercent && lineLength > maxWidth * bufferDecimal)
                 {
@@ -53,10 +49,10 @@ namespace UIUtils::Text
 
         for (size_t i = oldPushback; i > 0; i--)
         {
-            if (std::isspace(text.text[i]))
-                lineLength += text.fontSize * 0.15f;
+            if (std::isspace(text->text[i]))
+                lineLength += text->fontSize * 0.15f;
             else
-                lineLength += text.font->GetChar(text.text[i]).advance;
+                lineLength += text->font->GetChar(text->text[i]).advance;
 
             if (lineLength > maxWidth * bufferDecimal)
                 return i;
@@ -65,9 +61,9 @@ namespace UIUtils::Text
         return 0;
     }
 
-    size_t CalculateMultilinePushback(const UIComponent::Text& text, const size_t writeHead, const f32 maxWidth, const f32 maxHeight)
+    size_t CalculateMultilinePushback(const UIComponent::Text* text, const size_t writeHead, const f32 maxWidth, const f32 maxHeight)
     {
-        u32 maxLines = static_cast<u32>(maxHeight / (text.fontSize * text.lineHeight));
+        u32 maxLines = static_cast<u32>(maxHeight / (text->fontSize * text->lineHeight));
         std::vector<f32> lineWidths;
         std::vector<size_t> lineBreakPoints;
         CalculateAllLineWidthsAndBreaks(text, maxWidth, lineWidths, lineBreakPoints);
@@ -81,7 +77,7 @@ namespace UIUtils::Text
         {
             if (lineBreakPoints[i] > writeHead)
                 writeHeadLine = i - 1;
-            if (lineBreakPoints[i] > text.pushback)
+            if (lineBreakPoints[i] > text->pushback)
                 writeHeadLine = i - 1;
         }
 
@@ -97,16 +93,16 @@ namespace UIUtils::Text
         return lineBreakPoints[pushbackLine];
     }
     
-    size_t CalculateLineWidthsAndBreaks(const UIComponent::Text& text, f32 maxWidth, f32 maxHeight, std::vector<f32>& lineWidths, std::vector<size_t>& lineBreakPoints)
+    size_t CalculateLineWidthsAndBreaks(const UIComponent::Text* text, f32 maxWidth, f32 maxHeight, std::vector<f32>& lineWidths, std::vector<size_t>& lineBreakPoints)
     {
         ZoneScoped;
-        assert(text.font);
+        assert(text->font);
 
         lineWidths.clear();
         lineWidths.push_back(0);
         lineBreakPoints.clear();
 
-        u32 maxLines = static_cast<u32>(text.isMultiline ? 1 : maxHeight / (text.fontSize * text.lineHeight));
+        u32 maxLines = static_cast<u32>(text->isMultiline ? 1 : maxHeight / (text->fontSize * text->lineHeight));
         size_t lastWordStart = 0;
         f32 wordWidth = 0.f;
 
@@ -116,10 +112,10 @@ namespace UIUtils::Text
             lineBreakPoints.push_back(breakPoint);
         };
 
-        for (size_t i = text.pushback; i < text.text.length(); i++)
+        for (size_t i = text->pushback; i < text->text.length(); i++)
         {
             // Handle line break character.
-            if (text.text[i] == '\n')
+            if (text->text[i] == '\n')
             {
                 //If we have reached max amount of lines then the final character will be the one before this.
                 if (lineWidths.size() == maxLines)
@@ -133,15 +129,15 @@ namespace UIUtils::Text
             }
 
             f32 advance = 0.f;
-            if (std::isspace(text.text[i]))
+            if (std::isspace(text->text[i]))
             {
-                advance = text.fontSize * 0.15f;
+                advance = text->fontSize * 0.15f;
                 lastWordStart = i + 1;
                 wordWidth = 0.f;
             }
             else
             {
-                advance = text.font->GetChar(text.text[i]).advance;
+                advance = text->font->GetChar(text->text[i]).advance;
                 wordWidth += advance;
             }
 
@@ -167,13 +163,13 @@ namespace UIUtils::Text
             lineWidths.back() += advance;
         }
 
-        return text.text.length();
+        return text->text.length();
     }
 
-    void CalculateAllLineWidthsAndBreaks(const UIComponent::Text& text, f32 maxWidth, std::vector<f32>& lineWidths, std::vector<size_t>& lineBreakPoints)
+    void CalculateAllLineWidthsAndBreaks(const UIComponent::Text* text, f32 maxWidth, std::vector<f32>& lineWidths, std::vector<size_t>& lineBreakPoints)
     {
         ZoneScoped;
-        assert(text.font);
+        assert(text->font);
 
         lineWidths.clear();
         lineWidths.push_back(0);
@@ -188,10 +184,10 @@ namespace UIUtils::Text
             lineBreakPoints.push_back(breakPoint);
         };
 
-        for (size_t i = 0; i < text.text.length(); i++)
+        for (size_t i = 0; i < text->text.length(); i++)
         {
             // Handle line break character.
-            if (text.text[i] == '\n')
+            if (text->text[i] == '\n')
             {
                 BreakLine(0.f, i);
                 lastWordStart = i + 1;
@@ -201,15 +197,15 @@ namespace UIUtils::Text
             }
 
             f32 advance = 0.f;
-            if (std::isspace(text.text[i]))
+            if (std::isspace(text->text[i]))
             {
-                advance = text.fontSize * 0.15f;
+                advance = text->fontSize * 0.15f;
                 lastWordStart = i + 1;
                 wordWidth = 0.f;
             }
             else
             {
-                advance = text.font->GetChar(text.text[i]).advance;
+                advance = text->font->GetChar(text->text[i]).advance;
                 wordWidth += advance;
             }
 

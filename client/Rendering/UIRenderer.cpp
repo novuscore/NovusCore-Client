@@ -10,9 +10,10 @@
 
 #include "../Utils/ServiceLocator.h"
 
-#include "../UI/ECS/Components/Singletons/UIEntityPoolSingleton.h"
-#include "../UI/ECS/Components/Singletons/UIAddElementQueueSingleton.h"
 #include "../UI/ECS/Components/Singletons/UIDataSingleton.h"
+#include "../UI/ECS/Components/Singletons/UILockSingleton.h"
+#include "../UI/ECS/Components/Singletons/UIAddElementQueueSingleton.h"
+#include "../UI/ECS/Components/Singletons/UIEntityPoolSingleton.h"
 #include "../UI/ECS/Components/Transform.h"
 #include "../UI/ECS/Components/TransformEvents.h"
 #include "../UI/ECS/Components/Renderable.h"
@@ -50,6 +51,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
 
     // Register UI singletons.
     registry->set<UISingleton::UIDataSingleton>();
+    registry->set<UISingleton::UILockSingleton>();
     registry->set<UISingleton::UIAddElementQueueSingleton>();
 
     // Register entity pool.
@@ -139,7 +141,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                 {
                     switch (transform.sortData.type)
                     {
-                    case UI::UIElementType::UITYPE_TEXT:
+                    case UI::UIElementType::UITYPE_LABEL:
                     case UI::UIElementType::UITYPE_INPUTFIELD:
                     {
                         UIComponent::Text& text = registry->get<UIComponent::Text>(entity);

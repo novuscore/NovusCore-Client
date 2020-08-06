@@ -34,7 +34,7 @@ namespace UISystem
 
             switch (element.type)
             {
-            case UI::UIElementType::UITYPE_TEXT:
+            case UI::UIElementType::UITYPE_LABEL:
                 registry.emplace<UIComponent::Text>(element.entityId);
                 break;
             case UI::UIElementType::UITYPE_PANEL:
@@ -61,7 +61,7 @@ namespace UISystem
             if (registry.any<UIComponent::Image, UIComponent::Text>(element.entityId))
                 registry.emplace<UIComponent::Renderable>(element.entityId);
 
-            if (element.type != UI::UIElementType::UITYPE_TEXT)
+            if (element.type != UI::UIElementType::UITYPE_LABEL)
             {
                 registry.emplace<UIComponent::Collidable>(element.entityId);
                 UIComponent::TransformEvents& events = registry.emplace<UIComponent::TransformEvents>(element.entityId);

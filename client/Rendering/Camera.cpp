@@ -64,7 +64,7 @@ void Camera::Init()
         }
     });
 
-    inputManager->RegisterKeybind("Left Mouseclick", GLFW_MOUSE_BUTTON_1, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this, inputManager](Window* window, std::shared_ptr<Keybind> keybind)
+    inputManager->RegisterKeybind("Right Mouseclick", GLFW_MOUSE_BUTTON_2, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this, inputManager](Window* window, std::shared_ptr<Keybind> keybind)
     {
         if (!_captureMouse)
         {

@@ -15,26 +15,26 @@ namespace UIScripting
         static void RegisterType();
 
         // TransformEvents Functions
-        void SetEventFlag(const UI::UITransformEventsFlags flags) { _events.SetFlag(flags); }
-        void UnsetEventFlag(const UI::UITransformEventsFlags flags) { _events.UnsetFlag(flags); }
-        const bool IsClickable() const { return _events.IsClickable(); }
-        const bool IsDraggable() const { return _events.IsDraggable(); }
-        const bool IsFocusable() const { return _events.IsFocusable(); }
+        void SetEventFlag(const UI::UITransformEventsFlags flags) { _events->SetFlag(flags); }
+        void UnsetEventFlag(const UI::UITransformEventsFlags flags) { _events->UnsetFlag(flags); }
+        const bool IsClickable() const { return _events->IsClickable(); }
+        const bool IsDraggable() const { return _events->IsDraggable(); }
+        const bool IsFocusable() const { return _events->IsFocusable(); }
         void SetOnClickCallback(asIScriptFunction* callback);
         void SetOnDragCallback(asIScriptFunction* callback);
         void SetOnFocusCallback(asIScriptFunction* callback);
 
         // Renderable Functions
         void SetTexture(const std::string& texture);
-        const std::string& GetTexture() const { return _image.texture; }
+        const std::string& GetTexture() const { return _image->texture; }
 
         void SetColor(const Color& color);
-        const Color GetColor() const { return _image.color; }
+        const Color GetColor() const { return _image->color; }
 
         static Panel* CreatePanel();
 
     private:
-        UIComponent::TransformEvents _events;
-        UIComponent::Image _image;
+        UIComponent::TransformEvents* _events = nullptr;
+        UIComponent::Image* _image = nullptr;
     };
 }

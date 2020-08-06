@@ -3,12 +3,41 @@
 #include "../../Utils/ServiceLocator.h"
 #include "../Utils/TextUtils.h"
 
+#include "../ECS/Components/Singletons/UILockSingleton.h"
+#include "../ECS/Components/Visible.h"
+#include "../ECS/Components/Renderable.h"
+#include "../ECS/Components/Collidable.h"
+
 #include <GLFW/glfw3.h>
 
 namespace UIScripting
 {
     InputField::InputField() : BaseElement(UI::UIElementType::UITYPE_INPUTFIELD)
     {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+
+        UISingleton::UILockSingleton& uiLockSingleton = registry->ctx<UISingleton::UILockSingleton>();
+        uiLockSingleton.mutex.lock();
+        {
+            _transform = &registry->emplace<UIComponent::Transform>(_entityId);
+            _transform->sortData.entId = _entityId;
+            _transform->sortData.type = _elementType;
+            _transform->asObject = this;
+
+            registry->emplace<UIComponent::Visible>(_entityId);
+            _visibility = &registry->emplace<UIComponent::Visibility>(_entityId);
+            _text = &registry->emplace<UIComponent::Text>(_entityId);
+            _inputField = &registry->emplace<UIComponent::InputField>(_entityId);
+            _inputField->asObject = this;
+
+            registry->emplace<UIComponent::Renderable>(_entityId);
+            registry->emplace<UIComponent::Collidable>(_entityId);
+
+            _events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
+            _events->asObject = this;
+        }
+        uiLockSingleton.mutex.unlock();
+
         SetFocusable(true);
     }
 
@@ -59,7 +88,7 @@ namespace UIScripting
             break;
         case GLFW_KEY_ENTER:
         {
-            if (_text.isMultiline)
+            if (_text->isMultiline)
             {
                 HandleCharInput('\n');
                 break;
@@ -79,13 +108,13 @@ namespace UIScripting
     void InputField::HandleCharInput(const char input)
     {
         std::string newString = GetText();
-        if (_inputField.writeHeadIndex == newString.length())
+        if (_inputField->writeHeadIndex == newString.length())
         {
             newString += input;
         }
         else
         {
-            newString.insert(_inputField.writeHeadIndex, 1, input);
+            newString.insert(_inputField->writeHeadIndex, 1, input);
         }
 
         SetText(newString, false);
@@ -94,11 +123,11 @@ namespace UIScripting
 
     void InputField::RemovePreviousCharacter()
     {
-        if (GetText().empty() || _inputField.writeHeadIndex <= 0)
+        if (GetText().empty() || _inputField->writeHeadIndex <= 0)
             return;
 
         std::string newString = GetText();
-        newString.erase(_inputField.writeHeadIndex - 1, 1);
+        newString.erase(_inputField->writeHeadIndex - 1, 1);
 
         SetText(newString, false);
 
@@ -107,168 +136,102 @@ namespace UIScripting
 
     void InputField::RemoveNextCharacter()
     {
-        if (GetText().length() <= _inputField.writeHeadIndex)
+        if (GetText().length() <= _inputField->writeHeadIndex)
             return;
 
         std::string newString = GetText();
-        newString.erase(_inputField.writeHeadIndex, 1);
+        newString.erase(_inputField->writeHeadIndex, 1);
 
         SetText(newString, false);
     }
 
     void InputField::MovePointerLeft()
     {
-        if (_inputField.writeHeadIndex > 0)
-            SetWriteHeadPosition(_inputField.writeHeadIndex - 1);
+        if (_inputField->writeHeadIndex > 0)
+            SetWriteHeadPosition(_inputField->writeHeadIndex - 1);
     }
 
     void InputField::MovePointerRight()
     {
-        SetWriteHeadPosition(_inputField.writeHeadIndex + 1);
+        SetWriteHeadPosition(_inputField->writeHeadIndex + 1);
     }
 
     void InputField::SetWriteHeadPosition(size_t position)
     {
         size_t clampedPosition = position <= GetText().length() ? position : GetText().length();
 
-        if (clampedPosition == _inputField.writeHeadIndex)
+        if (clampedPosition == _inputField->writeHeadIndex)
             return;
 
-        _inputField.writeHeadIndex = clampedPosition;
+        _inputField->writeHeadIndex = clampedPosition;
 
-        entt::entity entId = _entityId;
-        /*ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, clampedPosition]()
-            {
-                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-
-                UIComponentUIInputField& inputField = uiRegistry->get<UIComponentUIInputField>(entId);
-                inputField.writeHeadIndex = clampedPosition;
-
-                Text& text = uiRegistry->get<Text>(entId);
-                const Transform& transform = uiRegistry->get<Transform>(entId);
-                text.pushback = UI::TextUtils::CalculatePushback(text, inputField.writeHeadIndex, 0.2f, transform.size.x, transform.size.y);
-                NC_LOG_MESSAGE("Pointer is now: %d, Pushback is now: %d", clampedPosition, text.pushback);
-
-                MarkDirty(uiRegistry, entId);
-            });*/
+        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+        _text->pushback = UIUtils::Text::CalculatePushback(_text, _inputField->writeHeadIndex, 0.2f, _transform->size.x, _transform->size.y);
+        MarkDirty(uiRegistry, _entityId);
     }
 
     void InputField::SetOnSubmitCallback(asIScriptFunction* callback)
     {
-        _inputField.onSubmitCallback = callback;
-
-        // TRANSACTION
-        entt::entity entId = _entityId;
-        /*ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
-            {
-                UIComponentUIInputField& inputField = ServiceLocator::GetUIRegistry()->get<UIComponentUIInputField>(entId);
-                inputField.onSubmitCallback = callback;
-            });*/
+        _inputField->onSubmitCallback = callback;
     }
 
     void InputField::SetFocusable(bool focusable)
     {
         if (focusable)
-            _events.SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+            _events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
         else
-            _events.UnsetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
-
-        // TRANSACTION
-        entt::entity entId = _entityId;
-        /*ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([focusable, entId]()
-            {
-                UIComponent::TransformEvents& events = ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(entId);
-
-                if (focusable)
-                    events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
-                else
-                    events.UnsetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
-            });*/
+            _events->UnsetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
     }
 
     void InputField::SetOnFocusCallback(asIScriptFunction* callback)
     {
-        _events.onFocusedCallback = callback;
-        _events.SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
-
-        // TRANSACTION
-        entt::entity entId = _entityId;
-        /*ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
-            {
-                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UIComponent::TransformEvents& events = uiRegistry->get<UIComponent::TransformEvents>(entId);
-
-                events.onFocusedCallback = callback;
-                events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
-            });*/
+        _events->onFocusedCallback = callback;
+        _events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
     }
 
     void InputField::SetOnUnFocusCallback(asIScriptFunction* callback)
     {
-        _events.onUnfocusedCallback = callback;
-        _events.SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
-
-        // TRANSACTION
-        entt::entity entId = _entityId;
-        /*ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([callback, entId]()
-            {
-                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                UIComponent::TransformEvents& events = uiRegistry->get<UIComponent::TransformEvents>(entId);
-
-                events.onUnfocusedCallback = callback;
-                events.SetFlag(UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
-            });*/
+        _events->onUnfocusedCallback = callback;
+        _events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
     }
 
     void InputField::SetText(const std::string& text, bool updateWriteHead)
     {
-        _text.text = text;
+        _text->text = text;
 
         if (updateWriteHead)
-            _inputField.writeHeadIndex = text.length() - 1;
+            _inputField->writeHeadIndex = text.length() - 1;
 
-        // TRANSACTION
-        entt::entity entId = _entityId;
-        /*ServiceLocator::GetGameRegistry()->ctx<ScriptSingleton>().AddTransaction([entId, text, updateWriteHead]()
-            {
-                entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-                Text& uiText = uiRegistry->get<Text>(entId);
-                UIComponentUIInputField& inputField = uiRegistry->get<UIComponentUIInputField>(entId);
-                uiText.text = text;
-
-                if (updateWriteHead)
-                    inputField.writeHeadIndex = text.length() - 1;
-
-                MarkDirty(uiRegistry, entId);
-            });*/
+        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+        MarkDirty(uiRegistry, _entityId);
     }
 
     void InputField::SetTextColor(const Color& color)
     {
-        _text.color = color;
+        _text->color = color;
 
-        //UI::TextUtils::Transactions::SetColorTransaction(_entityId, color);
+        MarkDirty(ServiceLocator::GetUIRegistry(), _entityId);
     }
 
     void InputField::SetTextOutlineColor(const Color& outlineColor)
     {
-        _text.outlineColor = outlineColor;
+        _text->outlineColor = outlineColor;
 
-        //UI::TextUtils::Transactions::SetOutlineColorTransaction(_entityId, outlineColor);
+        MarkDirty(ServiceLocator::GetUIRegistry(), _entityId);
     }
 
     void InputField::SetTextOutlineWidth(f32 outlineWidth)
     {
-        _text.outlineWidth = outlineWidth;
+        _text->outlineWidth = outlineWidth;
 
-        //UI::TextUtils::Transactions::SetOutlineWidthTransaction(_entityId, outlineWidth);
+        MarkDirty(ServiceLocator::GetUIRegistry(), _entityId);
     }
 
     void InputField::SetTextFont(const std::string& fontPath, f32 fontSize)
     {
-        _text.fontPath = fontPath;
+        _text->fontPath = fontPath;
 
-        //UI::TextUtils::Transactions::SetFontTransaction(_entityId, fontPath, fontSize);
+        MarkDirty(ServiceLocator::GetUIRegistry(), _entityId);
     }
 
     InputField* InputField::CreateInputField()

@@ -10,6 +10,7 @@
 #include "Classes/SceneManager/SceneManagerUtils.h"
 #include "Classes/Player.h"
 
+#include "../UI/angelscript/LockToken.h"
 #include "../UI/angelscript/BaseElement.h"
 #include "../UI/angelscript/Panel.h"
 #include "../UI/angelscript/Label.h"
@@ -112,6 +113,7 @@ void ScriptEngine::RegisterFunctions()
     ASSceneManagerUtils::RegisterNamespace();
 
     Player::RegisterType();
+    UIScripting::LockToken::RegisterType();
     UIScripting::BaseElement::RegisterType();
     UIScripting::Panel::RegisterType();
     UIScripting::Label::RegisterType();
