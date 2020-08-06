@@ -26,19 +26,21 @@ namespace UISingleton
     void UIDataSingleton::DestroyWidget(entt::entity entId)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Transform& transform = registry->get<UIComponent::Transform>(entId);
-        for (UI::UIChild& child : transform.children)
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(entId);
+        for (UI::UIChild& child : transform->children)
         {
-            UIUtils::Transform::RemoveParent(&registry->get<UIComponent::Transform>(entt::entity(child.entity)));
+            UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
 
-            if (auto itr = entityToAsObject.find(entId); itr != entityToAsObject.end())
-                UIUtils::Transform::RemoveParent(itr->second->_transform);
+            childTransform->position = childTransform->position + childTransform->localPosition;
+            childTransform->localPosition = vec2(0, 0);
+            childTransform->parent = entt::null;
         }
 
-        if (auto itr = entityToAsObject.find(entId); itr != entityToAsObject.end())
+        auto itr = entityToAsObject.find(entId);
+        if (itr != entityToAsObject.end())
         {
             delete itr->second;
-            entityToAsObject.erase(entId);
+            entityToAsObject.erase(itr);
         }
 
         registry->destroy(entId);

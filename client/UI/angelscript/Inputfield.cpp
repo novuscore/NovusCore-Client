@@ -19,22 +19,22 @@ namespace UIScripting
         UISingleton::UILockSingleton& uiLockSingleton = registry->ctx<UISingleton::UILockSingleton>();
         uiLockSingleton.mutex.lock();
         {
-            _transform = &registry->emplace<UIComponent::Transform>(_entityId);
-            _transform->sortData.entId = _entityId;
-            _transform->sortData.type = _elementType;
-            _transform->asObject = this;
+            UIComponent::Transform* transform = &registry->emplace<UIComponent::Transform>(_entityId);
+            transform->sortData.entId = _entityId;
+            transform->sortData.type = _elementType;
+            transform->asObject = this;
 
             registry->emplace<UIComponent::Visible>(_entityId);
-            _visibility = &registry->emplace<UIComponent::Visibility>(_entityId);
-            _text = &registry->emplace<UIComponent::Text>(_entityId);
-            _inputField = &registry->emplace<UIComponent::InputField>(_entityId);
-            _inputField->asObject = this;
+            registry->emplace<UIComponent::Visibility>(_entityId);
+            registry->emplace<UIComponent::Text>(_entityId);
+            UIComponent::InputField* inputField = &registry->emplace<UIComponent::InputField>(_entityId);
+            inputField->asObject = this;
 
             registry->emplace<UIComponent::Renderable>(_entityId);
             registry->emplace<UIComponent::Collidable>(_entityId);
 
-            _events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-            _events->asObject = this;
+            UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
+            events->asObject = this;
         }
         uiLockSingleton.mutex.unlock();
 

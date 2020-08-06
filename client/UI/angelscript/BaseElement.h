@@ -36,7 +36,6 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetScreenPosition()", asMETHOD(T, GetScreenPosition)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetLocalPosition()", asMETHOD(T, GetLocalPosition)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetParentPosition()", asMETHOD(T, GetParentPosition)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("vec2 GetPosition()", asMETHOD(T, GetPosition)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetPosition(vec2 position)", asMETHOD(T, SetPosition)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetLocalAnchor()", asMETHOD(T, GetLocalAnchor)); assert(r >= 0);
@@ -61,75 +60,41 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("LockToken@ GetLock(int lockState)", asMETHOD(T, GetLock)); assert(r >= 0);
         }
 
-        virtual const entt::entity GetEntityId() const
-        {
-            return _entityId;
-        }
-
-        virtual const UI::UIElementType GetType() const
-        {
-            return _elementType;
-        }
+        const entt::entity GetEntityId() const { return _entityId; }
+        const UI::UIElementType GetType() const { return _elementType; }
 
         // Transform Functions
         virtual void SetTransform(const vec2& position, const vec2& size);
 
-        virtual const vec2 GetScreenPosition() const
-        {
-            return _transform->position + _transform->localPosition;
-        }
-        virtual const vec2 GetLocalPosition() const
-        {
-            return _transform->parent ? _transform->localPosition : vec2(0, 0);
-        }
-        virtual const vec2 GetParentPosition() const
-        {
-            return _transform->parent ? _transform->position : vec2(0, 0);
-        }
-        virtual const vec2 GetPosition() const
-        {
-            return _transform->position + _transform->localPosition;
-        }
+        const vec2 GetScreenPosition() const;
+        const vec2 GetLocalPosition() const;
+        const vec2 GetParentPosition() const;
         virtual void SetPosition(const vec2& position);
         
-        virtual const vec2 GetAnchor() const
-        {
-            return _transform->anchor;
-        }
+        const vec2 GetAnchor() const;
         virtual void SetAnchor(const vec2& anchor);
 
-        virtual const vec2 GetLocalAnchor() const
-        {
-            return _transform->localAnchor;
-        }
+        const vec2 GetLocalAnchor() const;
         virtual void SetLocalAnchor(const vec2& localAnchor);
         
-        virtual const vec2 GetSize() const
-        {
-            return _transform->size;
-        }
+        const vec2 GetSize() const;
         virtual void SetSize(const vec2& size);
         
-        virtual const bool GetFillParentSize()
-        {
-            return _transform->fillParentSize;
-        }
+        const bool GetFillParentSize();
         virtual void SetFillParentSize(bool fillParent);
 
-        virtual const u16 GetDepth() const
-        {
-            return _transform->sortData.depth;
-        }
+        const u16 GetDepth() const;
         virtual void SetDepth(const u16 depth);
 
         virtual void SetParent(BaseElement* parent);
         virtual void UnsetParent();
 
+        const bool GetExpandBoundsToChildren();
         virtual void SetExpandBoundsToChildren(bool expand);
 
-        const bool IsVisible() const { return _visibility->visible && _visibility->parentVisible; }
-        const bool IsLocallyVisible() const { return _visibility->visible; }
-        const bool IsParentVisible() const { return _visibility->parentVisible; }
+        const bool IsVisible() const;
+        const bool IsLocallyVisible() const;
+        const bool IsParentVisible() const;
         virtual void SetVisible(bool visible);
     
         void SetCollisionEnabled(bool enabled);
@@ -143,8 +108,8 @@ protected:
 
         static void UpdateChildVisibility(entt::registry* uiRegistry, const UIComponent::Transform* parent, bool parentVisibility);
 
-        static void UpdateChildBounds(entt::registry* uiRegistry, UIComponent::Transform* transform);
-        static void UpdateBounds(entt::registry* uiRegistry, UIComponent::Transform* parent);
+        static void UpdateChildBounds(entt::registry* registry, UIComponent::Transform* transform);
+        static void UpdateBounds(entt::registry* registry, UIComponent::Transform* parent);
 
         inline LockToken* GetLock(LockState state)
         {
@@ -154,9 +119,6 @@ protected:
     protected:
         entt::entity _entityId;
         UI::UIElementType _elementType;
-
-        UIComponent::Transform* _transform = nullptr;
-        UIComponent::Visibility* _visibility = nullptr;
 
         std::shared_mutex _mutex;
     };

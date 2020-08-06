@@ -33,7 +33,5 @@ namespace UIScripting
 
         static Label* CreateLabel();
 
-    private:
-        UIComponent::Text* _text;
     };
 }

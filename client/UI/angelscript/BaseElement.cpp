@@ -10,6 +10,7 @@
 #include "../ECS/Components/Collidable.h"
 #include "../ECS/Components/Dirty.h"
 #include "../Utils/TransformUtils.h"
+#include "../Utils/VisibilityUtils.h"
 
 namespace UIScripting
 {
@@ -21,207 +22,251 @@ namespace UIScripting
         registry->ctx<UISingleton::UIDataSingleton>().entityToAsObject[_entityId] = this;
     }
 
-    // TODO: Move to UIUtils::Visibility
-    // Returns true if visibility changed.
-    bool UpdateVisibility(UIComponent::Visibility* visibility, bool visible)
-    {
-        if (visibility->visible == visible)
-            return false;
-
-        const bool oldVisibility = visibility->parentVisible && visibility->visible;
-        const bool newVisibility = visibility->parentVisible && visible;
-        visibility->visible = visible;
-
-        return oldVisibility != visible;
-    }
-
-    // TODO: Move to UIUtils::Visibility
-    // Returns true if visibility changed.
-    bool UpdateParentVisibility(UIComponent::Visibility* visibility, bool parentVisible)
-    {
-        if (visibility->parentVisible == parentVisible)
-            return false;
-
-        const bool oldVisibility = visibility->parentVisible && visibility->visible;
-        const bool newVisibility = parentVisible && visibility->visible;
-        visibility->parentVisible = parentVisible;
-
-        return oldVisibility != newVisibility;
-    }
-
     void BaseElement::SetTransform(const vec2& position, const vec2& size)
     {
-        const bool hasParent = _transform->parent;
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
+
+        const bool hasParent = transform->parent != entt::null;
         if (hasParent)
-            _transform->localPosition = position;
+            transform->localPosition = position;
         else
-            _transform->position = position;
+            transform->position = position;
 
         // Don't change size if we are trying to fill parent size since it will just adjust to the parent.
-        if (!_transform->fillParentSize)
-            _transform->size = size;
+        if (!transform->fillParentSize)
+            transform->size = size;
 
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UpdateChildTransforms(registry, _transform);
+        UpdateChildTransforms(registry, transform);
         MarkDirty(registry, _entityId);
     }
 
+    const vec2 BaseElement::GetScreenPosition() const
+    {
+        UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        return UIUtils::Transform::GetScreenPosition(transform);
+    }
+    const vec2 BaseElement::GetLocalPosition() const
+    {
+        UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        return transform->parent == entt::null ? vec2(0, 0) : transform->localPosition;
+    }
+    const vec2 BaseElement::GetParentPosition() const
+    {
+        UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        return transform->parent == entt::null ? vec2(0, 0) : transform->position;
+    }
     void BaseElement::SetPosition(const vec2& position)
     {
-        const bool hasParent = _transform->parent;
-        if (hasParent)
-            _transform->localPosition = position;
-        else
-            _transform->position = position;
-
         entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
 
-        UpdateChildTransforms(registry, _transform);
+        const bool hasParent = transform->parent != entt::null;
+        if (hasParent)
+            transform->localPosition = position;
+        else
+            transform->position = position;
+
+        UpdateChildTransforms(registry, transform);
         MarkDirty(registry, _entityId);
     }
 
+    const vec2 BaseElement::GetAnchor() const
+    {
+        UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        return transform->anchor;
+    }
     void BaseElement::SetAnchor(const vec2& anchor)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
 
-        _transform->anchor = anchor;
+        transform->anchor = anchor;
 
-        if (_transform->parent)
-        {
-            UIComponent::Transform* parent = &registry->get<UIComponent::Transform>(entt::entity(_transform->parent));
-            _transform->position = UIUtils::Transform::GetAnchorPosition(parent, _transform->anchor);
-        }
-
-        UpdateChildTransforms(registry, _transform);
-        MarkDirty(registry, _entityId);
-    }
-
-    void BaseElement::SetLocalAnchor(const vec2& localAnchor)
-    {
-        _transform->localAnchor = localAnchor;
-
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UpdateChildTransforms(registry, _transform);
-        MarkDirty(registry, _entityId);
-    }
-
-    void BaseElement::SetSize(const vec2& size)
-    {
-        _transform->size = size;
-
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UpdateChildTransforms(registry, _transform);
-        MarkDirty(registry, _entityId);
-    }
-
-    void BaseElement::SetFillParentSize(bool fillParent)
-    {
-        //Check so we are actually changing the state.
-        if (fillParent == _transform->fillParentSize)
+        if (transform->parent == entt::null)
             return;
 
+        UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(transform->parent);
+        transform->position = UIUtils::Transform::GetAnchorPosition(parentTransform, transform->anchor);
+
+        UpdateChildTransforms(registry, transform);
+        MarkDirty(registry, _entityId);
+    }
+
+    const vec2 BaseElement::GetLocalAnchor() const
+    {
+        UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        return transform->localAnchor;
+    }
+    void BaseElement::SetLocalAnchor(const vec2& localAnchor)
+    {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
 
-        _transform->fillParentSize = fillParent;
+        transform->localAnchor = localAnchor;
 
-        if (_transform->parent && fillParent)
+        UpdateChildTransforms(registry, transform);
+        MarkDirty(registry, _entityId);
+    }
+
+    const vec2 BaseElement::GetSize() const
+    {
+        UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        return transform->size;
+    }
+    void BaseElement::SetSize(const vec2& size)
+    {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
+
+        transform->size = size;
+
+        UpdateChildTransforms(registry, transform);
+        MarkDirty(registry, _entityId);
+    }
+
+    const bool BaseElement::GetFillParentSize()
+    {
+        UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        return transform->fillParentSize;
+    }
+    void BaseElement::SetFillParentSize(bool fillParent)
+    {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
+
+        //Check so we are actually changing the state.
+        if (fillParent == transform->fillParentSize)
+            return;
+
+        transform->fillParentSize = fillParent;
+
+        if (transform->parent != entt::null && fillParent)
         {
-            UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(entt::entity(_transform->parent));
-
-            _transform->size = parentTransform->size;
-
-            UpdateChildTransforms(registry, _transform);
+            UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(transform->parent);
+            transform->size = parentTransform->size;
+            UpdateChildTransforms(registry, transform);
             MarkDirty(registry, _entityId);
         }
     }
 
+    const u16 BaseElement::GetDepth() const
+    {
+        UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+
+        return transform->sortData.depth;
+    }
     void BaseElement::SetDepth(const u16 depth)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
 
-        _transform->sortData.depth = depth;
+        transform->sortData.depth = depth;
         MarkDirty(registry, _entityId);
     }
 
     void BaseElement::SetParent(BaseElement* parent)
     {
-        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
+        UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(parent->GetEntityId());
 
         // Remove old parent.
-        if (_transform->parent)
+        if (transform->parent != entt::null)
         {
-            UIComponent::Transform* oldParentTransform = &uiRegistry->get<UIComponent::Transform>(entt::entity(_transform->parent));
-
-            //Remove from parents children.
-            UIUtils::Transform::RemoveChild(oldParentTransform, _entityId);
-
-            // Keep same screen position.
-            _transform->position = UIUtils::Transform::GetScreenPosition(_transform);
+            auto itr = std::find_if(transform->children.begin(), transform->children.end(), [this](UI::UIChild& uiChild) { return uiChild.entId == _entityId; });
+            if (itr != transform->children.end())
+                transform->children.erase(itr);
         }
 
         // Set new parent.
-        _transform->parent = entt::to_integral(parent->_entityId);
+        transform->parent = parent->GetEntityId();
 
-        // Calculate origin.
-        UIComponent::Transform* parentTransform = parent->_transform;
-        vec2 NewOrigin = UIUtils::Transform::GetAnchorPosition(parentTransform, _transform->anchor);
+        // Add ourselves to parent's children
+        UIUtils::Transform::AddChild(parentTransform, transform);
 
         // Recalculate new local position whilst keeping screen position.
-        _transform->localPosition = _transform->position - NewOrigin;
-        _transform->position = NewOrigin;
+        vec2 NewOrigin = UIUtils::Transform::GetAnchorPosition(parentTransform, transform->anchor);
+        transform->localPosition = transform->position - NewOrigin;
+        transform->position = NewOrigin;
 
-        if (_transform->fillParentSize)
-            _transform->size = parentTransform->size;
+        if (transform->fillParentSize)
+            transform->size = parentTransform->size;
 
-        UpdateChildTransforms(uiRegistry, _transform);
+        UpdateChildTransforms(registry, transform);
 
-        // Add ourselves to parent's angelscript object children
-        UIUtils::Transform::AddChild(parentTransform, _entityId, _elementType);
-
-        // Update _visibility->
-        UIComponent::Visibility* visibility = &uiRegistry->get<UIComponent::Visibility>(_entityId);
-        if (UpdateParentVisibility(visibility, uiRegistry->has<UIComponent::Visible>(parent->_entityId)))
+        // Update visibility
+        UIComponent::Visibility* visibility = &registry->get<UIComponent::Visibility>(_entityId);
+        if (UIUtils::Visibility::UpdateParentVisibility(visibility, registry->has<UIComponent::Visible>(parent->_entityId)))
         {
-            const bool newVisibility = _visibility->visible && _visibility->parentVisible;
-            UpdateChildVisibility(uiRegistry, _transform, newVisibility);
+            const bool newVisibility = visibility->visible && visibility->parentVisible;
+            UpdateChildVisibility(registry, transform, newVisibility);
 
             if (newVisibility)
-                uiRegistry->emplace<UIComponent::Visible>(_entityId);
+                registry->emplace<UIComponent::Visible>(_entityId);
             else
-                uiRegistry->remove<UIComponent::Visible>(_entityId);
+                registry->remove<UIComponent::Visible>(_entityId);
         }
 
-        MarkDirty(uiRegistry, _entityId);
+        MarkDirty(registry, _entityId);
     }
 
     void BaseElement::UnsetParent()
     {
-        if (!_transform->parent)
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
+
+        if (transform->parent == entt::null)
             return;
-    
-        UIUtils::Transform::RemoveParent(_transform);
+        
+        UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(transform->parent);
+
+        UIUtils::Transform::RemoveChild(parentTransform, transform);
     }
 
+    const bool BaseElement::GetExpandBoundsToChildren()
+    {
+        UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+
+        return transform->includeChildBounds;
+    }
     void BaseElement::SetExpandBoundsToChildren(bool expand)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
 
-        _transform->includeChildBounds = expand;
-        UpdateChildBounds(registry, _transform);
+        transform->includeChildBounds = expand;
+        UpdateChildBounds(registry, transform);
     }
 
+    const bool BaseElement::IsVisible() const
+    {
+        UIComponent::Visibility* visibility = &ServiceLocator::GetUIRegistry()->get<UIComponent::Visibility>(_entityId);
+        return UIUtils::Visibility::IsVisible(visibility);
+    }
+    const bool BaseElement::IsLocallyVisible() const
+    {
+        UIComponent::Visibility* visibility = &ServiceLocator::GetUIRegistry()->get<UIComponent::Visibility>(_entityId);
+        return visibility->visible;
+    }
+    const bool BaseElement::IsParentVisible() const
+    {
+        UIComponent::Visibility* visibility = &ServiceLocator::GetUIRegistry()->get<UIComponent::Visibility>(_entityId);
+        return visibility->parentVisible;
+    }
     void BaseElement::SetVisible(bool visible)
     {
-        // Don't do anything if new visibility isn't different from the old one.
-        if (_visibility->visible == visible)
-            return;
-
-        if (!UpdateVisibility(_visibility, visible))
-            return;
-
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        const bool newVisibility = _visibility->parentVisible && _visibility->visible;
-        UpdateChildVisibility(registry, &registry->get<UIComponent::Transform>(_entityId), newVisibility);
+        UIComponent::Visibility* visibility = &registry->get<UIComponent::Visibility>(_entityId);
+
+        // Don't do anything if visibility doesn't change.
+        if (visibility->visible == visible || !UIUtils::Visibility::UpdateVisibility(visibility, visible))
+            return;
+
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
+
+        const bool newVisibility = UIUtils::Visibility::IsVisible(visibility);
+        UpdateChildVisibility(registry, transform, newVisibility);
 
         // Update visibility component.
         if (newVisibility)
@@ -233,7 +278,7 @@ namespace UIScripting
     void BaseElement::SetCollisionEnabled(bool enabled)
     {
         entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-        
+
         // Check if collision enabled state is the same as what we are trying to set. If so doing anything would be redundant.
         if (uiRegistry->has<UIComponent::Collidable>(_entityId) == enabled)
             return;
@@ -246,9 +291,7 @@ namespace UIScripting
 
     void BaseElement::Destroy()
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
-
+        UISingleton::UIDataSingleton& dataSingleton = ServiceLocator::GetUIRegistry()->ctx<UISingleton::UIDataSingleton>();
         dataSingleton.DestroyWidget(_entityId);
     }
 
@@ -258,47 +301,46 @@ namespace UIScripting
             registry->emplace<UIComponent::Dirty>(entId);
     }
 
-    void BaseElement::UpdateChildTransforms(entt::registry* uiRegistry, UIComponent::Transform* parent)
-    {
-        ZoneScoped;
-        for (UI::UIChild& child : parent->children)
-        {
-            entt::entity entId = entt::entity(child.entity);
-            UIComponent::Transform* childTransform = &uiRegistry->get<UIComponent::Transform>(entId);
-
-            childTransform->position = UIUtils::Transform::GetAnchorPosition(parent, childTransform->anchor);
-            if (childTransform->fillParentSize) 
-                childTransform->size = parent->size;
-
-            UpdateChildTransforms(uiRegistry, childTransform);
-            MarkDirty(uiRegistry, entId);
-        }
-
-        UpdateChildBounds(uiRegistry, parent);
-    }
-
-    void BaseElement::UpdateChildVisibility(entt::registry* uiRegistry, const UIComponent::Transform* parent, bool parentVisibility)
+    void BaseElement::UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent)
     {
         ZoneScoped;
         for (const UI::UIChild& child : parent->children)
         {
-            const entt::entity childEntity = entt::entity(child.entity);
-            UIComponent::Visibility* childVisibility = &uiRegistry->get<UIComponent::Visibility>(childEntity);
+            UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
 
-            if (!UpdateParentVisibility(childVisibility, parentVisibility))
+            childTransform->position = UIUtils::Transform::GetAnchorPosition(parent, childTransform->anchor);
+            if (childTransform->fillParentSize)
+                childTransform->size = parent->size;
+
+            UpdateChildTransforms(registry, childTransform);
+            MarkDirty(registry, child.entId);
+        }
+
+        UpdateChildBounds(registry, parent);
+    }
+
+    void BaseElement::UpdateChildVisibility(entt::registry* registry, const UIComponent::Transform* parent, bool parentVisibility)
+    {
+        ZoneScoped;
+        for (const UI::UIChild& child : parent->children)
+        {
+            UIComponent::Visibility* childVisibility = &registry->get<UIComponent::Visibility>(child.entId);
+
+            if (!UIUtils::Visibility::UpdateParentVisibility(childVisibility, parentVisibility))
                 continue;
 
             const bool newVisibility = childVisibility->parentVisible && childVisibility->visible;
-            UpdateChildVisibility(uiRegistry, &uiRegistry->get<UIComponent::Transform>(childEntity), newVisibility);
+            const UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
+            UpdateChildVisibility(registry, childTransform, newVisibility);
 
             if (newVisibility)
-                uiRegistry->emplace<UIComponent::Visible>(entt::entity(child.entity));
+                registry->emplace<UIComponent::Visible>(entt::entity(child.entId));
             else
-                uiRegistry->remove<UIComponent::Visible>(entt::entity(child.entity));
+                registry->remove<UIComponent::Visible>(entt::entity(child.entId));
         }
     }
 
-    void BaseElement::UpdateChildBounds(entt::registry* uiRegistry, UIComponent::Transform* transform)
+    void BaseElement::UpdateChildBounds(entt::registry* registry, UIComponent::Transform* transform)
     {
         ZoneScoped;
         transform->minBound = UIUtils::Transform::GetMinBounds(transform);
@@ -308,26 +350,28 @@ namespace UIScripting
         {
             for (const UI::UIChild& child : transform->children)
             {
-                UpdateChildBounds(uiRegistry, &uiRegistry->get<UIComponent::Transform>(entt::entity(child.entity)));
+                UpdateChildBounds(registry, &registry->get<UIComponent::Transform>(child.entId));
             }
         }
 
-        if (!transform->parent)
+        if (transform->parent == entt::null)
             return;
 
-        UpdateBounds(uiRegistry, &uiRegistry->get<UIComponent::Transform>(entt::entity(transform->parent)));
+        UpdateBounds(registry, &registry->get<UIComponent::Transform>(transform->parent));
     }
-    void BaseElement::UpdateBounds(entt::registry* uiRegistry, UIComponent::Transform* transform)
+    void BaseElement::UpdateBounds(entt::registry* registry, UIComponent::Transform* transform)
     {
         ZoneScoped;
+
         transform->minBound = UIUtils::Transform::GetMinBounds(transform);
         transform->maxBound = UIUtils::Transform::GetMaxBounds(transform);
 
         if (transform->includeChildBounds)
         {
+
             for (const UI::UIChild& child : transform->children)
             {
-                UIComponent::Transform* childTransform = &uiRegistry->get<UIComponent::Transform>(entt::entity(child.entity));
+                UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
 
                 if (childTransform->minBound.x < transform->minBound.x) { transform->minBound.x = childTransform->minBound.x; }
                 if (childTransform->minBound.y < transform->minBound.y) { transform->minBound.y = childTransform->minBound.y; }
@@ -337,11 +381,11 @@ namespace UIScripting
             }
         }
 
-        if (!transform->parent)
+        if (transform->parent == entt::null)
             return;
 
-        UIComponent::Transform* parentTransform = &uiRegistry->get<UIComponent::Transform>(entt::entity(transform->parent));
+        UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(transform->parent);
         if(parentTransform->includeChildBounds)
-            UpdateBounds(uiRegistry, parentTransform);
+            UpdateBounds(registry, parentTransform);
     }
 }

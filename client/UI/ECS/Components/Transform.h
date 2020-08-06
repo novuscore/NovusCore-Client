@@ -6,7 +6,7 @@ namespace UI
 {
     struct UIChild
     {
-        u32 entity;
+        entt::entity entId;
         UI::UIElementType type;
     };
 }
@@ -37,7 +37,7 @@ namespace UIComponent
                 entt::entity entId;
             } sortData;
         };
-        u32 parent = 0;
+        entt::entity parent = entt::null;
         std::vector<UI::UIChild> children;
         void* asObject = nullptr;
 

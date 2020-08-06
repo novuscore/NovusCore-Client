@@ -49,7 +49,5 @@ namespace UIScripting
     private:
         Label* _label;
         Panel* _panel;
-
-        UIComponent::TransformEvents* _events;
     };
 }

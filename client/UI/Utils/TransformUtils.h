@@ -28,23 +28,22 @@ namespace UIUtils::Transform
         return GetMinBounds(transform) + (transform->size * anchor);
     }
 
-    inline static void AddChild(UIComponent::Transform* transform, entt::entity childEntityId, UI::UIElementType childElementType)
+    inline static void AddChild(UIComponent::Transform* transform, UIComponent::Transform* child)
     {
-        transform->children.push_back({ entt::to_integral(childEntityId) , childElementType });
+        transform->children.push_back({ child->sortData.entId , child->sortData.type });
     }
 
-    inline static void RemoveChild(UIComponent::Transform* transform, entt::entity childEntityId)
+    inline static void RemoveChild(UIComponent::Transform* transform, UIComponent::Transform* child)
     {
-        auto itr = std::find_if(transform->children.begin(), transform->children.end(), [childEntityId](UI::UIChild& uiChild) { return uiChild.entity == entt::to_integral(childEntityId); });
+        if (child->parent != transform->sortData.entId)
+            return;
 
+        auto itr = std::find_if(transform->children.begin(), transform->children.end(), [child](UI::UIChild& uiChild) { return uiChild.entId == child->sortData.entId; });
         if (itr != transform->children.end())
             transform->children.erase(itr);
-    }
 
-    inline static void RemoveParent(UIComponent::Transform* transform)
-    {
-        transform->position = transform->position + transform->localPosition;
-        transform->localPosition = vec2(0, 0);
-        transform->parent = 0;
+        child->position = child->position + child->localPosition;
+        child->localPosition = vec2(0, 0);
+        child->parent = entt::null;
     }
 };

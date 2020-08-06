@@ -56,10 +56,5 @@ namespace UIScripting
         void SetTextFont(const std::string& fontPath, f32 fontSize);
 
         static InputField* CreateInputField();
-
-    private:
-        UIComponent::TransformEvents* _events;
-        UIComponent::Text* _text;
-        UIComponent::InputField* _inputField;
     };
 }

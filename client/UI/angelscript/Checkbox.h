@@ -50,10 +50,6 @@ namespace UIScripting
         static Checkbox* CreateCheckbox();
 
     private:
-        UIComponent::TransformEvents* _events;
-        UIComponent::Checkbox* _checkBox;
-        UIComponent::Image* _image;
-
         Panel* checkPanel;
     };
 }
