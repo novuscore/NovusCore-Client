@@ -20,8 +20,6 @@ namespace Renderer
 {
     namespace Backend
     {
-        struct BufferBackend;
-        struct BufferBackendVK;
         struct SwapChainVK;
         class ShaderHandlerVK;
         struct DescriptorMegaPoolVK;
@@ -44,8 +42,6 @@ namespace Renderer
 
             void Init();
             void InitWindow(ShaderHandlerVK* shaderHandler, Window* window);
-
-            BufferBackend* CreateBufferBackend(size_t size, Backend::BufferBackend::Type type, Backend::BufferBackend::Usage usage);
 
             u32 GetFrameIndex() { return _frameIndex; }
             void EndFrame() { _frameIndex = (_frameIndex + 1) % FRAME_INDEX_COUNT; }
@@ -108,7 +104,6 @@ namespace Renderer
             VkQueue _graphicsQueue = VK_NULL_HANDLE;
             VkQueue _presentQueue = VK_NULL_HANDLE;
 
-            std::vector<BufferBackendVK*> _bufferBackends;
             std::vector<SwapChainVK*> _swapChains;
 
             VmaAllocator _allocator;
@@ -118,7 +113,7 @@ namespace Renderer
             tracy::VkCtx* _tracyContext = nullptr;
 
             friend class RendererVK;
-            friend struct BufferBackendVK;
+            friend class BufferHandlerVK;
             friend class ImageHandlerVK;
             friend class TextureHandlerVK;
             friend class ModelHandlerVK;

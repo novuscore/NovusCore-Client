@@ -72,7 +72,7 @@ namespace Renderer
         void Draw(CommandListID commandListID, ModelID modelID) override;
         void DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances) override;
         void DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances) override;
-        void DrawIndexedIndirectCount(CommandListID commandListID, void* argumentBuffer, u32 argumentBufferOffset, void* drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount) override;
+        void DrawIndexedIndirectCount(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount) override;
         void PopMarker(CommandListID commandListID) override;
         void PushMarker(CommandListID commandListID, Color color, std::string name) override;
         void BeginPipeline(CommandListID commandListID, GraphicsPipelineID pipeline) override;
@@ -93,9 +93,10 @@ namespace Renderer
         // Non-commandlist based present functions
         void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;
         void Present(Window* window, DepthImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;
-        
-    protected:
-        Backend::BufferBackend* CreateBufferBackend(size_t size, Backend::BufferBackend::Type type, Backend::BufferBackend::Usage usage = Backend::BufferBackend::USAGE_NONE) override;
+
+        // Utils
+        void* MapBuffer(BufferID buffer) override;
+        void UnmapBuffer(BufferID buffer) override;
 
     private:
         bool ReflectDescriptorSet(const std::string& name, u32 nameHash, u32 type, i32& set, const std::vector<Backend::BindInfo>& bindInfos, u32& outBindInfoIndex, VkDescriptorSetLayoutBinding* outDescriptorLayoutBinding);

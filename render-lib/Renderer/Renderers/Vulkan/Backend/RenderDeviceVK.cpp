@@ -85,44 +85,6 @@ namespace Renderer
             CreateBlitPipeline(shaderHandler, swapChain, "blitInt", IMAGE_COMPONENT_TYPE_SINT);
         }
 
-        BufferBackend* RenderDeviceVK::CreateBufferBackend(size_t size, Backend::BufferBackend::Type type, Backend::BufferBackend::Usage usage)
-        {
-            BufferBackendVK* backend = new BufferBackendVK();
-            backend->device = this;
-            backend->bufferSize = size;
-
-            VkDeviceSize bufferSize = size;
-
-            VkBufferUsageFlags flags = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-
-            if (type == Backend::BufferBackend::Type::TYPE_CONSTANT_BUFFER)
-            {
-                flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-            }
-            else
-            {
-                flags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-            }
-
-            if (usage & Backend::BufferBackend::Usage::USAGE_INDIRECT_ARGUMENT_BUFFER)
-            {
-                flags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
-            }
-
-            for (int i = 0; i < backend->buffers.Num; i++)
-            {
-                CreateBuffer(bufferSize, flags, VMA_MEMORY_USAGE_CPU_TO_GPU, backend->buffers.Get(i), backend->allocations.Get(i));
-
-                char debugName[16];
-
-                snprintf(debugName, sizeof(debugName), "%s%i", "Buffer", i);
-                DebugMarkerUtilVK::SetObjectName(_device, (u64)backend->buffers.Get(i), VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, debugName);
-            }
-
-            _bufferBackends.push_back(backend);
-            return backend;
-        }
-
         void RenderDeviceVK::FlushGPU()
         {
 
@@ -1111,23 +1073,6 @@ namespace Renderer
             vkQueueWaitIdle(_graphicsQueue);
 
             vkFreeCommandBuffers(_device, _commandPool, 1, &commandBuffer);
-        }
-
-        void RenderDeviceVK::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, VkBuffer& buffer, VmaAllocation& allocation)
-        {
-            VkBufferCreateInfo bufferInfo = {};
-            bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-            bufferInfo.size = size;
-            bufferInfo.usage = usage;
-            bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-            VmaAllocationCreateInfo allocInfo = {};
-            allocInfo.usage = memoryUsage;
-
-            if (vmaCreateBuffer(_allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr) != VK_SUCCESS)
-            {
-                NC_LOG_FATAL("Failed to create buffer!");
-            }
         }
 
         void RenderDeviceVK::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)

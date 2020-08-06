@@ -119,7 +119,7 @@ namespace Renderer
         command->modelID = model;
     }
 
-    void CommandList::SetBuffer(u32 slot, void* buffer)
+    void CommandList::SetBuffer(u32 slot, BufferID buffer)
     {
         Commands::SetBuffer* command = AddCommand<Commands::SetBuffer>();
         command->slot = slot;
@@ -169,7 +169,7 @@ namespace Renderer
         command->numInstances = numInstances;
     }
 
-    void CommandList::DrawIndexedIndirectCount(void* argumentBuffer, u32 argumentBufferOffset, void* drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount)
+    void CommandList::DrawIndexedIndirectCount(BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount)
     {
         assert(argumentBuffer);
         assert(drawCountBuffer);

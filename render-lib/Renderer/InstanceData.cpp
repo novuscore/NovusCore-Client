@@ -30,6 +30,7 @@ namespace Renderer
         //assert(_cb != nullptr); // Check if we have initialized
         //
         //return _cb->GetDescriptor(frameIndex);
+        return nullptr;
     }
 
     void* InstanceData::GetBuffer(u32 frameIndex)
@@ -37,6 +38,7 @@ namespace Renderer
         //assert(_cb != nullptr); // Check if we have initialized
         //
         //return _cb->GetBuffer(frameIndex);
+        return nullptr;
     }
 
 }

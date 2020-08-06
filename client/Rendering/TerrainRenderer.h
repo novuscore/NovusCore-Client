@@ -9,8 +9,8 @@
 #include <Renderer/Descriptors/TextureArrayDesc.h>
 #include <Renderer/Descriptors/ModelDesc.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
-#include <Renderer/ConstantBuffer.h>
-#include <Renderer/StorageBuffer.h>
+#include <Renderer/Descriptors/BufferDesc.h>
+#include <Renderer/Buffer.h>
 #include <Renderer/DescriptorSet.h>
 
 #include "../Gameplay/Map/Chunk.h"
@@ -39,8 +39,8 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::ConstantBuffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex);
-    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::ConstantBuffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode);
+    void AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex);
+    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode);
 
 private:
     void CreatePermanentResources();
@@ -64,8 +64,8 @@ private:
 
     struct TerrainInstanceData
     {
-        Renderer::StorageBuffer<std::array<TerrainVertex, Terrain::NUM_VERTICES_PER_CHUNK>>* vertexBuffer = nullptr;
-        Renderer::ConstantBuffer<std::array<TerrainChunkData, Terrain::MAP_CELLS_PER_CHUNK>>* chunkData = nullptr;
+        Renderer::Buffer<std::array<TerrainVertex, Terrain::NUM_VERTICES_PER_CHUNK>>* vertexBuffer = nullptr;
+        Renderer::Buffer<std::array<TerrainChunkData, Terrain::MAP_CELLS_PER_CHUNK>>* chunkData = nullptr;
     };
 
 private:
@@ -74,12 +74,10 @@ private:
     Renderer::ModelID _chunkModel = Renderer::ModelID::Invalid();
     std::vector<Renderer::InstanceData> _chunkModelInstances;
 
-    Renderer::StorageBuffer<std::array<VkDrawIndexedIndirectCommand, 1024>>* _argumentBuffer = nullptr;
-    Renderer::StorageBuffer<u32>* _drawCountBuffer = nullptr;
+    Renderer::BufferID _argumentBuffer = Renderer::BufferID::Invalid();
+    //Renderer::BufferID _drawCountBuffer = Renderer::BufferID::Invalid();
 
-    Renderer::ConstantBuffer<TerrainDebugData>* _terrainDebugData = nullptr;
-
-    Renderer::ConstantBuffer<std::array<u32, Terrain::MAP_CELLS_PER_CHUNK>>* _terrainInstanceIDs = nullptr;
+    Renderer::BufferID _terrainInstanceIDs = Renderer::BufferID::Invalid();
     
     Renderer::TextureArrayID _terrainColorTextureArray = Renderer::TextureArrayID::Invalid();
     Renderer::TextureArrayID _terrainAlphaTextureArray = Renderer::TextureArrayID::Invalid();

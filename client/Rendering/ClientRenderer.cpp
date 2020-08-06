@@ -138,6 +138,8 @@ void ClientRenderer::Render()
 
     _renderer->FlipFrame(_frameIndex);
 
+    _passDescriptorSet.Bind("_viewData"_h, _viewConstantBuffer->GetBuffer(_frameIndex));
+
     // Depth Prepass
     {
         struct DepthPrepassData
@@ -213,11 +215,12 @@ void ClientRenderer::Render()
                 auto const& modelID = Renderer::ModelID(model.first);
                 auto const& instances = model.second;
 
+
                 for (auto const& instance : instances)
                 {
                     instance->Apply(_frameIndex);
 
-                    _drawDescriptorSet.Bind("_modelData", instance->GetConstantBuffer());
+                    //_drawDescriptorSet.Bind("_modelData", instance->GetConstantBuffer());
                     commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, _frameIndex);
 
                     // Draw
@@ -315,7 +318,7 @@ void ClientRenderer::Render()
 
                 for (auto const& instance : instances)
                 {
-                    _drawDescriptorSet.Bind("_modelData", instance->GetConstantBuffer());
+                    //_drawDescriptorSet.Bind("_modelData", instance->GetConstantBuffer());
                     commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, _frameIndex);
 
                     // Draw
@@ -401,7 +404,7 @@ void ClientRenderer::CreatePermanentResources()
     _linearSampler = _renderer->CreateSampler(samplerDesc);
 
     // View Constant Buffer (for camera data)
-    _viewConstantBuffer = _renderer->CreateConstantBuffer<ViewConstantBuffer>();
+    _viewConstantBuffer = new Renderer::Buffer<ViewConstantBuffer>(_renderer, "ViewConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
     {
         mat4x4& projMatrix = _viewConstantBuffer->resource.projMatrix;
 
@@ -420,7 +423,6 @@ void ClientRenderer::CreatePermanentResources()
 
     // Create descriptor sets
     _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
-    _passDescriptorSet.Bind("_viewData"_h, _viewConstantBuffer);
     _passDescriptorSet.Bind("_sampler"_h, _linearSampler);
 
     _drawDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());

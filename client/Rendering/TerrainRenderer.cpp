@@ -8,8 +8,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <tracy/TracyVulkan.hpp>
 
-#include <Renderer/BufferBackend.h>
-
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
 
@@ -37,7 +35,7 @@ void TerrainRenderer::Update(f32 deltaTime)
     }
 }
 
-void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::ConstantBuffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex)
 {
     // Terrain Depth Prepass
     {
@@ -87,49 +85,15 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
             commandList.BeginPipeline(pipeline);
 
             // Set instance buffer
-            commandList.SetBuffer(0, _terrainInstanceIDs->GetBuffer(frameIndex));
+            commandList.SetBuffer(0, _terrainInstanceIDs);
 
             // Bind viewbuffer
-            _passDescriptorSet.Bind("ViewData"_h, viewConstantBuffer);
+            _passDescriptorSet.Bind("ViewData"_h, viewConstantBuffer->GetBuffer(frameIndex));
 
             // Bind descriptorset
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
-            // Render main layer
-            Renderer::RenderLayer& mainLayer = _renderer->GetRenderLayer("Terrain"_h);
-
-            for (auto const& model : mainLayer.GetModels())
-            {
-                auto const& instances = model.second;
-
-                for (auto const& instance : instances)
-                {
-                    TerrainInstanceData* terrainInstanceData = instance->GetOptional<TerrainInstanceData>();
-
-                    _drawDescriptorSet.Bind("ModelData"_h, instance->GetConstantBuffer());
-                    _drawDescriptorSet.Bind("_vertexHeights"_h, terrainInstanceData->vertexBuffer);
-                    _drawDescriptorSet.Bind("ChunkData"_h, terrainInstanceData->chunkData);
-
-                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
-
-                    // Draw
-                    commandList.DrawIndexedBindless(_chunkModel, Terrain::NUM_INDICES_PER_CHUNK, Terrain::MAP_CELLS_PER_CHUNK);
-                }
-            }
-
-            // todo
-            //{
-            //    auto const& instance = mainLayer.GetModels().cbegin()->second[0];
-            //    TerrainInstanceData* terrainInstanceData = instance->GetOptional<TerrainInstanceData>();
-            //
-            //    _drawDescriptorSet.Bind("ModelData"_h, instance->GetConstantBuffer());
-            //    _drawDescriptorSet.Bind("_vertexHeights"_h, terrainInstanceData->vertexBuffer);
-            //    _drawDescriptorSet.Bind("ChunkData"_h, terrainInstanceData->chunkData);
-            //
-            //    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
-            //}
-
-            commandList.DrawIndexedIndirectCount(_argumentBuffer->GetBuffer(frameIndex), 0, _drawCountBuffer->GetBuffer(frameIndex), 0, 1024 );
+            commandList.DrawIndexedIndirectCount(_argumentBuffer, 0, _drawCountBuffer, 0, 1024 );
 
             commandList.EndPipeline(pipeline);
             commandList.EndTrace();
@@ -137,7 +101,7 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
     }
 }
 
-void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::ConstantBuffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode)
+void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode)
 {
     // Terrain Pass
     {
@@ -196,14 +160,10 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             commandList.BeginPipeline(pipeline);
 
             // Set instance buffer
-            commandList.SetBuffer(0, _terrainInstanceIDs->GetBuffer(frameIndex));
-
-            // Update debug data buffer
-            _terrainDebugData->resource.debugMode = debugMode;
-            _terrainDebugData->Apply(frameIndex);
+            commandList.SetBuffer(0, _terrainInstanceIDs);
 
             // Bind viewbuffer
-            _passDescriptorSet.Bind("ViewData"_h, viewConstantBuffer);
+            _passDescriptorSet.Bind("ViewData"_h, viewConstantBuffer->GetBuffer(frameIndex));
 
             // Bind descriptorset
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
@@ -211,26 +171,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             // Render main layer
             Renderer::RenderLayer& mainLayer = _renderer->GetRenderLayer("Terrain"_h);
 
-            for (auto const& model : mainLayer.GetModels())
-            {
-                auto const& instances = model.second;
-
-                for (auto const& instance : instances)
-                {
-                    TerrainInstanceData* terrainInstanceData = instance->GetOptional<TerrainInstanceData>();
-
-                    _drawDescriptorSet.Bind("ModelData"_h, instance->GetConstantBuffer());
-                    _drawDescriptorSet.Bind("_vertexHeights"_h, terrainInstanceData->vertexBuffer);
-                    _drawDescriptorSet.Bind("ChunkData"_h, terrainInstanceData->chunkData);
-
-                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
-
-                    // Draw
-                    commandList.DrawIndexedBindless(_chunkModel, Terrain::NUM_INDICES_PER_CHUNK, Terrain::MAP_CELLS_PER_CHUNK);
-                }
-            }
-
-            commandList.DrawIndexedIndirectCount(_argumentBuffer->GetBuffer(frameIndex), 0, _drawCountBuffer->GetBuffer(frameIndex), 0, 1024);
+            commandList.DrawIndexedIndirectCount(_argumentBuffer, 0, _drawCountBuffer, 0, 1024);
 
             commandList.EndPipeline(pipeline);
             commandList.EndTrace();
@@ -292,17 +233,12 @@ void TerrainRenderer::CreatePermanentResources()
 
     _colorSampler = _renderer->CreateSampler(colorSamplerDesc);
 
-    // Debug data constant buffer
-    _terrainDebugData = _renderer->CreateConstantBuffer<TerrainDebugData>();
-    _terrainDebugData->ApplyAll();
-
     // Descriptor sets
     _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
     _passDescriptorSet.Bind("_alphaSampler"_h, _alphaSampler);
     _passDescriptorSet.Bind("_colorSampler"_h, _colorSampler);
     _passDescriptorSet.Bind("_terrainColorTextures"_h, _terrainColorTextureArray);
     _passDescriptorSet.Bind("_terrainAlphaTextures"_h, _terrainAlphaTextureArray);
-    _passDescriptorSet.Bind("DebugData"_h, _terrainDebugData);
 
     _drawDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
 
@@ -353,24 +289,22 @@ void TerrainRenderer::CreatePermanentResources()
     _chunkModel = _renderer->CreatePrimitiveModel(modelDesc);
 
     // Initialize the instance IDs to go from 0 to Terrain::MAP_CELLS_PER_CHUNK
-    _terrainInstanceIDs = _renderer->CreateConstantBuffer<std::array<u32, Terrain::MAP_CELLS_PER_CHUNK>>();
-    for (u32 i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i++)
     {
-        _terrainInstanceIDs->resource[i] = i;
+        Renderer::BufferDesc desc;
+        desc.size = Terrain::MAP_CELLS_PER_CHUNK * sizeof(u32);
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+        desc.usage = Renderer::BUFFER_USAGE_VERTEX_BUFFER;
+        desc.name = "TerrainInstanceIDs";
+        _terrainInstanceIDs = _renderer->CreateBuffer(desc);
     }
-    _terrainInstanceIDs->ApplyAll();
+    
 
-    _argumentBuffer = _renderer->CreateStorageBuffer<std::array<VkDrawIndexedIndirectCommand, 1024>>(Renderer::Backend::BufferBackend::Usage::USAGE_INDIRECT_ARGUMENT_BUFFER);
-    _argumentBuffer->resource[0].indexCount = Terrain::NUM_INDICES_PER_CHUNK;
-    _argumentBuffer->resource[0].instanceCount = 256;
-    _argumentBuffer->resource[0].firstIndex = 0;
-    _argumentBuffer->resource[0].vertexOffset = 0;
-    _argumentBuffer->resource[0].firstInstance = 0;
-    _argumentBuffer->ApplyAll();
-
-    _drawCountBuffer = _renderer->CreateStorageBuffer<u32>(Renderer::Backend::BufferBackend::USAGE_INDIRECT_ARGUMENT_BUFFER);
-    _drawCountBuffer->resource = 1;
-    _drawCountBuffer->ApplyAll();
+    {
+        Renderer::BufferDesc desc;
+        desc.size = sizeof(VkDrawIndexedIndirectCommand);
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER;
+        _argumentBuffer = _renderer->CreateBuffer(desc);
+    }
 }
 
 void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)

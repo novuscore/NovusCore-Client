@@ -1,6 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
 #include "../../../SwapChain.h"
+#include "../../../FrameResource.h"
 #include <vulkan/vulkan.h>
 
 struct GLFWwindow;

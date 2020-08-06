@@ -321,12 +321,12 @@ namespace Renderer
         vkCmdDrawIndexed(commandBuffer, numVertices, numInstances, 0, 0, 0);
     }
 
-    void RendererVK::DrawIndexedIndirectCount(CommandListID commandListID, void* argumentBuffer, u32 argumentBufferOffset, void* drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount)
+    void RendererVK::DrawIndexedIndirectCount(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
-        VkBuffer vkArgumentBuffer = *static_cast<VkBuffer*>(argumentBuffer);
-        VkBuffer vkDrawCountBuffer = *static_cast<VkBuffer*>(drawCountBuffer);
+        VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
+        VkBuffer vkDrawCountBuffer = _bufferHandler->GetBuffer(drawCountBuffer);
 
         vkCmdDrawIndexedIndirectCount(commandBuffer, vkArgumentBuffer, argumentBufferOffset, vkDrawCountBuffer, drawCountBufferOffset, maxDrawCount, sizeof(VkDrawIndexedIndirectCommand));
     }
@@ -555,19 +555,11 @@ namespace Renderer
             
             builder->BindImageArray(descriptor.nameHash, imageInfos.data(), static_cast<i32>(imageInfos.size()));
         }
-        else if (descriptor.descriptorType == DescriptorType::DESCRIPTOR_TYPE_CONSTANT_BUFFER)
+        else if (descriptor.descriptorType == DescriptorType::DESCRIPTOR_TYPE_BUFFER)
         {
             VkDescriptorBufferInfo bufferInfo = {};
-            bufferInfo.buffer = *static_cast<VkBuffer*>(descriptor.constantBuffer->GetBuffer(frameIndex));
-            bufferInfo.range = descriptor.constantBuffer->GetSize();
-
-            builder->BindBuffer(descriptor.nameHash, bufferInfo);
-        }
-        else if (descriptor.descriptorType == DescriptorType::DESCRIPTOR_TYPE_STORAGE_BUFFER)
-        {
-            VkDescriptorBufferInfo bufferInfo = {};
-            bufferInfo.buffer = *static_cast<VkBuffer*>(descriptor.storageBuffer->GetBuffer(frameIndex));
-            bufferInfo.range = descriptor.storageBuffer->GetSize();
+            bufferInfo.buffer = _bufferHandler->GetBuffer(descriptor.bufferID);
+            bufferInfo.range = _bufferHandler->GetBufferSize(descriptor.bufferID);
 
             builder->BindBuffer(descriptor.nameHash, bufferInfo);
         }
@@ -815,9 +807,16 @@ namespace Renderer
     {
         
     }
-
-    Backend::BufferBackend* RendererVK::CreateBufferBackend(size_t size, Backend::BufferBackend::Type type, Backend::BufferBackend::Usage usage)
+    
+    void* RendererVK::MapBuffer(BufferID buffer)
     {
-        return _device->CreateBufferBackend(size, type, usage);
+        void* mappedMemory;
+        vmaMapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(buffer), &mappedMemory);
+        return mappedMemory;
+    }
+    
+    void RendererVK::UnmapBuffer(BufferID buffer)
+    {
+        vmaUnmapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(buffer));
     }
 }

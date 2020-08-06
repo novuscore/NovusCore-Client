@@ -1,6 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
 
+
 namespace Renderer
 {
     class Renderer;
@@ -31,8 +32,6 @@ namespace Renderer
         void* GetDescriptor(u32 frameIndex);
         void* GetBuffer(u32 frameIndex);
 
-        //IConstantBuffer* GetConstantBuffer() { return _cb; }
-
         template<typename T>
         void SetOptional(T* optional)
         {
@@ -47,6 +46,5 @@ namespace Renderer
 
     private:
         InstanceDataBackend _backend;
-        //ConstantBuffer<ModelCB>* _cb = nullptr;
     };
 }

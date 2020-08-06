@@ -1,5 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
+#include "../Descriptors/BufferDesc.h"
 
 namespace Renderer
 {
@@ -9,8 +10,8 @@ namespace Renderer
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
 
-            void* argumentBuffer = nullptr;
-            void* drawCountBuffer = nullptr;
+            BufferID argumentBuffer = BufferID::Invalid();
+            BufferID drawCountBuffer = BufferID::Invalid();
             u32 argumentBufferOffset = 0;
             u32 drawCountBufferOffset = 0;
             u32 maxDrawCount = 0;

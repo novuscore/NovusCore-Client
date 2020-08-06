@@ -463,6 +463,13 @@ namespace Renderer
         BUFFER_USAGE_UNIFORM_BUFFER             = (1 << 4),
     };
 
+    enum class BufferCPUAccess : u8
+    {
+        None,
+        WriteOnly,
+        ReadOnly,
+    };
+
     inline ImageComponentType ToImageComponentType(ImageFormat imageFormat)
     {
         switch (imageFormat)

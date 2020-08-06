@@ -10,6 +10,7 @@
 #include <Renderer/InstanceData.h>
 #include <Renderer/DescriptorSet.h>
 #include <Renderer/FrameResource.h>
+#include <Renderer/Buffer.h>
 
 #include "ViewConstantBuffer.h"
 
@@ -65,7 +66,7 @@ private:
     Renderer::GPUSemaphoreID _sceneRenderedSemaphore; // This semaphore tells the present function when the scene is ready to be blitted and presented
     FrameResource<Renderer::GPUSemaphoreID, 2> _frameSyncSemaphores; // This semaphore makes sure the GPU handles frames in order
 
-    Renderer::ConstantBuffer<ViewConstantBuffer>* _viewConstantBuffer;
+    Renderer::Buffer<ViewConstantBuffer>* _viewConstantBuffer;
 
     Renderer::DescriptorSet _passDescriptorSet;
     Renderer::DescriptorSet _drawDescriptorSet;

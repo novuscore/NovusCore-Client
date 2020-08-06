@@ -60,7 +60,7 @@ namespace Renderer
 
         void SetVertexBuffer(u32 slot, ModelID model);
         void SetIndexBuffer(ModelID model);
-        void SetBuffer(u32 slot, void* buffer);
+        void SetBuffer(u32 slot, BufferID buffer);
 
         void Clear(ImageID imageID, Color color);
         void Clear(DepthImageID imageID, f32 depth, DepthClearFlags flags = DepthClearFlags::DEPTH_CLEAR_DEPTH, u8 stencil = 0);
@@ -68,7 +68,8 @@ namespace Renderer
         void Draw(ModelID modelID);
         void DrawBindless(u32 numVertices, u32 numInstances);
         void DrawIndexedBindless(ModelID modelID, u32 numVertices, u32 numInstances);
-        void DrawIndexedIndirectCount(void* argumentBuffer, u32 argumentBufferOffset, void* drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount);
+        void DrawIndexedIndirect(BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount);
+        void DrawIndexedIndirectCount(BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount);
 
         void AddSignalSemaphore(GPUSemaphoreID semaphoreID);
         void AddWaitSemaphore(GPUSemaphoreID semaphoreID);

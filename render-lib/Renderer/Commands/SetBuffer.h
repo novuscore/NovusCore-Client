@@ -1,6 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include "../Descriptors/ModelDesc.h"
+#include "../Descriptors/BufferDesc.h"
 
 namespace Renderer
 {
@@ -11,7 +11,7 @@ namespace Renderer
             static const BackendDispatchFunction DISPATCH_FUNCTION;
 
             u32 slot = 0;
-            void* buffer = nullptr;
+            BufferID buffer = BufferID::Invalid();
         };
     }
 }

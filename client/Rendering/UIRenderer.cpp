@@ -4,7 +4,7 @@
 #include <Renderer/Descriptors/FontDesc.h>
 #include <Renderer/Descriptors/TextureDesc.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
-#include <Renderer/ConstantBuffer.h>
+#include <Renderer/Buffer.h>
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyVulkan.hpp>
 

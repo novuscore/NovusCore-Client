@@ -8,7 +8,8 @@ namespace Renderer
     struct BufferDesc
     {
         std::string name = "";
-        BufferUsage usage;
+        u8 usage;
+        BufferCPUAccess cpuAccess = BufferCPUAccess::None;
         u64 size = 0;
     };
 
