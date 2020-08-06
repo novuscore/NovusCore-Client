@@ -1,5 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
+#include <entity/fwd.hpp>
 #include "../ECS/Components/Transform.h"
 
 namespace UIUtils::Transform
@@ -46,4 +47,7 @@ namespace UIUtils::Transform
         child->localPosition = vec2(0, 0);
         child->parent = entt::null;
     }
+
+    void UpdateBounds(entt::registry* registry, UIComponent::Transform* transform);
+    void UpdateChildBounds(entt::registry* registry, UIComponent::Transform* transform);
 };

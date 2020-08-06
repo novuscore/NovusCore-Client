@@ -108,9 +108,6 @@ protected:
 
         static void UpdateChildVisibility(entt::registry* uiRegistry, const UIComponent::Transform* parent, bool parentVisibility);
 
-        static void UpdateChildBounds(entt::registry* registry, UIComponent::Transform* transform);
-        static void UpdateBounds(entt::registry* registry, UIComponent::Transform* parent);
-
         inline LockToken* GetLock(LockState state)
         {
             return new LockToken(_mutex, state);

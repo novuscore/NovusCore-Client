@@ -32,9 +32,5 @@ namespace UIScripting
         const Color GetColor() const { return _image->color; }
 
         static Panel* CreatePanel();
-
-    private:
-        UIComponent::TransformEvents* _events = nullptr;
-        UIComponent::Image* _image = nullptr;
     };
 }

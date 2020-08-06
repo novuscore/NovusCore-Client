@@ -32,6 +32,5 @@ namespace UIScripting
         void SetVerticalAlignment(UI::TextVerticalAlignment alignment);
 
         static Label* CreateLabel();
-
     };
 }

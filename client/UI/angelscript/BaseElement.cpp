@@ -236,7 +236,7 @@ namespace UIScripting
         UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
 
         transform->includeChildBounds = expand;
-        UpdateChildBounds(registry, transform);
+        UIUtils::Transform::UpdateChildBounds(registry, transform);
     }
 
     const bool BaseElement::IsVisible() const
@@ -316,7 +316,7 @@ namespace UIScripting
             MarkDirty(registry, child.entId);
         }
 
-        UpdateChildBounds(registry, parent);
+        UIUtils::Transform::UpdateChildBounds(registry, parent);
     }
 
     void BaseElement::UpdateChildVisibility(entt::registry* registry, const UIComponent::Transform* parent, bool parentVisibility)
@@ -338,54 +338,5 @@ namespace UIScripting
             else
                 registry->remove<UIComponent::Visible>(entt::entity(child.entId));
         }
-    }
-
-    void BaseElement::UpdateChildBounds(entt::registry* registry, UIComponent::Transform* transform)
-    {
-        ZoneScoped;
-        transform->minBound = UIUtils::Transform::GetMinBounds(transform);
-        transform->maxBound = UIUtils::Transform::GetMaxBounds(transform);
-
-        if (transform->includeChildBounds)
-        {
-            for (const UI::UIChild& child : transform->children)
-            {
-                UpdateChildBounds(registry, &registry->get<UIComponent::Transform>(child.entId));
-            }
-        }
-
-        if (transform->parent == entt::null)
-            return;
-
-        UpdateBounds(registry, &registry->get<UIComponent::Transform>(transform->parent));
-    }
-    void BaseElement::UpdateBounds(entt::registry* registry, UIComponent::Transform* transform)
-    {
-        ZoneScoped;
-
-        transform->minBound = UIUtils::Transform::GetMinBounds(transform);
-        transform->maxBound = UIUtils::Transform::GetMaxBounds(transform);
-
-        if (transform->includeChildBounds)
-        {
-
-            for (const UI::UIChild& child : transform->children)
-            {
-                UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
-
-                if (childTransform->minBound.x < transform->minBound.x) { transform->minBound.x = childTransform->minBound.x; }
-                if (childTransform->minBound.y < transform->minBound.y) { transform->minBound.y = childTransform->minBound.y; }
-
-                if (childTransform->maxBound.x > transform->maxBound.x) { transform->maxBound.x = childTransform->maxBound.x; }
-                if (childTransform->maxBound.y > transform->maxBound.y) { transform->maxBound.y = childTransform->maxBound.y; }
-            }
-        }
-
-        if (transform->parent == entt::null)
-            return;
-
-        UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(transform->parent);
-        if(parentTransform->includeChildBounds)
-            UpdateBounds(registry, parentTransform);
     }
 }
