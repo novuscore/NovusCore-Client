@@ -461,6 +461,8 @@ namespace Renderer
         BUFFER_USAGE_VERTEX_BUFFER              = (1 << 2),
         BUFFER_USAGE_INDEX_BUFFER               = (1 << 3),
         BUFFER_USAGE_UNIFORM_BUFFER             = (1 << 4),
+        BUFFER_USAGE_TRANSFER_SOURCE            = (1 << 5),
+        BUFFER_USAGE_TRANSFER_DESTINATION       = (1 << 6),
     };
 
     enum class BufferCPUAccess : u8

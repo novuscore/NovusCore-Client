@@ -11,6 +11,7 @@
 #include "Commands/Draw.h"
 #include "Commands/DrawBindless.h"
 #include "Commands/DrawIndexedBindless.h"
+#include "Commands/DrawIndexedIndirect.h"
 #include "Commands/DrawIndexedIndirectCount.h"
 #include "Commands/PopMarker.h"
 #include "Commands/PushMarker.h"

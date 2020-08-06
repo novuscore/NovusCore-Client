@@ -1075,14 +1075,14 @@ namespace Renderer
             vkFreeCommandBuffers(_device, _commandPool, 1, &commandBuffer);
         }
 
-        void RenderDeviceVK::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+        void RenderDeviceVK::CopyBuffer(VkBuffer dstBuffer, u64 dstOffset, VkBuffer srcBuffer, u64 srcOffset, u64 range)
         {
             VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
 
             VkBufferCopy copyRegion = {};
-            copyRegion.srcOffset = 0; // Optional
-            copyRegion.dstOffset = 0; // Optional
-            copyRegion.size = size;
+            copyRegion.srcOffset = srcOffset;
+            copyRegion.dstOffset = dstOffset;
+            copyRegion.size = range;
             vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
             EndSingleTimeCommands(commandBuffer);

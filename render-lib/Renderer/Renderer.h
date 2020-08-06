@@ -87,6 +87,7 @@ namespace Renderer
         virtual void Draw(CommandListID commandListID, ModelID modelID) = 0;
         virtual void DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances) = 0;
         virtual void DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances) = 0;
+        virtual void DrawIndexedIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount) = 0;
         virtual void DrawIndexedIndirectCount(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount) = 0;
         virtual void PopMarker(CommandListID commandListID) = 0;
         virtual void PushMarker(CommandListID commandListID, Color color, std::string name) = 0;
@@ -97,7 +98,7 @@ namespace Renderer
         virtual void SetViewport(CommandListID commandListID, Viewport viewport) = 0;
         virtual void SetVertexBuffer(CommandListID commandListID, u32 slot, ModelID modelID) = 0;
         virtual void SetIndexBuffer(CommandListID commandListID, ModelID modelID) = 0;
-        virtual void SetBuffer(CommandListID commandListID, u32 slot, void* buffer) = 0;
+        virtual void SetBuffer(CommandListID commandListID, u32 slot, BufferID buffer) = 0;
         virtual void BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex) = 0;
         virtual void MarkFrameStart(CommandListID commandListID, u32 frameIndex) = 0;
         virtual void BeginTrace(CommandListID commandListID, const tracy::SourceLocationData* sourceLocation) = 0;
@@ -110,6 +111,7 @@ namespace Renderer
         virtual void Present(Window* window, DepthImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) = 0;
 
         // Utils
+        virtual void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
         virtual void* MapBuffer(BufferID buffer) = 0;
         virtual void UnmapBuffer(BufferID buffer) = 0;
 

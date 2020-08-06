@@ -58,6 +58,13 @@ namespace Renderer
         renderer->DrawIndexedBindless(commandList, actualData->modelID, actualData->numVertices, actualData->numInstances);
     }
 
+    void BackendDispatch::DrawIndexedIndirect(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::DrawIndexedIndirect* actualData = static_cast<const Commands::DrawIndexedIndirect*>(data);
+        renderer->DrawIndexedIndirect(commandList, actualData->argumentBuffer, actualData->argumentBufferOffset, actualData->drawCount);
+    }
+
     void BackendDispatch::DrawIndexedIndirectCount(Renderer* renderer, CommandListID commandList, const void* data)
     {
         ZoneScopedC(tracy::Color::Red3);

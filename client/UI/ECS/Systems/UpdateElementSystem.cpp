@@ -12,6 +12,7 @@
 #include "../../Utils/TextUtils.h"
 
 #include "../../render-lib/Renderer/Descriptors/ModelDesc.h"
+#include "../../render-lib/Renderer/Buffer.h"
 
 namespace UISystem
 {
@@ -82,7 +83,7 @@ namespace UISystem
                 auto constantBuffer = image.constantBuffer;
                 if (constantBuffer == nullptr)
                 {
-                    constantBuffer = renderer->CreateConstantBuffer<UIComponent::Image::ImageConstantBuffer>();
+                    constantBuffer = new Renderer::Buffer<UIComponent::Image::ImageConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
                     image.constantBuffer = constantBuffer;
                 }
                 constantBuffer->resource.color = image.color;
@@ -203,7 +204,7 @@ namespace UISystem
 
                 // Create constant buffer if necessary
                 if (!text.constantBuffer)
-                    text.constantBuffer = renderer->CreateConstantBuffer<UIComponent::Text::TextConstantBuffer>();
+                    text.constantBuffer = new Renderer::Buffer<UIComponent::Image::TextConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
                 text.constantBuffer->resource.textColor = text.color;
                 text.constantBuffer->resource.outlineColor = text.outlineColor;

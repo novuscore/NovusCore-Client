@@ -321,6 +321,15 @@ namespace Renderer
         vkCmdDrawIndexed(commandBuffer, numVertices, numInstances, 0, 0, 0);
     }
 
+    void RendererVK::DrawIndexedIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
+
+        vkCmdDrawIndexedIndirect(commandBuffer, vkArgumentBuffer, argumentBufferOffset, drawCount, sizeof(VkDrawIndexedIndirectCommand));
+    }
+
     void RendererVK::DrawIndexedIndirectCount(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
@@ -442,12 +451,12 @@ namespace Renderer
         vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
     }
 
-    void RendererVK::SetBuffer(CommandListID commandListID, u32 slot, void* buffer)
+    void RendererVK::SetBuffer(CommandListID commandListID, u32 slot, BufferID buffer)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
         // Bind buffer
-        VkBuffer vkBuffer = *static_cast<VkBuffer*>(buffer);
+        VkBuffer vkBuffer = _bufferHandler->GetBuffer(buffer);
         VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(commandBuffer, slot, 1, &vkBuffer, offsets);
     }
@@ -808,6 +817,13 @@ namespace Renderer
         
     }
     
+    void RendererVK::CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range)
+    {
+        VkBuffer vkDstBuffer = _bufferHandler->GetBuffer(dstBuffer);
+        VkBuffer vkSrcBuffer = _bufferHandler->GetBuffer(srcBuffer);
+        _device->CopyBuffer(vkDstBuffer, dstOffset, vkSrcBuffer, srcOffset, range);
+    }
+
     void* RendererVK::MapBuffer(BufferID buffer)
     {
         void* mappedMemory;

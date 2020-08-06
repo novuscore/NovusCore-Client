@@ -47,37 +47,15 @@ private:
     void LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY);
     void LoadChunksAround(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance);
 
-    struct TerrainVertex
-    {
-        f32 height = 0.0f;
-    };
-
-    struct TerrainChunkData
-    {
-        u32 diffuseIDs[4] = { 0 };
-    };
-
-    struct TerrainDebugData
-    {
-        u32 debugMode = 0;
-    };
-
-    struct TerrainInstanceData
-    {
-        Renderer::Buffer<std::array<TerrainVertex, Terrain::NUM_VERTICES_PER_CHUNK>>* vertexBuffer = nullptr;
-        Renderer::Buffer<std::array<TerrainChunkData, Terrain::MAP_CELLS_PER_CHUNK>>* chunkData = nullptr;
-    };
-
 private:
     Renderer::Renderer* _renderer;
 
-    Renderer::ModelID _chunkModel = Renderer::ModelID::Invalid();
-    std::vector<Renderer::InstanceData> _chunkModelInstances;
-
     Renderer::BufferID _argumentBuffer = Renderer::BufferID::Invalid();
-    //Renderer::BufferID _drawCountBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _instanceBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _cellBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _vertexBuffer = Renderer::BufferID::Invalid();
 
-    Renderer::BufferID _terrainInstanceIDs = Renderer::BufferID::Invalid();
+    Renderer::BufferID _patchIndexBuffer = Renderer::BufferID::Invalid();
     
     Renderer::TextureArrayID _terrainColorTextureArray = Renderer::TextureArrayID::Invalid();
     Renderer::TextureArrayID _terrainAlphaTextureArray = Renderer::TextureArrayID::Invalid();

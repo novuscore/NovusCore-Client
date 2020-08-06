@@ -263,7 +263,7 @@ namespace Renderer
             vmaUnmapMemory(_device->_allocator, stagingBufferAllocation);
 
             // Copy the vertex data from our staging buffer to our vertex buffer
-            _device->CopyBuffer(stagingBuffer, model.vertexBuffer, vertexBufferSize);
+            _device->CopyBuffer(model.vertexBuffer, 0, stagingBuffer, 0, vertexBufferSize);
 
             // Destroy and free our staging buffer
             vmaDestroyBuffer(_device->_allocator, stagingBuffer, stagingBufferAllocation);
@@ -285,7 +285,7 @@ namespace Renderer
             vmaUnmapMemory(_device->_allocator, stagingBufferAllocation);
 
             // Copy the index data from our staging buffer to our vertex buffer
-            _device->CopyBuffer(stagingBuffer, model.indexBuffer, indexBufferSize);
+            _device->CopyBuffer(model.indexBuffer, 0, stagingBuffer, 0, indexBufferSize);
 
             // Destroy and free our staging buffer
             vmaDestroyBuffer(_device->_allocator, stagingBuffer, stagingBufferAllocation);

@@ -72,6 +72,7 @@ namespace Renderer
         void Draw(CommandListID commandListID, ModelID modelID) override;
         void DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances) override;
         void DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances) override;
+        void DrawIndexedIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount) override;
         void DrawIndexedIndirectCount(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount) override;
         void PopMarker(CommandListID commandListID) override;
         void PushMarker(CommandListID commandListID, Color color, std::string name) override;
@@ -82,7 +83,7 @@ namespace Renderer
         void SetViewport(CommandListID commandListID, Viewport viewport) override;
         void SetVertexBuffer(CommandListID commandListID, u32 slot, ModelID modelID) override;
         void SetIndexBuffer(CommandListID commandListID, ModelID modelID) override;
-        void SetBuffer(CommandListID commandListID, u32 slot, void* buffer) override;
+        void SetBuffer(CommandListID commandListID, u32 slot, BufferID buffer) override;
         void BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex) override;
         void MarkFrameStart(CommandListID commandListID, u32 frameIndex) override;
         void BeginTrace(CommandListID commandListID, const tracy::SourceLocationData* sourceLocation) override;
@@ -95,6 +96,7 @@ namespace Renderer
         void Present(Window* window, DepthImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;
 
         // Utils
+        void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
         void* MapBuffer(BufferID buffer) override;
         void UnmapBuffer(BufferID buffer) override;
 

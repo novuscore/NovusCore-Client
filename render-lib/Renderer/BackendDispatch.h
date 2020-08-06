@@ -16,6 +16,7 @@ namespace Renderer
         static void Draw(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawBindless(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawIndexedBindless(Renderer* renderer, CommandListID commandList, const void* data);
+        static void DrawIndexedIndirect(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawIndexedIndirectCount(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void MarkFrameStart(Renderer* renderer, CommandListID commandList, const void* data);

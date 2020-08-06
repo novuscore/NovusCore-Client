@@ -54,6 +54,16 @@ namespace Renderer
                 usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
             }
 
+            if (desc.usage & BUFFER_USAGE_TRANSFER_SOURCE)
+            {
+                usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            }
+
+            if (desc.usage & BUFFER_USAGE_TRANSFER_DESTINATION)
+            {
+                usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+            }
+
             VkBufferCreateInfo bufferInfo = {};
             bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
             bufferInfo.size = desc.size;

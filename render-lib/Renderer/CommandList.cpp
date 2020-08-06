@@ -169,10 +169,19 @@ namespace Renderer
         command->numInstances = numInstances;
     }
 
+    void CommandList::DrawIndexedIndirect(BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount)
+    {
+        assert(argumentBuffer != BufferID::Invalid());
+        Commands::DrawIndexedIndirect* command = AddCommand<Commands::DrawIndexedIndirect>();
+        command->argumentBuffer = argumentBuffer;
+        command->argumentBufferOffset = argumentBufferOffset;
+        command->drawCount = drawCount;
+    }
+
     void CommandList::DrawIndexedIndirectCount(BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount)
     {
-        assert(argumentBuffer);
-        assert(drawCountBuffer);
+        assert(argumentBuffer != BufferID::Invalid());
+        assert(drawCountBuffer != BufferID::Invalid());
         Commands::DrawIndexedIndirectCount* command = AddCommand<Commands::DrawIndexedIndirectCount>();
         command->argumentBuffer = argumentBuffer;
         command->argumentBufferOffset = argumentBufferOffset;

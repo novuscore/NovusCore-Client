@@ -59,6 +59,6 @@ namespace UIComponent
         std::vector<Renderer::ModelID> models;
         std::vector<Renderer::TextureID> textures;
 
-        Renderer::ConstantBuffer<TextConstantBuffer>* constantBuffer = nullptr;
+        Renderer::Buffer<TextConstantBuffer>* constantBuffer = nullptr;
     };
 }
