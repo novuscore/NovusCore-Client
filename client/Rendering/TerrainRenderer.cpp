@@ -86,6 +86,9 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
             // Set instance buffer
             commandList.SetBuffer(0, _instanceBuffer);
 
+            // Set index buffer
+            commandList.SetIndexBuffer(_cellIndexBuffer);
+
             // Bind viewbuffer
             _passDescriptorSet.Bind("ViewData"_h, viewConstantBuffer->GetBuffer(frameIndex));
 
@@ -161,6 +164,9 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             // Set instance buffer
             commandList.SetBuffer(0, _instanceBuffer);
 
+            // Set index buffer
+            commandList.SetIndexBuffer(_cellIndexBuffer);
+
             // Bind viewbuffer
             _passDescriptorSet.Bind("ViewData"_h, viewConstantBuffer->GetBuffer(frameIndex));
 
@@ -205,12 +211,6 @@ void TerrainRenderer::CreatePermanentResources()
     u32 index;
     _renderer->CreateDataTextureIntoArray(zeroAlphaTexture, _terrainColorTextureArray, index);
 
-    // Load map
-    Terrain::Map& map = mapSingleton.maps[0];
-    LoadChunksAround(map, ivec2(31, 49), 8); // Goldshire
-    //LoadChunksAround(map, ivec2(40, 32), 8); // Razor Hill
-    //LoadChunksAround(map, ivec2(22, 25), 8); // Borean Tundra
-
     // Samplers
     Renderer::SamplerDesc alphaSamplerDesc;
     alphaSamplerDesc.enabled = true;
@@ -244,9 +244,9 @@ void TerrainRenderer::CreatePermanentResources()
     {
         Renderer::BufferDesc desc;
         desc.name = "TerrainCellIndexBuffer";
-        desc.size = Terrain::MAP_CELLS_PER_CHUNK * sizeof(u32);
+        desc.size = Terrain::NUM_INDICES_PER_CELL * sizeof(u16);
         desc.usage = Renderer::BUFFER_USAGE_INDEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
-        _instanceBuffer = _renderer->CreateBuffer(desc);
+        _cellIndexBuffer = _renderer->CreateBuffer(desc);
     }
 
     {
@@ -276,7 +276,7 @@ void TerrainRenderer::CreatePermanentResources()
     {
         Renderer::BufferDesc desc;
         desc.name = "TerrainVertexBuffer";
-        desc.size = sizeof(TerrainCellData) * Terrain::MAP_CELLS_PER_CHUNK * (Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
+        desc.size = sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK * (Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
         desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
         _vertexBuffer = _renderer->CreateBuffer(desc);
     }
@@ -285,8 +285,8 @@ void TerrainRenderer::CreatePermanentResources()
     Renderer::BufferDesc indexUploadBufferDesc;
     indexUploadBufferDesc.name = "TerrainCellIndexUploadBuffer";
     indexUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-    indexUploadBufferDesc.size = sizeof(u16) * Terrain::NUM_INDICES_PER_CHUNK;
-    indexUploadBufferDesc.usage = Renderer::BUFFER_USAGE_INDEX_BUFFER;
+    indexUploadBufferDesc.size = sizeof(u16) * Terrain::NUM_INDICES_PER_CELL;
+    indexUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
 
     Renderer::BufferID indexUploadBuffer = _renderer->CreateBuffer(indexUploadBufferDesc);
 
@@ -333,7 +333,13 @@ void TerrainRenderer::CreatePermanentResources()
     }
 
     _renderer->UnmapBuffer(indexUploadBuffer);
-    _renderer->CopyBuffer(_patchIndexBuffer, 0, indexUploadBuffer, 0, indexUploadBufferDesc.size);
+    _renderer->CopyBuffer(_cellIndexBuffer, 0, indexUploadBuffer, 0, indexUploadBufferDesc.size);
+
+    // Load map
+    Terrain::Map& map = mapSingleton.maps[0];
+    LoadChunksAround(map, ivec2(31, 49), 8); // Goldshire
+    //LoadChunksAround(map, ivec2(40, 32), 8); // Razor Hill
+    //LoadChunksAround(map, ivec2(22, 25), 8); // Borean Tundra
 }
 
 void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
@@ -427,7 +433,7 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
     Renderer::BufferDesc vertexUploadBufferDesc;
     vertexUploadBufferDesc.name = "TerrainVertexUploadBuffer";
     vertexUploadBufferDesc.size = sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK;
-    vertexUploadBufferDesc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER;
+    vertexUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
     vertexUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
     Renderer::BufferID vertexUploadBuffer = _renderer->CreateBuffer(vertexUploadBufferDesc);
 

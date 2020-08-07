@@ -31,6 +31,7 @@ set(SHADER_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/../Data/shaders CACHE PATH "Output
 
 #Handle HLSL shaders
 set(SHADER_COOKER_STANDALONE "$<TARGET_FILE:shadercookerstandalone>")
+
 file(GLOB_RECURSE HLSL_SOURCE_FILES
   "*.ps.hlsl"
   "*.vs.hlsl"
@@ -41,6 +42,10 @@ file(GLOB_RECURSE HLSL_SOURCE_FILES
   "*.lib.hlsl"
   "*.ms.hlsl"
   "*.as.hlsl"
+    )
+
+file(GLOB_RECURSE HLSL_INCLUDE_FILES
+  "*.inc.hlsl"
     )
 
 foreach(HLSL ${HLSL_SOURCE_FILES})
@@ -55,11 +60,16 @@ foreach(HLSL ${HLSL_SOURCE_FILES})
   list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach(HLSL)
 
-find_assign_files(${HLSL_SOURCE_FILES})
+foreach(HLSL ${HLSL_INCLUDE_FILES})
+  get_filename_component(FILE_NAME ${HLSL} NAME)
+  set_source_files_properties(${HLSL} PROPERTIES VS_TOOL_OVERRIDE "None")
+endforeach(HLSL)
+
+find_assign_files(${HLSL_SOURCE_FILES} ${HLSL_INCLUDE_FILES})
 
 add_custom_target(${PROJECT_NAME}
     DEPENDS ${SPIRV_BINARY_FILES}
-    SOURCES ${GLSL_SOURCE_FILES} ${HLSL_SOURCE_FILES}
+    SOURCES ${HLSL_SOURCE_FILES} ${HLSL_INCLUDE_FILES}
     )
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${ROOT_FOLDER}/)
 

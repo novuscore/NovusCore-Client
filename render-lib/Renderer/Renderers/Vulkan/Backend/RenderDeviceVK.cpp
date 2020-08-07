@@ -20,8 +20,8 @@
 #include <map>
 #include <set>
 
-#define NOVUSCORE_RENDERER_DEBUG_OVERRIDE 0
-#define NOVUSCORE_RENDERER_GPU_VALIDATION 0
+#define NOVUSCORE_RENDERER_DEBUG_OVERRIDE 1
+#define NOVUSCORE_RENDERER_GPU_VALIDATION 1
 
 namespace Renderer
 {
@@ -150,7 +150,7 @@ namespace Renderer
             appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
             appInfo.pEngineName = "NovusCore";
             appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-            appInfo.apiVersion = VK_API_VERSION_1_2;
+            appInfo.apiVersion = VK_API_VERSION_1_0;
 
 #if (_DEBUG || NOVUSCORE_RENDERER_DEBUG_OVERRIDE) && NOVUSCORE_RENDERER_GPU_VALIDATION
             VkValidationFeatureEnableEXT gpuValidationFeature = VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT;
@@ -958,12 +958,15 @@ namespace Renderer
                 }
                 
                 // This is disabled since when we initialize Vulkan and pick a device we don't have a surface yet, I have no idea if this will cause an issue in the future...
-                /*VkBool32 presentSupport = false;
-                vkGetPhysicalDeviceSurfaceSupportKHR(device, i, _surface, &presentSupport);
+                VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
+                VkSurfaceKHR surface;
+                vkCreateWin32SurfaceKHR(_instance, &surfaceCreateInfo, nullptr, &surface);
+
+                VkBool32 presentSupport = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
                 if (queueFamily.queueCount > 0 && presentSupport) {
                     indices.presentFamily = i;
-                }*/
-                indices.presentFamily = i; // So we just assume it works for now
+                }
 
                 if (indices.IsComplete())
                 {

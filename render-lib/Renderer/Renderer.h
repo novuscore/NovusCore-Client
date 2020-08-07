@@ -97,7 +97,7 @@ namespace Renderer
         virtual void SetScissorRect(CommandListID commandListID, ScissorRect scissorRect) = 0;
         virtual void SetViewport(CommandListID commandListID, Viewport viewport) = 0;
         virtual void SetVertexBuffer(CommandListID commandListID, u32 slot, ModelID modelID) = 0;
-        virtual void SetIndexBuffer(CommandListID commandListID, ModelID modelID) = 0;
+        virtual void SetIndexBuffer(CommandListID commandListID, BufferID bufferID) = 0;
         virtual void SetBuffer(CommandListID commandListID, u32 slot, BufferID buffer) = 0;
         virtual void BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex) = 0;
         virtual void MarkFrameStart(CommandListID commandListID, u32 frameIndex) = 0;

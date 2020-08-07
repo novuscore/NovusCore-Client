@@ -40,8 +40,8 @@ namespace Renderer
         _device->Init();
         _bufferHandler->Init(_device);
         _imageHandler->Init(_device);
-        _textureHandler->Init(_device);
-        _modelHandler->Init(_device);
+        _textureHandler->Init(_device, _bufferHandler);
+        _modelHandler->Init(_device, _bufferHandler);
         _shaderHandler->Init(_device);
         _pipelineHandler->Init(_device, _shaderHandler, _imageHandler);
         _commandListHandler->Init(_device);
@@ -442,12 +442,12 @@ namespace Renderer
         vkCmdBindVertexBuffers(commandBuffer, slot, 1, &vertexBuffer, offsets);
     }
 
-    void RendererVK::SetIndexBuffer(CommandListID commandListID, ModelID modelID)
+    void RendererVK::SetIndexBuffer(CommandListID commandListID, BufferID bufferID)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
         // Bind index buffer
-        VkBuffer indexBuffer = _modelHandler->GetIndexBuffer(modelID);
+        VkBuffer indexBuffer = _bufferHandler->GetBuffer(bufferID);
         vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
     }
 

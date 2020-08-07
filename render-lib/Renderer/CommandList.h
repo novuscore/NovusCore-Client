@@ -60,7 +60,7 @@ namespace Renderer
         void SetViewport(f32 topLeftX, f32 topLeftY, f32 width, f32 height, f32 minDepth, f32 maxDepth);
 
         void SetVertexBuffer(u32 slot, ModelID model);
-        void SetIndexBuffer(ModelID model);
+        void SetIndexBuffer(BufferID buffer);
         void SetBuffer(u32 slot, BufferID buffer);
 
         void Clear(ImageID imageID, Color color);

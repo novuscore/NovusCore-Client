@@ -204,7 +204,7 @@ namespace UISystem
 
                 // Create constant buffer if necessary
                 if (!text.constantBuffer)
-                    text.constantBuffer = new Renderer::Buffer<UIComponent::Image::TextConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
+                    text.constantBuffer = new Renderer::Buffer<UIComponent::Text::TextConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
                 text.constantBuffer->resource.textColor = text.color;
                 text.constantBuffer->resource.outlineColor = text.outlineColor;

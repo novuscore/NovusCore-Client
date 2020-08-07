@@ -82,7 +82,7 @@ namespace Renderer
         void SetScissorRect(CommandListID commandListID, ScissorRect scissorRect) override;
         void SetViewport(CommandListID commandListID, Viewport viewport) override;
         void SetVertexBuffer(CommandListID commandListID, u32 slot, ModelID modelID) override;
-        void SetIndexBuffer(CommandListID commandListID, ModelID modelID) override;
+        void SetIndexBuffer(CommandListID commandListID, BufferID bufferID) override;
         void SetBuffer(CommandListID commandListID, u32 slot, BufferID buffer) override;
         void BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex) override;
         void MarkFrameStart(CommandListID commandListID, u32 frameIndex) override;

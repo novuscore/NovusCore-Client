@@ -3,6 +3,7 @@
 #include "Draw.h"
 #include "DrawBindless.h"
 #include "DrawIndexedBindless.h"
+#include "DrawIndexedIndirect.h"
 #include "DrawIndexedIndirectCount.h"
 #include "PopMarker.h"
 #include "PushMarker.h"
@@ -28,6 +29,7 @@ namespace Renderer
         const BackendDispatchFunction Draw::DISPATCH_FUNCTION = &BackendDispatch::Draw;
         const BackendDispatchFunction DrawBindless::DISPATCH_FUNCTION = &BackendDispatch::DrawBindless;
         const BackendDispatchFunction DrawIndexedBindless::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexedBindless;
+        const BackendDispatchFunction DrawIndexedIndirect::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexedIndirect;
         const BackendDispatchFunction DrawIndexedIndirectCount::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexedIndirectCount;
         const BackendDispatchFunction PopMarker::DISPATCH_FUNCTION = &BackendDispatch::PopMarker;
         const BackendDispatchFunction PushMarker::DISPATCH_FUNCTION = &BackendDispatch::PushMarker;

@@ -480,6 +480,18 @@ namespace Renderer
 
                 return VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
             }
+
+            static inline VkIndexType ToVkIndexType(IndexFormat indexFormat)
+            {
+                switch (indexFormat)
+                {
+                case IndexFormat::UInt16:   return VK_INDEX_TYPE_UINT16;
+                case IndexFormat::UInt32:   return VK_INDEX_TYPE_UINT32;
+                default:
+                    NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more colors?");
+                }
+                return VK_INDEX_TYPE_UINT16;
+            }
         };
     }
 }

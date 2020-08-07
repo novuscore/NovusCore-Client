@@ -12,11 +12,12 @@ namespace Renderer
     namespace Backend
     {
         class RenderDeviceVK;
+        class BufferHandlerVK;
 
         class TextureHandlerVK
         {
         public:
-            void Init(RenderDeviceVK* device);
+            void Init(RenderDeviceVK* device, BufferHandlerVK* bufferHandler);
 
             void LoadDebugTexture(const TextureDesc& desc);
 
@@ -75,6 +76,7 @@ namespace Renderer
 
         private:
             RenderDeviceVK* _device;
+            BufferHandlerVK* _bufferHandler;
 
             TextureID _debugTexture;
             TextureID _debugOnionTexture; // "TextureArrays" using texture layers rather than arrays of descriptors are now called Onion Textures to make it possible to differentiate between them...

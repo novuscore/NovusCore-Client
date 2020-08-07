@@ -22,22 +22,35 @@ namespace Renderer
 
         VkBuffer BufferHandlerVK::GetBuffer(BufferID bufferID) const
         {
+            assert(bufferID != BufferID::Invalid());
             return _buffers[static_cast<BufferID::type>(bufferID)].buffer;
         }
 
         VkDeviceSize BufferHandlerVK::GetBufferSize(BufferID bufferID) const
         {
+            assert(bufferID != BufferID::Invalid());
             return _buffers[static_cast<BufferID::type>(bufferID)].size;
         }
 
         VmaAllocation BufferHandlerVK::GetBufferAllocation(BufferID bufferID) const
         {
+            assert(bufferID != BufferID::Invalid());
             return _buffers[static_cast<BufferID::type>(bufferID)].allocation;
         }
 
         BufferID BufferHandlerVK::CreateBuffer(BufferDesc& desc)
         {
-            VkBufferUsageFlags usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            VkBufferUsageFlags usage = 0;
+
+            if (desc.usage & BUFFER_USAGE_VERTEX_BUFFER)
+            {
+                usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            }
+
+            if (desc.usage & BUFFER_USAGE_INDEX_BUFFER)
+            {
+                usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+            }
 
             if (desc.usage & BUFFER_USAGE_UNIFORM_BUFFER)
             {

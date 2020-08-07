@@ -158,7 +158,7 @@ namespace Renderer
     {
         ZoneScopedC(tracy::Color::Red3);
         const Commands::SetIndexBuffer* actualData = static_cast<const Commands::SetIndexBuffer*>(data);
-        renderer->SetIndexBuffer(commandList, actualData->modelID);
+        renderer->SetIndexBuffer(commandList, actualData->bufferID);
     }
 
     void BackendDispatch::SetBuffer(Renderer* renderer, CommandListID commandList, const void* data)

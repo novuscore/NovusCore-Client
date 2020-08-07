@@ -113,10 +113,10 @@ namespace Renderer
         command->modelID = model;
     }
 
-    void CommandList::SetIndexBuffer(ModelID model)
+    void CommandList::SetIndexBuffer(BufferID buffer)
     {
         Commands::SetIndexBuffer* command = AddCommand<Commands::SetIndexBuffer>();
-        command->modelID = model;
+        command->bufferID = buffer;
     }
 
     void CommandList::SetBuffer(u32 slot, BufferID buffer)

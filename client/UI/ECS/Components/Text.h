@@ -1,6 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
 #include <Renderer/Renderer.h>
+#include <Renderer/Buffer.h>
 #include <vector>
 
 namespace UI

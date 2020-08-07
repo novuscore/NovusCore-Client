@@ -22,7 +22,7 @@ namespace Terrain
     struct Map;
 
     constexpr u32 NUM_VERTICES_PER_CHUNK = Terrain::CELL_TOTAL_GRID_SIZE * Terrain::MAP_CELLS_PER_CHUNK;
-    constexpr u32 NUM_INDICES_PER_CHUNK = 768;
+    constexpr u32 NUM_INDICES_PER_CELL = 768;
 }
 
 namespace Renderer
@@ -55,7 +55,7 @@ private:
     Renderer::BufferID _cellBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _vertexBuffer = Renderer::BufferID::Invalid();
 
-    Renderer::BufferID _patchIndexBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _cellIndexBuffer = Renderer::BufferID::Invalid();
     
     Renderer::TextureArrayID _terrainColorTextureArray = Renderer::TextureArrayID::Invalid();
     Renderer::TextureArrayID _terrainAlphaTextureArray = Renderer::TextureArrayID::Invalid();

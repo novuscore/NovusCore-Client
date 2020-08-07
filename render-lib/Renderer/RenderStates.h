@@ -418,6 +418,12 @@ namespace Renderer
         IMAGE_FORMAT_R8_SINT
     };
 
+    enum class IndexFormat : u8
+    {
+        UInt16,
+        UInt32,
+    };
+
     enum DepthImageFormat
     {
         DEPTH_IMAGE_FORMAT_UNKNOWN,
