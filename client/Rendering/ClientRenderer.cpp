@@ -52,9 +52,11 @@ void WindowIconifyCallback(GLFWwindow* window, int iconified)
 
 ClientRenderer::ClientRenderer()
 {
-    _camera = new Camera(vec3(-8000.0f, 0.0f, 1600.0f)); // Goldshire
+    _camera = new Camera(vec3(-8000.0f, 50.0f, 1600.0f)); // Goldshire
     //_camera = new Camera(vec3(300.0f, 0.0f, -4700.0f)); // Razor Hill
     //_camera = new Camera(vec3(3308.0f, 0.0f, 5316.0f)); // Borean Tundra
+
+    //_camera = new Camera(vec3(0.0f, 10.0f, 0.0f));
 
     _window = new Window();
     _window->Init(WIDTH, HEIGHT);
@@ -108,17 +110,17 @@ void ClientRenderer::Update(f32 deltaTime)
     _camera->Update(deltaTime);
     
     // Update the view matrix to match the new camera position
-    _viewConstantBuffer->resource.viewMatrix = _camera->GetViewMatrix();
-    _viewConstantBuffer->Apply(_frameIndex);
+    {
+        const f32 fov = 68.0f;
+        const f32 nearClip = 0.1f;
+        const f32 farClip = 100000.0f;
+        f32 aspectRatio = static_cast<f32>(WIDTH) / static_cast<f32>(HEIGHT);
 
-    // Register models to be rendered TODO: Push this to the ECS later
-    Renderer::RenderLayer& depthPrepassLayer = _renderer->GetRenderLayer(DEPTH_PREPASS_RENDER_LAYER);
-    depthPrepassLayer.Reset(); // Reset the layer first so we don't just infinitely grow our layer
+        const mat4x4 projectionMatrix = glm::perspective(fov, aspectRatio, nearClip, farClip);
 
-    // Register models to be rendered TODO: Push this to the ECS later
-    Renderer::RenderLayer& mainLayer = _renderer->GetRenderLayer(MAIN_RENDER_LAYER);
-    mainLayer.Reset(); // Reset the layer first so we don't just infinitely grow our layer
-    mainLayer.RegisterModel(_cubeModel, &_cubeModelInstance);
+        _viewConstantBuffer->resource.viewProjectionMatrix = projectionMatrix * _camera->GetViewMatrix();
+        _viewConstantBuffer->Apply(_frameIndex);
+    }
 
     _terrainRenderer->Update(deltaTime);
 }
@@ -208,25 +210,25 @@ void ClientRenderer::Render()
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, _frameIndex);
 
             // Render depth prepass layer
-            Renderer::RenderLayer& layer = _renderer->GetRenderLayer(DEPTH_PREPASS_RENDER_LAYER);
-
-            for (auto const& model : layer.GetModels())
-            {
-                auto const& modelID = Renderer::ModelID(model.first);
-                auto const& instances = model.second;
-
-
-                for (auto const& instance : instances)
-                {
-                    instance->Apply(_frameIndex);
-
-                    //_drawDescriptorSet.Bind("_modelData", instance->GetConstantBuffer());
-                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, _frameIndex);
-
-                    // Draw
-                    commandList.Draw(modelID);
-                }
-            }
+            //Renderer::RenderLayer& layer = _renderer->GetRenderLayer(DEPTH_PREPASS_RENDER_LAYER);
+            //
+            //for (auto const& model : layer.GetModels())
+            //{
+            //    auto const& modelID = Renderer::ModelID(model.first);
+            //    auto const& instances = model.second;
+            //
+            //
+            //    for (auto const& instance : instances)
+            //    {
+            //        instance->Apply(_frameIndex);
+            //
+            //        //_drawDescriptorSet.Bind("_modelData", instance->GetConstantBuffer());
+            //        commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, _frameIndex);
+            //
+            //        // Draw
+            //        commandList.Draw(modelID);
+            //    }
+            //}
             commandList.EndPipeline(pipeline);
             commandList.EndTrace();
         });
@@ -309,22 +311,22 @@ void ClientRenderer::Render()
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, _frameIndex);
 
             // Render main layer
-            Renderer::RenderLayer& mainLayer = _renderer->GetRenderLayer(MAIN_RENDER_LAYER);
-
-            for (auto const& model : mainLayer.GetModels())
-            {
-                auto const& modelID = Renderer::ModelID(model.first);
-                auto const& instances = model.second;
-
-                for (auto const& instance : instances)
-                {
-                    //_drawDescriptorSet.Bind("_modelData", instance->GetConstantBuffer());
-                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, _frameIndex);
-
-                    // Draw
-                    commandList.Draw(modelID);
-                }
-            }
+            //Renderer::RenderLayer& mainLayer = _renderer->GetRenderLayer(MAIN_RENDER_LAYER);
+            //
+            //for (auto const& model : mainLayer.GetModels())
+            //{
+            //    auto const& modelID = Renderer::ModelID(model.first);
+            //    auto const& instances = model.second;
+            //
+            //    for (auto const& instance : instances)
+            //    {
+            //        _drawDescriptorSet.Bind("_modelData", instance->GetBuffer(_frameIndex));
+            //        commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, _frameIndex);
+            //
+            //        // Draw
+            //        commandList.Draw(modelID);
+            //    }
+            //}
             commandList.EndPipeline(pipeline);
             commandList.EndTrace();
         });
@@ -405,21 +407,6 @@ void ClientRenderer::CreatePermanentResources()
 
     // View Constant Buffer (for camera data)
     _viewConstantBuffer = new Renderer::Buffer<ViewConstantBuffer>(_renderer, "ViewConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
-    {
-        mat4x4& projMatrix = _viewConstantBuffer->resource.projMatrix;
-
-        const f32 fov = 68.0f;
-        const f32 nearClip = 0.1f;
-        const f32 farClip = 4000.0f;
-        f32 aspectRatio = static_cast<f32>(WIDTH) / static_cast<f32>(HEIGHT);
-
-        projMatrix = glm::perspective(fov, aspectRatio, nearClip, farClip);
-
-        _viewConstantBuffer->ApplyAll();
-    }
-
-    // Model Constant Buffer (for per-model data)
-    _cubeModelInstance.Init(_renderer);
 
     // Create descriptor sets
     _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());

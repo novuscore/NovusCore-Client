@@ -4,7 +4,6 @@ namespace Renderer
 {
     Renderer::~Renderer()
     {
-        _renderLayers.clear();
     }
 
     RenderGraph Renderer::CreateRenderGraph(RenderGraphDesc& desc)
@@ -13,11 +12,6 @@ namespace Renderer
         renderGraph.Init(desc);
 
         return renderGraph;
-    }
-
-    RenderLayer& Renderer::GetRenderLayer(u32 layerHash)
-    {
-        return _renderLayers[layerHash];
     }
 
     DescriptorSetBackend* Renderer::CreateDescriptorSetBackend()

@@ -10,7 +10,7 @@
 
 void RenderModelSystem::Update(entt::registry& registry, ClientRenderer* clientRenderer)
 {
-    Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
+    /*Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
 
     // Get all layers in which our models need to be rendered in and call .RegisterModel on the layers
     Renderer::RenderLayer& mainLayer = renderer->GetRenderLayer("MainLayer"_h);
@@ -31,5 +31,5 @@ void RenderModelSystem::Update(entt::registry& registry, ClientRenderer* clientR
             // This registers the model to be rendered THIS frame.
             mainLayer.RegisterModel(model.modelId, &model.instanceData);
             depthLayer.RegisterModel(model.modelId, &model.instanceData);
-        });
+        });*/
 }

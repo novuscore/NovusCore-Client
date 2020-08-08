@@ -113,10 +113,11 @@ namespace Renderer
         command->modelID = model;
     }
 
-    void CommandList::SetIndexBuffer(BufferID buffer)
+    void CommandList::SetIndexBuffer(BufferID buffer, IndexFormat indexFormat)
     {
         Commands::SetIndexBuffer* command = AddCommand<Commands::SetIndexBuffer>();
         command->bufferID = buffer;
+        command->indexFormat = indexFormat;
     }
 
     void CommandList::SetBuffer(u32 slot, BufferID buffer)
@@ -169,6 +170,16 @@ namespace Renderer
         command->numInstances = numInstances;
     }
 
+    void CommandList::DrawIndexed(u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset)
+    {
+        Commands::DrawIndexed* command = AddCommand<Commands::DrawIndexed>();
+        command->indexCount = numIndices;
+        command->instanceCount = numInstances;
+        command->indexOffset = indexOffset;
+        command->vertexOffset = vertexOffset;
+        command->instanceOffset = instanceOffset;
+    }
+
     void CommandList::DrawIndexedIndirect(BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount)
     {
         assert(argumentBuffer != BufferID::Invalid());
@@ -200,5 +211,15 @@ namespace Renderer
     {
         Commands::AddWaitSemaphore* command = AddCommand<Commands::AddWaitSemaphore>();
         command->semaphore = semaphoreID;
+    }
+
+    void CommandList::CopyBuffer(BufferID dstBuffer, u64 dstBufferOffset, BufferID srcBuffer, u64 srcBufferOffset, u64 region)
+    {
+        Commands::CopyBuffer* command = AddCommand<Commands::CopyBuffer>();
+        command->dstBuffer = dstBuffer;
+        command->dstBufferOffset = dstBufferOffset;
+        command->srcBuffer = srcBuffer;
+        command->srcBufferOffset = srcBufferOffset;
+        command->region = region;
     }
 }

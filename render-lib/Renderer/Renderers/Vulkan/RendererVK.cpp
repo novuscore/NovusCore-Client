@@ -19,6 +19,7 @@
 #include "Backend/DebugMarkerUtilVK.h"
 #include "Backend/DescriptorSetBackendVK.h"
 #include "Backend/DescriptorSetBuilderVK.h"
+#include "Backend/FormatConverterVK.h"
 
 namespace Renderer
 {
@@ -321,6 +322,13 @@ namespace Renderer
         vkCmdDrawIndexed(commandBuffer, numVertices, numInstances, 0, 0, 0);
     }
 
+    void RendererVK::DrawIndexed(CommandListID commandListID, u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        vkCmdDrawIndexed(commandBuffer, numIndices, numInstances, indexOffset, vertexOffset, instanceOffset);
+    }
+
     void RendererVK::DrawIndexedIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
@@ -442,13 +450,13 @@ namespace Renderer
         vkCmdBindVertexBuffers(commandBuffer, slot, 1, &vertexBuffer, offsets);
     }
 
-    void RendererVK::SetIndexBuffer(CommandListID commandListID, BufferID bufferID)
+    void RendererVK::SetIndexBuffer(CommandListID commandListID, BufferID bufferID, IndexFormat indexFormat)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
         // Bind index buffer
         VkBuffer indexBuffer = _bufferHandler->GetBuffer(bufferID);
-        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, Backend::FormatConverterVK::ToVkIndexType(indexFormat));
     }
 
     void RendererVK::SetBuffer(CommandListID commandListID, u32 slot, BufferID buffer)
@@ -667,6 +675,20 @@ namespace Renderer
         _commandListHandler->AddWaitSemaphore(commandListID, semaphore);
     }
 
+    void RendererVK::CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkBuffer vkDstBuffer = _bufferHandler->GetBuffer(dstBuffer);
+        VkBuffer vkSrcBuffer = _bufferHandler->GetBuffer(srcBuffer);
+
+        VkBufferCopy copyRegion = {};
+        copyRegion.srcOffset = srcOffset;
+        copyRegion.dstOffset = dstOffset;
+        copyRegion.size = range;
+        vkCmdCopyBuffer(commandBuffer, vkSrcBuffer, vkDstBuffer, 1, &copyRegion);
+    }
+
     void RendererVK::Present(Window* window, ImageID imageID, GPUSemaphoreID semaphoreID)
     {
         CommandListID commandListID = _commandListHandler->BeginCommandList();
@@ -827,7 +849,11 @@ namespace Renderer
     void* RendererVK::MapBuffer(BufferID buffer)
     {
         void* mappedMemory;
-        vmaMapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(buffer), &mappedMemory);
+        if (vmaMapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(buffer), &mappedMemory) != VK_SUCCESS)
+        {
+            NC_LOG_ERROR("vmaMapMemory failed!\n");
+            return nullptr;
+        }
         return mappedMemory;
     }
     

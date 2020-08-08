@@ -6,12 +6,15 @@ namespace Renderer
 {
     namespace Commands
     {
-        struct SetIndexBuffer
+        struct DrawIndexed
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
 
-            BufferID bufferID = BufferID::Invalid();
-            IndexFormat indexFormat = IndexFormat::UInt32;
+            u32 indexCount = 0;
+            u32 instanceCount = 0;
+            u32 indexOffset = 0;
+            u32 vertexOffset = 0;
+            u32 instanceOffset = 0;
         };
     }
 }

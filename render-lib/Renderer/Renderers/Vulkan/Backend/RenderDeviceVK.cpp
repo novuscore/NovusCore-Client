@@ -20,7 +20,7 @@
 #include <map>
 #include <set>
 
-#define NOVUSCORE_RENDERER_DEBUG_OVERRIDE 1
+#define NOVUSCORE_RENDERER_DEBUG_OVERRIDE 0
 #define NOVUSCORE_RENDERER_GPU_VALIDATION 1
 
 namespace Renderer

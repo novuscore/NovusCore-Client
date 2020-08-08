@@ -16,6 +16,7 @@ namespace Renderer
         static void Draw(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawBindless(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawIndexedBindless(Renderer* renderer, CommandListID commandList, const void* data);
+        static void DrawIndexed(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawIndexedIndirect(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawIndexedIndirectCount(Renderer* renderer, CommandListID commandList, const void* data);
 
@@ -41,5 +42,7 @@ namespace Renderer
 
         static void AddSignalSemaphore(Renderer* renderer, CommandListID commandList, const void* data);
         static void AddWaitSemaphore(Renderer* renderer, CommandListID commandList, const void* data);
+
+        static void CopyBuffer(Renderer* renderer, CommandListID commandList, const void* data);
     };
 }

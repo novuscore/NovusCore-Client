@@ -1,5 +1,6 @@
 #include "BufferHandlerVK.h"
 #include "RenderDeviceVK.h"
+#include "DebugMarkerUtilVK.h"
 
 #include "vulkan/vulkan.h"
 
@@ -90,7 +91,7 @@ namespace Renderer
             }
             else if (desc.cpuAccess == BufferCPUAccess::WriteOnly)
             {
-                memoryUsage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+                memoryUsage = VMA_MEMORY_USAGE_CPU_ONLY;
             }
 
             VmaAllocationCreateInfo allocInfo = {};
@@ -108,7 +109,10 @@ namespace Renderer
             if (vmaCreateBuffer(_device->_allocator, &bufferInfo, &allocInfo, &buffer.buffer, &buffer.allocation, nullptr) != VK_SUCCESS)
             {
                 NC_LOG_FATAL("Failed to create buffer!");
+                return BufferID::Invalid();
             }
+
+            DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)buffer.buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, desc.name.c_str());
 
             return bufferID;
         }

@@ -14,7 +14,6 @@
 #include <Renderer/DescriptorSet.h>
 
 #include "../Gameplay/Map/Chunk.h"
-#include "Renderer/InstanceData.h"
 #include "ViewConstantBuffer.h"
 
 namespace Terrain
@@ -52,6 +51,8 @@ private:
 
     Renderer::BufferID _argumentBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _instanceBuffer = Renderer::BufferID::Invalid();
+
+    Renderer::BufferID _chunkBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _cellBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _vertexBuffer = Renderer::BufferID::Invalid();
 
@@ -59,6 +60,8 @@ private:
     
     Renderer::TextureArrayID _terrainColorTextureArray = Renderer::TextureArrayID::Invalid();
     Renderer::TextureArrayID _terrainAlphaTextureArray = Renderer::TextureArrayID::Invalid();
+
+    std::vector<u16> _indices;
 
     Renderer::SamplerID _alphaSampler;
     Renderer::SamplerID _colorSampler;

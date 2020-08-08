@@ -72,6 +72,7 @@ namespace Renderer
         void Draw(CommandListID commandListID, ModelID modelID) override;
         void DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances) override;
         void DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances) override;
+        void DrawIndexed(CommandListID commandListID, u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset) override;
         void DrawIndexedIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount) override;
         void DrawIndexedIndirectCount(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount) override;
         void PopMarker(CommandListID commandListID) override;
@@ -82,7 +83,7 @@ namespace Renderer
         void SetScissorRect(CommandListID commandListID, ScissorRect scissorRect) override;
         void SetViewport(CommandListID commandListID, Viewport viewport) override;
         void SetVertexBuffer(CommandListID commandListID, u32 slot, ModelID modelID) override;
-        void SetIndexBuffer(CommandListID commandListID, BufferID bufferID) override;
+        void SetIndexBuffer(CommandListID commandListID, BufferID bufferID, IndexFormat indexFormat) override;
         void SetBuffer(CommandListID commandListID, u32 slot, BufferID buffer) override;
         void BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex) override;
         void MarkFrameStart(CommandListID commandListID, u32 frameIndex) override;
@@ -90,6 +91,7 @@ namespace Renderer
         void EndTrace(CommandListID commandListID) override;
         void AddSignalSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) override;
         void AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) override;
+        void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
 
         // Non-commandlist based present functions
         void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;

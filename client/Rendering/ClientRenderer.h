@@ -7,7 +7,6 @@
 #include <Renderer/Descriptors/ModelDesc.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
 #include <Renderer/Descriptors/GPUSemaphoreDesc.h>
-#include <Renderer/InstanceData.h>
 #include <Renderer/DescriptorSet.h>
 #include <Renderer/FrameResource.h>
 #include <Renderer/Buffer.h>
@@ -60,7 +59,6 @@ private:
 
     Renderer::ModelID _cubeModel;
     Renderer::TextureID _cubeTexture;
-    Renderer::InstanceData _cubeModelInstance;
     Renderer::SamplerID _linearSampler;
 
     Renderer::GPUSemaphoreID _sceneRenderedSemaphore; // This semaphore tells the present function when the scene is ready to be blitted and presented

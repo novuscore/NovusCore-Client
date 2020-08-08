@@ -2,7 +2,7 @@
 
 struct CellData
 {
-    uint4 diffuseIDs;
+    uint2 diffuseIDs;
 };
 
 struct ChunkData
@@ -21,7 +21,7 @@ struct ChunkData
 
 struct PSInput
 {
-    nointerpolation uint packedChunkCellID : TEXCOORD0;
+    uint packedChunkCellID : TEXCOORD0;
     float2 uv : TEXCOORD1;
 };
 
@@ -29,6 +29,18 @@ struct PSOutput
 {
     float4 color : SV_Target0;
 };
+
+uint4 LoadCellTextureIDs(uint globalCellID)
+{
+    const CellData cellData = _cellData.Load<CellData>(globalCellID * 8); // sizeof(CellData) = 8
+
+    uint4 ids;
+    ids.y = cellData.diffuseIDs.x >> 16;
+    ids.x = cellData.diffuseIDs.x & 0xffff;
+    ids.w = cellData.diffuseIDs.y >> 16;
+    ids.z = cellData.diffuseIDs.y & 0xffff;
+    return ids;
+}
 
 PSOutput main(PSInput input)
 {
@@ -44,7 +56,7 @@ PSOutput main(PSInput input)
     float3 alphaUV = float3(uv / 8.0f, float(cellID));
 
     const uint globalCellID = (chunkID * NUM_CELLS_PER_CHUNK) + cellID;
-    const CellData cellData = _cellData.Load<CellData>(globalCellID * 16); // sizeof(CellData) = 16
+    const uint4 diffuseIDs = LoadCellTextureIDs(globalCellID);
 
     const ChunkData chunkData = _chunkData.Load<ChunkData>(chunkID * 4); // sizeof(ChunkData) = 4
 
@@ -55,10 +67,10 @@ PSOutput main(PSInput input)
     // [2222] diffuseIDs.y
     // [3333] diffuseIDs.z
     // [AA44] diffuseIDs.w Alpha is read from the most significant bits, the fourth diffuseID read from the least 
-    uint diffuse0ID = cellData.diffuseIDs.x;
-    uint diffuse1ID = cellData.diffuseIDs.y;
-    uint diffuse2ID = cellData.diffuseIDs.z;
-    uint diffuse3ID = cellData.diffuseIDs.w;
+    uint diffuse0ID = diffuseIDs.x;
+    uint diffuse1ID = diffuseIDs.y;
+    uint diffuse2ID = diffuseIDs.z;
+    uint diffuse3ID = diffuseIDs.w;
     uint alphaID = chunkData.alphaID;
 
     float3 alpha = _terrainAlphaTextures[alphaID].Sample(_alphaSampler, alphaUV).rgb;
@@ -71,6 +83,8 @@ PSOutput main(PSInput input)
     color = (diffuse2 * alpha.y) + (color * (1.0f - alpha.y));
     color = (diffuse3 * alpha.z) + (color * (1.0f - alpha.z));
     output.color = color;
+
+    //output.color = float4(1, 0, 0, 1);
 
     return output;
 }

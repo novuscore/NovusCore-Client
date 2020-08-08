@@ -58,6 +58,13 @@ namespace Renderer
         renderer->DrawIndexedBindless(commandList, actualData->modelID, actualData->numVertices, actualData->numInstances);
     }
 
+    void BackendDispatch::DrawIndexed(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::DrawIndexed* actualData = static_cast<const Commands::DrawIndexed*>(data);
+        renderer->DrawIndexed(commandList, actualData->indexCount, actualData->instanceCount, actualData->indexOffset, actualData->vertexOffset, actualData->instanceOffset);
+    }
+
     void BackendDispatch::DrawIndexedIndirect(Renderer* renderer, CommandListID commandList, const void* data)
     {
         ZoneScopedC(tracy::Color::Red3);
@@ -158,7 +165,7 @@ namespace Renderer
     {
         ZoneScopedC(tracy::Color::Red3);
         const Commands::SetIndexBuffer* actualData = static_cast<const Commands::SetIndexBuffer*>(data);
-        renderer->SetIndexBuffer(commandList, actualData->bufferID);
+        renderer->SetIndexBuffer(commandList, actualData->bufferID, actualData->indexFormat);
     }
 
     void BackendDispatch::SetBuffer(Renderer* renderer, CommandListID commandList, const void* data)
@@ -180,5 +187,12 @@ namespace Renderer
         ZoneScopedC(tracy::Color::Red3);
         const Commands::AddWaitSemaphore* actualData = static_cast<const Commands::AddWaitSemaphore*>(data);
         renderer->AddWaitSemaphore(commandList, actualData->semaphore);
+    }
+
+    void BackendDispatch::CopyBuffer(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::CopyBuffer* actualData = static_cast<const Commands::CopyBuffer*>(data);
+        renderer->CopyBuffer(commandList, actualData->dstBuffer, actualData->dstBufferOffset, actualData->srcBuffer, actualData->srcBufferOffset, actualData->region);
     }
 }

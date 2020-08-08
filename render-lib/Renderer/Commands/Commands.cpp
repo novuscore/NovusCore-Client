@@ -2,6 +2,7 @@
 #include "Clear.h"
 #include "Draw.h"
 #include "DrawBindless.h"
+#include "DrawIndexed.h"
 #include "DrawIndexedBindless.h"
 #include "DrawIndexedIndirect.h"
 #include "DrawIndexedIndirectCount.h"
@@ -19,6 +20,7 @@
 #include "EndTrace.h"
 #include "AddSignalSemaphore.h"
 #include "AddWaitSemaphore.h"
+#include "CopyBuffer.h"
 
 namespace Renderer
 {
@@ -29,6 +31,7 @@ namespace Renderer
         const BackendDispatchFunction Draw::DISPATCH_FUNCTION = &BackendDispatch::Draw;
         const BackendDispatchFunction DrawBindless::DISPATCH_FUNCTION = &BackendDispatch::DrawBindless;
         const BackendDispatchFunction DrawIndexedBindless::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexedBindless;
+        const BackendDispatchFunction DrawIndexed::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexed;
         const BackendDispatchFunction DrawIndexedIndirect::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexedIndirect;
         const BackendDispatchFunction DrawIndexedIndirectCount::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexedIndirectCount;
         const BackendDispatchFunction PopMarker::DISPATCH_FUNCTION = &BackendDispatch::PopMarker;
@@ -47,5 +50,6 @@ namespace Renderer
         const BackendDispatchFunction EndTrace::DISPATCH_FUNCTION = &BackendDispatch::EndTrace;
         const BackendDispatchFunction AddSignalSemaphore::DISPATCH_FUNCTION = &BackendDispatch::AddSignalSemaphore;
         const BackendDispatchFunction AddWaitSemaphore::DISPATCH_FUNCTION = &BackendDispatch::AddWaitSemaphore;
+        const BackendDispatchFunction CopyBuffer::DISPATCH_FUNCTION = &BackendDispatch::CopyBuffer;
     }
 }

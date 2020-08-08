@@ -4,7 +4,6 @@
 #include <robin_hood.h>
 #include "RenderGraph.h"
 #include "RenderGraphBuilder.h"
-#include "RenderLayer.h"
 #include "RenderPass.h"
 #include "RenderStates.h"
 #include "Font.h"
@@ -43,7 +42,6 @@ namespace Renderer
         virtual ~Renderer();
 
         RenderGraph CreateRenderGraph(RenderGraphDesc& desc);
-        RenderLayer& GetRenderLayer(u32 layerHash);
 
         // Creation
         virtual BufferID CreateBuffer(BufferDesc& desc) = 0;
@@ -87,6 +85,7 @@ namespace Renderer
         virtual void Draw(CommandListID commandListID, ModelID modelID) = 0;
         virtual void DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances) = 0;
         virtual void DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances) = 0;
+        virtual void DrawIndexed(CommandListID commandListID, u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset) = 0;
         virtual void DrawIndexedIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount) = 0;
         virtual void DrawIndexedIndirectCount(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount) = 0;
         virtual void PopMarker(CommandListID commandListID) = 0;
@@ -97,7 +96,7 @@ namespace Renderer
         virtual void SetScissorRect(CommandListID commandListID, ScissorRect scissorRect) = 0;
         virtual void SetViewport(CommandListID commandListID, Viewport viewport) = 0;
         virtual void SetVertexBuffer(CommandListID commandListID, u32 slot, ModelID modelID) = 0;
-        virtual void SetIndexBuffer(CommandListID commandListID, BufferID bufferID) = 0;
+        virtual void SetIndexBuffer(CommandListID commandListID, BufferID bufferID, IndexFormat indexFormat) = 0;
         virtual void SetBuffer(CommandListID commandListID, u32 slot, BufferID buffer) = 0;
         virtual void BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex) = 0;
         virtual void MarkFrameStart(CommandListID commandListID, u32 frameIndex) = 0;
@@ -105,6 +104,7 @@ namespace Renderer
         virtual void EndTrace(CommandListID commandListID) = 0;
         virtual void AddSignalSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) = 0;
         virtual void AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) = 0;
+        virtual void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
 
         // Present functions
         virtual void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) = 0;
@@ -117,8 +117,5 @@ namespace Renderer
 
     protected:
         Renderer() {}; // Pure virtual class, disallow creation of it
-
-    protected:
-        robin_hood::unordered_map<u32, RenderLayer> _renderLayers;
     };
 }

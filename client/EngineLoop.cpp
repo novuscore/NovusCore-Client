@@ -183,7 +183,6 @@ void EngineLoop::Run()
             break;
 
         Render();
-        FrameMark;
 
         // Wait for tick rate, this might be an overkill implementation but it has the most even tickrate I've seen - MPursche
         for (deltaTime = timer.GetDeltaTime(); deltaTime < targetDelta - 0.0025f; deltaTime = timer.GetDeltaTime())
@@ -198,7 +197,7 @@ void EngineLoop::Run()
             std::this_thread::yield();
         }
 
-        FrameMark
+        FrameMark;
     }
 
     // Clean up stuff here

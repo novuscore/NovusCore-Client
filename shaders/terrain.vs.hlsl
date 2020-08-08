@@ -28,17 +28,30 @@ struct Vertex
 Vertex LoadVertex(uint chunkID, uint cellID, uint vertexID)
 {
     // Load height
-    const uint globalCellID = 
+    const uint globalCellID = GetGlobalCellID(chunkID, cellID);
     const uint heightIndex = (globalCellID * NUM_VERTICES_PER_CELL) + vertexID;
-    const float height = _vertexHeights.Load<float>(heightIndex * 4); // 4 is sizeof(float) in bytes
+    const float height = _vertexHeights.Load<float>(heightIndex * 4); // 4 = sizeof(float) 
 
     float2 cellPos = GetCellPosition(chunkID, cellID);
+    float2 vertexPos = GetCellSpaceVertexPosition(vertexID);
 
-    GetCellVertexPosition(vertexID);
+    const float CELL_PRECISION = CELL_SIDE_SIZE / 8.0f;
 
     Vertex vertex;
-    vertex.position = float3(vertexPosX + cellPos.x, height, vertexPosZ + cellPos.y);
-    vertex.uv = float2(vertexX, vertexY);
+    vertex.position.x = -((-vertexPos.x) * CELL_PRECISION + cellPos.x);
+    vertex.position.y = height;
+    vertex.position.z = (-vertexPos.y) * CELL_PRECISION + cellPos.y;
+    vertex.uv = vertexPos;
+
+    //  0 0 1
+    //  0 1 0
+    // -1 0 0
+
+    vertex.position = mul(float3x3(
+         0, 0, 1,
+         0, 1, 0,
+        -1, 0, 0
+    ), vertex.position);
 
     return vertex;
 }
@@ -54,7 +67,6 @@ VSOutput main(VSInput input)
 
     output.position = mul(float4(vertex.position, 1.0f), viewProjectionMatrix);
     output.uv = vertex.uv;
-    output.chunkID = chunkID;
     output.packedChunkCellID = input.packedChunkCellID;
 
     return output;

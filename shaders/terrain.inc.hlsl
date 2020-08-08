@@ -7,6 +7,8 @@
 #define CHUNK_SIDE_SIZE (533.3333f)
 #define CELL_SIDE_SIZE (33.3333f)
 
+#define HALF_WORLD_SIZE (17066.66656f)
+
 uint GetGlobalCellID(uint chunkID, uint cellID)
 {
     return (chunkID * NUM_CELLS_PER_CHUNK) + cellID;
@@ -17,20 +19,18 @@ float2 GetCellPosition(uint chunkID, uint cellID)
     const uint chunkX = chunkID % NUM_CHUNKS_PER_MAP_SIDE;
     const uint chunkY = chunkID / NUM_CHUNKS_PER_MAP_SIDE;
 
-    const float2 chunkPos = float2(chunkX, chunkY) * CHUNK_SIDE_SIZE;
+    const float2 chunkPos = (float2(chunkX, chunkY) * CHUNK_SIDE_SIZE) - HALF_WORLD_SIZE;
 
     const uint cellX = cellID % NUM_CELLS_PER_CHUNK_SIDE;
     const uint cellY = cellID / NUM_CELLS_PER_CHUNK_SIDE;
 
     const float2 cellPos = float2(cellX, cellY) * CELL_SIDE_SIZE;
 
-    return chunkPos + cellPos;
+    return -(chunkPos + cellPos);
 }
 
-float2 GetCellVertexPosition(uint vertexID)
+float2 GetCellSpaceVertexPosition(uint vertexID)
 {
-    const float CELL_PRECISION = CELL_SIDE_SIZE / 8.0f;
-
     float vertexX = vertexID % 17.0f;
     float vertexY = floor(vertexID / 17.0f);
 
@@ -38,8 +38,5 @@ float2 GetCellVertexPosition(uint vertexID)
     vertexX = vertexX - (8.5f * isOddRow);
     vertexY = vertexY + (0.5f * isOddRow);
 
-    float vertexPosX = -vertexX * CELL_PRECISION;
-    float vertexPosZ = vertexY * CELL_PRECISION;
-
-    return float2(vertexPosX, vertexPosZ);
+    return float2(vertexX, vertexY);
 }

@@ -11,6 +11,7 @@
 #include "Commands/Draw.h"
 #include "Commands/DrawBindless.h"
 #include "Commands/DrawIndexedBindless.h"
+#include "Commands/DrawIndexed.h"
 #include "Commands/DrawIndexedIndirect.h"
 #include "Commands/DrawIndexedIndirectCount.h"
 #include "Commands/PopMarker.h"
@@ -27,6 +28,7 @@
 #include "Commands/EndTrace.h"
 #include "Commands/AddSignalSemaphore.h"
 #include "Commands/AddWaitSemaphore.h"
+#include "Commands/CopyBuffer.h"
 
 namespace Renderer
 {
@@ -60,7 +62,7 @@ namespace Renderer
         void SetViewport(f32 topLeftX, f32 topLeftY, f32 width, f32 height, f32 minDepth, f32 maxDepth);
 
         void SetVertexBuffer(u32 slot, ModelID model);
-        void SetIndexBuffer(BufferID buffer);
+        void SetIndexBuffer(BufferID buffer, IndexFormat indexFormat);
         void SetBuffer(u32 slot, BufferID buffer);
 
         void Clear(ImageID imageID, Color color);
@@ -69,11 +71,14 @@ namespace Renderer
         void Draw(ModelID modelID);
         void DrawBindless(u32 numVertices, u32 numInstances);
         void DrawIndexedBindless(ModelID modelID, u32 numVertices, u32 numInstances);
+        void DrawIndexed(u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset);
         void DrawIndexedIndirect(BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount);
         void DrawIndexedIndirectCount(BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount);
 
         void AddSignalSemaphore(GPUSemaphoreID semaphoreID);
         void AddWaitSemaphore(GPUSemaphoreID semaphoreID);
+
+        void CopyBuffer(BufferID dstBuffer, u64 dstBufferOffset, BufferID srcBuffer, u64 srcBufferOffset, u64 region);
 
     private:
         // Execute gets friend-called from RenderGraph
