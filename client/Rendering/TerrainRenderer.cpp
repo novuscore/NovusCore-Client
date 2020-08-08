@@ -440,13 +440,11 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
                 Renderer::TextureDesc textureDesc;
                 textureDesc.path = "Data/extracted/Textures/" + texturePath;
 
-                u32 diffuseID = 0;
-                //_renderer->LoadTextureIntoArray(textureDesc, _terrainColorTextureArray, diffuseID);
+                u32 diffuseID;
+                _renderer->LoadTextureIntoArray(textureDesc, _terrainColorTextureArray, diffuseID);
 
                 cellData[i].diffuseIDs[layerCount++] = diffuseID;
             }
-
-            //assert(cellData[i].diffuseIDs[0] != 0);
         }
 
         _renderer->UnmapBuffer(cellUploadBuffer);
@@ -501,6 +499,8 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
     u32 alphaID;
     _renderer->CreateDataTextureIntoArray(chunkAlphaMapDesc, _terrainAlphaTextureArray, alphaID);
     
+    delete[] chunkAlphaMapDesc.data;
+
     // Upload chunk data.
     {
         Renderer::BufferDesc chunkDataUploadBufferDesc;
