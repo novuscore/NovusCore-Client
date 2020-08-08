@@ -97,7 +97,7 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
 
             // Bind descriptorset
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
-            commandList.DrawIndexed(Terrain::NUM_INDICES_PER_CELL, Terrain::MAP_CELLS_PER_CHUNK * (32 * 32), 0, 0, 0);
+            commandList.DrawIndexed(Terrain::NUM_INDICES_PER_CELL, Terrain::MAP_CELLS_PER_CHUNK * (u32)_loadedChunks.size(), 0, 0, 0);
             //commandList.DrawIndexedIndirect(_argumentBuffer, 0, 1 );
 
             commandList.EndPipeline(pipeline);
@@ -178,7 +178,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
 
             // Bind descriptorset
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
-            commandList.DrawIndexed(Terrain::NUM_INDICES_PER_CELL, Terrain::MAP_CELLS_PER_CHUNK * (32 * 32), 0, 0, 0);
+            commandList.DrawIndexed(Terrain::NUM_INDICES_PER_CELL, Terrain::MAP_CELLS_PER_CHUNK * (u32)_loadedChunks.size(), 0, 0, 0);
             //commandList.DrawIndexedIndirect(_argumentBuffer, 0, 1);
 
             commandList.EndPipeline(pipeline);
@@ -349,9 +349,17 @@ void TerrainRenderer::CreatePermanentResources()
         _renderer->CopyBuffer(_cellIndexBuffer, 0, indexUploadBuffer, 0, indexUploadBufferDesc.size);
     }
 
+    // Load map
+    Terrain::Map& map = mapSingleton.maps[0];
+    LoadChunksAround(map, ivec2(32, 32), 32); // Goldshire
+    //LoadChunksAround(map, ivec2(40, 32), 8); // Razor Hill
+    //LoadChunksAround(map, ivec2(22, 25), 8); // Borean Tundra
+
+    //LoadChunksAround(map, ivec2(0, 0), 8); // Goldshire
+
     // Upload instance data
     {
-        const size_t cellCount = Terrain::MAP_CELLS_PER_CHUNK * (32 * 32);
+        const size_t cellCount = Terrain::MAP_CELLS_PER_CHUNK * _loadedChunks.size();
 
         Renderer::BufferDesc uploadBufferDesc;
         uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
@@ -366,35 +374,17 @@ void TerrainRenderer::CreatePermanentResources()
         u32* instanceData = static_cast<u32*>(instanceBufferMemory);
         u32 instanceDataIndex = 0;
 
-        u32 minX = Math::Max(0, (32 - 16));
-        u32 maxX = Math::Min(63, (32 + 16));
-
-        u32 minY = Math::Max(0, (32 - 16));
-        u32 maxY = Math::Min(63, (32 + 16));
-
-        for (u32 y = minY; y < maxY; ++y)
+        for (const u16 chunkID : _loadedChunks)
         {
-            for (u32 x = minX; x < maxX; ++x)
+            for (u32 cellID = 0; cellID < Terrain::MAP_CELLS_PER_CHUNK; ++cellID)
             {
-                const u32 chunkID = x + (y * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
-                for (u32 cellID = 0; cellID < Terrain::MAP_CELLS_PER_CHUNK; ++cellID)
-                {
-                    instanceData[instanceDataIndex++] = (chunkID << 16) | (cellID & 0xffff);
-                }
+                instanceData[instanceDataIndex++] = (chunkID << 16) | (cellID & 0xffff);
             }
         }
         assert(instanceDataIndex == cellCount);
         _renderer->UnmapBuffer(instanceUploadBuffer);
         _renderer->CopyBuffer(_instanceBuffer, 0, instanceUploadBuffer, 0, uploadBufferDesc.size);
     }
-
-    // Load map
-    Terrain::Map& map = mapSingleton.maps[0];
-    LoadChunksAround(map, ivec2(32, 32), 16); // Goldshire
-    //LoadChunksAround(map, ivec2(40, 32), 8); // Razor Hill
-    //LoadChunksAround(map, ivec2(22, 25), 8); // Borean Tundra
-
-    //LoadChunksAround(map, ivec2(0, 0), 8); // Goldshire
 }
 
 void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
@@ -407,6 +397,8 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
     {
         return;
     }
+
+    _loadedChunks.push_back(chunkId);
 
     const Terrain::Chunk& chunk = chunkIt->second;
     StringTable& stringTable = map.stringTables[chunkId];
@@ -496,11 +488,9 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
     // [2222] diffuseIDs[1]
     // [3333] diffuseIDs[2]
     // [AA44] diffuseIDs[3] Alpha is read from the most significant bits, the fourth diffuseID read from the least 
-    u32 alphaID;
-    _renderer->CreateDataTextureIntoArray(chunkAlphaMapDesc, _terrainAlphaTextureArray, alphaID);
+    u32 alphaID = 0;
+    //_renderer->CreateDataTextureIntoArray(chunkAlphaMapDesc, _terrainAlphaTextureArray, alphaID);
     
-    delete[] chunkAlphaMapDesc.data;
-
     // Upload chunk data.
     {
         Renderer::BufferDesc chunkDataUploadBufferDesc;
@@ -519,10 +509,6 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         const u64 chunkBufferOffset = static_cast<u64>(chunkId) * sizeof(TerrainChunkData);
         _renderer->CopyBuffer(_chunkBuffer, chunkBufferOffset, chunkUploadBuffer, 0, chunkDataUploadBufferDesc.size);
     }
-
-    // Move the chunk to its proper position, this converts from ADT grid to world space, the axises don't line up, so the next two lines might be a bit confusing
-    //f32 x = (-static_cast<f32>(chunkPosY) * Terrain::MAP_CHUNK_SIZE) + (Terrain::MAP_SIZE / 2.0f);
-    //f32 z = (-static_cast<f32>(chunkPosX) * Terrain::MAP_CHUNK_SIZE) + (Terrain::MAP_SIZE / 2.0f); 
 
     // Upload height data.
     {

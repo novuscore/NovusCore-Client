@@ -108,19 +108,6 @@ void ClientRenderer::Update(f32 deltaTime)
 
     // Update the camera movement
     _camera->Update(deltaTime);
-    
-    // Update the view matrix to match the new camera position
-    {
-        const f32 fov = 68.0f;
-        const f32 nearClip = 0.1f;
-        const f32 farClip = 100000.0f;
-        f32 aspectRatio = static_cast<f32>(WIDTH) / static_cast<f32>(HEIGHT);
-
-        const mat4x4 projectionMatrix = glm::perspective(fov, aspectRatio, nearClip, farClip);
-
-        _viewConstantBuffer->resource.viewProjectionMatrix = projectionMatrix * _camera->GetViewMatrix();
-        _viewConstantBuffer->Apply(_frameIndex);
-    }
 
     _terrainRenderer->Update(deltaTime);
 }
@@ -139,6 +126,19 @@ void ClientRenderer::Render()
     Renderer::RenderGraph renderGraph = _renderer->CreateRenderGraph(renderGraphDesc);
 
     _renderer->FlipFrame(_frameIndex);
+
+    // Update the view matrix to match the new camera position
+    {
+        const f32 fov = 68.0f;
+        const f32 nearClip = 0.1f;
+        const f32 farClip = 100000.0f;
+        f32 aspectRatio = static_cast<f32>(WIDTH) / static_cast<f32>(HEIGHT);
+
+        const mat4x4 projectionMatrix = glm::perspective(fov, aspectRatio, nearClip, farClip);
+
+        _viewConstantBuffer->resource.viewProjectionMatrix = projectionMatrix * _camera->GetViewMatrix();
+        _viewConstantBuffer->Apply(_frameIndex);
+    }
 
     _passDescriptorSet.Bind("_viewData"_h, _viewConstantBuffer->GetBuffer(_frameIndex));
 

@@ -67,5 +67,5 @@ private:
     Renderer::DescriptorSet _passDescriptorSet;
     Renderer::DescriptorSet _drawDescriptorSet;
 
-    
+    std::vector<u16> _loadedChunks;
 };
