@@ -28,6 +28,7 @@ class Camera;
 class UIRenderer;
 class TerrainRenderer;
 class InputManager;
+class DebugRenderer;
 
 class ClientRenderer
 {
@@ -70,6 +71,7 @@ private:
     Renderer::DescriptorSet _drawDescriptorSet;
 
     // Sub renderers
+    DebugRenderer* _debugRenderer;
     UIRenderer* _uiRenderer;
     TerrainRenderer* _terrainRenderer;
 

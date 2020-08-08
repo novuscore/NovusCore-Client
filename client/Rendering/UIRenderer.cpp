@@ -169,7 +169,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
 
                             // Draw
-                            commandList.Draw(text.models[i]);
+                            //commandList.Draw(text.models[i]); // TODO
                         }
 
                         commandList.PopMarker();
@@ -197,7 +197,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                         commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
 
                         // Draw
-                        commandList.Draw(image.modelID);
+                        //commandList.Draw(image.modelID); // TODO
 
                         commandList.PopMarker();
                         break;

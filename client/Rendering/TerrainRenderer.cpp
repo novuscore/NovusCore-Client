@@ -1,4 +1,5 @@
 #include "TerrainRenderer.h"
+#include "DebugRenderer.h"
 #include <entt.hpp>
 #include "../Utils/ServiceLocator.h"
 
@@ -8,8 +9,13 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <tracy/TracyVulkan.hpp>
 
+#include "Camera.h"
+
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
+
+static bool s_cullingEnabled = false;
+static bool s_gpuCullingEnabled = false;
 
 struct TerrainChunkData
 {
@@ -21,20 +27,92 @@ struct TerrainCellData
     u16 diffuseIDs[4] = { 0 };
 };
 
-TerrainRenderer::TerrainRenderer(Renderer::Renderer* renderer)
+TerrainRenderer::TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer)
     : _renderer(renderer)
+    , _debugRenderer(debugRenderer)
 {
     CreatePermanentResources();
 }
 
-void TerrainRenderer::Update(f32 deltaTime)
+void TerrainRenderer::Update(f32 deltaTime, const Camera& camera)
 {
-    
+    if (s_cullingEnabled && !s_gpuCullingEnabled)
+    {
+        DoCPUCulling(camera);
+    }
+}
+
+__forceinline bool IsInsideFrustum(const vec4* planes, const BoundingBox& boundingBox)
+{
+    // this is why god abandoned us
+    for (int i = 0; i < 6; ++i) 
+    {
+        const vec4& plane = planes[i];
+
+        vec3 vmin, vmax;
+
+        // X axis 
+        if (plane.x > 0) {
+            vmin.x = boundingBox.min.x;
+            vmax.x = boundingBox.max.x;
+        }
+        else {
+            vmin.x = boundingBox.max.x;
+            vmax.x = boundingBox.min.x;
+        }
+        // Y axis 
+        if (plane.y > 0) {
+            vmin.y = boundingBox.min.y;
+            vmax.y = boundingBox.max.y;
+        }
+        else {
+            vmin.y = boundingBox.max.y;
+            vmax.y = boundingBox.min.y;
+        }
+        // Z axis 
+        if (plane.z > 0) 
+        {
+            vmin.z = boundingBox.min.z;
+            vmax.z = boundingBox.max.z;
+        }
+        else 
+        {
+            vmin.z = boundingBox.max.z;
+            vmax.z = boundingBox.min.z;
+        }
+
+        if (glm::dot(vec3(plane), vmin) + plane.w < 0)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void TerrainRenderer::DoCPUCulling(const Camera& camera)
+{
+    ZoneScoped;
+
+    const vec4* frustumPlanes = camera.GetFrustumPlanes();
+
+    _culledChunks.clear();
+    _culledChunks.reserve(_loadedChunks.size());
+
+    const size_t chunkCount = _loadedChunks.size();
+    for (size_t i = 0; i < chunkCount; ++i)
+    {
+        const BoundingBox& boundingBox = _chunkBoundingBoxes[i];
+        if (IsInsideFrustum(frustumPlanes, boundingBox))
+        {
+            _culledChunks.push_back(_loadedChunks[i]);
+        }
+    }
 }
 
 void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex)
 {
-
+    return;
 
     // Terrain Depth Prepass
     {
@@ -129,6 +207,36 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             TracySourceLocation(terrainPass, "TerrainPass", tracy::Color::Yellow2);
             commandList.BeginTrace(&terrainPass);
 
+            // Upload culled instances
+            if (s_cullingEnabled && !s_gpuCullingEnabled && !_culledChunks.empty())
+            {
+                const size_t cellCount = Terrain::MAP_CELLS_PER_CHUNK * _culledChunks.size();
+
+                Renderer::BufferDesc uploadBufferDesc;
+                uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
+                uploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+                uploadBufferDesc.size = sizeof(u32) * cellCount;
+                uploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+
+                Renderer::BufferID instanceUploadBuffer = _renderer->CreateBuffer(uploadBufferDesc);
+                _renderer->QueueDestroyBuffer(instanceUploadBuffer);
+
+                void* instanceBufferMemory = _renderer->MapBuffer(instanceUploadBuffer);
+                u32* instanceData = static_cast<u32*>(instanceBufferMemory);
+                u32 instanceDataIndex = 0;
+
+                for (const u16 chunkID : _culledChunks)
+                {
+                    for (u32 cellID = 0; cellID < Terrain::MAP_CELLS_PER_CHUNK; ++cellID)
+                    {
+                        instanceData[instanceDataIndex++] = (chunkID << 16) | (cellID & 0xffff);
+                    }
+                }
+                assert(instanceDataIndex == cellCount);
+                _renderer->UnmapBuffer(instanceUploadBuffer);
+                _renderer->CopyBuffer(_culledInstanceBuffer, 0, instanceUploadBuffer, 0, uploadBufferDesc.size);
+            }
+
             Renderer::GraphicsPipelineDesc pipelineDesc;
             resources.InitializePipelineDesc(pipelineDesc);
 
@@ -149,7 +257,8 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
 
             // Depth state
             pipelineDesc.states.depthStencilState.depthEnable = true;
-            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_EQUAL;
+            pipelineDesc.states.depthStencilState.depthWriteEnable = true;
+            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_LESS;
 
             // Rasterizer state
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
@@ -165,7 +274,8 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             commandList.BeginPipeline(pipeline);
 
             // Set instance buffer
-            commandList.SetBuffer(0, _instanceBuffer);
+            const Renderer::BufferID instanceBuffer = s_cullingEnabled ? _culledInstanceBuffer : _instanceBuffer;
+            commandList.SetBuffer(0, instanceBuffer);
 
             // Set index buffer
             commandList.SetIndexBuffer(_cellIndexBuffer, Renderer::IndexFormat::UInt16);
@@ -178,8 +288,25 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
 
             // Bind descriptorset
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
-            commandList.DrawIndexed(Terrain::NUM_INDICES_PER_CELL, Terrain::MAP_CELLS_PER_CHUNK * (u32)_loadedChunks.size(), 0, 0, 0);
-            //commandList.DrawIndexedIndirect(_argumentBuffer, 0, 1);
+            if (s_cullingEnabled)
+            {
+                if (s_gpuCullingEnabled)
+                {
+                    commandList.DrawIndexedIndirect(_argumentBuffer, 0, 1);
+                }
+                else
+                {
+                    const u32 cellCount = Terrain::MAP_CELLS_PER_CHUNK * (u32)_culledChunks.size();
+                    TracyPlot("Cell Instance Count", (i64)cellCount);
+                    commandList.DrawIndexed(Terrain::NUM_INDICES_PER_CELL, cellCount, 0, 0, 0);
+                }
+            }
+            else
+            {
+                const u32 cellCount = Terrain::MAP_CELLS_PER_CHUNK * (u32)_loadedChunks.size();
+                TracyPlot("Cell Instance Count", (i64)cellCount);
+                commandList.DrawIndexed(Terrain::NUM_INDICES_PER_CELL, cellCount, 0, 0, 0);
+            }
 
             commandList.EndPipeline(pipeline);
             commandList.EndTrace();
@@ -254,10 +381,18 @@ void TerrainRenderer::CreatePermanentResources()
 
     {
         Renderer::BufferDesc desc;
-        desc.name = "TerrainInstanceBuffer";
+        desc.name = "CulledTerrainInstanceBuffer";
         desc.size = sizeof(u32) * Terrain::MAP_CELLS_PER_CHUNK * (Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
         desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_VERTEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
         _instanceBuffer = _renderer->CreateBuffer(desc);
+    }
+
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "TerrainInstanceBuffer";
+        desc.size = sizeof(u32) * Terrain::MAP_CELLS_PER_CHUNK * (Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_VERTEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _culledInstanceBuffer = _renderer->CreateBuffer(desc);
     }
 
     {
@@ -398,8 +533,6 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         return;
     }
 
-    _loadedChunks.push_back(chunkId);
-
     const Terrain::Chunk& chunk = chunkIt->second;
     StringTable& stringTable = map.stringTables[chunkId];
 
@@ -532,6 +665,35 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         _renderer->UnmapBuffer(vertexUploadBuffer);
         const u64 chunkVertexBufferOffset = chunkId * sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK;
         _renderer->CopyBuffer(_vertexBuffer, chunkVertexBufferOffset, vertexUploadBuffer, 0, vertexUploadBufferDesc.size);
+
+        float minHeight = FLT_MAX;
+        float maxHeight = FLT_MIN;
+
+        for (u32 i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i++)
+        {
+            const Terrain::Cell& cell = chunk.cells[i];
+            const auto minmax = std::minmax_element(cell.heightData, cell.heightData + Terrain::CELL_TOTAL_GRID_SIZE);
+            minHeight = Math::Min(minHeight, *minmax.first);
+            maxHeight = Math::Max(maxHeight, *minmax.second);
+        }
+
+        //const u16 rotatedChunkPosX = (63 - chunkPosY);
+        //const u16 rotatedChunkPosY = chunkPosX;
+
+        constexpr float halfWorldSize = 17066.66656f;
+
+        BoundingBox boundingBox;
+
+        boundingBox.min.x = -((chunkPosY * Terrain::MAP_CHUNK_SIZE) - halfWorldSize);
+        boundingBox.min.y = minHeight;
+        boundingBox.min.z = -(chunkPosX * Terrain::MAP_CHUNK_SIZE - halfWorldSize);
+
+        boundingBox.max.x = -((chunkPosY + 1) * Terrain::MAP_CHUNK_SIZE - halfWorldSize);
+        boundingBox.max.y = maxHeight;
+        boundingBox.max.z = -((chunkPosX + 1) * Terrain::MAP_CHUNK_SIZE - halfWorldSize);
+
+        _loadedChunks.push_back(chunkId);
+        _chunkBoundingBoxes.push_back(boundingBox);
     }
 }
 

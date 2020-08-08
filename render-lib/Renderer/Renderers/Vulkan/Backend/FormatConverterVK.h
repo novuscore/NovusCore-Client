@@ -126,6 +126,7 @@ namespace Renderer
                 case INPUT_FORMAT_R16_UINT:             return 2;
                 case INPUT_FORMAT_R16_SINT:             return 2;
                     // 1 byte per component
+                case INPUT_FORMAT_R8G8B8A8_UNORM:       return 4;
                 case INPUT_FORMAT_R8G8B8A8_UINT:        return 4;
                 case INPUT_FORMAT_R8G8B8A8_SINT:        return 4;
                 case INPUT_FORMAT_R8G8_UINT:            return 2;
@@ -167,6 +168,7 @@ namespace Renderer
                 case InputFormat::INPUT_FORMAT_R16_UINT:             return VK_FORMAT_R16_UINT;
                 case InputFormat::INPUT_FORMAT_R16_SINT:             return VK_FORMAT_R16_SINT;
                     // 1 byte per component
+                case InputFormat::INPUT_FORMAT_R8G8B8A8_UNORM:       return VK_FORMAT_R8G8B8A8_UNORM;
                 case InputFormat::INPUT_FORMAT_R8G8B8A8_UINT:        return VK_FORMAT_R8G8B8A8_UINT;
                 case InputFormat::INPUT_FORMAT_R8G8B8A8_SINT:        return VK_FORMAT_R8G8B8A8_SINT;
                 case InputFormat::INPUT_FORMAT_R8G8_UINT:            return VK_FORMAT_R8G8_UINT;
@@ -491,6 +493,20 @@ namespace Renderer
                     NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more colors?");
                 }
                 return VK_INDEX_TYPE_UINT16;
+            }
+
+            static inline VkPrimitiveTopology ToVkPrimitiveTopology(PrimitiveTopology topology)
+            {
+                switch (topology)
+                {
+                case PrimitiveTopology::Lines:         return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+                case PrimitiveTopology::LineStrip:     return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+                case PrimitiveTopology::Triangles:     return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+                case PrimitiveTopology::TriangleStrip: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+                default:
+                    NC_LOG_FATAL("This should never hit, did we forget to update this function after adding more colors?");
+                }
+                return (VkPrimitiveTopology)0;
             }
         };
     }

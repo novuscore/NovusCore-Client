@@ -60,6 +60,14 @@ namespace Renderer
         SampleCount sampleCount = SAMPLE_COUNT_1;
     };
 
+    enum class PrimitiveTopology
+    {
+        Triangles,
+        TriangleStrip,
+        Lines,
+        LineStrip,
+    };
+
     enum BlendMode
     {
         BLEND_MODE_ZERO,
@@ -230,6 +238,7 @@ namespace Renderer
         INPUT_FORMAT_R16_UINT,
         INPUT_FORMAT_R16_SINT,
         // 8 bit per component
+        INPUT_FORMAT_R8G8B8A8_UNORM,
         INPUT_FORMAT_R8G8B8A8_UINT,
         INPUT_FORMAT_R8G8B8A8_SINT,
         INPUT_FORMAT_R8G8_UINT,

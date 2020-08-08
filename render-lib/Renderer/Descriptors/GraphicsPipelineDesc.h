@@ -34,6 +34,7 @@ namespace Renderer
             BlendState blendState;
 
             InputLayout inputLayouts[MAX_INPUT_LAYOUTS];
+            PrimitiveTopology primitiveTopology = PrimitiveTopology::Triangles;
 
             // Shaders
             VertexShaderID vertexShader = VertexShaderID::Invalid();

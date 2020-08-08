@@ -61,16 +61,16 @@ namespace Renderer
         void SetScissorRect(u32 left, u32 right, u32 top, u32 bottom);
         void SetViewport(f32 topLeftX, f32 topLeftY, f32 width, f32 height, f32 minDepth, f32 maxDepth);
 
-        void SetVertexBuffer(u32 slot, ModelID model);
+        void SetVertexBuffer(u32 slot, BufferID buffer);
         void SetIndexBuffer(BufferID buffer, IndexFormat indexFormat);
         void SetBuffer(u32 slot, BufferID buffer);
 
         void Clear(ImageID imageID, Color color);
         void Clear(DepthImageID imageID, f32 depth, DepthClearFlags flags = DepthClearFlags::DEPTH_CLEAR_DEPTH, u8 stencil = 0);
 
-        void Draw(ModelID modelID);
         void DrawBindless(u32 numVertices, u32 numInstances);
         void DrawIndexedBindless(ModelID modelID, u32 numVertices, u32 numInstances);
+        void Draw(u32 numVertices, u32 numInstances, u32 vertexOffset, u32 instanceOffset);
         void DrawIndexed(u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset);
         void DrawIndexedIndirect(BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount);
         void DrawIndexedIndirectCount(BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount);

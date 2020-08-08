@@ -72,7 +72,7 @@ namespace Renderer
         void EndCommandList(CommandListID commandListID) override;
         void Clear(CommandListID commandListID, ImageID image, Color color) override;
         void Clear(CommandListID commandListID, DepthImageID image, DepthClearFlags clearFlags, f32 depth, u8 stencil) override;
-        void Draw(CommandListID commandListID, ModelID modelID) override;
+        void Draw(CommandListID commandListID, u32 numVertices, u32 numInstances, u32 vertexOffset, u32 instanceOffset) override;
         void DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances) override;
         void DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances) override;
         void DrawIndexed(CommandListID commandListID, u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset) override;
@@ -85,7 +85,7 @@ namespace Renderer
         void SetPipeline(CommandListID commandListID, ComputePipelineID pipeline) override;
         void SetScissorRect(CommandListID commandListID, ScissorRect scissorRect) override;
         void SetViewport(CommandListID commandListID, Viewport viewport) override;
-        void SetVertexBuffer(CommandListID commandListID, u32 slot, ModelID modelID) override;
+        void SetVertexBuffer(CommandListID commandListID, u32 slot, BufferID bufferID) override;
         void SetIndexBuffer(CommandListID commandListID, BufferID bufferID, IndexFormat indexFormat) override;
         void SetBuffer(CommandListID commandListID, u32 slot, BufferID buffer) override;
         void BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex) override;
@@ -132,7 +132,7 @@ namespace Renderer
             std::vector<BufferID> buffers;
         };
 
-        std::array<ObjectDestroyList, 3> _destroyLists;
+        std::array<ObjectDestroyList, 4> _destroyLists;
         size_t _destroyListIndex = 0;
 
         void DestroyObjects(ObjectDestroyList& destroyList);

@@ -41,7 +41,7 @@ namespace Renderer
     {
         ZoneScopedC(tracy::Color::Red3);
         const Commands::Draw* actualData = static_cast<const Commands::Draw*>(data);
-        renderer->Draw(commandList, actualData->model);
+        renderer->Draw(commandList, actualData->vertexCount, actualData->instanceCount, actualData->vertexOffset, actualData->instanceOffset);
     }
 
     void BackendDispatch::DrawBindless(Renderer * renderer, CommandListID commandList, const void* data)
@@ -158,7 +158,7 @@ namespace Renderer
     {
         ZoneScopedC(tracy::Color::Red3);
         const Commands::SetVertexBuffer* actualData = static_cast<const Commands::SetVertexBuffer*>(data);
-        renderer->SetVertexBuffer(commandList, actualData->slot, actualData->modelID);
+        renderer->SetVertexBuffer(commandList, actualData->slot, actualData->bufferID);
     }
 
     void BackendDispatch::SetIndexBuffer(Renderer* renderer, CommandListID commandList, const void* data)

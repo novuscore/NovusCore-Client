@@ -1,6 +1,7 @@
 #include "ClientRenderer.h"
 #include "UIRenderer.h"
 #include "TerrainRenderer.h"
+#include "DebugRenderer.h"
 #include "Camera.h"
 #include "../Utils/ServiceLocator.h"
 
@@ -52,11 +53,11 @@ void WindowIconifyCallback(GLFWwindow* window, int iconified)
 
 ClientRenderer::ClientRenderer()
 {
-    _camera = new Camera(vec3(-8000.0f, 50.0f, 1600.0f)); // Goldshire
+    //_camera = new Camera(vec3(-8000.0f, 50.0f, 1600.0f)); // Goldshire
     //_camera = new Camera(vec3(300.0f, 0.0f, -4700.0f)); // Razor Hill
     //_camera = new Camera(vec3(3308.0f, 0.0f, 5316.0f)); // Borean Tundra
 
-    //_camera = new Camera(vec3(0.0f, 10.0f, 0.0f));
+    _camera = new Camera(vec3(0.0f, 0.0f, 0.0f));
 
     _window = new Window();
     _window->Init(WIDTH, HEIGHT);
@@ -82,8 +83,10 @@ ClientRenderer::ClientRenderer()
     ServiceLocator::SetRenderer(_renderer);
 
     CreatePermanentResources();
+
+    _debugRenderer = new DebugRenderer(_renderer);
     _uiRenderer = new UIRenderer(_renderer);
-    _terrainRenderer = new TerrainRenderer(_renderer);
+    _terrainRenderer = new TerrainRenderer(_renderer, _debugRenderer);
 
     _inputManager->RegisterKeybind("ToggleDebugDraw", GLFW_KEY_F1, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
@@ -107,9 +110,13 @@ void ClientRenderer::Update(f32 deltaTime)
     _frameAllocator->Reset();
 
     // Update the camera movement
-    _camera->Update(deltaTime);
+    _camera->Update(deltaTime, 75.0f, (float)WIDTH / (float)HEIGHT);
 
-    _terrainRenderer->Update(deltaTime);
+    _terrainRenderer->Update(deltaTime, *_camera);
+
+    _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(100.0f, 0.0f, 0.0f), 0xff0000ff);
+    _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 100.0f, 0.0f), 0xff00ff00);
+    _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 100.0f), 0xffff0000);
 }
 
 void ClientRenderer::Render()
@@ -128,17 +135,8 @@ void ClientRenderer::Render()
     _renderer->FlipFrame(_frameIndex);
 
     // Update the view matrix to match the new camera position
-    {
-        const f32 fov = 68.0f;
-        const f32 nearClip = 0.1f;
-        const f32 farClip = 100000.0f;
-        f32 aspectRatio = static_cast<f32>(WIDTH) / static_cast<f32>(HEIGHT);
-
-        const mat4x4 projectionMatrix = glm::perspective(fov, aspectRatio, nearClip, farClip);
-
-        _viewConstantBuffer->resource.viewProjectionMatrix = projectionMatrix * _camera->GetViewMatrix();
-        _viewConstantBuffer->Apply(_frameIndex);
-    }
+    _viewConstantBuffer->resource.viewProjectionMatrix = _camera->GetViewProjectionMatrix();
+    _viewConstantBuffer->Apply(_frameIndex);
 
     _passDescriptorSet.Bind("_viewData"_h, _viewConstantBuffer->GetBuffer(_frameIndex));
 
@@ -334,6 +332,8 @@ void ClientRenderer::Render()
 
     _terrainRenderer->AddTerrainPass(&renderGraph, _viewConstantBuffer, _mainColor, _mainDepth, _frameIndex, _debugDrawingMode);
     
+    _debugRenderer->Add3DPass(&renderGraph, _viewConstantBuffer->GetBuffer(_frameIndex), _mainColor, _mainDepth, _frameIndex);
+
     _uiRenderer->AddUIPass(&renderGraph, _mainColor, _frameIndex);
 
     renderGraph.AddSignalSemaphore(_sceneRenderedSemaphore); // Signal that we are ready to present

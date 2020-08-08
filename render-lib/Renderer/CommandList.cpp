@@ -106,11 +106,11 @@ namespace Renderer
         command->viewport.maxDepth = maxDepth;
     }
 
-    void CommandList::SetVertexBuffer(u32 slot, ModelID model)
+    void CommandList::SetVertexBuffer(u32 slot, BufferID buffer)
     {
         Commands::SetVertexBuffer* command = AddCommand<Commands::SetVertexBuffer>();
         command->slot = slot;
-        command->modelID = model;
+        command->bufferID = buffer;
     }
 
     void CommandList::SetIndexBuffer(BufferID buffer, IndexFormat indexFormat)
@@ -143,13 +143,6 @@ namespace Renderer
         command->stencil = stencil;
     }
 
-    void CommandList::Draw(ModelID modelID)
-    {
-        assert(modelID != ModelID::Invalid());
-        Commands::Draw* command = AddCommand<Commands::Draw>();
-        command->model = modelID;
-    }
-
     void CommandList::DrawBindless(u32 numVertices, u32 numInstances)
     {
         assert(numVertices > 0);
@@ -168,6 +161,15 @@ namespace Renderer
         command->modelID = modelID;
         command->numVertices = numVertices;
         command->numInstances = numInstances;
+    }
+
+    void CommandList::Draw(u32 numVertices, u32 numInstances, u32 vertexOffset, u32 instanceOffset)
+    {
+        Commands::Draw* command = AddCommand<Commands::Draw>();
+        command->vertexCount = numVertices;
+        command->instanceCount = numInstances;
+        command->vertexOffset = vertexOffset;
+        command->instanceOffset = instanceOffset;
     }
 
     void CommandList::DrawIndexed(u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset)

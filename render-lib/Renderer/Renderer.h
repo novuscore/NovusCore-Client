@@ -83,7 +83,7 @@ namespace Renderer
         virtual void EndCommandList(CommandListID commandListID) = 0;
         virtual void Clear(CommandListID commandListID, ImageID image, Color color) = 0;
         virtual void Clear(CommandListID commandListID, DepthImageID image, DepthClearFlags clearFlags, f32 depth, u8 stencil) = 0;
-        virtual void Draw(CommandListID commandListID, ModelID modelID) = 0;
+        virtual void Draw(CommandListID commandListID, u32 numVertices, u32 numInstances, u32 vertexOffset, u32 instanceOffset) = 0;
         virtual void DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances) = 0;
         virtual void DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances) = 0;
         virtual void DrawIndexed(CommandListID commandListID, u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset) = 0;
@@ -96,7 +96,7 @@ namespace Renderer
         virtual void SetPipeline(CommandListID commandListID, ComputePipelineID pipeline) = 0;
         virtual void SetScissorRect(CommandListID commandListID, ScissorRect scissorRect) = 0;
         virtual void SetViewport(CommandListID commandListID, Viewport viewport) = 0;
-        virtual void SetVertexBuffer(CommandListID commandListID, u32 slot, ModelID modelID) = 0;
+        virtual void SetVertexBuffer(CommandListID commandListID, u32 slot, BufferID bufferID) = 0;
         virtual void SetIndexBuffer(CommandListID commandListID, BufferID bufferID, IndexFormat indexFormat) = 0;
         virtual void SetBuffer(CommandListID commandListID, u32 slot, BufferID buffer) = 0;
         virtual void BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex) = 0;

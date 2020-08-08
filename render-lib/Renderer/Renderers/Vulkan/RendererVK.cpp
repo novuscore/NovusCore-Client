@@ -279,27 +279,11 @@ namespace Renderer
         _device->TransitionImageLayout(commandBuffer, image, range.aspectMask, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1, 1);
     }
 
-    void RendererVK::Draw(CommandListID commandListID, ModelID modelID)
+    void RendererVK::Draw(CommandListID commandListID, u32 numVertices, u32 numInstances, u32 vertexOffset, u32 instanceOffset)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
-        // Bind vertex buffer
-        VkBuffer vertexBuffer = _modelHandler->GetVertexBuffer(modelID);
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, offsets);
-
-        if (_boundModelIndexBuffer != modelID)
-        {
-            // Bind index buffer
-            VkBuffer indexBuffer = _modelHandler->GetIndexBuffer(modelID);
-            vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-            _boundModelIndexBuffer = modelID;
-        }
-
-        // Draw
-        u32 numIndices = _modelHandler->GetNumIndices(modelID);
-        vkCmdDrawIndexed(commandBuffer, numIndices, 1, 0, 0, 0);
+        vkCmdDraw(commandBuffer, numVertices, numInstances, vertexOffset, instanceOffset);
     }
 
     void RendererVK::DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances)
@@ -445,12 +429,12 @@ namespace Renderer
         vkCmdSetViewport(commandBuffer, 0, 1, &vkViewport);
     }
 
-    void RendererVK::SetVertexBuffer(CommandListID commandListID, u32 slot, ModelID modelID)
+    void RendererVK::SetVertexBuffer(CommandListID commandListID, u32 slot, BufferID bufferID)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
         // Bind vertex buffer
-        VkBuffer vertexBuffer = _modelHandler->GetVertexBuffer(modelID);
+        VkBuffer vertexBuffer = _bufferHandler->GetBuffer(bufferID);
         VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(commandBuffer, slot, 1, &vertexBuffer, offsets);
     }

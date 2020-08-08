@@ -57,8 +57,8 @@ void Camera::Init()
             vec2 mousePosition = vec2(xPos, yPos);
             vec2 deltaPosition = _prevMousePosition - mousePosition;
 
-            _yaw -= deltaPosition.x * _mouseSensitivity;
-            _pitch += deltaPosition.y * _mouseSensitivity;
+            _yaw += deltaPosition.x * _mouseSensitivity;
+            _pitch -= deltaPosition.y * _mouseSensitivity;
 
             _prevMousePosition = mousePosition;
         }
@@ -99,7 +99,7 @@ void Camera::Init()
     ServiceLocator::SetCamera(this);
 }
 
-void Camera::Update(f32 deltaTime)
+void Camera::Update(f32 deltaTime, float fovInDegrees, float aspectRatioWH)
 {
     InputManager* inputManager = ServiceLocator::GetInputManager();
     _lastDeltaTime = deltaTime;
@@ -133,28 +133,36 @@ void Camera::Update(f32 deltaTime)
     // Constrain pitch
     _pitch = Math::Clamp(_pitch, -89.0f, 89.0f);
 
+    // Compute matrices
+    _rotationMatrix = glm::yawPitchRoll(glm::radians(_yaw), glm::radians(_pitch), 0.0f);
+    const mat4x4 cameraMatrix = glm::translate(mat4x4(1.0f), _position) * _rotationMatrix;
+    _viewMatrix = glm::inverse(cameraMatrix);
+
+    const f32 nearClip = 0.1f;
+    const f32 farClip = 100000.0f;
+
+    _projectionMatrix = glm::perspective(glm::radians(fovInDegrees), aspectRatioWH, nearClip, farClip);
+    _viewProjectionMatrix = _projectionMatrix * _viewMatrix;
+
+    const mat4x4 frustumMatrix = glm::inverse(_projectionMatrix);
+
     UpdateCameraVectors();
-}
-
-mat4x4 Camera::GetViewMatrix() const
-{
-    return glm::inverse(GetCameraMatrix());
-}
-
-mat4x4 Camera::GetCameraMatrix() const
-{
-    mat4x4 viewMatrix(1);
-    viewMatrix = glm::translate(viewMatrix, _position) * _rotation;
-
-    return viewMatrix; 
+    UpdateFrustumPlanes(frustumMatrix);
 }
 
 void Camera::UpdateCameraVectors()
 {
-    _rotation = glm::yawPitchRoll(glm::radians(_yaw), glm::radians(_pitch), 0.0f);
-
-    _left = _rotation[0];
-    _up = _rotation[1];
-    _front = -_rotation[2];
+    _left = -_rotationMatrix[0];
+    _up = _rotationMatrix[1];
+    _front = -_rotationMatrix[2];
 }
 
+void Camera::UpdateFrustumPlanes(const mat4x4& m)
+{
+    _frustumPlanes[(size_t)FrustumPlane::Left]   = (m[3] + m[0]);
+    _frustumPlanes[(size_t)FrustumPlane::Right]  = (m[3] - m[0]);
+    _frustumPlanes[(size_t)FrustumPlane::Bottom] = (m[3] + m[1]);
+    _frustumPlanes[(size_t)FrustumPlane::Top]    = (m[3] - m[1]);
+    _frustumPlanes[(size_t)FrustumPlane::Near]   = (m[3] + m[2]);
+    _frustumPlanes[(size_t)FrustumPlane::Far]    = (m[3] - m[2]);
+}

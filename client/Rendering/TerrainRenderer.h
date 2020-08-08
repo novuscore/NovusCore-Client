@@ -1,5 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
+
 #include <array>
 
 #include <Utils/StringUtils.h>
@@ -31,12 +32,21 @@ namespace Renderer
     class DescriptorSet;
 }
 
+class Camera;
+class DebugRenderer;
+
+struct BoundingBox
+{
+    vec3 min;
+    vec3 max;
+};
+
 class TerrainRenderer
 {
 public:
-    TerrainRenderer(Renderer::Renderer* renderer);
+    TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer);
 
-    void Update(f32 deltaTime);
+    void Update(f32 deltaTime, const Camera& camera);
 
     void AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex);
     void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode);
@@ -45,12 +55,14 @@ private:
     void CreatePermanentResources();
     void LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY);
     void LoadChunksAround(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance);
+    void DoCPUCulling(const Camera& camera);
 
 private:
     Renderer::Renderer* _renderer;
 
     Renderer::BufferID _argumentBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _instanceBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _culledInstanceBuffer = Renderer::BufferID::Invalid();
 
     Renderer::BufferID _chunkBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _cellBuffer = Renderer::BufferID::Invalid();
@@ -68,4 +80,9 @@ private:
     Renderer::DescriptorSet _drawDescriptorSet;
 
     std::vector<u16> _loadedChunks;
+    std::vector<BoundingBox> _chunkBoundingBoxes;
+
+    std::vector<u16> _culledChunks;
+
+    DebugRenderer* _debugRenderer;
 };
