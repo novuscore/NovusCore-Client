@@ -35,23 +35,23 @@ namespace UIScripting
         void SetOnSubmitCallback(asIScriptFunction* callback);
 
         // TransformEvents Functions
+        const bool IsFocusable() const;
         void SetFocusable(bool focusable);
-        const bool IsFocusable() const { return _events->IsFocusable(); }
         void SetOnFocusCallback(asIScriptFunction* callback);
         void SetOnUnFocusCallback(asIScriptFunction* callback);
 
         //Label Functions
-        void SetText(const std::string& text, bool updateWriteHead = true);
-        const std::string GetText() const { return _text->text; }
+        const std::string GetText() const;
+        void SetText(const std::string& newText, bool updateWriteHead = true);
 
+        const Color& GetTextColor() const;
         void SetTextColor(const Color& color);
-        const Color& GetTextColor() const { return _text->color; }
 
+        const Color& GetTextOutlineColor() const;
         void SetTextOutlineColor(const Color& outlineColor);
-        const Color& GetTextOutlineColor() const { return _text->outlineColor; }
 
+        const f32 GetTextOutlineWidth() const;
         void SetTextOutlineWidth(f32 outlineWidth);
-        const f32 GetTextOutlineWidth() const { return _text->outlineWidth; }
 
         void SetTextFont(const std::string& fontPath, f32 fontSize);
 

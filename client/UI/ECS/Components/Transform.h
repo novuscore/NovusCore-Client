@@ -11,6 +11,20 @@ namespace UI
         entt::entity entId;
         UI::UIElementType type;
     };
+
+    enum class DepthLayer : u8
+    {
+        WORLD,
+        BACKGROUND,
+        LOW,
+        MEDIUM,
+        HIGH,
+        DIALOG,
+        FULLSCREEN,
+        FULLSCREEN_DIALOG,
+        TOOLTIP,
+        MAX
+    };
 }
 
 namespace UIComponent
@@ -30,14 +44,14 @@ namespace UIComponent
         bool fillParentSize = false;
         union
         {
-            u64 sortKey = 0;
             struct
             {
-                u8 depthLayer;
+                UI::DepthLayer depthLayer;
                 u16 depth;
                 UI::UIElementType type;
                 entt::entity entId;
-            } sortData;
+            } sortData{ UI::DepthLayer::MEDIUM, 0, UI::UIElementType::UITYPE_NONE, entt::null };
+            u64 sortKey;
         };
         entt::entity parent = entt::null;
         std::vector<UI::UIChild> children;

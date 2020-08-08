@@ -44,7 +44,10 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("void SetSize(vec2 size)", asMETHOD(T, SetSize)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("bool GetFillParentSize()", asMETHOD(T, GetFillParentSize)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetFillParentSize(bool fillParent)", asMETHOD(T, SetFillParentSize)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("float GetDepth()", asMETHOD(T, GetDepth)); assert(r >= 0);
+            
+            r = ScriptEngine::RegisterScriptClassFunction("uint8 GetDepthLayer()", asMETHOD(T, GetDepthLayer)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetDepthLayer(uint8 layer)", asMETHOD(T, SetDepthLayer)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("uint16 GetDepth()", asMETHOD(T, GetDepth)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetDepth(uint16 depth)", asMETHOD(T, SetDepth)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("void SetParent(Transform@ parent)", asMETHOD(T, SetParent)); assert(r >= 0);
@@ -57,7 +60,7 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("bool IsLocallyVisible()", asMETHOD(T, IsLocallyVisible)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("bool IsParentVisible()", asMETHOD(T, IsParentVisible)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetVisible(bool visible)", asMETHOD(T, SetVisible)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("LockToken@ GetLock(int lockState)", asMETHOD(T, GetLock)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("LockToken@ GetLock(uint8 lockState)", asMETHOD(T, GetLock)); assert(r >= 0);
         }
 
         const entt::entity GetEntityId() const { return _entityId; }
@@ -82,6 +85,9 @@ namespace UIScripting
         
         const bool GetFillParentSize();
         virtual void SetFillParentSize(bool fillParent);
+
+        const UI::DepthLayer GetDepthLayer() const;
+        virtual void SetDepthLayer(const UI::DepthLayer layer);
 
         const u16 GetDepth() const;
         virtual void SetDepth(const u16 depth);

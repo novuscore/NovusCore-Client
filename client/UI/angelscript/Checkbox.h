@@ -17,33 +17,33 @@ namespace UIScripting
         static void RegisterType();
 
         // TransformEvents Functions
+        const bool IsClickable() const;
+        const bool IsDraggable() const;
+        const bool IsFocusable() const;
         void SetEventFlag(const UI::UITransformEventsFlags flags);
         void UnsetEventFlag(const UI::UITransformEventsFlags flags);
-        const bool IsClickable() const { return _events->IsClickable(); }
-        const bool IsDraggable() const { return _events->IsDraggable(); }
-        const bool IsFocusable() const { return _events->IsFocusable(); }
         void SetOnClickCallback(asIScriptFunction* callback);
         void SetOnDragCallback(asIScriptFunction* callback);
         void SetOnFocusCallback(asIScriptFunction* callback);
 
         // Background Functions
+        const std::string& GetBackgroundTexture() const;
         void SetBackgroundTexture(const std::string& texture);
-        const std::string& GetBackgroundTexture() const { return _image->texture; }
 
+        const Color GetBackgroundColor() const;
         void SetBackgroundColor(const Color& color);
-        const Color GetBackgroundColor() const { return _image->color; }
 
         // Check Functions
-        void SetCheckTexture(const std::string& texture);
         const std::string& GetCheckTexture() const;
+        void SetCheckTexture(const std::string& texture);
 
-        void SetCheckColor(const Color& color);
         const Color GetCheckColor() const;
+        void SetCheckColor(const Color& color);
 
         // Checkbox Functions
-        void ToggleChecked();
+        const bool IsChecked() const;
         void SetChecked(bool checked);
-        bool IsChecked() { return _checkBox->checked; }
+        void ToggleChecked();
 
         void HandleKeyInput(i32 key);
 

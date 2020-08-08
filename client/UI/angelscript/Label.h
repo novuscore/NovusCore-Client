@@ -14,19 +14,19 @@ namespace UIScripting
         static void RegisterType();
 
         //Text Functions
-        void SetText(const std::string& text);
-        const std::string GetText() const { return _text->text; }
+        const std::string GetText() const;
+        void SetText(const std::string& newText);
 
         void SetFont(const std::string& fontPath, f32 fontSize);
 
+        const Color& GetColor() const;
         void SetColor(const Color& color);
-        const Color& GetColor() const { return _text->color; }
 
+        const Color& GetOutlineColor() const;
         void SetOutlineColor(const Color& outlineColor);
-        const Color& GetOutlineColor() const { return _text->outlineColor; }
 
+        const f32 GetOutlineWidth() const;
         void SetOutlineWidth(f32 outlineWidth);
-        const f32 GetOutlineWidth() const { return _text->outlineWidth; }
 
         void SetHorizontalAlignment(UI::TextHorizontalAlignment alignment);
         void SetVerticalAlignment(UI::TextVerticalAlignment alignment);

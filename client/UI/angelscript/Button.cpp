@@ -17,17 +17,17 @@ namespace UIScripting
         UISingleton::UILockSingleton& uiLockSingleton = registry->ctx<UISingleton::UILockSingleton>();
         uiLockSingleton.mutex.lock();
         {
-            _transform = &registry->emplace<UIComponent::Transform>(_entityId);
-            _transform->sortData.entId = _entityId;
-            _transform->sortData.type = _elementType;
-            _transform->asObject = this;
+            UIComponent::Transform* transform = &registry->emplace<UIComponent::Transform>(_entityId);
+            transform->sortData.entId = _entityId;
+            transform->sortData.type = _elementType;
+            transform->asObject = this;
 
             registry->emplace<UIComponent::Visible>(_entityId);
-            _visibility = &registry->emplace<UIComponent::Visibility>(_entityId);
+            registry->emplace<UIComponent::Visibility>(_entityId);
             registry->emplace<UIComponent::Collidable>(_entityId);
 
-            _events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-            _events->asObject = this;
+            UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
+            events->asObject = this;
         }
         uiLockSingleton.mutex.unlock();
 
@@ -76,10 +76,17 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void SetColor(Color color)", asMETHOD(Button, SetColor)); assert(r >= 0);
     }
 
+    const bool Button::IsClickable() const
+    {
+        const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
+        return events->IsClickable();
+    }
+
     void Button::SetOnClickCallback(asIScriptFunction* callback)
     {
-        _events->onClickCallback = callback;
-        _events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
+        events->onClickCallback = callback;
+        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }
 
     void Button::SetText(const std::string& text)

@@ -19,22 +19,22 @@ namespace UIScripting
         UISingleton::UILockSingleton& uiLockSingleton = registry->ctx<UISingleton::UILockSingleton>();
         uiLockSingleton.mutex.lock();
         {
-            _transform = &registry->emplace<UIComponent::Transform>(_entityId);
-            _transform->sortData.entId = _entityId;
-            _transform->sortData.type = _elementType;
-            _transform->asObject = this;
+            UIComponent::Transform* transform = &registry->emplace<UIComponent::Transform>(_entityId);
+            transform->sortData.entId = _entityId;
+            transform->sortData.type = _elementType;
+            transform->asObject = this;
 
             registry->emplace<UIComponent::Visible>(_entityId);
-            _visibility = &registry->emplace<UIComponent::Visibility>(_entityId);
-            _image = &registry->emplace<UIComponent::Image>(_entityId);
-            _checkBox = &registry->emplace<UIComponent::Checkbox>(_entityId);
-            _checkBox->asObject = this;
+            registry->emplace<UIComponent::Visibility>(_entityId);
+            registry->emplace<UIComponent::Image>(_entityId);
+            UIComponent::Checkbox* checkBox = &registry->emplace<UIComponent::Checkbox>(_entityId);
+            checkBox->asObject = this;
 
             registry->emplace<UIComponent::Renderable>(_entityId);
             registry->emplace<UIComponent::Collidable>(_entityId);
 
-            _events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-            _events->asObject = this;
+            UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
+            events->asObject = this;
         }
         uiLockSingleton.mutex.unlock();
 
@@ -78,82 +78,119 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void SetChecked(bool checked)", asMETHOD(Checkbox, SetChecked)); assert(r >= 0);
     }
 
-    void Checkbox::SetEventFlag(const UI::UITransformEventsFlags flags)
+    const bool Checkbox::IsClickable() const
     {
-        _events->SetFlag(flags);
+        const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
+        return events->IsClickable();
+
+    }
+    const bool Checkbox::IsDraggable() const
+    {
+        const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
+        return events->IsDraggable();
+    }
+    const bool Checkbox::IsFocusable() const
+    {
+        const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
+        return events->IsFocusable();
     }
 
+    void Checkbox::SetEventFlag(const UI::UITransformEventsFlags flags)
+    {
+        UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
+        events->SetFlag(flags);
+    }
     void Checkbox::UnsetEventFlag(const UI::UITransformEventsFlags flags)
     {
-        _events->UnsetFlag(flags);
+        UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
+        events->UnsetFlag(flags);
     }
 
     void Checkbox::SetOnClickCallback(asIScriptFunction* callback)
     {
-        _events->onClickCallback = callback;
-        _events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
+        events->onClickCallback = callback;
+        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }
-
     void Checkbox::SetOnDragCallback(asIScriptFunction* callback)
     {
-        _events->onDraggedCallback = callback;
-        _events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
+        UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
+        events->onDraggedCallback = callback;
+        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
     }
-
     void Checkbox::SetOnFocusCallback(asIScriptFunction* callback)
     {
-        _events->onFocusedCallback = callback;
-        _events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+        UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
+        events->onFocusedCallback = callback;
+        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
     }
 
+    const std::string& Checkbox::GetBackgroundTexture() const
+    {
+        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        return image->texture;
+    }
     void Checkbox::SetBackgroundTexture(const std::string& texture)
     {
-        _image->texture = texture;
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
+        image->texture = texture;
 
-        MarkDirty(ServiceLocator::GetUIRegistry(), _entityId);
+        MarkDirty(registry, _entityId);
+    }
+
+    const Color Checkbox::GetBackgroundColor() const
+    {
+        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        return image->color;
     }
     void Checkbox::SetBackgroundColor(const Color& color)
     {
-        _image->color = color;
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
+        image->color = color;
 
-        MarkDirty(ServiceLocator::GetUIRegistry(), _entityId);
-    }
-
-    void Checkbox::SetCheckTexture(const std::string& texture)
-    {
-        checkPanel->SetTexture(texture);
+        MarkDirty(registry, _entityId);
     }
 
     const std::string& Checkbox::GetCheckTexture() const
     {
         return checkPanel->GetTexture();
     }
-
-    void Checkbox::SetCheckColor(const Color& color)
+    void Checkbox::SetCheckTexture(const std::string& texture)
     {
-        checkPanel->SetColor(color);
+        checkPanel->SetTexture(texture);
     }
 
     const Color Checkbox::GetCheckColor() const
     {
         return checkPanel->GetColor();
     }
-
-    void Checkbox::ToggleChecked()
+    void Checkbox::SetCheckColor(const Color& color)
     {
-        SetChecked(!IsChecked());
+        checkPanel->SetColor(color);
     }
 
+    const bool Checkbox::IsChecked() const
+    {
+        const UIComponent::Checkbox* checkBox = &ServiceLocator::GetUIRegistry()->get<UIComponent::Checkbox>(_entityId);
+        return checkBox->checked;
+    }
     void Checkbox::SetChecked(bool checked)
     {
-        _checkBox->checked = checked;
+        UIComponent::Checkbox* checkBox = &ServiceLocator::GetUIRegistry()->get<UIComponent::Checkbox>(_entityId);
+        checkBox->checked = checked;
 
         checkPanel->SetVisible(checked);
 
         if (checked)
-            _checkBox->OnChecked();
+            checkBox->OnChecked();
         else
-            _checkBox->OnUnchecked();
+            checkBox->OnUnchecked();
+    }
+    void Checkbox::ToggleChecked()
+    {
+        SetChecked(!IsChecked());
     }
 
     void Checkbox::HandleKeyInput(i32 key)

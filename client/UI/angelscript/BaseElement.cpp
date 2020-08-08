@@ -150,6 +150,19 @@ namespace UIScripting
         }
     }
 
+    const UI::DepthLayer BaseElement::GetDepthLayer() const
+    {
+        const UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        return transform->sortData.depthLayer;
+    }
+
+    void BaseElement::SetDepthLayer(const UI::DepthLayer layer)
+    {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
+        transform->sortData.depthLayer = layer;
+    }
+
     const u16 BaseElement::GetDepth() const
     {
         UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
@@ -160,9 +173,7 @@ namespace UIScripting
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
-
         transform->sortData.depth = depth;
-        MarkDirty(registry, _entityId);
     }
 
     void BaseElement::SetParent(BaseElement* parent)

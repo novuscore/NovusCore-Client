@@ -7,13 +7,11 @@ namespace UIUtils::Transform
     void UpdateBounds(entt::registry* registry, UIComponent::Transform* transform)
     {
         ZoneScoped;
-
         transform->minBound = UIUtils::Transform::GetMinBounds(transform);
         transform->maxBound = UIUtils::Transform::GetMaxBounds(transform);
 
         if (transform->includeChildBounds)
         {
-
             for (const UI::UIChild& child : transform->children)
             {
                 UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);

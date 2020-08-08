@@ -15,21 +15,21 @@ namespace UIScripting
         static void RegisterType();
 
         // TransformEvents Functions
-        void SetEventFlag(const UI::UITransformEventsFlags flags) { _events->SetFlag(flags); }
-        void UnsetEventFlag(const UI::UITransformEventsFlags flags) { _events->UnsetFlag(flags); }
-        const bool IsClickable() const { return _events->IsClickable(); }
-        const bool IsDraggable() const { return _events->IsDraggable(); }
-        const bool IsFocusable() const { return _events->IsFocusable(); }
+        const bool IsClickable() const;
+        const bool IsDraggable() const;
+        const bool IsFocusable() const;
+        void SetEventFlag(const UI::UITransformEventsFlags flags);
+        void UnsetEventFlag(const UI::UITransformEventsFlags flags);
         void SetOnClickCallback(asIScriptFunction* callback);
         void SetOnDragCallback(asIScriptFunction* callback);
         void SetOnFocusCallback(asIScriptFunction* callback);
 
         // Renderable Functions
+        const std::string& GetTexture() const;
         void SetTexture(const std::string& texture);
-        const std::string& GetTexture() const { return _image->texture; }
 
+        const Color GetColor() const;
         void SetColor(const Color& color);
-        const Color GetColor() const { return _image->color; }
 
         static Panel* CreatePanel();
     };
