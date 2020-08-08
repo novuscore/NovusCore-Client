@@ -78,6 +78,11 @@ namespace Renderer
         return _bufferHandler->CreateBuffer(desc);
     }
 
+    void RendererVK::QueueDestroyBuffer(BufferID buffer)
+    {
+        _destroyLists[_destroyListIndex].buffers.push_back(buffer);
+    }
+
     ImageID RendererVK::CreateImage(ImageDesc& desc)
     {
         return _imageHandler->CreateImage(desc);
@@ -589,6 +594,16 @@ namespace Renderer
         _imageHandler->OnWindowResize();
     }
 
+    void RendererVK::DestroyObjects(ObjectDestroyList& destroyList)
+    {
+        for (const BufferID buffer : destroyList.buffers)
+        {
+            _bufferHandler->DestroyBuffer(buffer);
+        }
+
+        destroyList.buffers.clear();
+    }
+
     void RendererVK::BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex)
     {
         ZoneScopedNC("RendererVK::BindDescriptorSet", tracy::Color::Red3);
@@ -832,6 +847,9 @@ namespace Renderer
 
         // Flip frameIndex between 0 and 1
         swapChain->frameIndex = !swapChain->frameIndex;
+
+        _destroyListIndex = (_destroyListIndex + 1) % _destroyLists.size();
+        DestroyObjects(_destroyLists[_destroyListIndex]);
     }
 
     void RendererVK::Present(Window* /*window*/, DepthImageID /*image*/, GPUSemaphoreID /*semaphoreID*/)
@@ -844,6 +862,8 @@ namespace Renderer
         VkBuffer vkDstBuffer = _bufferHandler->GetBuffer(dstBuffer);
         VkBuffer vkSrcBuffer = _bufferHandler->GetBuffer(srcBuffer);
         _device->CopyBuffer(vkDstBuffer, dstOffset, vkSrcBuffer, srcOffset, range);
+
+        DestroyObjects(_destroyLists[_destroyListIndex]);
     }
 
     void* RendererVK::MapBuffer(BufferID buffer)

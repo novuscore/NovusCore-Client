@@ -45,6 +45,7 @@ namespace Renderer
 
         // Creation
         virtual BufferID CreateBuffer(BufferDesc& desc) = 0;
+        virtual void QueueDestroyBuffer(BufferID buffer) = 0;
 
         virtual ImageID CreateImage(ImageDesc& desc) = 0;
         virtual DepthImageID CreateDepthImage(DepthImageDesc& desc) = 0;

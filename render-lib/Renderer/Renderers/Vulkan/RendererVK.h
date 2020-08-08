@@ -1,6 +1,8 @@
 #pragma once
 #include "../../Renderer.h"
 
+#include <array>
+
 struct VkDescriptorSetLayoutBinding;
 
 namespace Renderer
@@ -32,6 +34,7 @@ namespace Renderer
 
         // Creation
         BufferID CreateBuffer(BufferDesc& desc) override;
+        void QueueDestroyBuffer(BufferID buffer) override;
 
         ImageID CreateImage(ImageDesc& desc) override;
         DepthImageID CreateDepthImage(DepthImageDesc& desc) override;
@@ -123,5 +126,15 @@ namespace Renderer
         ModelID _boundModelIndexBuffer = ModelID::Invalid(); // TODO: Move these into CommandListHandler I guess?
 
         i8 _renderPassOpenCount = 0; // TODO: Move these into CommandListHandler I guess?
+
+        struct ObjectDestroyList
+        {
+            std::vector<BufferID> buffers;
+        };
+
+        std::array<ObjectDestroyList, 3> _destroyLists;
+        size_t _destroyListIndex = 0;
+
+        void DestroyObjects(ObjectDestroyList& destroyList);
     };
 }

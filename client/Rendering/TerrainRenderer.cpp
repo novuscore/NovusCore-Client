@@ -34,6 +34,8 @@ void TerrainRenderer::Update(f32 deltaTime)
 
 void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex)
 {
+
+
     // Terrain Depth Prepass
     {
         struct TerrainDepthPrepassData
@@ -51,60 +53,6 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
         {
             TracySourceLocation(terrainDepth, "TerrainDepth", tracy::Color::Yellow2);
             commandList.BeginTrace(&terrainDepth);
-
-            // Upload indices
-            {
-                Renderer::BufferDesc indexUploadBufferDesc;
-                indexUploadBufferDesc.name = "TerrainCellIndexUploadBuffer";
-                indexUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-                indexUploadBufferDesc.size = sizeof(u16) * Terrain::NUM_INDICES_PER_CELL;
-                indexUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
-
-                Renderer::BufferID indexUploadBuffer = _renderer->CreateBuffer(indexUploadBufferDesc);
-
-                void* indexBufferMemory = _renderer->MapBuffer(indexUploadBuffer);
-                memcpy(indexBufferMemory, _indices.data(), indexUploadBufferDesc.size);
-                _renderer->UnmapBuffer(indexUploadBuffer);
-                commandList.CopyBuffer(_cellIndexBuffer, 0, indexUploadBuffer, 0, indexUploadBufferDesc.size);
-            }
-
-            // Upload instance data
-            {
-                const size_t cellCount = Terrain::MAP_CELLS_PER_CHUNK * (32 * 32);
-
-                Renderer::BufferDesc uploadBufferDesc;
-                uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
-                uploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-                uploadBufferDesc.size = sizeof(u32) * cellCount;
-                uploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
-
-                Renderer::BufferID instanceUploadBuffer = _renderer->CreateBuffer(uploadBufferDesc);
-
-                void* instanceBufferMemory = _renderer->MapBuffer(instanceUploadBuffer);
-                u32* instanceData = static_cast<u32*>(instanceBufferMemory);
-                u32 instanceDataIndex = 0;
-
-                u32 minX = Math::Max(0, (32 - 16));
-                u32 maxX = Math::Min(63, (32 + 16));
-
-                u32 minY = Math::Max(0, (32 - 16));
-                u32 maxY = Math::Min(63, (32 + 16));
-
-                for (u32 y = minY; y < maxY; ++y)
-                {
-                    for (u32 x = minX; x < maxX; ++x)
-                    {
-                        const u32 chunkID = x + (y * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
-                        for (u32 cellID = 0; cellID < Terrain::MAP_CELLS_PER_CHUNK; ++cellID)
-                        {
-                            instanceData[instanceDataIndex++] = (chunkID << 16) | (cellID & 0xffff);
-                        }
-                    }
-                }
-                assert(instanceDataIndex == cellCount);
-                _renderer->UnmapBuffer(instanceUploadBuffer);
-                commandList.CopyBuffer(_instanceBuffer, 0, instanceUploadBuffer, 0, uploadBufferDesc.size);
-            }
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
             resources.InitializePipelineDesc(pipelineDesc);
@@ -344,46 +292,100 @@ void TerrainRenderer::CreatePermanentResources()
         _vertexBuffer = _renderer->CreateBuffer(desc);
     }
 
-    _indices.resize(Terrain::NUM_INDICES_PER_CELL);
-
-    // Fill index buffer
-    size_t indexIndex = 0;
-    for (u16 row = 0; row < Terrain::CELL_INNER_GRID_SIDE; row++)
+    // Upload cell index buffer
     {
-        for (u16 col = 0; col < Terrain::CELL_INNER_GRID_SIDE; col++)
+        Renderer::BufferDesc indexUploadBufferDesc;
+        indexUploadBufferDesc.name = "TerrainCellIndexUploadBuffer";
+        indexUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+        indexUploadBufferDesc.size = sizeof(u16) * Terrain::NUM_INDICES_PER_CELL;
+        indexUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+
+        Renderer::BufferID indexUploadBuffer = _renderer->CreateBuffer(indexUploadBufferDesc);
+        _renderer->QueueDestroyBuffer(indexUploadBuffer);
+
+        u16* indices = static_cast<u16*>(_renderer->MapBuffer(indexUploadBuffer));
+
+        // Fill index buffer
+        size_t indexIndex = 0;
+        for (u16 row = 0; row < Terrain::CELL_INNER_GRID_SIDE; row++)
         {
-            const u16 baseVertex = (row * Terrain::CELL_TOTAL_GRID_SIDE + col);
+            for (u16 col = 0; col < Terrain::CELL_INNER_GRID_SIDE; col++)
+            {
+                const u16 baseVertex = (row * Terrain::CELL_TOTAL_GRID_SIDE + col);
 
-            //1     2
-            //   0
-            //3     4
+                //1     2
+                //   0
+                //3     4
 
-            const u16 topLeftVertex = baseVertex;
-            const u16 topRightVertex = baseVertex + 1;
-            const u16 bottomLeftVertex = baseVertex + Terrain::CELL_TOTAL_GRID_SIDE;
-            const u16 bottomRightVertex = baseVertex + Terrain::CELL_TOTAL_GRID_SIDE + 1;
-            const u16 centerVertex = baseVertex + Terrain::CELL_OUTER_GRID_SIDE;
+                const u16 topLeftVertex = baseVertex;
+                const u16 topRightVertex = baseVertex + 1;
+                const u16 bottomLeftVertex = baseVertex + Terrain::CELL_TOTAL_GRID_SIDE;
+                const u16 bottomRightVertex = baseVertex + Terrain::CELL_TOTAL_GRID_SIDE + 1;
+                const u16 centerVertex = baseVertex + Terrain::CELL_OUTER_GRID_SIDE;
 
-            // Up triangle
-            _indices[indexIndex++] = centerVertex;
-            _indices[indexIndex++] = topRightVertex;
-            _indices[indexIndex++] = topLeftVertex;
+                // Up triangle
+                indices[indexIndex++] = centerVertex;
+                indices[indexIndex++] = topRightVertex;
+                indices[indexIndex++] = topLeftVertex;
 
-            // Left triangle
-            _indices[indexIndex++] = centerVertex;
-            _indices[indexIndex++] = topLeftVertex;
-            _indices[indexIndex++] = bottomLeftVertex;
+                // Left triangle
+                indices[indexIndex++] = centerVertex;
+                indices[indexIndex++] = topLeftVertex;
+                indices[indexIndex++] = bottomLeftVertex;
 
-            // Down triangle
-            _indices[indexIndex++] = centerVertex;
-            _indices[indexIndex++] = bottomLeftVertex;
-            _indices[indexIndex++] = bottomRightVertex;
+                // Down triangle
+                indices[indexIndex++] = centerVertex;
+                indices[indexIndex++] = bottomLeftVertex;
+                indices[indexIndex++] = bottomRightVertex;
 
-            // Right triangle
-            _indices[indexIndex++] = centerVertex;
-            _indices[indexIndex++] = bottomRightVertex;
-            _indices[indexIndex++] = topRightVertex;
+                // Right triangle
+                indices[indexIndex++] = centerVertex;
+                indices[indexIndex++] = bottomRightVertex;
+                indices[indexIndex++] = topRightVertex;
+            }
         }
+
+        _renderer->UnmapBuffer(indexUploadBuffer);
+        _renderer->CopyBuffer(_cellIndexBuffer, 0, indexUploadBuffer, 0, indexUploadBufferDesc.size);
+    }
+
+    // Upload instance data
+    {
+        const size_t cellCount = Terrain::MAP_CELLS_PER_CHUNK * (32 * 32);
+
+        Renderer::BufferDesc uploadBufferDesc;
+        uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
+        uploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+        uploadBufferDesc.size = sizeof(u32) * cellCount;
+        uploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+
+        Renderer::BufferID instanceUploadBuffer = _renderer->CreateBuffer(uploadBufferDesc);
+        _renderer->QueueDestroyBuffer(instanceUploadBuffer);
+
+        void* instanceBufferMemory = _renderer->MapBuffer(instanceUploadBuffer);
+        u32* instanceData = static_cast<u32*>(instanceBufferMemory);
+        u32 instanceDataIndex = 0;
+
+        u32 minX = Math::Max(0, (32 - 16));
+        u32 maxX = Math::Min(63, (32 + 16));
+
+        u32 minY = Math::Max(0, (32 - 16));
+        u32 maxY = Math::Min(63, (32 + 16));
+
+        for (u32 y = minY; y < maxY; ++y)
+        {
+            for (u32 x = minX; x < maxX; ++x)
+            {
+                const u32 chunkID = x + (y * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
+                for (u32 cellID = 0; cellID < Terrain::MAP_CELLS_PER_CHUNK; ++cellID)
+                {
+                    instanceData[instanceDataIndex++] = (chunkID << 16) | (cellID & 0xffff);
+                }
+            }
+        }
+        assert(instanceDataIndex == cellCount);
+        _renderer->UnmapBuffer(instanceUploadBuffer);
+        _renderer->CopyBuffer(_instanceBuffer, 0, instanceUploadBuffer, 0, uploadBufferDesc.size);
     }
 
     // Load map
@@ -416,7 +418,9 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         cellDataUploadBufferDesc.size = sizeof(TerrainCellData) * Terrain::MAP_CELLS_PER_CHUNK;
         cellDataUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
         cellDataUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
         Renderer::BufferID cellUploadBuffer = _renderer->CreateBuffer(cellDataUploadBufferDesc);
+        _renderer->QueueDestroyBuffer(cellUploadBuffer);
 
         TerrainCellData* cellData = static_cast<TerrainCellData*>(_renderer->MapBuffer(cellUploadBuffer));
 
@@ -436,8 +440,8 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
                 Renderer::TextureDesc textureDesc;
                 textureDesc.path = "Data/extracted/Textures/" + texturePath;
 
-                u32 diffuseID;
-                _renderer->LoadTextureIntoArray(textureDesc, _terrainColorTextureArray, diffuseID);
+                u32 diffuseID = 0;
+                //_renderer->LoadTextureIntoArray(textureDesc, _terrainColorTextureArray, diffuseID);
 
                 cellData[i].diffuseIDs[layerCount++] = diffuseID;
             }
@@ -504,7 +508,9 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         chunkDataUploadBufferDesc.size = sizeof(TerrainChunkData);
         chunkDataUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
         chunkDataUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
         Renderer::BufferID chunkUploadBuffer = _renderer->CreateBuffer(chunkDataUploadBufferDesc);
+        _renderer->QueueDestroyBuffer(chunkUploadBuffer);
 
         TerrainChunkData* chunkData = static_cast<TerrainChunkData*>(_renderer->MapBuffer(chunkUploadBuffer));
         chunkData->alphaMapID = alphaID;
@@ -518,24 +524,29 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
     //f32 x = (-static_cast<f32>(chunkPosY) * Terrain::MAP_CHUNK_SIZE) + (Terrain::MAP_SIZE / 2.0f);
     //f32 z = (-static_cast<f32>(chunkPosX) * Terrain::MAP_CHUNK_SIZE) + (Terrain::MAP_SIZE / 2.0f); 
 
-    // Create vertex and index (constant) buffers
-    Renderer::BufferDesc vertexUploadBufferDesc;
-    vertexUploadBufferDesc.name = "TerrainVertexUploadBuffer";
-    vertexUploadBufferDesc.size = sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK;
-    vertexUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
-    vertexUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-    Renderer::BufferID vertexUploadBuffer = _renderer->CreateBuffer(vertexUploadBufferDesc);
-
-    void* vertexBufferMemory = _renderer->MapBuffer(vertexUploadBuffer);
-    for (size_t i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; ++i)
+    // Upload height data.
     {
-        void* dstVertices = static_cast<u8*>(vertexBufferMemory) + (i * Terrain::CELL_TOTAL_GRID_SIZE * sizeof(f32));
-        const void* srcVertices = chunk.cells[i].heightData;
-        memcpy(dstVertices, srcVertices, Terrain::CELL_TOTAL_GRID_SIZE * sizeof(f32));
-    }
+        Renderer::BufferDesc vertexUploadBufferDesc;
+        vertexUploadBufferDesc.name = "TerrainVertexUploadBuffer";
+        vertexUploadBufferDesc.size = sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK;
+        vertexUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        vertexUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
-    const u64 chunkVertexBufferOffset = chunkId * sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK;
-    _renderer->CopyBuffer(_vertexBuffer, chunkVertexBufferOffset, vertexUploadBuffer, 0, vertexUploadBufferDesc.size);
+        Renderer::BufferID vertexUploadBuffer = _renderer->CreateBuffer(vertexUploadBufferDesc);
+        _renderer->QueueDestroyBuffer(vertexUploadBuffer);
+
+        void* vertexBufferMemory = _renderer->MapBuffer(vertexUploadBuffer);
+        for (size_t i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; ++i)
+        {
+            void* dstVertices = static_cast<u8*>(vertexBufferMemory) + (i * Terrain::CELL_TOTAL_GRID_SIZE * sizeof(f32));
+            const void* srcVertices = chunk.cells[i].heightData;
+            memcpy(dstVertices, srcVertices, Terrain::CELL_TOTAL_GRID_SIZE * sizeof(f32));
+        }
+
+        _renderer->UnmapBuffer(vertexUploadBuffer);
+        const u64 chunkVertexBufferOffset = chunkId * sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK;
+        _renderer->CopyBuffer(_vertexBuffer, chunkVertexBufferOffset, vertexUploadBuffer, 0, vertexUploadBufferDesc.size);
+    }
 }
 
 void TerrainRenderer::LoadChunksAround(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance)

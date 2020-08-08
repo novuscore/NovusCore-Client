@@ -4,16 +4,55 @@
 
 #include "vulkan/vulkan.h"
 
+constexpr size_t MaxBufferCount = 4096;
+
+static_assert(MaxBufferCount <= std::numeric_limits<Renderer::BufferID::type>::max(), "Too many buffers to fit inside BufferID");
+
 namespace Renderer
 {
     namespace Backend
     {
         BufferHandlerVK::BufferHandlerVK()
         {
+            _buffers = new Buffer[MaxBufferCount];
+            _indices = new Index[MaxBufferCount];
+
+            _bufferCount = 0;
+
+            for (unsigned i = 0; i < MaxBufferCount; ++i) 
+            {
+                _indices[i].next = i + 1;
+            }
+
+            _freelistDequeue = 0;
+            _freelistEnqueue = MaxBufferCount - 1;
         }
 
         BufferHandlerVK::~BufferHandlerVK()
         {
+            assert(_bufferCount == 0);
+
+            delete[] _buffers;
+            delete[] _indices;
+        }
+
+        BufferID BufferHandlerVK::AcquireNewBufferID() 
+        {
+            assert(_bufferCount < MaxBufferCount);
+            ++_bufferCount;
+
+            BufferID bufferID = BufferID((BufferID::type)_freelistDequeue);
+            const Index& in = _indices[_freelistDequeue];
+            _freelistDequeue = in.next;
+            return bufferID;
+        }
+
+        void BufferHandlerVK::ReturnBufferID(BufferID bufferID)
+        {
+            _indices[_freelistEnqueue].next = (BufferID::type)bufferID;
+            _freelistEnqueue = (BufferID::type)bufferID;
+
+            --_bufferCount;
         }
 
         void BufferHandlerVK::Init(RenderDeviceVK* device)
@@ -97,13 +136,8 @@ namespace Renderer
             VmaAllocationCreateInfo allocInfo = {};
             allocInfo.usage = memoryUsage;
 
-            const size_t nextHandle = _buffers.size();
-
-            // Make sure we haven't exceeded the limit of the ImageID type, if this hits you need to change type of ImageID to something bigger
-            assert(nextHandle < BufferID::MaxValue());
-            
-            BufferID bufferID(static_cast<BufferID::type>(nextHandle));
-            Buffer& buffer = _buffers.emplace_back();
+            const BufferID bufferID = AcquireNewBufferID();
+            Buffer& buffer = _buffers[(BufferID::type)bufferID];
             buffer.size = desc.size;
 
             if (vmaCreateBuffer(_device->_allocator, &bufferInfo, &allocInfo, &buffer.buffer, &buffer.allocation, nullptr) != VK_SUCCESS)
@@ -115,6 +149,15 @@ namespace Renderer
             DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)buffer.buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, desc.name.c_str());
 
             return bufferID;
+        }
+
+        void BufferHandlerVK::DestroyBuffer(BufferID bufferID)
+        {
+            Buffer& buffer = _buffers[(BufferID::type)bufferID];
+
+            vmaDestroyBuffer(_device->_allocator, buffer.buffer, buffer.allocation);
+
+            ReturnBufferID(bufferID);
         }
     }
 }

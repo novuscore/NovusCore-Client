@@ -27,9 +27,13 @@ namespace Renderer
             VmaAllocation GetBufferAllocation(BufferID bufferID) const;
 
             BufferID CreateBuffer(BufferDesc& desc);
+            void DestroyBuffer(BufferID bufferID);
 
         private:
-            RenderDeviceVK* _device;
+            BufferID AcquireNewBufferID();
+            void ReturnBufferID(BufferID bufferID);
+
+            RenderDeviceVK* _device = nullptr;
 
             struct Buffer
             {
@@ -38,7 +42,15 @@ namespace Renderer
                 VkDeviceSize size;
             };
 
-            std::vector<Buffer> _buffers;
+            struct Index {
+                u32 next;
+            };
+
+            u32 _bufferCount;
+            Buffer* _buffers = nullptr;
+            Index* _indices = nullptr;
+            u32 _freelistEnqueue;
+            u32 _freelistDequeue;
 
             friend class RendererVK;
         };

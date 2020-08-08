@@ -61,8 +61,6 @@ private:
     Renderer::TextureArrayID _terrainColorTextureArray = Renderer::TextureArrayID::Invalid();
     Renderer::TextureArrayID _terrainAlphaTextureArray = Renderer::TextureArrayID::Invalid();
 
-    std::vector<u16> _indices;
-
     Renderer::SamplerID _alphaSampler;
     Renderer::SamplerID _colorSampler;
 
