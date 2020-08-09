@@ -692,11 +692,6 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
             _cellBoundingBoxes.push_back(boundingBox);
         }
 
-        //const mat4x4 rotationMatrix = glm::eulerAngleY(90.0f);
-
-        //boundingBox.min = vec4(boundingBox.min, 0.0f) * rotationMatrix;
-        //boundingBox.max = vec4(boundingBox.max, 0.0f) * rotationMatrix;
-
         _loadedChunks.push_back(chunkId);
     }
 }
