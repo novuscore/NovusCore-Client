@@ -138,7 +138,7 @@ void Camera::Update(f32 deltaTime, float fovInDegrees, float aspectRatioWH)
     const mat4x4 cameraMatrix = glm::translate(mat4x4(1.0f), _position) * _rotationMatrix;
     _viewMatrix = glm::inverse(cameraMatrix);
 
-    const f32 nearClip = 0.1f;
+    const f32 nearClip = 1.0f;
     const f32 farClip = 100000.0f;
 
     _projectionMatrix = glm::perspective(glm::radians(fovInDegrees), aspectRatioWH, nearClip, farClip);

@@ -6,13 +6,16 @@
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyVulkan.hpp>
 
+#include <glm/gtx/transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 DebugRenderer::DebugRenderer(Renderer::Renderer* renderer)
 {
 	_renderer = renderer;
 
 	Renderer::BufferDesc bufferDesc;
 	bufferDesc.name = "DebugVertexBuffer";
-	bufferDesc.size = 4 * 1024 * 1024;
+	bufferDesc.size = 128 * 1024 * 1024;
 	bufferDesc.usage = Renderer::BUFFER_USAGE_VERTEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
 	_debugVertexBuffer = _renderer->CreateBuffer(bufferDesc);
 }
@@ -165,6 +168,39 @@ void DebugRenderer::DrawLine3D(const glm::vec3& from, const glm::vec3& to, uint3
 	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ to, color });
 }
 
+void DebugRenderer::DrawAABB3D(const vec3& v0, const vec3& v1, uint32_t color)
+{
+	// Bottom
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v0.x, v0.y, v0.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v1.x, v0.y, v0.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v1.x, v0.y, v0.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v1.x, v0.y, v1.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v1.x, v0.y, v1.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v0.x, v0.y, v1.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v0.x, v0.y, v1.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v0.x, v0.y, v0.z }, color });
+
+	// Top
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v0.x, v1.y, v0.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v1.x, v1.y, v0.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v1.x, v1.y, v0.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v1.x, v1.y, v1.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v1.x, v1.y, v1.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v0.x, v1.y, v1.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v0.x, v1.y, v1.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v0.x, v1.y, v0.z }, color });
+
+	// Vertical edges
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v0.x, v0.y, v0.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v0.x, v1.y, v0.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v1.x, v0.y, v0.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v1.x, v1.y, v0.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v0.x, v0.y, v1.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v0.x, v1.y, v1.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v1.x, v0.y, v1.z }, color });
+	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v1.x, v1.y, v1.z }, color });
+}
+
 void DebugRenderer::DrawTriangle2D(const glm::vec2& v0, const glm::vec2& v1, const glm::vec2& v2, uint32_t color)
 {
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].push_back({ glm::vec3(v0, 0.0f), color });
@@ -188,4 +224,66 @@ void DebugRenderer::DrawRectangle2D(const glm::vec2& min, const glm::vec2& max, 
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].push_back({ glm::vec3(min.x, min.y, 0.0f), color });
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].push_back({ glm::vec3(max.x, max.y, 0.0f), color });
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].push_back({ glm::vec3(min.x, max.y, 0.0f), color });
+}
+
+/*
+
+template<typename T, typename U, qualifier Q>
+GLM_FUNC_QUALIFIER vec<3, T, Q> unProjectNO(vec<3, T, Q> const& win, mat<4, 4, T, Q> const& model, mat<4, 4, T, Q> const& proj, vec<4, U, Q> const& viewport)
+{
+	mat<4, 4, T, Q> Inverse = inverse(proj * model);
+
+	vec<4, T, Q> tmp = vec<4, T, Q>(win, T(1));
+	tmp.x = (tmp.x - T(viewport[0])) / T(viewport[2]);
+	tmp.y = (tmp.y - T(viewport[1])) / T(viewport[3]);
+	tmp = tmp * static_cast<T>(2) - static_cast<T>(1);
+
+	vec<4, T, Q> obj = Inverse * tmp;
+	obj /= obj.w;
+
+	return vec<3, T, Q>(obj);
+}
+
+*/
+
+__forceinline static vec3 unproject(const vec3& point, const mat4x4& m)
+{
+	vec4 obj = m * vec4(point, 1.0f);
+	obj /= obj.w;
+	return vec3(obj);
+}
+
+void DebugRenderer::DrawFrustum(const mat4x4& viewProjectionMatrix, uint32_t color)
+{
+	const mat4x4 m = glm::inverse(viewProjectionMatrix);
+
+	vec4 viewport(0.0f, 0.0f, 640.0f, 360.0f);
+
+	const vec3 near0 = unproject(vec3(-1.0f, -1.0f, 0.0f), m);
+	const vec3 near1 = unproject(vec3(+1.0f, -1.0f, 0.0f), m);
+	const vec3 near2 = unproject(vec3(+1.0f, +1.0f, 0.0f), m);
+	const vec3 near3 = unproject(vec3(-1.0f, +1.0f, 0.0f), m);
+
+	const vec3 far0 = unproject(vec3(-1.0f, -1.0f, 1.0f), m);
+	const vec3 far1 = unproject(vec3(+1.0f, -1.0f, 1.0f), m);
+	const vec3 far2 = unproject(vec3(+1.0f, +1.0f, 1.0f), m);
+	const vec3 far3 = unproject(vec3(-1.0f, +1.0f, 1.0f), m);
+
+	// Near plane
+	DrawLine3D(near0, near1, color);
+	DrawLine3D(near1, near2, color);
+	DrawLine3D(near2, near3, color);
+	DrawLine3D(near3, near0, color);
+
+	// Far plane
+	DrawLine3D(far0, far1, color);
+	DrawLine3D(far1, far2, color);
+	DrawLine3D(far2, far3, color);
+	DrawLine3D(far3, far0, color);
+
+	// Edges
+	DrawLine3D(near0, far0, color);
+	DrawLine3D(near1, far1, color);
+	DrawLine3D(near2, far2, color);
+	DrawLine3D(near3, far3, color);
 }

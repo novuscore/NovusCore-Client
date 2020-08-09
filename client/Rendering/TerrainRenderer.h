@@ -80,9 +80,9 @@ private:
     Renderer::DescriptorSet _drawDescriptorSet;
 
     std::vector<u16> _loadedChunks;
-    std::vector<BoundingBox> _chunkBoundingBoxes;
+    std::vector<BoundingBox> _cellBoundingBoxes;
 
-    std::vector<u16> _culledChunks;
+    std::vector<u32> _culledInstances;
 
     DebugRenderer* _debugRenderer;
 };

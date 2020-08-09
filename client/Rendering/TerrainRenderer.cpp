@@ -8,13 +8,14 @@
 #include <Renderer/Renderer.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <tracy/TracyVulkan.hpp>
+#include <glm/gtx/euler_angles.hpp>
 
 #include "Camera.h"
 
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
 
-static bool s_cullingEnabled = false;
+static bool s_cullingEnabled = true;
 static bool s_gpuCullingEnabled = false;
 
 struct TerrainChunkData
@@ -36,6 +37,11 @@ TerrainRenderer::TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* de
 
 void TerrainRenderer::Update(f32 deltaTime, const Camera& camera)
 {
+    //for (const BoundingBox& boundingBox : _cellBoundingBoxes)
+    //{
+    //    _debugRenderer->DrawAABB3D(boundingBox.min, boundingBox.max, 0xff00ff00);
+    //}
+
     if (s_cullingEnabled && !s_gpuCullingEnabled)
     {
         DoCPUCulling(camera);
@@ -96,16 +102,21 @@ void TerrainRenderer::DoCPUCulling(const Camera& camera)
 
     const vec4* frustumPlanes = camera.GetFrustumPlanes();
 
-    _culledChunks.clear();
-    _culledChunks.reserve(_loadedChunks.size());
+    _culledInstances.clear();
+    _culledInstances.reserve(_loadedChunks.size() * Terrain::MAP_CELLS_PER_CHUNK);
 
     const size_t chunkCount = _loadedChunks.size();
+    size_t boundingBoxIndex = 0;
     for (size_t i = 0; i < chunkCount; ++i)
     {
-        const BoundingBox& boundingBox = _chunkBoundingBoxes[i];
-        if (IsInsideFrustum(frustumPlanes, boundingBox))
+        const u16 chunkId = _loadedChunks[i];
+        for (u16 cellId = 0; cellId < Terrain::MAP_CELLS_PER_CHUNK; ++cellId)
         {
-            _culledChunks.push_back(_loadedChunks[i]);
+            const BoundingBox& boundingBox = _cellBoundingBoxes[boundingBoxIndex++];
+            if (IsInsideFrustum(frustumPlanes, boundingBox))
+            {
+                _culledInstances.push_back((chunkId << 16) | cellId);
+            }
         }
     }
 }
@@ -208,33 +219,21 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             commandList.BeginTrace(&terrainPass);
 
             // Upload culled instances
-            if (s_cullingEnabled && !s_gpuCullingEnabled && !_culledChunks.empty())
+            if (s_cullingEnabled && !s_gpuCullingEnabled && !_culledInstances.empty())
             {
-                const size_t cellCount = Terrain::MAP_CELLS_PER_CHUNK * _culledChunks.size();
-
                 Renderer::BufferDesc uploadBufferDesc;
                 uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
                 uploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-                uploadBufferDesc.size = sizeof(u32) * cellCount;
+                uploadBufferDesc.size = sizeof(u32) * _culledInstances.size();
                 uploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
 
                 Renderer::BufferID instanceUploadBuffer = _renderer->CreateBuffer(uploadBufferDesc);
                 _renderer->QueueDestroyBuffer(instanceUploadBuffer);
 
                 void* instanceBufferMemory = _renderer->MapBuffer(instanceUploadBuffer);
-                u32* instanceData = static_cast<u32*>(instanceBufferMemory);
-                u32 instanceDataIndex = 0;
-
-                for (const u16 chunkID : _culledChunks)
-                {
-                    for (u32 cellID = 0; cellID < Terrain::MAP_CELLS_PER_CHUNK; ++cellID)
-                    {
-                        instanceData[instanceDataIndex++] = (chunkID << 16) | (cellID & 0xffff);
-                    }
-                }
-                assert(instanceDataIndex == cellCount);
+                memcpy(instanceBufferMemory, _culledInstances.data(), uploadBufferDesc.size);
                 _renderer->UnmapBuffer(instanceUploadBuffer);
-                _renderer->CopyBuffer(_culledInstanceBuffer, 0, instanceUploadBuffer, 0, uploadBufferDesc.size);
+                commandList.CopyBuffer(_culledInstanceBuffer, 0, instanceUploadBuffer, 0, uploadBufferDesc.size);
             }
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
@@ -296,7 +295,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                 }
                 else
                 {
-                    const u32 cellCount = Terrain::MAP_CELLS_PER_CHUNK * (u32)_culledChunks.size();
+                    const u32 cellCount = (u32)_culledInstances.size();
                     TracyPlot("Cell Instance Count", (i64)cellCount);
                     commandList.DrawIndexed(Terrain::NUM_INDICES_PER_CELL, cellCount, 0, 0, 0);
                 }
@@ -666,34 +665,39 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         const u64 chunkVertexBufferOffset = chunkId * sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK;
         _renderer->CopyBuffer(_vertexBuffer, chunkVertexBufferOffset, vertexUploadBuffer, 0, vertexUploadBufferDesc.size);
 
-        float minHeight = FLT_MAX;
-        float maxHeight = FLT_MIN;
-
-        for (u32 i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i++)
-        {
-            const Terrain::Cell& cell = chunk.cells[i];
-            const auto minmax = std::minmax_element(cell.heightData, cell.heightData + Terrain::CELL_TOTAL_GRID_SIZE);
-            minHeight = Math::Min(minHeight, *minmax.first);
-            maxHeight = Math::Max(maxHeight, *minmax.second);
-        }
-
-        //const u16 rotatedChunkPosX = (63 - chunkPosY);
-        //const u16 rotatedChunkPosY = chunkPosX;
-
         constexpr float halfWorldSize = 17066.66656f;
 
-        BoundingBox boundingBox;
+        vec2 chunkOrigin;
+        chunkOrigin.x = -((chunkPosY)*Terrain::MAP_CHUNK_SIZE - halfWorldSize);
+        chunkOrigin.y = -((Terrain::MAP_CHUNKS_PER_MAP_SIDE - chunkPosX) * Terrain::MAP_CHUNK_SIZE - halfWorldSize);
 
-        boundingBox.min.x = -((chunkPosY * Terrain::MAP_CHUNK_SIZE) - halfWorldSize);
-        boundingBox.min.y = minHeight;
-        boundingBox.min.z = -(chunkPosX * Terrain::MAP_CHUNK_SIZE - halfWorldSize);
+        for (u32 cellIndex = 0; cellIndex < Terrain::MAP_CELLS_PER_CHUNK; cellIndex++)
+        {
+            const Terrain::Cell& cell = chunk.cells[cellIndex];
+            const auto minmax = std::minmax_element(cell.heightData, cell.heightData + Terrain::CELL_TOTAL_GRID_SIZE);
 
-        boundingBox.max.x = -((chunkPosY + 1) * Terrain::MAP_CHUNK_SIZE - halfWorldSize);
-        boundingBox.max.y = maxHeight;
-        boundingBox.max.z = -((chunkPosX + 1) * Terrain::MAP_CHUNK_SIZE - halfWorldSize);
+            const u16 cellX = cellIndex % Terrain::MAP_CELLS_PER_CHUNK_SIDE;
+            const u16 cellY = cellIndex / Terrain::MAP_CELLS_PER_CHUNK_SIDE;
+
+            BoundingBox boundingBox;
+
+            boundingBox.min.x = chunkOrigin.x - (cellY * Terrain::CELL_SIZE);
+            boundingBox.min.y = -*minmax.first;
+            boundingBox.min.z = chunkOrigin.y + (cellX * Terrain::CELL_SIZE);
+
+            boundingBox.max.x = chunkOrigin.x - ((cellY + 1) * Terrain::CELL_SIZE);
+            boundingBox.max.y = -*minmax.second;
+            boundingBox.max.z = chunkOrigin.y + ((cellX + 1) * Terrain::CELL_SIZE);
+
+            _cellBoundingBoxes.push_back(boundingBox);
+        }
+
+        //const mat4x4 rotationMatrix = glm::eulerAngleY(90.0f);
+
+        //boundingBox.min = vec4(boundingBox.min, 0.0f) * rotationMatrix;
+        //boundingBox.max = vec4(boundingBox.max, 0.0f) * rotationMatrix;
 
         _loadedChunks.push_back(chunkId);
-        _chunkBoundingBoxes.push_back(boundingBox);
     }
 }
 

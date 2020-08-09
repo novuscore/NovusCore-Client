@@ -29,9 +29,11 @@ public:
 
 	void DrawLine2D(const vec2& from, const vec2& to, uint32_t color);
 	void DrawLine3D(const vec3& from, const vec3& to, uint32_t color);
+	void DrawAABB3D(const vec3& v0, const vec3& v1, uint32_t color);
 	void DrawTriangle2D(const vec2& v0, const vec2& v1, const vec2& v2, uint32_t color);
 	void DrawTriangle3D(const vec3& v0, const vec3& v1, const vec3& v2, uint32_t color);
 	void DrawRectangle2D(const vec2& min, const vec2& max, uint32_t color);
+	void DrawFrustum(const mat4x4& viewProjectionMatrix, uint32_t color);
 
 private:
 	struct DebugVertex
