@@ -48,6 +48,20 @@ namespace UIUtils::Transform
         child->parent = entt::null;
     }
 
-    void UpdateBounds(entt::registry* registry, UIComponent::Transform* transform);
-    void UpdateChildBounds(entt::registry* registry, UIComponent::Transform* transform);
+    void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent);
+
+    /*
+    *   Recursively updates bounds of children and self.
+    *   registry: Pointer to UI Registry.
+    *   transform: Transform from which to start bounds update.
+    *   updateParent: Whether or not to shallow update parents after updating our own bounds.
+    */
+    void UpdateBounds(entt::registry* registry, UIComponent::Transform* transform, bool updateParent = true);
+    /*
+    *   Shallow update bounds by non-recursively iterating over children. I.e we only go one level deep.
+    *   registry: Pointer to UI Registry.
+    *   transform: Transform to update bounds of.
+    */
+    void ShallowUpdateBounds(entt::registry* registry, UIComponent::Transform* transform);
+
 };

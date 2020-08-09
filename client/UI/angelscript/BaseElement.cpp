@@ -37,7 +37,7 @@ namespace UIScripting
         if (!transform->fillParentSize)
             transform->size = size;
 
-        UpdateChildTransforms(registry, transform);
+        UIUtils::Transform::UpdateChildTransforms(registry, transform);
         MarkDirty(registry, _entityId);
     }
 
@@ -67,7 +67,7 @@ namespace UIScripting
         else
             transform->position = position;
 
-        UpdateChildTransforms(registry, transform);
+        UIUtils::Transform::UpdateChildTransforms(registry, transform);
         MarkDirty(registry, _entityId);
     }
 
@@ -89,7 +89,7 @@ namespace UIScripting
         UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(transform->parent);
         transform->position = UIUtils::Transform::GetAnchorPosition(parentTransform, transform->anchor);
 
-        UpdateChildTransforms(registry, transform);
+        UIUtils::Transform::UpdateChildTransforms(registry, transform);
         MarkDirty(registry, _entityId);
     }
 
@@ -105,7 +105,7 @@ namespace UIScripting
 
         transform->localAnchor = localAnchor;
 
-        UpdateChildTransforms(registry, transform);
+        UIUtils::Transform::UpdateChildTransforms(registry, transform);
         MarkDirty(registry, _entityId);
     }
 
@@ -121,7 +121,7 @@ namespace UIScripting
 
         transform->size = size;
 
-        UpdateChildTransforms(registry, transform);
+        UIUtils::Transform::UpdateChildTransforms(registry, transform);
         MarkDirty(registry, _entityId);
     }
 
@@ -145,7 +145,7 @@ namespace UIScripting
         {
             UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(transform->parent);
             transform->size = parentTransform->size;
-            UpdateChildTransforms(registry, transform);
+            UIUtils::Transform::UpdateChildTransforms(registry, transform);
             MarkDirty(registry, _entityId);
         }
     }
@@ -204,14 +204,14 @@ namespace UIScripting
         if (transform->fillParentSize)
             transform->size = parentTransform->size;
 
-        UpdateChildTransforms(registry, transform);
+        UIUtils::Transform::UpdateChildTransforms(registry, transform);
 
         // Update visibility
         UIComponent::Visibility* visibility = &registry->get<UIComponent::Visibility>(_entityId);
         if (UIUtils::Visibility::UpdateParentVisibility(visibility, registry->has<UIComponent::Visible>(parent->_entityId)))
         {
             const bool newVisibility = visibility->visible && visibility->parentVisible;
-            UpdateChildVisibility(registry, transform, newVisibility);
+            UIUtils::Visibility::UpdateChildVisibility(registry, transform, newVisibility);
 
             if (newVisibility)
                 registry->emplace<UIComponent::Visible>(_entityId);
@@ -247,7 +247,7 @@ namespace UIScripting
         UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
 
         transform->includeChildBounds = expand;
-        UIUtils::Transform::UpdateChildBounds(registry, transform);
+        UIUtils::Transform::UpdateBounds(registry, transform);
     }
 
     const bool BaseElement::IsVisible() const
@@ -277,7 +277,7 @@ namespace UIScripting
         UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
 
         const bool newVisibility = UIUtils::Visibility::IsVisible(visibility);
-        UpdateChildVisibility(registry, transform, newVisibility);
+        UIUtils::Visibility::UpdateChildVisibility(registry, transform, newVisibility);
 
         // Update visibility component.
         if (newVisibility)
@@ -288,16 +288,16 @@ namespace UIScripting
 
     void BaseElement::SetCollisionEnabled(bool enabled)
     {
-        entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         // Check if collision enabled state is the same as what we are trying to set. If so doing anything would be redundant.
-        if (uiRegistry->has<UIComponent::Collidable>(_entityId) == enabled)
+        if (registry->has<UIComponent::Collidable>(_entityId) == enabled)
             return;
 
         if (enabled)
-            uiRegistry->emplace<UIComponent::Collidable>(_entityId);
+            registry->emplace<UIComponent::Collidable>(_entityId);
         else
-            uiRegistry->remove<UIComponent::Collidable>(_entityId);
+            registry->remove<UIComponent::Collidable>(_entityId);
     }
 
     void BaseElement::Destroy()
@@ -310,44 +310,5 @@ namespace UIScripting
     {
         if (!registry->has<UIComponent::Dirty>(entId))
             registry->emplace<UIComponent::Dirty>(entId);
-    }
-
-    void BaseElement::UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent)
-    {
-        ZoneScoped;
-        for (const UI::UIChild& child : parent->children)
-        {
-            UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
-
-            childTransform->position = UIUtils::Transform::GetAnchorPosition(parent, childTransform->anchor);
-            if (childTransform->fillParentSize)
-                childTransform->size = parent->size;
-
-            UpdateChildTransforms(registry, childTransform);
-            MarkDirty(registry, child.entId);
-        }
-
-        UIUtils::Transform::UpdateChildBounds(registry, parent);
-    }
-
-    void BaseElement::UpdateChildVisibility(entt::registry* registry, const UIComponent::Transform* parent, bool parentVisibility)
-    {
-        ZoneScoped;
-        for (const UI::UIChild& child : parent->children)
-        {
-            UIComponent::Visibility* childVisibility = &registry->get<UIComponent::Visibility>(child.entId);
-
-            if (!UIUtils::Visibility::UpdateParentVisibility(childVisibility, parentVisibility))
-                continue;
-
-            const bool newVisibility = childVisibility->parentVisible && childVisibility->visible;
-            const UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
-            UpdateChildVisibility(registry, childTransform, newVisibility);
-
-            if (newVisibility)
-                registry->emplace<UIComponent::Visible>(entt::entity(child.entId));
-            else
-                registry->remove<UIComponent::Visible>(entt::entity(child.entId));
-        }
     }
 }

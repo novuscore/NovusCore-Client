@@ -109,10 +109,6 @@ namespace UIScripting
 
 protected:
         static void MarkDirty(entt::registry* registry, entt::entity entId);
-    
-        static void UpdateChildTransforms(entt::registry* uiRegistry, UIComponent::Transform* parent);
-
-        static void UpdateChildVisibility(entt::registry* uiRegistry, const UIComponent::Transform* parent, bool parentVisibility);
 
         inline LockToken* GetLock(LockState state)
         {
