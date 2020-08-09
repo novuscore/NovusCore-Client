@@ -144,10 +144,8 @@ void Camera::Update(f32 deltaTime, float fovInDegrees, float aspectRatioWH)
     _projectionMatrix = glm::perspective(glm::radians(fovInDegrees), aspectRatioWH, nearClip, farClip);
     _viewProjectionMatrix = _projectionMatrix * _viewMatrix;
 
-    const mat4x4 frustumMatrix = glm::inverse(_projectionMatrix);
-
     UpdateCameraVectors();
-    UpdateFrustumPlanes(frustumMatrix);
+    UpdateFrustumPlanes(glm::transpose(_viewProjectionMatrix));
 }
 
 void Camera::UpdateCameraVectors()

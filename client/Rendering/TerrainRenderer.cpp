@@ -44,7 +44,7 @@ void TerrainRenderer::Update(f32 deltaTime, const Camera& camera)
 
     if (s_cullingEnabled && !s_gpuCullingEnabled)
     {
-        DoCPUCulling(camera);
+        CPUCulling(camera);
     }
 }
 
@@ -87,7 +87,7 @@ __forceinline bool IsInsideFrustum(const vec4* planes, const BoundingBox& boundi
             vmax.z = boundingBox.min.z;
         }
 
-        if (glm::dot(vec3(plane), vmin) + plane.w < 0)
+        if (glm::dot(vec3(plane), vmin) + plane.w <= 0)
         {
             return false;
         }
@@ -96,7 +96,7 @@ __forceinline bool IsInsideFrustum(const vec4* planes, const BoundingBox& boundi
     return true;
 }
 
-void TerrainRenderer::DoCPUCulling(const Camera& camera)
+void TerrainRenderer::CPUCulling(const Camera& camera)
 {
     ZoneScoped;
 
@@ -683,11 +683,11 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
 
             boundingBox.min.x = chunkOrigin.x - (cellY * Terrain::CELL_SIZE);
             boundingBox.min.y = -*minmax.first;
-            boundingBox.min.z = chunkOrigin.y + (cellX * Terrain::CELL_SIZE);
+            boundingBox.max.z = chunkOrigin.y + (cellX * Terrain::CELL_SIZE);
 
             boundingBox.max.x = chunkOrigin.x - ((cellY + 1) * Terrain::CELL_SIZE);
             boundingBox.max.y = -*minmax.second;
-            boundingBox.max.z = chunkOrigin.y + ((cellX + 1) * Terrain::CELL_SIZE);
+            boundingBox.min.z = chunkOrigin.y + ((cellX + 1) * Terrain::CELL_SIZE);
 
             _cellBoundingBoxes.push_back(boundingBox);
         }

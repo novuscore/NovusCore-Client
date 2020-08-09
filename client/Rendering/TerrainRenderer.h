@@ -55,7 +55,7 @@ private:
     void CreatePermanentResources();
     void LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY);
     void LoadChunksAround(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance);
-    void DoCPUCulling(const Camera& camera);
+    void CPUCulling(const Camera& camera);
 
 private:
     Renderer::Renderer* _renderer;
