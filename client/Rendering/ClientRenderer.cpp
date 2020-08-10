@@ -15,8 +15,8 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-const int WIDTH = 1280;
-const int HEIGHT = 720;
+const int WIDTH = 1920;
+const int HEIGHT = 1080;
 const size_t FRAME_ALLOCATOR_SIZE = 8 * 1024 * 1024; // 8 MB
 u32 MAIN_RENDER_LAYER = "MainLayer"_h; // _h will compiletime hash the string into a u32
 u32 DEPTH_PREPASS_RENDER_LAYER = "DepthPrepass"_h; // _h will compiletime hash the string into a u32
@@ -53,11 +53,11 @@ void WindowIconifyCallback(GLFWwindow* window, int iconified)
 
 ClientRenderer::ClientRenderer()
 {
-    //_camera = new Camera(vec3(-8000.0f, 50.0f, 1600.0f)); // Goldshire
+   _camera = new Camera(vec3(-8000.0f, 50.0f, 1600.0f)); // Goldshire
     //_camera = new Camera(vec3(300.0f, 0.0f, -4700.0f)); // Razor Hill
     //_camera = new Camera(vec3(3308.0f, 0.0f, 5316.0f)); // Borean Tundra
 
-    _camera = new Camera(vec3(0.0f, 0.0f, 0.0f));
+    //_camera = new Camera(vec3(0.0f, 0.0f, 0.0f));
 
     _window = new Window();
     _window->Init(WIDTH, HEIGHT);
