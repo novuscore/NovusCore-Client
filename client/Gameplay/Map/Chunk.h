@@ -37,7 +37,7 @@
 namespace Terrain
 {
     constexpr i32 MAP_CHUNK_TOKEN = 1313685840;
-    constexpr i32 MAP_CHUNK_VERSION = 808464434;
+    constexpr i32 MAP_CHUNK_VERSION = 2;
 
     constexpr u32 MAP_CHUNKS_PER_MAP_SIDE = 64;
     constexpr u16 MAP_CHUNK_INVALID = std::numeric_limits<u16>().max();
@@ -74,9 +74,12 @@ namespace Terrain
         HeightPlane maxHeight;
     };
 
-    struct AlphaMap
+    struct MapObjectPlacement
     {
-        u8 alphaMap[4096] = { 0 }; // 4096 pixels per alpha map
+        u32 nameID;
+        vec3 position;
+        vec3 rotation;
+        u16 scale;
     };
 
     struct Chunk
@@ -87,7 +90,9 @@ namespace Terrain
         HeightBox heightBox;
 
         Cell cells[MAP_CELLS_PER_CHUNK];
-        std::vector<AlphaMap> alphaMaps[MAP_CELLS_PER_CHUNK];
+        u32 alphaMapStringID;
+
+        std::vector<MapObjectPlacement> mapObjectPlacements;
     };
 #pragma pack(pop)
 }

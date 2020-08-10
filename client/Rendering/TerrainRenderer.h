@@ -34,6 +34,7 @@ namespace Renderer
 
 class Camera;
 class DebugRenderer;
+class MapObjectRenderer;
 
 struct BoundingBox
 {
@@ -45,6 +46,7 @@ class TerrainRenderer
 {
 public:
     TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer);
+    ~TerrainRenderer();
 
     void Update(f32 deltaTime, const Camera& camera);
 
@@ -95,4 +97,7 @@ private:
     std::vector<u32> _culledInstances;
 
     DebugRenderer* _debugRenderer;
+    
+    // Subrenderers
+    MapObjectRenderer* _mapObjectRenderer = nullptr;
 };

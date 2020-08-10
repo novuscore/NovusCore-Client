@@ -61,7 +61,7 @@ namespace Renderer
             texture.debugName = desc.path;
 
             u8* pixels;
-            pixels = ReadFile(desc.path, texture.width, texture.height, texture.mipLevels, texture.format, texture.fileSize);
+            pixels = ReadFile(desc.path, texture.width, texture.height, texture.layers, texture.mipLevels, texture.format, texture.fileSize);
             if (!pixels)
             {
                 NC_LOG_FATAL("Failed to load texture!");
@@ -263,13 +263,14 @@ namespace Renderer
             return false;
         }
 
-        u8* TextureHandlerVK::ReadFile(const std::string& filename, i32& width, i32& height, i32& mipLevels, VkFormat& format, size_t& fileSize)
+        u8* TextureHandlerVK::ReadFile(const std::string& filename, i32& width, i32& height, i32& layers, i32& mipLevels, VkFormat& format, size_t& fileSize)
         {
             format = VK_FORMAT_R8G8B8A8_UNORM;
             int channels;
             stbi_uc* pixels = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
             u8* textureMemory = nullptr;
             mipLevels = 1; // If we are not loading using gli we don't support mips, so don't bother with it
+            layers = 1; // If we are not loading using gli we don't support layers, so don't bother with it
 
             if (!pixels)
             {
@@ -281,6 +282,7 @@ namespace Renderer
 
                 width = texture.extent().x;
                 height = texture.extent().y;
+                layers = static_cast<i32>(texture.layers());
                 mipLevels = static_cast<i32>(texture.levels());
 
                 format = vkGetFormatFromOpenGLInternalFormat(gliFormat.Internal);

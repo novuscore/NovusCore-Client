@@ -48,7 +48,7 @@ namespace Renderer
 
                 i32 width;
                 i32 height;
-                i32 layers = 1;
+                i32 layers;
                 i32 mipLevels;
 
                 VkFormat format;
@@ -73,7 +73,7 @@ namespace Renderer
             bool TryFindExistingTexture(u64 descHash, size_t& id);
             bool TryFindExistingTextureInArray(TextureArrayID arrayID, u64 descHash, size_t& arrayIndex, TextureID& textureId);
 
-            u8* ReadFile(const std::string& filename, i32& width, i32& height, i32& mipLevels, VkFormat& format, size_t& fileSize);
+            u8* ReadFile(const std::string& filename, i32& width, i32& height, i32& layers, i32& mipLevels, VkFormat& format, size_t& fileSize);
             void CreateTexture(Texture& texture, u8* pixels);
 
         private:
