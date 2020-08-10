@@ -48,12 +48,6 @@ AABB GetCellAABB(uint chunkID, uint cellID, float2 heightRange)
     const uint cellX = cellID % NUM_CELLS_PER_CHUNK_SIDE;
     const uint cellY = cellID / NUM_CELLS_PER_CHUNK_SIDE;
 
-    //const float3x3 rotationMatrix = float3x3(
-    //    0, 0, 1,
-    //    0, 1, 0,
-    //    -1, 0, 0
-    //);
-
     float3 aabb_min;
     float3 aabb_max;
 
@@ -65,18 +59,9 @@ AABB GetCellAABB(uint chunkID, uint cellID, float2 heightRange)
     aabb_max.y = heightRange.y;
     aabb_max.z = chunkOrigin.y - ((cellX + 1) * CELL_SIDE_SIZE);
 
-    //aabb_min = mul(rotationMatrix, aabb_min);
-    //aabb_max = mul(rotationMatrix, aabb_max);
-
     AABB boundingBox;
     boundingBox.min = max(aabb_min, aabb_max);
     boundingBox.max = min(aabb_min, aabb_max);
-
-    //boundingBox.min.y = 0.0f;//heightRange.x;
-    //boundingBox.max.y = 0.0f;//heightRange.y;
-
-    //boundingBox.min.y = +100000.0f;
-    //boundingBox.max.y = -100000.0f;
 
     return boundingBox;
 }
