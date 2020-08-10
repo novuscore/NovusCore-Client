@@ -12,8 +12,6 @@ namespace Renderer
 
     struct DataTextureDesc
     {
-        TextureType type = TEXTURE_TYPE_2D;
-
         i32 width = 0;
         i32 height = 0;
         i32 layers = 1;

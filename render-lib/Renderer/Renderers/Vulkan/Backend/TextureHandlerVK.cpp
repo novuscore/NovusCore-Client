@@ -24,7 +24,6 @@ namespace Renderer
             _bufferHandler = bufferHandler;
 
             DataTextureDesc dataTextureDesc;
-            dataTextureDesc.type = Renderer::TEXTURE_TYPE_2D_ARRAY;
             dataTextureDesc.width = 1;
             dataTextureDesc.height = 1;
             dataTextureDesc.layers = 256;
@@ -66,8 +65,6 @@ namespace Renderer
             {
                 NC_LOG_FATAL("Failed to load texture!");
             }
-
-            texture.type = TextureType::TEXTURE_TYPE_2D;
 
             CreateTexture(texture, pixels);
 
@@ -142,7 +139,6 @@ namespace Renderer
             Texture texture;
             texture.debugName = desc.debugName;
 
-            texture.type = desc.type;
             texture.width = desc.width;
             texture.height = desc.height;
             texture.layers = desc.layers;
@@ -353,13 +349,13 @@ namespace Renderer
 
             _bufferHandler->DestroyBuffer(stagingBuffer);
 
-            assert(texture.type != TEXTURE_TYPE_2D || texture.layers == 1);
+            //assert(texture.type != TEXTURE_TYPE_2D || texture.layers == 1);
 
             // Create color view
             VkImageViewCreateInfo viewInfo = {};
             viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             viewInfo.image = texture.image;
-            viewInfo.viewType = texture.type == TEXTURE_TYPE_2D_ARRAY ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
+            viewInfo.viewType = (texture.layers > 1) ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
             viewInfo.format = texture.format;
             viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             viewInfo.subresourceRange.baseMipLevel = 0;

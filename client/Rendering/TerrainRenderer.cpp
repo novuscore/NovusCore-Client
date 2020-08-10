@@ -22,7 +22,7 @@ const int WIDTH = 1920;
 const int HEIGHT = 1080;
 
 static bool s_cullingEnabled = true;
-static bool s_gpuCullingEnabled = true;
+static bool s_gpuCullingEnabled = false;
 static bool s_lockCullingFrustum = false;
 
 struct TerrainChunkData
@@ -64,7 +64,7 @@ TerrainRenderer::TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* de
         return true;
     });
 
-    ServiceLocator::GetInputManager()->RegisterKeybind("ToggleLockCullingFrustum", GLFW_KEY_F4, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
+    ServiceLocator::GetInputManager()->RegisterKeybind("ToggleLockCullingFrustum", GLFW_KEY_F5, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
         s_lockCullingFrustum = !s_lockCullingFrustum;
         return true;
@@ -144,7 +144,14 @@ void TerrainRenderer::CPUCulling(const Camera& camera)
 {
     ZoneScoped;
 
-    const vec4* frustumPlanes = camera.GetFrustumPlanes();
+    static vec4 frustumPlanes[6];
+    static mat4x4 lockedViewProjectionMatrix;
+
+    if (!s_lockCullingFrustum)
+    {
+        memcpy(frustumPlanes, camera.GetFrustumPlanes(), sizeof(frustumPlanes));
+        lockedViewProjectionMatrix = camera.GetViewProjectionMatrix();
+    }
 
     _culledInstances.clear();
     _culledInstances.reserve(_loadedChunks.size() * Terrain::MAP_CELLS_PER_CHUNK);
@@ -163,6 +170,8 @@ void TerrainRenderer::CPUCulling(const Camera& camera)
             }
         }
     }
+
+    _debugRenderer->DrawFrustum(lockedViewProjectionMatrix, 0xff0000ff);
 }
 
 void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex)
@@ -416,16 +425,16 @@ void TerrainRenderer::CreatePermanentResources()
     _terrainAlphaTextureArray = _renderer->CreateTextureArray(textureAlphaArrayDesc);
 
     // Create and load a 1x1 pixel RGBA8 unorm texture with zero'ed data so we can use textureArray[0] as "invalid" textures, sampling it will return 0.0f on all channels
-    Renderer::DataTextureDesc zeroAlphaTexture;
-    zeroAlphaTexture.debugName = "TerrainZeroAlpha";
-    zeroAlphaTexture.layers = 1;
-    zeroAlphaTexture.width = 1;
-    zeroAlphaTexture.height = 1;
-    zeroAlphaTexture.format = Renderer::IMAGE_FORMAT_R8G8B8A8_UNORM;
-    zeroAlphaTexture.data = new u8[4]{ 0, 0, 0, 0 };
+    Renderer::DataTextureDesc zeroColorTexture;
+    zeroColorTexture.debugName = "TerrainZeroColor";
+    zeroColorTexture.layers = 1;
+    zeroColorTexture.width = 1;
+    zeroColorTexture.height = 1;
+    zeroColorTexture.format = Renderer::IMAGE_FORMAT_R8G8B8A8_UNORM;
+    zeroColorTexture.data = new u8[4]{ 0, 0, 0, 0 };
 
     u32 index;
-    _renderer->CreateDataTextureIntoArray(zeroAlphaTexture, _terrainColorTextureArray, index);
+    _renderer->CreateDataTextureIntoArray(zeroColorTexture, _terrainColorTextureArray, index);
 
     // Samplers
     Renderer::SamplerDesc alphaSamplerDesc;

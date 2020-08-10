@@ -345,12 +345,6 @@ namespace Renderer
         SAMPLER_FILTER_MAXIMUM_ANISOTROPIC
     };
 
-    enum TextureType
-    {
-        TEXTURE_TYPE_2D,
-        TEXTURE_TYPE_2D_ARRAY,
-    };
-
     enum TextureAddressMode
     {
         TEXTURE_ADDRESS_MODE_WRAP,

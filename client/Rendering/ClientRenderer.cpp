@@ -117,8 +117,6 @@ void ClientRenderer::Update(f32 deltaTime)
     _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(100.0f, 0.0f, 0.0f), 0xff0000ff);
     _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 100.0f, 0.0f), 0xff00ff00);
     _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 100.0f), 0xffff0000);
-
-    _debugRenderer->DrawFrustum(_camera->GetProjectionMatrix(), 0xffffffff);
 }
 
 void ClientRenderer::Render()
