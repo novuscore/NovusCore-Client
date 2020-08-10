@@ -118,7 +118,7 @@ namespace UIScripting
             text->text.insert(inputField->writeHeadIndex, 1, input);
 
         MovePointerRight();
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     void InputField::RemovePreviousCharacter()
@@ -133,7 +133,7 @@ namespace UIScripting
         text->text.erase(inputField->writeHeadIndex - 1, 1);
 
         MovePointerLeft();
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
     void InputField::RemoveNextCharacter()
     {
@@ -146,7 +146,7 @@ namespace UIScripting
 
         text->text.erase(inputField->writeHeadIndex, 1);
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     void InputField::MovePointerLeft()
@@ -174,7 +174,7 @@ namespace UIScripting
         inputField->writeHeadIndex = clampedPosition;
 
         text->pushback = UIUtils::Text::CalculatePushback(text, inputField->writeHeadIndex, 0.2f, transform->size.x, transform->size.y);
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     void InputField::SetOnSubmitCallback(asIScriptFunction* callback)
@@ -229,7 +229,7 @@ namespace UIScripting
             inputField->writeHeadIndex = newText.length() - 1;
         }
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     const Color& InputField::GetTextColor() const
@@ -244,7 +244,7 @@ namespace UIScripting
 
         text->color = color;
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     const Color& InputField::GetTextOutlineColor() const
@@ -259,7 +259,7 @@ namespace UIScripting
 
         text->outlineColor = outlineColor;
 
-        MarkDirty(ServiceLocator::GetUIRegistry(), _entityId);
+        MarkDirty(registry);
     }
 
     const f32 InputField::GetTextOutlineWidth() const
@@ -274,7 +274,7 @@ namespace UIScripting
 
         text->outlineWidth = outlineWidth;
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     void InputField::SetTextFont(const std::string& fontPath, f32 fontSize)
@@ -285,7 +285,7 @@ namespace UIScripting
         text->fontPath = fontPath;
         text->fontSize = fontSize;
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     InputField* InputField::CreateInputField()

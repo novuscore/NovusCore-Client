@@ -12,7 +12,6 @@
 
 #include "../UI/ECS/Components/Singletons/UIDataSingleton.h"
 #include "../UI/ECS/Components/Singletons/UILockSingleton.h"
-#include "../UI/ECS/Components/Singletons/UIAddElementQueueSingleton.h"
 #include "../UI/ECS/Components/Singletons/UIEntityPoolSingleton.h"
 #include "../UI/ECS/Components/Transform.h"
 #include "../UI/ECS/Components/TransformEvents.h"
@@ -22,6 +21,7 @@
 #include "../UI/ECS/Components/Visible.h"
 #include "../UI/ECS/Components/Visibility.h"
 #include "../UI/ECS/Components/Dirty.h"
+#include "../UI/ECS/Components/BoundsDirty.h"
 #include "../UI/ECS/Components/Collidable.h"
 #include "../UI/ECS/Components/InputField.h"
 #include "../UI/ECS/Components/Checkbox.h"
@@ -44,6 +44,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
     registry->prepare<UIComponent::Visible>();
     registry->prepare<UIComponent::Visibility>();
     registry->prepare<UIComponent::Dirty>();
+    registry->prepare<UIComponent::BoundsDirty>();
     registry->prepare<UIComponent::Collidable>();
 
     registry->prepare<UIComponent::InputField>();
@@ -52,10 +53,16 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
     // Register UI singletons.
     registry->set<UISingleton::UIDataSingleton>();
     registry->set<UISingleton::UILockSingleton>();
-    registry->set<UISingleton::UIAddElementQueueSingleton>();
 
     // Register entity pool.
-    registry->set<UISingleton::UIEntityPoolSingleton>().AllocatePool();
+    auto entityPoolSingleton = &registry->set<UISingleton::UIEntityPoolSingleton>();
+    entityPoolSingleton->AllocatePool();
+
+    //Reserve component space
+    registry->reserve<UIComponent::Transform>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Dirty>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::BoundsDirty>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+
 }
 
 void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex)

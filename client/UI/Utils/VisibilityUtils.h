@@ -1,7 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
 #include "../ECS/Components/Visibility.h"
-#include "../ECS/Components/Transform.h"
 #include <entity/fwd.hpp>
 
 namespace UIUtils::Visibility
@@ -30,10 +29,10 @@ namespace UIUtils::Visibility
         return visibilityChanged;
     }
 
-    static inline bool IsVisible(UIComponent::Visibility* visibility)
+    static inline bool IsVisible(const UIComponent::Visibility* visibility)
     {
         return visibility->parentVisible && visibility->visible;
     }
 
-    void UpdateChildVisibility(entt::registry* registry, const UIComponent::Transform* parent, bool parentVisibility);
+    void UpdateChildVisibility(entt::registry* registry, const entt::entity parent, bool parentVisibility);
 };

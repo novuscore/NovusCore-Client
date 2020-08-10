@@ -136,7 +136,7 @@ namespace UIScripting
         UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
         image->texture = texture;
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     const Color Checkbox::GetBackgroundColor() const
@@ -150,7 +150,7 @@ namespace UIScripting
         UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
         image->color = color;
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     const std::string& Checkbox::GetCheckTexture() const

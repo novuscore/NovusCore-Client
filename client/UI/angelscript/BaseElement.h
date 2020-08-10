@@ -19,9 +19,11 @@ namespace UIScripting
     public:
         BaseElement(UI::UIElementType elementType);
 
+        virtual ~BaseElement() { }
+
         static void RegisterType()
         {
-            i32 r = ScriptEngine::RegisterScriptClass("Transform", 0, asOBJ_REF | asOBJ_NOCOUNT);
+            i32 r = ScriptEngine::RegisterScriptClass("BaseElement", 0, asOBJ_REF | asOBJ_NOCOUNT);
             assert(r >= 0);
             {
                 RegisterBase<BaseElement>();
@@ -67,54 +69,56 @@ namespace UIScripting
         const UI::UIElementType GetType() const { return _elementType; }
 
         // Transform Functions
-        virtual void SetTransform(const vec2& position, const vec2& size);
+        vec2 GetScreenPosition() const;
+        vec2 GetLocalPosition() const;
+        vec2 GetParentPosition() const;
+        void SetPosition(const vec2& position);
 
-        const vec2 GetScreenPosition() const;
-        const vec2 GetLocalPosition() const;
-        const vec2 GetParentPosition() const;
-        virtual void SetPosition(const vec2& position);
+        vec2 GetSize() const;
+        void SetSize(const vec2& size);
+
+        void SetTransform(const vec2& position, const vec2& size);
+
+        vec2 GetAnchor() const;
+        void SetAnchor(const vec2& anchor);
+
+        vec2 GetLocalAnchor() const;
+        void SetLocalAnchor(const vec2& localAnchor);
         
-        const vec2 GetAnchor() const;
-        virtual void SetAnchor(const vec2& anchor);
+        bool GetFillParentSize() const;
+        void SetFillParentSize(bool fillParent);
 
-        const vec2 GetLocalAnchor() const;
-        virtual void SetLocalAnchor(const vec2& localAnchor);
-        
-        const vec2 GetSize() const;
-        virtual void SetSize(const vec2& size);
-        
-        const bool GetFillParentSize();
-        virtual void SetFillParentSize(bool fillParent);
+        UI::DepthLayer GetDepthLayer() const;
+        void SetDepthLayer(const UI::DepthLayer layer);
 
-        const UI::DepthLayer GetDepthLayer() const;
-        virtual void SetDepthLayer(const UI::DepthLayer layer);
+        u16 GetDepth() const;
+        void SetDepth(const u16 depth);
 
-        const u16 GetDepth() const;
-        virtual void SetDepth(const u16 depth);
+        void SetParent(BaseElement* parent);
+        void UnsetParent();
 
-        virtual void SetParent(BaseElement* parent);
-        virtual void UnsetParent();
+        bool GetExpandBoundsToChildren() const;
+        void SetExpandBoundsToChildren(bool expand);
 
-        const bool GetExpandBoundsToChildren();
-        virtual void SetExpandBoundsToChildren(bool expand);
-
-        const bool IsVisible() const;
-        const bool IsLocallyVisible() const;
-        const bool IsParentVisible() const;
-        virtual void SetVisible(bool visible);
+        bool IsVisible() const;
+        bool IsLocallyVisible() const;
+        bool IsParentVisible() const;
+        void SetVisible(bool visible);
     
         void SetCollisionEnabled(bool enabled);
 
-        virtual void Destroy();
+        void Destroy();
 
-protected:
-        static void MarkDirty(entt::registry* registry, entt::entity entId);
+    protected:
+        void MarkDirty(entt::registry* registry);
+        void MarkBoundsDirty(entt::registry* registry);
 
         inline LockToken* GetLock(LockState state)
         {
             return new LockToken(_mutex, state);
         }
 
+        static std::shared_mutex& GetRegistryMutex();
     protected:
         entt::entity _entityId;
         UI::UIElementType _elementType;

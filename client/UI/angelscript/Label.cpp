@@ -60,7 +60,7 @@ namespace UIScripting
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->text = newText;
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     void Label::SetFont(const std::string& fontPath, f32 fontSize)
@@ -70,7 +70,7 @@ namespace UIScripting
         text->fontPath = fontPath;
         text->fontSize = fontSize;
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     const Color& Label::GetColor() const
@@ -84,7 +84,7 @@ namespace UIScripting
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->color = color;
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     const Color& Label::GetOutlineColor() const
@@ -98,7 +98,7 @@ namespace UIScripting
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->outlineColor = outlineColor;
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     const f32 Label::GetOutlineWidth() const
@@ -112,7 +112,7 @@ namespace UIScripting
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->outlineWidth = outlineWidth;
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     void Label::SetHorizontalAlignment(UI::TextHorizontalAlignment alignment)
@@ -121,7 +121,7 @@ namespace UIScripting
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->horizontalAlignment = alignment;
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
     void Label::SetVerticalAlignment(UI::TextVerticalAlignment alignment)
     {
@@ -129,7 +129,7 @@ namespace UIScripting
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->verticalAlignment = alignment;
 
-        MarkDirty(registry, _entityId);
+        MarkDirty(registry);
     }
 
     Label* Label::CreateLabel()

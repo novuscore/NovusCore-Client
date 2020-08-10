@@ -29,11 +29,6 @@ namespace UIUtils::Transform
         return GetMinBounds(transform) + (transform->size * anchor);
     }
 
-    inline static void AddChild(UIComponent::Transform* transform, UIComponent::Transform* child)
-    {
-        transform->children.push_back({ child->sortData.entId , child->sortData.type });
-    }
-
     inline static void RemoveChild(UIComponent::Transform* transform, UIComponent::Transform* child)
     {
         if (child->parent != transform->sortData.entId)
@@ -47,6 +42,14 @@ namespace UIUtils::Transform
         child->localPosition = vec2(0, 0);
         child->parent = entt::null;
     }
+
+    /*
+    *   Recursively updates depths of children changing it by modifier.
+    *   registry: Pointer to UI Registry.
+    *   transform: Transform from which to start update.
+    *   modifer: amount to modify depth by.
+    */
+    void UpdateChildDepths(entt::registry* registry, UIComponent::Transform* parent, u32 modifier);
 
     void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent);
 

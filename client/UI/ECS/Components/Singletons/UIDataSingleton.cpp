@@ -1,10 +1,16 @@
 #include "UIDataSingleton.h"
+#include <shared_mutex>
 #include "../../../../Utils/ServiceLocator.h"
 #include "../../../Utils/TransformUtils.h"
 #include "../../../angelscript/BaseElement.h"
 
 namespace UISingleton
 {
+    std::shared_mutex& UIDataSingleton::GetMutex(entt::entity entId)
+    {
+        return entityToAsObject[entId]->_mutex;
+    }
+
     void UIDataSingleton::ClearWidgets()
     {
         std::vector<entt::entity> entityIds;
@@ -25,24 +31,6 @@ namespace UISingleton
 
     void UIDataSingleton::DestroyWidget(entt::entity entId)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(entId);
-        for (UI::UIChild& child : transform->children)
-        {
-            UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
-
-            childTransform->position = childTransform->position + childTransform->localPosition;
-            childTransform->localPosition = vec2(0, 0);
-            childTransform->parent = entt::null;
-        }
-
-        auto itr = entityToAsObject.find(entId);
-        if (itr != entityToAsObject.end())
-        {
-            delete itr->second;
-            entityToAsObject.erase(itr);
-        }
-
-        registry->destroy(entId);
+        destructionQueue.enqueue(entId);
     }
 }

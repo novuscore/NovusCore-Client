@@ -10,8 +10,6 @@ namespace UISingleton
         std::vector<entt::entity> entityIds(ENTITIES_TO_PREALLOCATE);
         registry->create(entityIds.begin(), entityIds.end());
 
-        std::sort(entityIds.begin(), entityIds.end(), [](entt::entity first, entt::entity second) { return first < second; });
-
         entityIdPool.enqueue_bulk(entityIds.begin(), ENTITIES_TO_PREALLOCATE);
     }
 
