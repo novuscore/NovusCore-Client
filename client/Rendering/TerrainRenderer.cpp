@@ -16,13 +16,13 @@
 
 #include "Camera.h"
 
-#define USE_PACKED_HEIGHT_RANGE 0
+#define USE_PACKED_HEIGHT_RANGE 1
 
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
 
 static bool s_cullingEnabled = true;
-static bool s_gpuCullingEnabled = false;
+static bool s_gpuCullingEnabled = true;
 static bool s_lockCullingFrustum = false;
 
 struct TerrainChunkData
@@ -131,7 +131,7 @@ __forceinline bool IsInsideFrustum(const vec4* planes, const BoundingBox& boundi
             vmax.z = boundingBox.min.z;
         }
 
-        if (glm::dot(vec3(plane), vmin) + plane.w <= 0)
+        if (glm::dot(vec3(plane), vmin) + plane.w < 0)
         {
             return false;
         }
@@ -160,12 +160,12 @@ void TerrainRenderer::CPUCulling(const Camera& camera)
     size_t boundingBoxIndex = 0;
     for (size_t i = 0; i < chunkCount; ++i)
     {
-        const u16 chunkId = _loadedChunks[i];
         for (u16 cellId = 0; cellId < Terrain::MAP_CELLS_PER_CHUNK; ++cellId)
         {
             const BoundingBox& boundingBox = _cellBoundingBoxes[boundingBoxIndex++];
             if (IsInsideFrustum(frustumPlanes, boundingBox))
             {
+                const u16 chunkId = _loadedChunks[i];
                 _culledInstances.push_back((chunkId << 16) | cellId);
             }
         }
@@ -744,7 +744,7 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
 
         vec2 chunkOrigin;
         chunkOrigin.x = -((chunkPosY)*Terrain::MAP_CHUNK_SIZE - halfWorldSize);
-        chunkOrigin.y = -((Terrain::MAP_CHUNKS_PER_MAP_SIDE - chunkPosX) * Terrain::MAP_CHUNK_SIZE - halfWorldSize);
+        chunkOrigin.y = ((Terrain::MAP_CHUNKS_PER_MAP_SIDE - chunkPosX) * Terrain::MAP_CHUNK_SIZE - halfWorldSize);
 
         std::vector<TerrainCellHeightRange> heightRanges;
         heightRanges.reserve(Terrain::MAP_CELLS_PER_CHUNK);
@@ -757,23 +757,27 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
             const u16 cellX = cellIndex % Terrain::MAP_CELLS_PER_CHUNK_SIDE;
             const u16 cellY = cellIndex / Terrain::MAP_CELLS_PER_CHUNK_SIDE;
 
+            vec3 min;
+            vec3 max;
+
+            min.x = chunkOrigin.x - (cellY * Terrain::CELL_SIZE);
+            min.y = *minmax.first;
+            min.z = chunkOrigin.y - (cellX * Terrain::CELL_SIZE);
+
+            max.x = chunkOrigin.x - ((cellY + 1) * Terrain::CELL_SIZE);
+            max.y = *minmax.second;
+            max.z = chunkOrigin.y - ((cellX + 1) * Terrain::CELL_SIZE);
+
             BoundingBox boundingBox;
-
-            boundingBox.min.x = chunkOrigin.x - (cellY * Terrain::CELL_SIZE);
-            boundingBox.min.y = -*minmax.first;
-            boundingBox.max.z = chunkOrigin.y + (cellX * Terrain::CELL_SIZE);
-
-            boundingBox.max.x = chunkOrigin.x - ((cellY + 1) * Terrain::CELL_SIZE);
-            boundingBox.max.y = -*minmax.second;
-            boundingBox.min.z = chunkOrigin.y + ((cellX + 1) * Terrain::CELL_SIZE);
-
+            boundingBox.min = glm::max(min, max);
+            boundingBox.max = glm::min(min, max);
             _cellBoundingBoxes.push_back(boundingBox);
 
             TerrainCellHeightRange heightRange;
 #if USE_PACKED_HEIGHT_RANGE
             float packedHeightRange[4];
-            _mm_store_ps(packedHeightRange, _mm_cvtepi32_ps(_mm_cvtps_ph(_mm_setr_ps(*minmax.first, *minmax.second, 0.0f, 0.0f), 0)));
-            heightRanges.push_back(*(u32*)&packedHeightRange[0]);
+            _mm_store_ps(packedHeightRange, _mm_castsi128_ps(_mm_cvtps_ph(_mm_setr_ps(*minmax.first, *minmax.second, 0.0f, 0.0f), 0)));
+            heightRange.minmax = *(u32*)packedHeightRange;
 #else
             heightRange.min = *minmax.first;
             heightRange.max = *minmax.second;
@@ -785,7 +789,7 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         {
             Renderer::BufferDesc heightRangeUploadBufferDesc;
             heightRangeUploadBufferDesc.name = "HeightRangeUploadBuffer";
-            heightRangeUploadBufferDesc.size = sizeof(u32) * Terrain::MAP_CELLS_PER_CHUNK;
+            heightRangeUploadBufferDesc.size = sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK;
             heightRangeUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
             heightRangeUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
@@ -797,7 +801,7 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
             _renderer->UnmapBuffer(heightRangeUploadBuffer);
 
             const u64 chunkInstanceIndex = _loadedChunks.size();
-            const u64 chunkVertexBufferOffset = chunkInstanceIndex * sizeof(u32) * Terrain::MAP_CELLS_PER_CHUNK;
+            const u64 chunkVertexBufferOffset = chunkInstanceIndex * sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK;
             _renderer->CopyBuffer(_cellHeightRangeBuffer, chunkVertexBufferOffset, heightRangeUploadBuffer, 0, heightRangeUploadBufferDesc.size);
         }
     }

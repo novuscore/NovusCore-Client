@@ -441,9 +441,9 @@ namespace Renderer
 
         VkViewport vkViewport = {};
         vkViewport.x = viewport.topLeftX;
-        vkViewport.y = viewport.topLeftY;
+        vkViewport.y = viewport.height - viewport.topLeftY;
         vkViewport.width = viewport.width;
-        vkViewport.height = viewport.height;
+        vkViewport.height = -viewport.height;
         vkViewport.minDepth = viewport.minDepth;
         vkViewport.maxDepth = viewport.maxDepth;
 

@@ -53,7 +53,7 @@ void WindowIconifyCallback(GLFWwindow* window, int iconified)
 
 ClientRenderer::ClientRenderer()
 {
-   _camera = new Camera(vec3(-8000.0f, 50.0f, 1600.0f)); // Goldshire
+    _camera = new Camera(vec3(-8000.0f, 100.0f, 1600.0f)); // Goldshire
     //_camera = new Camera(vec3(300.0f, 0.0f, -4700.0f)); // Razor Hill
     //_camera = new Camera(vec3(3308.0f, 0.0f, 5316.0f)); // Borean Tundra
 

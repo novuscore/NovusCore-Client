@@ -1,6 +1,6 @@
 #include "terrain.inc.hlsl"
 
-#define USE_PACKED_HEIGHT_RANGE 0
+#define USE_PACKED_HEIGHT_RANGE 1
 
 struct Constants
 {
@@ -21,7 +21,7 @@ float2 ReadHeightRange(uint instanceIndex)
 	const float max = f16tof32(packed);
 	return float2(min, max);
 #else
-	const float2 minmax = _heightRanges.Load<float2>(instanceIndex * 8);
+	const float2 minmax = asfloat(_heightRanges.Load2(instanceIndex * 8));
 	return minmax;
 #endif
 }
@@ -80,7 +80,6 @@ bool IsAABBInsideFrustum(float4 frustum[6], AABB aabb)
 	return true;
 }
 
-
 [numthreads(32, 1, 1)]
 void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
@@ -93,7 +92,6 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 		_argumentBuffer.Store(16, 0);
 	}
 
-
 	const uint instanceIndex = dispatchThreadId.x;
 	const uint instance = _instances.Load(instanceIndex * 4);
 
@@ -103,7 +101,6 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 
 	const float2 heightRange = ReadHeightRange(instanceIndex);
 	const AABB aabb = GetCellAABB(chunkID, cellID, heightRange);
-
 
     if (!IsAABBInsideFrustum(_constants.frustumPlanes, aabb))
     {

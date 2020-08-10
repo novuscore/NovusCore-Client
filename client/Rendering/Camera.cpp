@@ -57,7 +57,7 @@ void Camera::Init()
             vec2 mousePosition = vec2(xPos, yPos);
             vec2 deltaPosition = _prevMousePosition - mousePosition;
 
-            _yaw += deltaPosition.x * _mouseSensitivity;
+            _yaw -= deltaPosition.x * _mouseSensitivity;
             _pitch -= deltaPosition.y * _mouseSensitivity;
 
             _prevMousePosition = mousePosition;
@@ -152,7 +152,7 @@ void Camera::UpdateCameraVectors()
 {
     _left = -_rotationMatrix[0];
     _up = _rotationMatrix[1];
-    _front = -_rotationMatrix[2];
+    _front = _rotationMatrix[2];
 }
 
 void Camera::UpdateFrustumPlanes(const mat4x4& m)

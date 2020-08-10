@@ -38,8 +38,8 @@ Vertex LoadVertex(uint chunkID, uint cellID, uint vertexID)
     const float CELL_PRECISION = CELL_SIDE_SIZE / 8.0f;
 
     Vertex vertex;
-    vertex.position.x = ((-vertexPos.x) * CELL_PRECISION + cellPos.x);
-    vertex.position.y = -height;
+    vertex.position.x = -((-vertexPos.x) * CELL_PRECISION + cellPos.x);
+    vertex.position.y = height;
     vertex.position.z = (-vertexPos.y) * CELL_PRECISION + cellPos.y;
     vertex.uv = vertexPos;
 

@@ -38,24 +38,47 @@ float2 GetCellPosition(uint chunkID, uint cellID)
 
 AABB GetCellAABB(uint chunkID, uint cellID, float2 heightRange)
 {
-    const float2 cellPos = GetCellPosition(chunkID, cellID);
+    const uint chunkPosX = chunkID % NUM_CHUNKS_PER_MAP_SIDE;
+    const uint chunkPosY = chunkID / NUM_CHUNKS_PER_MAP_SIDE;
 
-    const float3x3 rotationMatrix = float3x3(
-        0, 0, 1,
-        0, 1, 0,
-        -1, 0, 0
-    );
+    float2 chunkOrigin;
+    chunkOrigin.x = -((chunkPosY) * CHUNK_SIDE_SIZE - HALF_WORLD_SIZE);
+    chunkOrigin.y = ((NUM_CHUNKS_PER_MAP_SIDE - chunkPosX) * CHUNK_SIDE_SIZE - HALF_WORLD_SIZE);
 
-    const float3 rotatedCellPos = mul(rotationMatrix, float3(cellPos.x, 0.0f, cellPos.y));
+    const uint cellX = cellID % NUM_CELLS_PER_CHUNK_SIDE;
+    const uint cellY = cellID / NUM_CELLS_PER_CHUNK_SIDE;
 
-    AABB aabb;
-    aabb.min = float3(rotatedCellPos.x, -heightRange.y, rotatedCellPos.z) + float3(0.0f, 0.0f, 0.0f);
-    aabb.max = float3(rotatedCellPos.x, -heightRange.x, rotatedCellPos.z) + float3(CELL_SIDE_SIZE, 0.0f, -CELL_SIDE_SIZE);
+    //const float3x3 rotationMatrix = float3x3(
+    //    0, 0, 1,
+    //    0, 1, 0,
+    //    -1, 0, 0
+    //);
 
-    aabb.min.y = +100000.0f;
-    aabb.max.y = -100000.0f;
+    float3 aabb_min;
+    float3 aabb_max;
 
-    return aabb;
+    aabb_min.x = chunkOrigin.x - (cellY * CELL_SIDE_SIZE);
+    aabb_min.y = heightRange.x;
+    aabb_min.z = chunkOrigin.y - (cellX * CELL_SIDE_SIZE);
+
+    aabb_max.x = chunkOrigin.x - ((cellY + 1) * CELL_SIDE_SIZE);
+    aabb_max.y = heightRange.y;
+    aabb_max.z = chunkOrigin.y - ((cellX + 1) * CELL_SIDE_SIZE);
+
+    //aabb_min = mul(rotationMatrix, aabb_min);
+    //aabb_max = mul(rotationMatrix, aabb_max);
+
+    AABB boundingBox;
+    boundingBox.min = max(aabb_min, aabb_max);
+    boundingBox.max = min(aabb_min, aabb_max);
+
+    //boundingBox.min.y = 0.0f;//heightRange.x;
+    //boundingBox.max.y = 0.0f;//heightRange.y;
+
+    //boundingBox.min.y = +100000.0f;
+    //boundingBox.max.y = -100000.0f;
+
+    return boundingBox;
 }
 
 float2 GetCellSpaceVertexPosition(uint vertexID)
