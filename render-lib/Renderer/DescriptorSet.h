@@ -22,13 +22,10 @@ namespace Renderer
 
         DescriptorType descriptorType;
 
-        //union
-        //{
-            TextureID textureID;
-            SamplerID samplerID;
-            TextureArrayID textureArrayID;
-            BufferID bufferID;
-        //};
+        TextureID textureID;
+        SamplerID samplerID;
+        TextureArrayID textureArrayID;
+        BufferID bufferID;
     };
 
     enum DescriptorSetSlot

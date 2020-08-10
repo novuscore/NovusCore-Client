@@ -349,8 +349,6 @@ namespace Renderer
 
             _bufferHandler->DestroyBuffer(stagingBuffer);
 
-            //assert(texture.type != TEXTURE_TYPE_2D || texture.layers == 1);
-
             // Create color view
             VkImageViewCreateInfo viewInfo = {};
             viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;

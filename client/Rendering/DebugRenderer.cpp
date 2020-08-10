@@ -226,26 +226,6 @@ void DebugRenderer::DrawRectangle2D(const glm::vec2& min, const glm::vec2& max, 
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].push_back({ glm::vec3(min.x, max.y, 0.0f), color });
 }
 
-/*
-
-template<typename T, typename U, qualifier Q>
-GLM_FUNC_QUALIFIER vec<3, T, Q> unProjectNO(vec<3, T, Q> const& win, mat<4, 4, T, Q> const& model, mat<4, 4, T, Q> const& proj, vec<4, U, Q> const& viewport)
-{
-	mat<4, 4, T, Q> Inverse = inverse(proj * model);
-
-	vec<4, T, Q> tmp = vec<4, T, Q>(win, T(1));
-	tmp.x = (tmp.x - T(viewport[0])) / T(viewport[2]);
-	tmp.y = (tmp.y - T(viewport[1])) / T(viewport[3]);
-	tmp = tmp * static_cast<T>(2) - static_cast<T>(1);
-
-	vec<4, T, Q> obj = Inverse * tmp;
-	obj /= obj.w;
-
-	return vec<3, T, Q>(obj);
-}
-
-*/
-
 __forceinline static vec3 unproject(const vec3& point, const mat4x4& m)
 {
 	vec4 obj = m * vec4(point, 1.0f);

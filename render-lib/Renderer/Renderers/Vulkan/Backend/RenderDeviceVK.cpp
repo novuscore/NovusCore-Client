@@ -302,7 +302,6 @@ namespace Renderer
             deviceFeatures.features.samplerAnisotropy = VK_TRUE;
             deviceFeatures.features.fragmentStoresAndAtomics = VK_TRUE;
             deviceFeatures.features.vertexPipelineStoresAndAtomics = VK_TRUE;
-            deviceFeatures.features.multiDrawIndirect = VK_TRUE;
             deviceFeatures.pNext = &descriptorIndexingFeatures;
 
 
@@ -957,7 +956,6 @@ namespace Renderer
                     indices.graphicsFamily = i;
                 }
                 
-                // This is disabled since when we initialize Vulkan and pick a device we don't have a surface yet, I have no idea if this will cause an issue in the future...
                 VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
                 VkSurfaceKHR surface;
                 vkCreateWin32SurfaceKHR(_instance, &surfaceCreateInfo, nullptr, &surface);
@@ -967,6 +965,8 @@ namespace Renderer
                 if (queueFamily.queueCount > 0 && presentSupport) {
                     indices.presentFamily = i;
                 }
+
+                vkDestroySurfaceKHR(_instance, surface, nullptr);
 
                 if (indices.IsComplete())
                 {

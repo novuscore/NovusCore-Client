@@ -277,7 +277,7 @@ namespace Renderer
             _device->CopyBuffer(_bufferHandler->GetBuffer(model.vertexBuffer), 0, _bufferHandler->GetBuffer(stagingBuffer), 0, bufferDesc.size);
 
             // Destroy and free our staging buffer
-            // todo lol
+            _bufferHandler->DestroyBuffer(stagingBuffer);
         }
 
         void ModelHandlerVK::UpdateIndices(Model& model, const std::vector<u32>& indices)
@@ -300,7 +300,7 @@ namespace Renderer
             _device->CopyBuffer(_bufferHandler->GetBuffer(model.indexBuffer), 0, _bufferHandler->GetBuffer(stagingBuffer), 0, bufferDesc.size);
 
             // Destroy and free our staging buffer
-            // todo
+            _bufferHandler->DestroyBuffer(stagingBuffer);
         }
     }
 }

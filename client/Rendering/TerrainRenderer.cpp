@@ -692,7 +692,6 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         chunkAlphaMapDesc.path = stringTable.GetString(alphaMapStringID);
 
         _renderer->LoadTextureIntoArray(chunkAlphaMapDesc, _terrainAlphaTextureArray, alphaID);
-        //assert(alphaID < 65536);// Because of the way we pack diffuseIDs[3] and alphaID, this should never be bigger than a u16, see the comment below
     }
     
     // Upload chunk data.
