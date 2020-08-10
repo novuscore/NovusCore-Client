@@ -1,37 +1,24 @@
 #pragma once
 #include <NovusTypes.h>
 #include "BackendDispatch.h"
-#include "Descriptors/CommandListDesc.h"
 #include <vector>
 #include <Memory/StackAllocator.h>
 #include <Containers/DynamicArray.h>
 
-// Commands
-#include "Commands/Clear.h"
-#include "Commands/Draw.h"
-#include "Commands/DrawBindless.h"
-#include "Commands/DrawIndexedBindless.h"
-#include "Commands/DrawIndexed.h"
-#include "Commands/DrawIndexedIndirect.h"
-#include "Commands/DrawIndexedIndirectCount.h"
-#include "Commands/PopMarker.h"
-#include "Commands/PushMarker.h"
-#include "Commands/SetPipeline.h"
-#include "Commands/SetScissorRect.h"
-#include "Commands/SetViewport.h"
-#include "Commands/SetVertexBuffer.h"
-#include "Commands/SetIndexBuffer.h"
-#include "Commands/SetBuffer.h"
-#include "Commands/BindDescriptorSet.h"
-#include "Commands/MarkFrameStart.h"
-#include "Commands/BeginTrace.h"
-#include "Commands/EndTrace.h"
-#include "Commands/AddSignalSemaphore.h"
-#include "Commands/AddWaitSemaphore.h"
-#include "Commands/CopyBuffer.h"
+#include <tracy/TracyVulkan.hpp>
+#include <Renderer/DescriptorSet.h>
+
+#include "Descriptors/BufferDesc.h"
+#include "Descriptors/ModelDesc.h"
+#include "Descriptors/CommandListDesc.h"
+#include "Descriptors/GraphicsPipelineDesc.h"
+#include "Descriptors/ComputePipelineDesc.h"
+#include "Descriptors/GPUSemaphoreDesc.h"
 
 namespace Renderer
 {
+    class DescriptorSet;
+
     class CommandList
     {
     public:
@@ -56,6 +43,8 @@ namespace Renderer
         void BeginPipeline(GraphicsPipelineID pipelineID);
         void EndPipeline(GraphicsPipelineID pipelineID);
 
+        void BindPipeline(ComputePipelineID pipelineID);
+
         void BindDescriptorSet(DescriptorSetSlot slot, DescriptorSet* descriptorSet, u32 frameIndex);
 
         void SetScissorRect(u32 left, u32 right, u32 top, u32 bottom);
@@ -75,10 +64,15 @@ namespace Renderer
         void DrawIndexedIndirect(BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount);
         void DrawIndexedIndirectCount(BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount);
 
+        void Dispatch(u32 numThreadGroupsX, u32 numThreadGroupsY, u32 numThreadGroupsZ);
+        void DispatchIndirect(BufferID argumentBuffer, u32 argumentBufferOffset);
+
         void AddSignalSemaphore(GPUSemaphoreID semaphoreID);
         void AddWaitSemaphore(GPUSemaphoreID semaphoreID);
 
         void CopyBuffer(BufferID dstBuffer, u64 dstBufferOffset, BufferID srcBuffer, u64 srcBufferOffset, u64 region);
+
+        void PipelineBarrier(PipelineBarrierType type, BufferID buffer);
 
     private:
         // Execute gets friend-called from RenderGraph

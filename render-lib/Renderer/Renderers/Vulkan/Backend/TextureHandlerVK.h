@@ -44,6 +44,8 @@ namespace Renderer
             {
                 u64 hash;
 
+                TextureType type;
+
                 i32 width;
                 i32 height;
                 i32 layers = 1;

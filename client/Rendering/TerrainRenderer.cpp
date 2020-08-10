@@ -10,13 +10,19 @@
 #include <tracy/TracyVulkan.hpp>
 #include <glm/gtx/euler_angles.hpp>
 
+#include <InputManager.h>
+#include <GLFW/glfw3.h>
+
 #include "Camera.h"
+
+#define USE_PACKED_HEIGHT_RANGE 0
 
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
 
 static bool s_cullingEnabled = true;
-static bool s_gpuCullingEnabled = false;
+static bool s_gpuCullingEnabled = true;
+static bool s_lockCullingFrustum = false;
 
 struct TerrainChunkData
 {
@@ -28,11 +34,39 @@ struct TerrainCellData
     u16 diffuseIDs[4] = { 0 };
 };
 
+struct TerrainCellHeightRange
+{
+#if USE_PACKED_HEIGHT_RANGE
+    u32 minmax;
+#else
+    float min;
+    float max;
+#endif
+};
+
 TerrainRenderer::TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer)
     : _renderer(renderer)
     , _debugRenderer(debugRenderer)
 {
     CreatePermanentResources();
+
+    ServiceLocator::GetInputManager()->RegisterKeybind("ToggleCulling", GLFW_KEY_F2, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
+    {
+        s_cullingEnabled = !s_cullingEnabled;
+        return true;
+    });
+
+    ServiceLocator::GetInputManager()->RegisterKeybind("ToggleGPUCulling", GLFW_KEY_F3, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
+    {
+        s_gpuCullingEnabled = !s_gpuCullingEnabled;
+        return true;
+    });
+
+    ServiceLocator::GetInputManager()->RegisterKeybind("ToggleLockCullingFrustum", GLFW_KEY_F4, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
+    {
+        s_lockCullingFrustum = !s_lockCullingFrustum;
+        return true;
+    });
 }
 
 void TerrainRenderer::Update(f32 deltaTime, const Camera& camera)
@@ -195,7 +229,7 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
     }
 }
 
-void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode)
+void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode, const Camera& camera)
 {
     // Terrain Pass
     {
@@ -229,11 +263,47 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
 
                 Renderer::BufferID instanceUploadBuffer = _renderer->CreateBuffer(uploadBufferDesc);
                 _renderer->QueueDestroyBuffer(instanceUploadBuffer);
-
+                
                 void* instanceBufferMemory = _renderer->MapBuffer(instanceUploadBuffer);
                 memcpy(instanceBufferMemory, _culledInstances.data(), uploadBufferDesc.size);
                 _renderer->UnmapBuffer(instanceUploadBuffer);
                 commandList.CopyBuffer(_culledInstanceBuffer, 0, instanceUploadBuffer, 0, uploadBufferDesc.size);
+
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _culledInstanceBuffer);
+            }
+
+            // Cull instances on GPU
+            if (s_cullingEnabled && s_gpuCullingEnabled)
+            {
+                Renderer::ComputePipelineDesc pipelineDesc;
+                resources.InitializePipelineDesc(pipelineDesc);
+
+                Renderer::ComputeShaderDesc shaderDesc;
+                shaderDesc.path = "Data/shaders/terrainCulling.cs.hlsl.spv";
+                pipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
+
+                Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(pipelineDesc);
+                commandList.BindPipeline(pipeline);
+
+                if (!s_lockCullingFrustum)
+                {
+                    memcpy(_cullingConstantBuffer->resource.frustumPlanes, camera.GetFrustumPlanes(), sizeof(vec4[6]));
+                    _cullingConstantBuffer->Apply(frameIndex);
+                }
+
+                _cullingPassDescriptorSet.Bind("_instances", _instanceBuffer);
+                _cullingPassDescriptorSet.Bind("_heightRanges", _cellHeightRangeBuffer);
+                _cullingPassDescriptorSet.Bind("_culledInstances", _culledInstanceBuffer);
+                _cullingPassDescriptorSet.Bind("_argumentBuffer", _argumentBuffer);
+                _cullingPassDescriptorSet.Bind("_constants", _cullingConstantBuffer->GetBuffer(frameIndex));
+
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingPassDescriptorSet, frameIndex);
+
+                const u32 cellCount = (u32)_loadedChunks.size() * Terrain::MAP_CELLS_PER_CHUNK;
+                commandList.Dispatch((cellCount + 31) / 32, 1, 1);
+
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _culledInstanceBuffer);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _argumentBuffer);
             }
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
@@ -325,13 +395,14 @@ void TerrainRenderer::CreatePermanentResources()
     _terrainColorTextureArray = _renderer->CreateTextureArray(textureColorArrayDesc);
 
     Renderer::TextureArrayDesc textureAlphaArrayDesc;
-    textureAlphaArrayDesc.size = 196; // Max 196 loaded chunks at a time (7 chunks draw radius, 14x14 chunks),
+    textureAlphaArrayDesc.size = Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE;
 
     _terrainAlphaTextureArray = _renderer->CreateTextureArray(textureAlphaArrayDesc);
 
     // Create and load a 1x1 pixel RGBA8 unorm texture with zero'ed data so we can use textureArray[0] as "invalid" textures, sampling it will return 0.0f on all channels
     Renderer::DataTextureDesc zeroAlphaTexture;
     zeroAlphaTexture.debugName = "TerrainZeroAlpha";
+    zeroAlphaTexture.layers = 1;
     zeroAlphaTexture.width = 1;
     zeroAlphaTexture.height = 1;
     zeroAlphaTexture.format = Renderer::IMAGE_FORMAT_R8G8B8A8_UNORM;
@@ -369,6 +440,9 @@ void TerrainRenderer::CreatePermanentResources()
     _passDescriptorSet.Bind("_terrainAlphaTextures"_h, _terrainAlphaTextureArray);
 
     _drawDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
+
+    // Culling constant buffer
+    _cullingConstantBuffer = new Renderer::Buffer<CullingConstants>(_renderer, "CullingConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
     {
         Renderer::BufferDesc desc;
@@ -424,6 +498,14 @@ void TerrainRenderer::CreatePermanentResources()
         desc.size = sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK * (Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
         desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
         _vertexBuffer = _renderer->CreateBuffer(desc);
+    }
+
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CellHeightRangeBuffer";
+        desc.size = sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK * (Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _cellHeightRangeBuffer = _renderer->CreateBuffer(desc);
     }
 
     // Upload cell index buffer
@@ -583,35 +665,45 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
     // This is gonna heavily decrease the amount of textures we need to use, and how big our texture arrays have to be
 
     // First we create our per-chunk alpha map descriptor
-    Renderer::DataTextureDesc chunkAlphaMapDesc;
-    chunkAlphaMapDesc.debugName = "ChunkAlphaMapArray";
-    chunkAlphaMapDesc.width = 64;
-    chunkAlphaMapDesc.height = 64;
-    chunkAlphaMapDesc.layers = 256;
-    chunkAlphaMapDesc.format = Renderer::ImageFormat::IMAGE_FORMAT_R8G8B8A8_UNORM;
+    //Renderer::DataTextureDesc chunkAlphaMapDesc;
+    //chunkAlphaMapDesc.debugName = "ChunkAlphaMapArray";
+    //chunkAlphaMapDesc.type = Renderer::TextureType::TEXTURE_TYPE_2D_ARRAY;
+    //chunkAlphaMapDesc.width = 64;
+    //chunkAlphaMapDesc.height = 64;
+    //chunkAlphaMapDesc.layers = 256;
+    //chunkAlphaMapDesc.format = Renderer::ImageFormat::IMAGE_FORMAT_R8G8B8A8_UNORM;
+    //
+    //constexpr u32 numChannels = 4;
+    //const u32 chunkAlphaMapSize = chunkAlphaMapDesc.width * chunkAlphaMapDesc.height * chunkAlphaMapDesc.layers * numChannels; // 4 channels per pixel, 1 byte per channel
+    //chunkAlphaMapDesc.data = new u8[chunkAlphaMapSize]{ 0 }; // Allocate the data needed for it // TODO: Delete this...
+    //
+    //const u32 cellAlphaMapSize = 64 * 64; // This is the size of the per-cell alphamap
+    //for (u32 i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i++)
+    //{
+    //    const std::vector<Terrain::AlphaMap>& alphaMaps = chunk.alphaMaps[i];
+    //    u32 numAlphaMaps = static_cast<u32>(alphaMaps.size());
+    //
+    //    if (numAlphaMaps > 0)
+    //    {
+    //        for (u32 pixel = 0; pixel < cellAlphaMapSize; pixel++)
+    //        {
+    //            for (u32 channel = 0; channel < numAlphaMaps; channel++)
+    //            {
+    //                u32 dst = (i * cellAlphaMapSize * numChannels) + (pixel * numChannels) + channel;
+    //                chunkAlphaMapDesc.data[dst] = alphaMaps[channel].alphaMap[pixel];
+    //            }
+    //        }
+    //    }
+    //}
 
-    constexpr u32 numChannels = 4;
-    const u32 chunkAlphaMapSize = chunkAlphaMapDesc.width * chunkAlphaMapDesc.height * chunkAlphaMapDesc.layers * numChannels; // 4 channels per pixel, 1 byte per channel
-    chunkAlphaMapDesc.data = new u8[chunkAlphaMapSize]{ 0 }; // Allocate the data needed for it // TODO: Delete this...
-
-    const u32 cellAlphaMapSize = 64 * 64; // This is the size of the per-cell alphamap
-    for (u32 i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i++)
-    {
-        const std::vector<Terrain::AlphaMap>& alphaMaps = chunk.alphaMaps[i];
-        u32 numAlphaMaps = static_cast<u32>(alphaMaps.size());
-
-        if (numAlphaMaps > 0)
-        {
-            for (u32 pixel = 0; pixel < cellAlphaMapSize; pixel++)
-            {
-                for (u32 channel = 0; channel < numAlphaMaps; channel++)
-                {
-                    u32 dst = (i * cellAlphaMapSize * numChannels) + (pixel * numChannels) + channel;
-                    chunkAlphaMapDesc.data[dst] = alphaMaps[channel].alphaMap[pixel];
-                }
-            }
-        }
-    }
+    Renderer::DataTextureDesc zeroAlphaTexture;
+    zeroAlphaTexture.debugName = "TerrainZeroAlpha";
+    zeroAlphaTexture.type = Renderer::TEXTURE_TYPE_2D_ARRAY;
+    zeroAlphaTexture.layers = 1;
+    zeroAlphaTexture.width = 1;
+    zeroAlphaTexture.height = 1;
+    zeroAlphaTexture.format = Renderer::IMAGE_FORMAT_R8G8B8A8_UNORM;
+    zeroAlphaTexture.data = new u8[4]{ 0, 0, 0, 0 };
 
     // We have 4 uints per chunk for our diffuseIDs, this gives us a size and alignment of 16 bytes which is exactly what GPUs want
     // However, we need a fifth uint for alphaID, so we decided to pack it into the LAST diffuseID, which gets split into two uint16s
@@ -621,7 +713,7 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
     // [3333] diffuseIDs[2]
     // [AA44] diffuseIDs[3] Alpha is read from the most significant bits, the fourth diffuseID read from the least 
     u32 alphaID = 0;
-    //_renderer->CreateDataTextureIntoArray(chunkAlphaMapDesc, _terrainAlphaTextureArray, alphaID);
+    _renderer->CreateDataTextureIntoArray(zeroAlphaTexture /*chunkAlphaMapDesc*/, _terrainAlphaTextureArray, alphaID);
     
     // Upload chunk data.
     {
@@ -664,12 +756,18 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         _renderer->UnmapBuffer(vertexUploadBuffer);
         const u64 chunkVertexBufferOffset = chunkId * sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK;
         _renderer->CopyBuffer(_vertexBuffer, chunkVertexBufferOffset, vertexUploadBuffer, 0, vertexUploadBufferDesc.size);
+    }
 
+    // Calculate bounding boxes and upload height ranges
+    {
         constexpr float halfWorldSize = 17066.66656f;
 
         vec2 chunkOrigin;
         chunkOrigin.x = -((chunkPosY)*Terrain::MAP_CHUNK_SIZE - halfWorldSize);
         chunkOrigin.y = -((Terrain::MAP_CHUNKS_PER_MAP_SIDE - chunkPosX) * Terrain::MAP_CHUNK_SIZE - halfWorldSize);
+
+        std::vector<TerrainCellHeightRange> heightRanges;
+        heightRanges.reserve(Terrain::MAP_CELLS_PER_CHUNK);
 
         for (u32 cellIndex = 0; cellIndex < Terrain::MAP_CELLS_PER_CHUNK; cellIndex++)
         {
@@ -690,10 +788,41 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
             boundingBox.min.z = chunkOrigin.y + ((cellX + 1) * Terrain::CELL_SIZE);
 
             _cellBoundingBoxes.push_back(boundingBox);
+
+            TerrainCellHeightRange heightRange;
+#if USE_PACKED_HEIGHT_RANGE
+            float packedHeightRange[4];
+            _mm_store_ps(packedHeightRange, _mm_cvtepi32_ps(_mm_cvtps_ph(_mm_setr_ps(*minmax.first, *minmax.second, 0.0f, 0.0f), 0)));
+            heightRanges.push_back(*(u32*)&packedHeightRange[0]);
+#else
+            heightRange.min = *minmax.first;
+            heightRange.max = *minmax.second;
+#endif
+            heightRanges.push_back(heightRange);
         }
 
-        _loadedChunks.push_back(chunkId);
+        // Upload height ranges
+        {
+            Renderer::BufferDesc heightRangeUploadBufferDesc;
+            heightRangeUploadBufferDesc.name = "HeightRangeUploadBuffer";
+            heightRangeUploadBufferDesc.size = sizeof(u32) * Terrain::MAP_CELLS_PER_CHUNK;
+            heightRangeUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+            heightRangeUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID heightRangeUploadBuffer = _renderer->CreateBuffer(heightRangeUploadBufferDesc);
+            _renderer->QueueDestroyBuffer(heightRangeUploadBuffer);
+
+            void* heightRangeBufferMemory = _renderer->MapBuffer(heightRangeUploadBuffer);
+            memcpy(heightRangeBufferMemory, heightRanges.data(), heightRangeUploadBufferDesc.size);
+            _renderer->UnmapBuffer(heightRangeUploadBuffer);
+
+            const u64 chunkInstanceIndex = _loadedChunks.size();
+            const u64 chunkVertexBufferOffset = chunkInstanceIndex * sizeof(u32) * Terrain::MAP_CELLS_PER_CHUNK;
+            _renderer->CopyBuffer(_cellHeightRangeBuffer, chunkVertexBufferOffset, heightRangeUploadBuffer, 0, heightRangeUploadBufferDesc.size);
+        }
     }
+
+    _loadedChunks.push_back(chunkId);
 }
 
 void TerrainRenderer::LoadChunksAround(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance)

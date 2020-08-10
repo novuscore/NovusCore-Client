@@ -108,10 +108,9 @@ namespace Renderer
         return _pipelineHandler->CreatePipeline(desc);
     }
 
-    ComputePipelineID RendererVK::CreatePipeline(ComputePipelineDesc& /*desc*/)
+    ComputePipelineID RendererVK::CreatePipeline(ComputePipelineDesc& desc)
     {
-        NC_LOG_FATAL("Compuer Shaders are not supported yet");
-        return ComputePipelineID::Invalid();
+        return _pipelineHandler->CreatePipeline(desc);
     }
 
     ModelID RendererVK::CreatePrimitiveModel(PrimitiveModelDesc& desc)
@@ -337,6 +336,22 @@ namespace Renderer
         vkCmdDrawIndexedIndirectCount(commandBuffer, vkArgumentBuffer, argumentBufferOffset, vkDrawCountBuffer, drawCountBufferOffset, maxDrawCount, sizeof(VkDrawIndexedIndirectCommand));
     }
 
+    void RendererVK::Dispatch(CommandListID commandListID, u32 threadGroupCountX, u32 threadGroupCountY, u32 threadGroupCountZ)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        vkCmdDispatch(commandBuffer, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+    }
+
+    void RendererVK::DispatchIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
+
+        vkCmdDispatchIndirect(commandBuffer, vkArgumentBuffer, argumentBufferOffset);
+    }
+
     void RendererVK::PopMarker(CommandListID commandListID)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
@@ -398,9 +413,15 @@ namespace Renderer
         vkCmdEndRenderPass(commandBuffer);
     }
 
-    void RendererVK::SetPipeline(CommandListID /*commandListID*/, ComputePipelineID /*pipelineID*/)
+    void RendererVK::SetPipeline(CommandListID commandListID, ComputePipelineID pipelineID)
     {
-        
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkPipeline pipeline = _pipelineHandler->GetPipeline(pipelineID);
+
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+
+        _commandListHandler->SetBoundComputePipeline(commandListID, pipelineID);
     }
 
     void RendererVK::SetScissorRect(CommandListID commandListID, ScissorRect scissorRect)
@@ -594,28 +615,53 @@ namespace Renderer
 
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
         GraphicsPipelineID graphicsPipelineID = _commandListHandler->GetBoundGraphicsPipeline(commandListID);
+        ComputePipelineID computePipelineID = _commandListHandler->GetBoundComputePipeline(commandListID);
 
-        using type = type_safe::underlying_type<GraphicsPipelineID>;
-        
-        std::vector<std::vector<VkDescriptorImageInfo>> imageInfosArrays; // These need to live until builder->BuildDescriptor()
-        imageInfosArrays.reserve(8);
-
-        Backend::DescriptorSetBuilderVK* builder = _pipelineHandler->GetDescriptorSetBuilder(graphicsPipelineID);
-        assert(slot != DescriptorSetSlot::GLOBAL); // TODO: this won't need or have a graphicspipelineID, not sure how to do that yet
-
-        for (u32 i = 0; i < numDescriptors; i++)
+        if (graphicsPipelineID != GraphicsPipelineID::Invalid())
         {
-            ZoneScopedNC("BindDescriptor", tracy::Color::Red3);
-            Descriptor& descriptor = descriptors[i];
-            BindDescriptor(builder, &imageInfosArrays, descriptor, frameIndex);
+            std::vector<std::vector<VkDescriptorImageInfo>> imageInfosArrays; // These need to live until builder->BuildDescriptor()
+            imageInfosArrays.reserve(8);
+
+            Backend::DescriptorSetBuilderVK* builder = _pipelineHandler->GetDescriptorSetBuilder(graphicsPipelineID);
+            assert(slot != DescriptorSetSlot::GLOBAL); // TODO: this won't need or have a graphicspipelineID, not sure how to do that yet
+
+            for (u32 i = 0; i < numDescriptors; i++)
+            {
+                ZoneScopedNC("BindDescriptor", tracy::Color::Red3);
+                Descriptor& descriptor = descriptors[i];
+                BindDescriptor(builder, &imageInfosArrays, descriptor, frameIndex);
+            }
+
+            VkDescriptorSet descriptorSet = builder->BuildDescriptor(static_cast<i32>(slot), Backend::DescriptorLifetime::PerFrame);
+
+            VkPipelineLayout pipelineLayout = _pipelineHandler->GetPipelineLayout(graphicsPipelineID);
+
+            // Bind descriptor set
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, slot, 1, &descriptorSet, 0, nullptr);
         }
 
-        VkDescriptorSet descriptorSet = builder->BuildDescriptor(static_cast<i32>(slot), Backend::DescriptorLifetime::PerFrame);
-                
-        VkPipelineLayout pipelineLayout = _pipelineHandler->GetPipelineLayout(graphicsPipelineID);
+        if (computePipelineID != ComputePipelineID::Invalid())
+        {
+            std::vector<std::vector<VkDescriptorImageInfo>> imageInfosArrays; // These need to live until builder->BuildDescriptor()
+            imageInfosArrays.reserve(8);
 
-        // Bind descriptor set
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, slot, 1, &descriptorSet, 0, nullptr);
+            Backend::DescriptorSetBuilderVK* builder = _pipelineHandler->GetDescriptorSetBuilder(computePipelineID);
+            assert(slot != DescriptorSetSlot::GLOBAL); // TODO: this won't need or have a graphicspipelineID, not sure how to do that yet
+
+            for (u32 i = 0; i < numDescriptors; i++)
+            {
+                ZoneScopedNC("BindDescriptor", tracy::Color::Red3);
+                Descriptor& descriptor = descriptors[i];
+                BindDescriptor(builder, &imageInfosArrays, descriptor, frameIndex);
+            }
+
+            VkDescriptorSet descriptorSet = builder->BuildDescriptor(static_cast<i32>(slot), Backend::DescriptorLifetime::PerFrame);
+
+            VkPipelineLayout pipelineLayout = _pipelineHandler->GetPipelineLayout(computePipelineID);
+
+            // Bind descriptor set
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, slot, 1, &descriptorSet, 0, nullptr);
+        }
     }
 
     void RendererVK::MarkFrameStart(CommandListID commandListID, u32 frameIndex)
@@ -686,6 +732,65 @@ namespace Renderer
         copyRegion.dstOffset = dstOffset;
         copyRegion.size = range;
         vkCmdCopyBuffer(commandBuffer, vkSrcBuffer, vkDstBuffer, 1, &copyRegion);
+    }
+
+    void RendererVK::PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkPipelineStageFlags srcStageMask;
+        VkPipelineStageFlags dstStageMask;
+
+        VkBufferMemoryBarrier bufferBarrier = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+        bufferBarrier.buffer = _bufferHandler->GetBuffer(buffer);
+        bufferBarrier.size = VK_WHOLE_SIZE;
+
+        switch (type)
+        {
+        case PipelineBarrierType::TransferDestToIndirectArguments:
+            srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+            break;
+
+        case PipelineBarrierType::ComputeWriteToVertexShaderRead:
+            srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            break;
+
+        case PipelineBarrierType::ComputeWriteToPixelShaderRead:
+            srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            break;
+
+        case PipelineBarrierType::ComputeWriteToComputeShaderRead:
+            srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            break;
+
+        case PipelineBarrierType::ComputeWriteToIndirectArguments:
+            srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+            break;
+
+        case PipelineBarrierType::ComputeWriteToVertexBuffer:
+            srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+            break;
+        }
+
+        vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &bufferBarrier, 0, nullptr);
     }
 
     void RendererVK::Present(Window* window, ImageID imageID, GPUSemaphoreID semaphoreID)

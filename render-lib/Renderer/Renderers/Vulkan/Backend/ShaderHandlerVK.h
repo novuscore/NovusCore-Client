@@ -66,6 +66,10 @@ namespace Renderer
             { 
                 return _pixelShaders[static_cast<psIDType>(id)].bindReflection;
             }
+            const BindReflection& GetBindReflection(const ComputeShaderID id)
+            {
+                return _computeShaders[static_cast<psIDType>(id)].bindReflection;
+            }
 
         private:
             struct Shader

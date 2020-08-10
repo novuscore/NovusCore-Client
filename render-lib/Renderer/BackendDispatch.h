@@ -20,6 +20,9 @@ namespace Renderer
         static void DrawIndexedIndirect(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawIndexedIndirectCount(Renderer* renderer, CommandListID commandList, const void* data);
 
+        static void Dispatch(Renderer* renderer, CommandListID commandList, const void* data);
+        static void DispatchIndirect(Renderer* renderer, CommandListID commandList, const void* data);
+
         static void MarkFrameStart(Renderer* renderer, CommandListID commandList, const void* data);
         static void BeginTrace(Renderer* renderer, CommandListID commandList, const void* data);
         static void EndTrace(Renderer* renderer, CommandListID commandList, const void* data);
@@ -44,5 +47,7 @@ namespace Renderer
         static void AddWaitSemaphore(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void CopyBuffer(Renderer* renderer, CommandListID commandList, const void* data);
+
+        static void PipelineBarrier(Renderer* renderer, CommandListID commandList, const void* data);
     };
 }

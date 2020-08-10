@@ -3,6 +3,33 @@
 #include "Renderer.h"
 #include <tracy/Tracy.hpp>
 
+// Commands
+#include "Commands/Clear.h"
+#include "Commands/Draw.h"
+#include "Commands/DrawBindless.h"
+#include "Commands/DrawIndexedBindless.h"
+#include "Commands/DrawIndexed.h"
+#include "Commands/DrawIndexedIndirect.h"
+#include "Commands/DrawIndexedIndirectCount.h"
+#include "Commands/Dispatch.h"
+#include "Commands/DispatchIndirect.h"
+#include "Commands/PopMarker.h"
+#include "Commands/PushMarker.h"
+#include "Commands/SetPipeline.h"
+#include "Commands/SetScissorRect.h"
+#include "Commands/SetViewport.h"
+#include "Commands/SetVertexBuffer.h"
+#include "Commands/SetIndexBuffer.h"
+#include "Commands/SetBuffer.h"
+#include "Commands/BindDescriptorSet.h"
+#include "Commands/MarkFrameStart.h"
+#include "Commands/BeginTrace.h"
+#include "Commands/EndTrace.h"
+#include "Commands/AddSignalSemaphore.h"
+#include "Commands/AddWaitSemaphore.h"
+#include "Commands/CopyBuffer.h"
+#include "Commands/PipelineBarrier.h"
+
 namespace Renderer
 {
     void CommandList::Execute()
@@ -67,6 +94,12 @@ namespace Renderer
     void CommandList::EndPipeline(GraphicsPipelineID pipelineID)
     {
         Commands::EndGraphicsPipeline* command = AddCommand<Commands::EndGraphicsPipeline>();
+        command->pipeline = pipelineID;
+    }
+
+    void CommandList::BindPipeline(ComputePipelineID pipelineID)
+    {
+        Commands::SetComputePipeline* command = AddCommand<Commands::SetComputePipeline>();
         command->pipeline = pipelineID;
     }
 
@@ -203,6 +236,25 @@ namespace Renderer
         command->maxDrawCount = maxDrawCount;
     }
 
+    void CommandList::Dispatch(u32 numThreadGroupsX, u32 numThreadGroupsY, u32 numThreadGroupsZ)
+    {
+        assert(numThreadGroupsX > 0);
+        assert(numThreadGroupsY > 0);
+        assert(numThreadGroupsZ > 0);
+        Commands::Dispatch* command = AddCommand<Commands::Dispatch>();
+        command->threadGroupCountX = numThreadGroupsX;
+        command->threadGroupCountY = numThreadGroupsY;
+        command->threadGroupCountZ = numThreadGroupsZ;
+    }
+
+    void CommandList::DispatchIndirect(BufferID argumentBuffer, u32 argumentBufferOffset)
+    {
+        assert(argumentBuffer != BufferID::Invalid());
+        Commands::DispatchIndirect* command = AddCommand<Commands::DispatchIndirect>();
+        command->argumentBuffer = argumentBuffer;
+        command->argumentBufferOffset = argumentBufferOffset;
+    }
+
     void CommandList::AddSignalSemaphore(GPUSemaphoreID semaphoreID)
     {
         Commands::AddSignalSemaphore* command = AddCommand<Commands::AddSignalSemaphore>();
@@ -217,11 +269,22 @@ namespace Renderer
 
     void CommandList::CopyBuffer(BufferID dstBuffer, u64 dstBufferOffset, BufferID srcBuffer, u64 srcBufferOffset, u64 region)
     {
+        assert(dstBuffer != BufferID::Invalid());
+        assert(srcBuffer != BufferID::Invalid());
         Commands::CopyBuffer* command = AddCommand<Commands::CopyBuffer>();
         command->dstBuffer = dstBuffer;
         command->dstBufferOffset = dstBufferOffset;
         command->srcBuffer = srcBuffer;
         command->srcBufferOffset = srcBufferOffset;
         command->region = region;
+    }
+
+    void CommandList::PipelineBarrier(PipelineBarrierType type, BufferID buffer)
+    {
+        assert(buffer != BufferID::Invalid());
+        Commands::PipelineBarrier* command = AddCommand<Commands::PipelineBarrier>();
+        command->barrierType = type;
+        command->buffer = buffer;
+
     }
 }

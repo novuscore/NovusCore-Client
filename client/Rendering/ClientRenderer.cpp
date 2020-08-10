@@ -332,7 +332,7 @@ void ClientRenderer::Render()
         });
     }
 
-    _terrainRenderer->AddTerrainPass(&renderGraph, _viewConstantBuffer, _mainColor, _mainDepth, _frameIndex, _debugDrawingMode);
+    _terrainRenderer->AddTerrainPass(&renderGraph, _viewConstantBuffer, _mainColor, _mainDepth, _frameIndex, _debugDrawingMode, *_camera);
     
     _debugRenderer->Add3DPass(&renderGraph, _viewConstantBuffer->GetBuffer(_frameIndex), _mainColor, _mainDepth, _frameIndex);
 

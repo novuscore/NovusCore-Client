@@ -89,6 +89,8 @@ namespace Renderer
         virtual void DrawIndexed(CommandListID commandListID, u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset) = 0;
         virtual void DrawIndexedIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount) = 0;
         virtual void DrawIndexedIndirectCount(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount) = 0;
+        virtual void Dispatch(CommandListID commandListID, u32 threadGroupCountX, u32 threadGroupCountY, u32 threadGroupCountZ) = 0;
+        virtual void DispatchIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset) = 0;
         virtual void PopMarker(CommandListID commandListID) = 0;
         virtual void PushMarker(CommandListID commandListID, Color color, std::string name) = 0;
         virtual void BeginPipeline(CommandListID commandListID, GraphicsPipelineID pipeline) = 0;
@@ -106,6 +108,7 @@ namespace Renderer
         virtual void AddSignalSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) = 0;
         virtual void AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) = 0;
         virtual void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
+        virtual void PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer) = 0;
 
         // Present functions
         virtual void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) = 0;

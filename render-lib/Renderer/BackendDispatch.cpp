@@ -6,7 +6,11 @@
 #include "Commands/Draw.h"
 #include "Commands/DrawBindless.h"
 #include "Commands/DrawIndexedBindless.h"
+#include "Commands/DrawIndexed.h"
+#include "Commands/DrawIndexedIndirect.h"
 #include "Commands/DrawIndexedIndirectCount.h"
+#include "Commands/Dispatch.h"
+#include "Commands/DispatchIndirect.h"
 #include "Commands/PopMarker.h"
 #include "Commands/PushMarker.h"
 #include "Commands/SetPipeline.h"
@@ -21,6 +25,8 @@
 #include "Commands/EndTrace.h"
 #include "Commands/AddSignalSemaphore.h"
 #include "Commands/AddWaitSemaphore.h"
+#include "Commands/CopyBuffer.h"
+#include "Commands/PipelineBarrier.h"
 
 namespace Renderer
 {
@@ -77,6 +83,20 @@ namespace Renderer
         ZoneScopedC(tracy::Color::Red3);
         const Commands::DrawIndexedIndirectCount* actualData = static_cast<const Commands::DrawIndexedIndirectCount*>(data);
         renderer->DrawIndexedIndirectCount(commandList, actualData->argumentBuffer, actualData->argumentBufferOffset, actualData->drawCountBuffer, actualData->drawCountBufferOffset, actualData->maxDrawCount);
+    }
+
+    void BackendDispatch::Dispatch(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::Dispatch* actualData = static_cast<const Commands::Dispatch*>(data);
+        renderer->Dispatch(commandList, actualData->threadGroupCountX, actualData->threadGroupCountY, actualData->threadGroupCountZ);
+    }
+
+    void BackendDispatch::DispatchIndirect(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::DispatchIndirect* actualData = static_cast<const Commands::DispatchIndirect*>(data);
+        renderer->DispatchIndirect(commandList, actualData->argumentBuffer, actualData->argumentBufferOffset);
     }
 
     void BackendDispatch::MarkFrameStart(Renderer* renderer, CommandListID commandList, const void* data)
@@ -194,5 +214,12 @@ namespace Renderer
         ZoneScopedC(tracy::Color::Red3);
         const Commands::CopyBuffer* actualData = static_cast<const Commands::CopyBuffer*>(data);
         renderer->CopyBuffer(commandList, actualData->dstBuffer, actualData->dstBufferOffset, actualData->srcBuffer, actualData->srcBufferOffset, actualData->region);
+    }
+
+    void BackendDispatch::PipelineBarrier(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::PipelineBarrier* actualData = static_cast<const Commands::PipelineBarrier*>(data);
+        renderer->PipelineBarrier(commandList, actualData->barrierType, actualData->buffer);
     }
 }

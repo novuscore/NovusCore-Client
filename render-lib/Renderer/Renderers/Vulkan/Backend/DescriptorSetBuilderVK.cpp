@@ -10,24 +10,46 @@ namespace Renderer
     {
         DescriptorSetBuilderVK::DescriptorSetBuilderVK(GraphicsPipelineID pipelineID, PipelineHandlerVK* pipelineHandler, ShaderHandlerVK* shaderHandler, DescriptorMegaPoolVK* parentPool)
         {
+            _pipelineType = PipelineType::Graphics;
             _pipelineHandler = pipelineHandler;
             _shaderHandler = shaderHandler;
             _parentPool = parentPool;
-            _pipelineID = pipelineID;
+            _graphicsPipelineID = pipelineID;
+        }
+
+        DescriptorSetBuilderVK::DescriptorSetBuilderVK(ComputePipelineID pipelineID, PipelineHandlerVK* pipelineHandler, ShaderHandlerVK* shaderHandler, DescriptorMegaPoolVK* parentPool)
+        {
+            _pipelineType = PipelineType::Compute;
+            _pipelineHandler = pipelineHandler;
+            _shaderHandler = shaderHandler;
+            _parentPool = parentPool;
+            _computePipelineID = pipelineID;
         }
 
         void DescriptorSetBuilderVK::InitReflectData()
         {
-            GraphicsPipelineDesc desc = _pipelineHandler->GetDescriptor(_pipelineID);
+            if (_pipelineType == PipelineType::Graphics)
+            {
+                // Graphics pipeline
+                GraphicsPipelineDesc desc = _pipelineHandler->GetDescriptor(_graphicsPipelineID);
 
-            if (desc.states.vertexShader != VertexShaderID::Invalid())
-            {
-                const Backend::BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.states.vertexShader);
-                _bindInfos.insert(_bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
+                if (desc.states.vertexShader != VertexShaderID::Invalid())
+                {
+                    const Backend::BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.states.vertexShader);
+                    _bindInfos.insert(_bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
+                }
+                if (desc.states.pixelShader != PixelShaderID::Invalid())
+                {
+                    const Backend::BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.states.pixelShader);
+                    _bindInfos.insert(_bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
+                }
             }
-            if (desc.states.pixelShader != PixelShaderID::Invalid())
+            else
             {
-                const Backend::BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.states.pixelShader);
+                // Compute pipeline
+                ComputePipelineDesc desc = _pipelineHandler->GetDescriptor(_computePipelineID);
+
+                const Backend::BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.computeShader);
                 _bindInfos.insert(_bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
             }
         }
@@ -258,7 +280,15 @@ namespace Renderer
 
         VkDescriptorSet DescriptorSetBuilderVK::BuildDescriptor(i32 set, DescriptorLifetime lifetime)
         {
-            VkDescriptorSetLayout& layout = _pipelineHandler->GetDescriptorSetLayout(_pipelineID, set);
+            VkDescriptorSetLayout* layout; 
+            if (_pipelineType == PipelineType::Graphics)
+            {
+                layout = &_pipelineHandler->GetDescriptorSetLayout(_graphicsPipelineID, set);
+            }
+            else
+            {
+                layout = &_pipelineHandler->GetDescriptorSetLayout(_computePipelineID, set);
+            }
 
             void* next = nullptr;
             u32 counts[1];
@@ -279,7 +309,7 @@ namespace Renderer
                 }
             }
 
-            VkDescriptorSet newSet = _parentPool->AllocateDescriptor(layout, lifetime, next);
+            VkDescriptorSet newSet = _parentPool->AllocateDescriptor(*layout, lifetime, next);
             UpdateDescriptor(set, newSet, *_parentPool->_device);
             return newSet;
         }

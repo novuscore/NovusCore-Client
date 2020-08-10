@@ -1,5 +1,6 @@
 #pragma once
 #include "../../../Descriptors/GraphicsPipelineDesc.h"
+#include "../../../Descriptors/ComputePipelineDesc.h"
 #include <vector>
 #include <vulkan/vulkan.h>
 #include "DescriptorAllocatorVK.h"
@@ -25,6 +26,7 @@ namespace Renderer
         {
         public:
             DescriptorSetBuilderVK(GraphicsPipelineID pipelineID, PipelineHandlerVK* pipelineHandler, ShaderHandlerVK* shaderHandler, DescriptorMegaPoolVK* parentPool);
+            DescriptorSetBuilderVK(ComputePipelineID pipelineID, PipelineHandlerVK* pipelineHandler, ShaderHandlerVK* shaderHandler, DescriptorMegaPoolVK* parentPool);
 
             void InitReflectData();
 
@@ -47,6 +49,12 @@ namespace Renderer
             VkDescriptorSet BuildDescriptor(i32 set, DescriptorLifetime lifetime);
 
         private:
+            enum class PipelineType
+            {
+                Graphics,
+                Compute,
+            };
+
             struct ImageWriteDescriptor
             {
                 int dstSet;
@@ -71,7 +79,11 @@ namespace Renderer
             ShaderHandlerVK* _shaderHandler;
             DescriptorMegaPoolVK* _parentPool;
 
-            GraphicsPipelineID _pipelineID;
+            PipelineType _pipelineType;
+
+            GraphicsPipelineID _graphicsPipelineID;
+            ComputePipelineID _computePipelineID;
+
             std::vector<Backend::BindInfo> _bindInfos;
 
             std::vector<ImageWriteDescriptor> _imageWrites;

@@ -2,12 +2,19 @@
 #define NUM_CELLS_PER_CHUNK_SIDE (16)
 #define NUM_CELLS_PER_CHUNK (NUM_CELLS_PER_CHUNK_SIDE * NUM_CELLS_PER_CHUNK_SIDE)
 
+#define NUM_INDICES_PER_CELL (768)
 #define NUM_VERTICES_PER_CELL (145)
 
 #define CHUNK_SIDE_SIZE (533.3333f)
 #define CELL_SIDE_SIZE (33.3333f)
 
 #define HALF_WORLD_SIZE (17066.66656f)
+
+struct AABB
+{
+    float3 min;
+    float3 max;
+};
 
 uint GetGlobalCellID(uint chunkID, uint cellID)
 {
@@ -27,6 +34,28 @@ float2 GetCellPosition(uint chunkID, uint cellID)
     const float2 cellPos = float2(cellX, cellY) * CELL_SIDE_SIZE;
 
     return -(chunkPos + cellPos);
+}
+
+AABB GetCellAABB(uint chunkID, uint cellID, float2 heightRange)
+{
+    const float2 cellPos = GetCellPosition(chunkID, cellID);
+
+    const float3x3 rotationMatrix = float3x3(
+        0, 0, 1,
+        0, 1, 0,
+        -1, 0, 0
+    );
+
+    const float3 rotatedCellPos = mul(rotationMatrix, float3(cellPos.x, 0.0f, cellPos.y));
+
+    AABB aabb;
+    aabb.min = float3(rotatedCellPos.x, -heightRange.y, rotatedCellPos.z) + float3(0.0f, 0.0f, 0.0f);
+    aabb.max = float3(rotatedCellPos.x, -heightRange.x, rotatedCellPos.z) + float3(CELL_SIDE_SIZE, 0.0f, -CELL_SIDE_SIZE);
+
+    aabb.min.y = +100000.0f;
+    aabb.max.y = -100000.0f;
+
+    return aabb;
 }
 
 float2 GetCellSpaceVertexPosition(uint vertexID)

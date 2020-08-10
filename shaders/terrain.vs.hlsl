@@ -43,10 +43,6 @@ Vertex LoadVertex(uint chunkID, uint cellID, uint vertexID)
     vertex.position.z = (-vertexPos.y) * CELL_PRECISION + cellPos.y;
     vertex.uv = vertexPos;
 
-    //  0 0 1
-    //  0 1 0
-    // -1 0 0
-
     vertex.position = mul(float3x3(
          0, 0, 1,
          0, 1, 0,

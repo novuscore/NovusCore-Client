@@ -17,7 +17,7 @@ struct ChunkData
 [[vk::binding(5, PER_PASS)]] SamplerState _colorSampler;
 
 [[vk::binding(6, PER_PASS)]] Texture2D<float4> _terrainColorTextures[4096];
-[[vk::binding(7, PER_PASS)]] Texture2DArray<float4> _terrainAlphaTextures[196];
+[[vk::binding(7, PER_PASS)]] Texture2DArray<float4> _terrainAlphaTextures[NUM_CHUNKS_PER_MAP_SIDE * NUM_CHUNKS_PER_MAP_SIDE];
 
 struct PSInput
 {
@@ -35,10 +35,10 @@ uint4 LoadCellTextureIDs(uint globalCellID)
     const CellData cellData = _cellData.Load<CellData>(globalCellID * 8); // sizeof(CellData) = 8
 
     uint4 ids;
-    ids.y = cellData.diffuseIDs.x >> 16;
     ids.x = cellData.diffuseIDs.x & 0xffff;
-    ids.w = cellData.diffuseIDs.y >> 16;
+    ids.y = cellData.diffuseIDs.x >> 16;
     ids.z = cellData.diffuseIDs.y & 0xffff;
+    ids.w = cellData.diffuseIDs.y >> 16;
     return ids;
 }
 

@@ -443,7 +443,85 @@ namespace Renderer
 
         ComputePipelineID PipelineHandlerVK::CreatePipeline(const ComputePipelineDesc& desc)
         {
-            return ComputePipelineID();
+            // Check the cache
+            size_t nextID;
+            u64 cacheDescHash = CalculateCacheDescHash(desc);
+            if (TryFindExistingCPipeline(cacheDescHash, nextID))
+            {
+                return ComputePipelineID(static_cast<ComputePipelineID::type>(nextID));
+            }
+            nextID = _computePipelines.size();
+
+            ComputePipeline pipeline;
+            pipeline.desc = desc;
+            pipeline.cacheDescHash = cacheDescHash;
+
+            std::vector<BindInfo> bindInfos;
+
+            const BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.computeShader);
+            bindInfos.insert(bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
+
+            for (BindInfo& bindInfo : bindInfos)
+            {
+                DescriptorSetLayoutData& layout = GetDescriptorSet(bindInfo.set, pipeline.descriptorSetLayoutDatas);
+                VkDescriptorSetLayoutBinding layoutBinding = {};
+
+                layoutBinding.binding = bindInfo.binding;
+                layoutBinding.descriptorType = bindInfo.descriptorType;
+                layoutBinding.descriptorCount = bindInfo.count;
+                layoutBinding.stageFlags = bindInfo.stageFlags;
+
+                layout.bindings.push_back(layoutBinding);
+            }
+
+            size_t numDescriptorSets = pipeline.descriptorSetLayoutDatas.size();
+            pipeline.descriptorSetLayouts.resize(numDescriptorSets);
+
+            for (size_t i = 0; i < numDescriptorSets; i++)
+            {
+                pipeline.descriptorSetLayoutDatas[i].createInfo.bindingCount = static_cast<u32>(pipeline.descriptorSetLayoutDatas[i].bindings.size());
+                pipeline.descriptorSetLayoutDatas[i].createInfo.pBindings = pipeline.descriptorSetLayoutDatas[i].bindings.data();
+
+                if (vkCreateDescriptorSetLayout(_device->_device, &pipeline.descriptorSetLayoutDatas[i].createInfo, nullptr, &pipeline.descriptorSetLayouts[i]) != VK_SUCCESS)
+                {
+                    NC_LOG_FATAL("Failed to create descriptor set layout!");
+                }
+            }
+
+            VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+            pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+            pipelineLayoutInfo.setLayoutCount = static_cast<u32>(pipeline.descriptorSetLayouts.size());
+            pipelineLayoutInfo.pSetLayouts = pipeline.descriptorSetLayouts.data();
+            pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
+            pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+
+            if (vkCreatePipelineLayout(_device->_device, &pipelineLayoutInfo, nullptr, &pipeline.pipelineLayout) != VK_SUCCESS)
+            {
+                NC_LOG_FATAL("Failed to create pipeline layout!");
+            }
+
+            VkPipelineShaderStageCreateInfo shaderStage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+            shaderStage.module = _shaderHandler->GetShaderModule(desc.computeShader);
+            shaderStage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+            shaderStage.pName = "main";
+
+            VkComputePipelineCreateInfo pipelineInfo = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+            pipelineInfo.stage = shaderStage;
+            pipelineInfo.layout = pipeline.pipelineLayout;
+
+            if (vkCreateComputePipelines(_device->_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline.pipeline) != VK_SUCCESS)
+            {
+                NC_LOG_FATAL("Failed to create compute pipeline!");
+            }
+
+            ComputePipelineID pipelineID = ComputePipelineID(static_cast<cIDType>(nextID));
+            pipeline.descriptorSetBuilder = new DescriptorSetBuilderVK(pipelineID, this, _shaderHandler, _device->_descriptorMegaPool);
+
+            _computePipelines.push_back(pipeline);
+
+            pipeline.descriptorSetBuilder->InitReflectData(); // Needs to happen after push_back
+
+            return pipelineID;
         }
 
         u64 PipelineHandlerVK::CalculateCacheDescHash(const GraphicsPipelineDesc& desc)
@@ -463,6 +541,16 @@ namespace Renderer
             {
                 cacheDesc.depthStencil = desc.MutableResourceToDepthImageID(desc.depthStencil);
             }
+
+            u64 hash = XXHash64::hash(&cacheDesc, sizeof(cacheDesc), 0);
+
+            return hash;
+        }
+
+        u64 PipelineHandlerVK::CalculateCacheDescHash(const ComputePipelineDesc& desc)
+        {
+            ComputePipelineCacheDesc cacheDesc;
+            cacheDesc.shader = desc.computeShader;
 
             u64 hash = XXHash64::hash(&cacheDesc, sizeof(cacheDesc), 0);
 

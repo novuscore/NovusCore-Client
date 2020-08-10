@@ -7,6 +7,7 @@
 
 #include "../../../Descriptors/CommandListDesc.h"
 #include "../../../Descriptors/GraphicsPipelineDesc.h"
+#include "../../../Descriptors/ComputePipelineDesc.h"
 
 
 namespace tracy
@@ -37,7 +38,10 @@ namespace Renderer
             void AddSignalSemaphore(CommandListID id, VkSemaphore semaphore);
 
             void SetBoundGraphicsPipeline(CommandListID id, GraphicsPipelineID pipelineID);
+            void SetBoundComputePipeline(CommandListID id, ComputePipelineID pipelineID);
+
             GraphicsPipelineID GetBoundGraphicsPipeline(CommandListID id);
+            ComputePipelineID GetBoundComputePipeline(CommandListID id);
 
             tracy::VkCtxManualScope*& GetTracyScope(CommandListID id);
 
@@ -55,6 +59,7 @@ namespace Renderer
                 tracy::VkCtxManualScope* tracyScope = nullptr;
 
                 GraphicsPipelineID boundGraphicsPipeline = GraphicsPipelineID::Invalid();
+                ComputePipelineID boundComputePipeline = ComputePipelineID::Invalid();
             };
 
             CommandListID CreateCommandList();

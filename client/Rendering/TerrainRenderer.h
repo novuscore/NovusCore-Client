@@ -49,7 +49,7 @@ public:
     void Update(f32 deltaTime, const Camera& camera);
 
     void AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex);
-    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode);
+    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode, const Camera& camera);
 
 private:
     void CreatePermanentResources();
@@ -60,9 +60,17 @@ private:
 private:
     Renderer::Renderer* _renderer;
 
+    struct CullingConstants
+    {
+        vec4 frustumPlanes[6];
+    };
+
+    Renderer::Buffer<CullingConstants>* _cullingConstantBuffer;
+
     Renderer::BufferID _argumentBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _instanceBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _culledInstanceBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _cellHeightRangeBuffer = Renderer::BufferID::Invalid();
 
     Renderer::BufferID _chunkBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _cellBuffer = Renderer::BufferID::Invalid();
@@ -78,6 +86,8 @@ private:
 
     Renderer::DescriptorSet _passDescriptorSet;
     Renderer::DescriptorSet _drawDescriptorSet;
+
+    Renderer::DescriptorSet _cullingPassDescriptorSet;
 
     std::vector<u16> _loadedChunks;
     std::vector<BoundingBox> _cellBoundingBoxes;

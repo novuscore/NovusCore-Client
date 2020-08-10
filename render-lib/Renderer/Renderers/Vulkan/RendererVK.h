@@ -78,6 +78,8 @@ namespace Renderer
         void DrawIndexed(CommandListID commandListID, u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset) override;
         void DrawIndexedIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount) override;
         void DrawIndexedIndirectCount(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount) override;
+        void Dispatch(CommandListID commandListID, u32 threadGroupCountX, u32 threadGroupCountY, u32 threadGroupCountZ) override;
+        void DispatchIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset) override;
         void PopMarker(CommandListID commandListID) override;
         void PushMarker(CommandListID commandListID, Color color, std::string name) override;
         void BeginPipeline(CommandListID commandListID, GraphicsPipelineID pipeline) override;
@@ -95,6 +97,7 @@ namespace Renderer
         void AddSignalSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) override;
         void AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) override;
         void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
+        void PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer) override;
 
         // Non-commandlist based present functions
         void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;

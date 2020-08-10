@@ -178,6 +178,16 @@ namespace Renderer
             commandList.boundGraphicsPipeline = pipelineID;
         }
 
+        void CommandListHandlerVK::SetBoundComputePipeline(CommandListID id, ComputePipelineID pipelineID)
+        {
+            // Lets make sure this id exists
+            assert(_commandLists.size() > static_cast<CommandListID::type>(id));
+
+            CommandList& commandList = _commandLists[static_cast<CommandListID::type>(id)];
+
+            commandList.boundComputePipeline = pipelineID;
+        }
+
         GraphicsPipelineID CommandListHandlerVK::GetBoundGraphicsPipeline(CommandListID id)
         {
             using type = type_safe::underlying_type<CommandListID>;
@@ -186,6 +196,14 @@ namespace Renderer
             assert(_commandLists.size() > static_cast<type>(id));
 
             return _commandLists[static_cast<type>(id)].boundGraphicsPipeline;
+        }
+
+        ComputePipelineID CommandListHandlerVK::GetBoundComputePipeline(CommandListID id)
+        {
+            // Lets make sure this id exists
+            assert(_commandLists.size() > static_cast<CommandListID::type>(id));
+
+            return _commandLists[static_cast<CommandListID::type>(id)].boundComputePipeline;
         }
 
         tracy::VkCtxManualScope*& CommandListHandlerVK::GetTracyScope(CommandListID id)
