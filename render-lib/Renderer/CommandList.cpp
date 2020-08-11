@@ -32,6 +32,17 @@
 
 namespace Renderer
 {
+    ScopedGPUProfilerZone::ScopedGPUProfilerZone(CommandList& commandList, const tracy::SourceLocationData* sourceLocation)
+        : _commandList(commandList)
+    {
+        _commandList.BeginTrace(sourceLocation);
+    }
+
+    ScopedGPUProfilerZone::~ScopedGPUProfilerZone()
+    {
+        _commandList.EndTrace();
+    }
+
     void CommandList::Execute()
     {
         assert(_markerScope == 0); // We need to pop all markers that we push

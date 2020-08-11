@@ -13,6 +13,7 @@
 
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
+#include <tracy/Tracy.hpp>
 
 #include "Camera.h"
 
@@ -192,8 +193,7 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
         },
             [=](TerrainDepthPrepassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
         {
-            TracySourceLocation(terrainDepth, "TerrainDepth", tracy::Color::Yellow2);
-            commandList.BeginTrace(&terrainDepth);
+            GPU_SCOPED_PROFILER_ZONE(commandList, TerrainDepth);
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
             resources.InitializePipelineDesc(pipelineDesc);
@@ -243,7 +243,6 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
             //commandList.DrawIndexedIndirect(_argumentBuffer, 0, 1 );
 
             commandList.EndPipeline(pipeline);
-            commandList.EndTrace();
         });
     }
 
@@ -271,8 +270,61 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
         },
             [=](TerrainPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
         {
-            TracySourceLocation(terrainPass, "TerrainPass", tracy::Color::Yellow2);
-            commandList.BeginTrace(&terrainPass);
+            GPU_SCOPED_PROFILER_ZONE(commandList, TerrainPass);
+
+            // Upload culled instances
+            if (s_cullingEnabled && !s_gpuCullingEnabled && !_culledInstances.empty())
+            {
+                Renderer::BufferDesc uploadBufferDesc;
+                uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
+                uploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+                uploadBufferDesc.size = sizeof(u32) * _culledInstances.size();
+                uploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+
+                Renderer::BufferID instanceUploadBuffer = _renderer->CreateBuffer(uploadBufferDesc);
+                _renderer->QueueDestroyBuffer(instanceUploadBuffer);
+                
+                void* instanceBufferMemory = _renderer->MapBuffer(instanceUploadBuffer);
+                memcpy(instanceBufferMemory, _culledInstances.data(), uploadBufferDesc.size);
+                _renderer->UnmapBuffer(instanceUploadBuffer);
+                commandList.CopyBuffer(_culledInstanceBuffer, 0, instanceUploadBuffer, 0, uploadBufferDesc.size);
+
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _culledInstanceBuffer);
+            }
+
+            // Cull instances on GPU
+            if (s_cullingEnabled && s_gpuCullingEnabled)
+            {
+                Renderer::ComputePipelineDesc pipelineDesc;
+                resources.InitializePipelineDesc(pipelineDesc);
+
+                Renderer::ComputeShaderDesc shaderDesc;
+                shaderDesc.path = "Data/shaders/terrainCulling.cs.hlsl.spv";
+                pipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
+
+                Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(pipelineDesc);
+                commandList.BindPipeline(pipeline);
+
+                if (!s_lockCullingFrustum)
+                {
+                    memcpy(_cullingConstantBuffer->resource.frustumPlanes, camera.GetFrustumPlanes(), sizeof(vec4[6]));
+                    _cullingConstantBuffer->Apply(frameIndex);
+                }
+
+                _cullingPassDescriptorSet.Bind("_instances", _instanceBuffer);
+                _cullingPassDescriptorSet.Bind("_heightRanges", _cellHeightRangeBuffer);
+                _cullingPassDescriptorSet.Bind("_culledInstances", _culledInstanceBuffer);
+                _cullingPassDescriptorSet.Bind("_argumentBuffer", _argumentBuffer);
+                _cullingPassDescriptorSet.Bind("_constants", _cullingConstantBuffer->GetBuffer(frameIndex));
+
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingPassDescriptorSet, frameIndex);
+
+                const u32 cellCount = (u32)_loadedChunks.size() * Terrain::MAP_CELLS_PER_CHUNK;
+                commandList.Dispatch((cellCount + 31) / 32, 1, 1);
+
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _culledInstanceBuffer);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _argumentBuffer);
+            }
 
             // Upload culled instances
             if (s_cullingEnabled && !s_gpuCullingEnabled && !_culledInstances.empty())
@@ -401,7 +453,6 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             }
 
             commandList.EndPipeline(pipeline);
-            commandList.EndTrace();
         });
     }
 
@@ -664,8 +715,6 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
             TerrainCellData& cellData = cellDatas[i];
             cellData.hole = cell.hole;
             cellData._padding = 1337;
-
-            //assert(cellData.hole == 0);
 
             u8 layerCount = 0;
             for (auto layer : cell.layers)

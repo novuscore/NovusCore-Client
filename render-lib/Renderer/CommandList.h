@@ -5,6 +5,7 @@
 #include <Memory/StackAllocator.h>
 #include <Containers/DynamicArray.h>
 
+#include <tracy/Tracy.hpp>
 #include <tracy/TracyVulkan.hpp>
 #include <Renderer/DescriptorSet.h>
 
@@ -15,9 +16,31 @@
 #include "Descriptors/ComputePipelineDesc.h"
 #include "Descriptors/GPUSemaphoreDesc.h"
 
+#if TRACY_ENABLE
+#define GPU_SCOPED_PROFILER_ZONE(commandList, name) \
+    TracySourceLocation(name, #name, tracy::Color::Yellow2); \
+    Renderer::ScopedGPUProfilerZone nameZone(commandList, &name);
+#else
+namespace tracy
+{
+    struct SourceLocationData;
+}
+#define GPU_SCOPED_PROFILER_ZONE(commandList, name) ((void)0)
+#endif
+
 namespace Renderer
 {
     class DescriptorSet;
+    class CommandList;
+
+    struct ScopedGPUProfilerZone
+    {
+        ScopedGPUProfilerZone(CommandList& commandList, const tracy::SourceLocationData* sourceLocation);
+        ~ScopedGPUProfilerZone();
+
+    private:
+        CommandList& _commandList;
+    };
 
     class CommandList
     {

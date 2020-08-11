@@ -75,8 +75,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
         },
         [=](UIPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
         {
-            TracySourceLocation(uiPass, "UIPass", tracy::Color::Yellow2);
-            commandList.BeginTrace(&uiPass);
+            GPU_SCOPED_PROFILER_ZONE(commandList, UIPass);
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
             resources.InitializePipelineDesc(pipelineDesc);
@@ -206,7 +205,6 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                 });
 
             commandList.EndPipeline(activePipeline);
-            commandList.EndTrace();
         });
 }
 

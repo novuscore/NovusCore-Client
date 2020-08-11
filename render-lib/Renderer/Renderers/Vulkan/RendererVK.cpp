@@ -679,8 +679,13 @@ namespace Renderer
         _device->_descriptorMegaPool->SetFrame(frameIndex);
     }
 
+#if !TRACY_ENABLE
+    void RendererVK::BeginTrace(CommandListID /*commandListID*/, const tracy::SourceLocationData* /*sourceLocation*/)
+    {
+#else
     void RendererVK::BeginTrace(CommandListID commandListID, const tracy::SourceLocationData* sourceLocation)
     {
+
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
         tracy::VkCtxManualScope*& tracyScope = _commandListHandler->GetTracyScope(commandListID);
 
@@ -691,8 +696,13 @@ namespace Renderer
 
         tracyScope = new tracy::VkCtxManualScope(_device->_tracyContext, sourceLocation, true);
         tracyScope->Start(commandBuffer);
+#endif
     }
 
+#if !TRACY_ENABLE
+    void RendererVK::EndTrace(CommandListID /*commandListID*/)
+    {
+#else
     void RendererVK::EndTrace(CommandListID commandListID)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
@@ -706,6 +716,7 @@ namespace Renderer
         tracyScope->End();
         delete tracyScope;
         tracyScope = nullptr;
+#endif
     }
 
     void RendererVK::AddSignalSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID)
@@ -807,9 +818,11 @@ namespace Renderer
             NC_LOG_FATAL("Tried to begin GPU trace on a commandlist that already had a begun GPU trace");
         }
 
+#if TRACY_ENABLE
         TracySourceLocation(presentBlitting, "PresentBlitting", tracy::Color::Yellow2);
         tracyScope = new tracy::VkCtxManualScope(_device->_tracyContext, &presentBlitting, true);
         tracyScope->Start(commandBuffer);
+#endif
 
         Backend::SwapChainVK* swapChain = static_cast<Backend::SwapChainVK*>(window->GetSwapChain());
         u32 semaphoreIndex = swapChain->frameIndex;
@@ -905,8 +918,11 @@ namespace Renderer
         _device->TransitionImageLayout(commandBuffer, image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, imageDesc.depth, 1);
         PopMarker(commandListID);
 
+#if TRACY_ENABLE
         tracyScope->End();
         tracyScope = nullptr;
+#endif
+
         _commandListHandler->EndCommandList(commandListID, frameFence);
 
         // Present

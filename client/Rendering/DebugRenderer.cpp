@@ -90,8 +90,7 @@ void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::Buff
 		},
 		[=](TerrainDepthPrepassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
 		{
-			TracySourceLocation(debugRender3D, "DebugRender3D", tracy::Color::Yellow2);
-			commandList.BeginTrace(&debugRender3D);
+			GPU_SCOPED_PROFILER_ZONE(commandList, DebugRender3D);
 
 			Renderer::GraphicsPipelineDesc pipelineDesc;
 			resources.InitializePipelineDesc(pipelineDesc);
@@ -152,7 +151,6 @@ void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::Buff
 			commandList.Draw(_debugVertexCount[DBG_VERTEX_BUFFER_LINES_3D], 1, _debugVertexOffset[DBG_VERTEX_BUFFER_LINES_3D], 0);
 
 			commandList.EndPipeline(pipeline);
-			commandList.EndTrace();
 		});
 }
 

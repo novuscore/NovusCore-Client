@@ -156,10 +156,9 @@ void ClientRenderer::Render()
         },
             [&](DepthPrepassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
         {
-            TracySourceLocation(depthPrepass, "DepthPrepass", tracy::Color::Yellow2);
-            commandList.BeginTrace(&depthPrepass);
-
             commandList.MarkFrameStart(_frameIndex);
+
+            GPU_SCOPED_PROFILER_ZONE(commandList, DepthPrepass);
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
             resources.InitializePipelineDesc(pipelineDesc);
@@ -228,7 +227,6 @@ void ClientRenderer::Render()
             //    }
             //}
             commandList.EndPipeline(pipeline);
-            commandList.EndTrace();
         });
     }
 
@@ -255,8 +253,7 @@ void ClientRenderer::Render()
         },
             [&](MainPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
         {
-            TracySourceLocation(mainPass, "MainPass", tracy::Color::Yellow2);
-            commandList.BeginTrace(&mainPass);
+            GPU_SCOPED_PROFILER_ZONE(commandList, MainPass);
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
             resources.InitializePipelineDesc(pipelineDesc);
@@ -326,7 +323,6 @@ void ClientRenderer::Render()
             //    }
             //}
             commandList.EndPipeline(pipeline);
-            commandList.EndTrace();
         });
     }
 
