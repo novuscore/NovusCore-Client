@@ -88,9 +88,12 @@ namespace UIScripting
             break;
         case GLFW_KEY_ENTER:
         {
+            std::shared_mutex& rl = GetRegistryMutex();
+            rl.lock_shared();
             entt::registry* registry = ServiceLocator::GetUIRegistry();
-            UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-            if (text->isMultiline)
+            bool multiLine = &registry->get<UIComponent::Text>(_entityId).isMultiline;
+            rl.unlock_shared();
+            if (multiLine)
             {
                 HandleCharInput('\n');
                 break;
@@ -123,73 +126,40 @@ namespace UIScripting
 
     void InputField::RemovePreviousCharacter()
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        UIComponent::InputField* inputField = &registry->get<UIComponent::InputField>(_entityId);
 
-        if (text->text.empty() || inputField->writeHeadIndex <= 0)
-            return;
-
-        text->text.erase(inputField->writeHeadIndex - 1, 1);
-
-        MovePointerLeft();
-        MarkDirty(registry);
     }
     void InputField::RemoveNextCharacter()
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        UIComponent::InputField* inputField = &registry->get<UIComponent::InputField>(_entityId);
 
-        if (text->text.length() <= inputField->writeHeadIndex)
-            return;
-
-        text->text.erase(inputField->writeHeadIndex, 1);
-
-        MarkDirty(registry);
     }
 
     void InputField::MovePointerLeft()
     {
-        UIComponent::InputField* inputField = &ServiceLocator::GetUIRegistry()->get<UIComponent::InputField>(_entityId);
-        if (inputField->writeHeadIndex > 0)
-            SetWriteHeadPosition(inputField->writeHeadIndex - 1);
     }
     void InputField::MovePointerRight()
     {
-        UIComponent::InputField* inputField = &ServiceLocator::GetUIRegistry()->get<UIComponent::InputField>(_entityId);
-        SetWriteHeadPosition(inputField->writeHeadIndex + 1);
     }
     void InputField::SetWriteHeadPosition(size_t position)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        UIComponent::InputField* inputField = &registry->get<UIComponent::InputField>(_entityId);
-        const UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
 
-        size_t clampedPosition = position <= text->text.length() ? position : text->text.length();
-        if (clampedPosition == inputField->writeHeadIndex)
-            return;
-
-        inputField->writeHeadIndex = clampedPosition;
-
-        text->pushback = UIUtils::Text::CalculatePushback(text, inputField->writeHeadIndex, 0.2f, transform->size.x, transform->size.y);
-        MarkDirty(registry);
     }
 
     void InputField::SetOnSubmitCallback(asIScriptFunction* callback)
     {
+        std::shared_lock rl(GetRegistryMutex());
         UIComponent::InputField* inputField = &ServiceLocator::GetUIRegistry()->get<UIComponent::InputField>(_entityId);
         inputField->onSubmitCallback = callback;
     }
 
     const bool InputField::IsFocusable() const
     {
+        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         return events->IsFocusable();
     }
     void InputField::SetFocusable(bool focusable)
     {
+        std::shared_lock rl(GetRegistryMutex());
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
 
         if (focusable)
@@ -200,12 +170,14 @@ namespace UIScripting
 
     void InputField::SetOnFocusCallback(asIScriptFunction* callback)
     {
+        std::shared_lock rl(GetRegistryMutex());
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onFocusedCallback = callback;
         events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
     }
     void InputField::SetOnUnFocusCallback(asIScriptFunction* callback)
     {
+        std::shared_lock rl(GetRegistryMutex());
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onUnfocusedCallback = callback;
         events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
@@ -213,14 +185,15 @@ namespace UIScripting
 
     const std::string InputField::GetText() const
     {
+        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         return text->text;
     }
     void InputField::SetText(const std::string& newText, bool updateWriteHead)
     {
+        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-
         text->text = newText;
 
         if (updateWriteHead)
@@ -234,6 +207,7 @@ namespace UIScripting
 
     const Color& InputField::GetTextColor() const
     {
+        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         return text->color;
     }
@@ -249,6 +223,7 @@ namespace UIScripting
 
     const Color& InputField::GetTextOutlineColor() const
     {
+        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         return text->outlineColor;
     }
@@ -256,7 +231,6 @@ namespace UIScripting
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-
         text->outlineColor = outlineColor;
 
         MarkDirty(registry);
@@ -264,6 +238,7 @@ namespace UIScripting
 
     const f32 InputField::GetTextOutlineWidth() const
     {
+        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         return text->outlineWidth;
     }
@@ -271,7 +246,6 @@ namespace UIScripting
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-
         text->outlineWidth = outlineWidth;
 
         MarkDirty(registry);
@@ -281,7 +255,6 @@ namespace UIScripting
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-
         text->fontPath = fontPath;
         text->fontSize = fontSize;
 

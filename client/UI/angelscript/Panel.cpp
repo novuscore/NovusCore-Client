@@ -59,45 +59,53 @@ namespace UIScripting
 
     const bool Panel::IsClickable() const
     {
+        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         return events->IsClickable();
     }
     const bool Panel::IsDraggable() const
     {
+        std::shared_lock rl(GetRegistryMutex());s
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         return events->IsDraggable();
     }
     const bool Panel::IsFocusable() const
     {
+        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         return events->IsFocusable();
     }
 
     void Panel::SetEventFlag(const UI::UITransformEventsFlags flags)
     {
+        std::shared_lock rl(GetRegistryMutex());
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->SetFlag(flags);
     }
     void Panel::UnsetEventFlag(const UI::UITransformEventsFlags flags)
     {
+        std::shared_lock rl(GetRegistryMutex());
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->UnsetFlag(flags);
     }
 
     void Panel::SetOnClickCallback(asIScriptFunction* callback)
     {
+        std::shared_lock rl(GetRegistryMutex());
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onClickCallback = callback;
         events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }
     void Panel::SetOnDragCallback(asIScriptFunction* callback)
     {
+        std::shared_lock rl(GetRegistryMutex());
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onDraggedCallback = callback;
         events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
     }
     void Panel::SetOnFocusCallback(asIScriptFunction* callback)
     {
+        std::shared_lock rl(GetRegistryMutex());
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onFocusedCallback = callback;
         events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
@@ -105,11 +113,13 @@ namespace UIScripting
 
     const std::string& Panel::GetTexture() const
     {
+        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         return image->texture;
     }
     void Panel::SetTexture(const std::string& texture)
     {
+        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
         image->texture = texture;
@@ -119,12 +129,14 @@ namespace UIScripting
 
     const Color Panel::GetColor() const
     {
+        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         return image->color;
 
     }
     void Panel::SetColor(const Color& color)
     {
+        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
         image->color = color;
