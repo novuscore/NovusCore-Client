@@ -5,6 +5,7 @@
     float4x4 viewProjectionMatrix : packoffset(c0);
 };
 [[vk::binding(1, PER_PASS)]] ByteAddressBuffer _vertexHeights;
+[[vk::binding(2, PER_PASS)]] ByteAddressBuffer _cellDataVS;
 
 struct VSInput
 {
@@ -52,6 +53,24 @@ Vertex LoadVertex(uint chunkID, uint cellID, uint vertexID)
     return vertex;
 }
 
+CellData LoadCellData(uint globalCellID)
+{
+    const PackedCellData rawCellData = _cellDataVS.Load<PackedCellData>(globalCellID * 8); // sizeof(PackedCellData) = 8
+
+    CellData cellData;
+
+    // Unpack diffuse IDs
+    cellData.diffuseIDs.x = (rawCellData.packedDiffuseIDs >> 0) & 0xff;
+    cellData.diffuseIDs.y = (rawCellData.packedDiffuseIDs >> 8) & 0xff;
+    cellData.diffuseIDs.z = (rawCellData.packedDiffuseIDs >> 16) & 0xff;
+    cellData.diffuseIDs.w = (rawCellData.packedDiffuseIDs >> 24) & 0xff;
+
+    // Unpack holes
+    cellData.holes = rawCellData.packedHoles & 0xffff;
+
+    return cellData;
+}
+
 VSOutput main(VSInput input)
 {
     VSOutput output;
@@ -59,11 +78,20 @@ VSOutput main(VSInput input)
     const uint cellID = input.packedChunkCellID & 0xffff;
     const uint chunkID = input.packedChunkCellID >> 16;
 
+    const uint globalCellID = GetGlobalCellID(chunkID, cellID);
+
     Vertex vertex = LoadVertex(chunkID, cellID, input.vertexID);
 
     output.position = mul(float4(vertex.position, 1.0f), viewProjectionMatrix);
     output.uv = vertex.uv;
     output.packedChunkCellID = input.packedChunkCellID;
+
+    CellData cellData = LoadCellData(globalCellID);
+    if (IsHoleVertex(globalCellID, cellData.holes))
+    {
+        const float NaN = asfloat(0b01111111100000000000000000000000);
+        output.position = float4(NaN, NaN, NaN, NaN);
+    }
 
     return output;
 }

@@ -10,6 +10,23 @@
 
 #define HALF_WORLD_SIZE (17066.66656f)
 
+struct PackedCellData
+{
+    uint packedDiffuseIDs;
+    uint packedHoles;
+};
+
+struct CellData
+{
+    uint4 diffuseIDs;
+    uint holes;
+};
+
+struct ChunkData
+{
+    uint alphaID;
+};
+
 struct AABB
 {
     float3 min;
@@ -76,4 +93,51 @@ float2 GetCellSpaceVertexPosition(uint vertexID)
     vertexY = vertexY + (0.5f * isOddRow);
 
     return float2(vertexX, vertexY);
+}
+
+bool IsHoleVertex(uint vertexId, uint hole)
+{
+    if (hole == 0)
+    {
+        return false;
+    }
+
+    const uint blockRow = vertexId / 34;
+    const uint blockVertexId = vertexId % 34;
+
+    const uint shiftedHole = hole >> (blockRow * 4);
+
+    if (shiftedHole & 0b0001)
+    {
+        if (blockVertexId == 9 || blockVertexId == 10 || blockVertexId == 26 || blockVertexId == 27)
+        {
+            return true;
+        }
+    }
+
+    if (shiftedHole & 0b0010)
+    {
+        if (blockVertexId == 11 || blockVertexId == 12 || blockVertexId == 28 || blockVertexId == 29)
+        {
+            return true;
+        }
+    }
+
+    if (shiftedHole & 0b0100)
+    {
+        if (blockVertexId == 13 || blockVertexId == 14 || blockVertexId == 30 || blockVertexId == 31)
+        {
+            return true;
+        }
+    }
+
+    if (shiftedHole & 0b1000)
+    {
+        if (blockVertexId == 15 || blockVertexId == 16 || blockVertexId == 32 || blockVertexId == 33)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }

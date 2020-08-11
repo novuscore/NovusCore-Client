@@ -18,9 +18,6 @@
 
 #define USE_PACKED_HEIGHT_RANGE 1
 
-const int WIDTH = 1920;
-const int HEIGHT = 1080;
-
 static bool s_cullingEnabled = true;
 static bool s_gpuCullingEnabled = true;
 static bool s_lockCullingFrustum = false;
@@ -32,7 +29,9 @@ struct TerrainChunkData
 
 struct TerrainCellData
 {
-    u16 diffuseIDs[4] = { 0 };
+    u8 diffuseIDs[4];
+    u16 hole;
+    u16 _padding;
 };
 
 struct TerrainCellHeightRange
@@ -235,6 +234,7 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
             _passDescriptorSet.Bind("ViewData"_h, viewConstantBuffer->GetBuffer(frameIndex));
             _passDescriptorSet.Bind("_vertexHeights"_h, _vertexBuffer);
             _passDescriptorSet.Bind("_cellData"_h, _cellBuffer);
+            _passDescriptorSet.Bind("_cellDataVS"_h, _cellBuffer);
             _passDescriptorSet.Bind("_chunkData"_h, _chunkBuffer);
 
             // Bind descriptorset
@@ -375,6 +375,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             _passDescriptorSet.Bind("ViewData"_h, viewConstantBuffer->GetBuffer(frameIndex));
             _passDescriptorSet.Bind("_vertexHeights"_h, _vertexBuffer);
             _passDescriptorSet.Bind("_cellData"_h, _cellBuffer);
+            _passDescriptorSet.Bind("_cellDataVS"_h, _cellBuffer);
             _passDescriptorSet.Bind("_chunkData"_h, _chunkBuffer);
 
             // Bind descriptorset
@@ -653,12 +654,18 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         Renderer::BufferID cellUploadBuffer = _renderer->CreateBuffer(cellDataUploadBufferDesc);
         _renderer->QueueDestroyBuffer(cellUploadBuffer);
 
-        TerrainCellData* cellData = static_cast<TerrainCellData*>(_renderer->MapBuffer(cellUploadBuffer));
+        TerrainCellData* cellDatas = static_cast<TerrainCellData*>(_renderer->MapBuffer(cellUploadBuffer));
 
         // Loop over all the cells in the chunk
         for (u32 i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i++)
         {
             const Terrain::Cell& cell = chunk.cells[i];
+
+            TerrainCellData& cellData = cellDatas[i];
+            cellData.hole = cell.hole;
+            cellData._padding = 1337;
+
+            //assert(cellData.hole == 0);
 
             u8 layerCount = 0;
             for (auto layer : cell.layers)
@@ -666,15 +673,16 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
                 if (layer.textureId == Terrain::LayerData::TextureIdInvalid)
                     break;
 
-                const std::string& texturePath = stringTable.GetString(layer.textureId);
+                //const std::string& texturePath = stringTable.GetString(layer.textureId);
+                //
+                //Renderer::TextureDesc textureDesc;
+                //textureDesc.path = texturePath;
 
-                Renderer::TextureDesc textureDesc;
-                textureDesc.path = "Data/extracted/Textures/" + texturePath;
+                u32 diffuseID = 0;
+                //_renderer->LoadTextureIntoArray(textureDesc, _terrainColorTextureArray, diffuseID);
+                assert(diffuseID < 256);
 
-                u32 diffuseID;
-                _renderer->LoadTextureIntoArray(textureDesc, _terrainColorTextureArray, diffuseID);
-
-                cellData[i].diffuseIDs[layerCount++] = diffuseID;
+                cellData.diffuseIDs[layerCount++] = diffuseID;
             }
         }
 

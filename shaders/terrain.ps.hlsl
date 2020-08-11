@@ -1,23 +1,13 @@
 #include "terrain.inc.hlsl"
 
-struct CellData
-{
-    uint2 diffuseIDs;
-};
+[[vk::binding(3, PER_PASS)]] ByteAddressBuffer _cellData;
+[[vk::binding(4, PER_PASS)]] ByteAddressBuffer _chunkData;
 
-struct ChunkData
-{
-    uint alphaID;
-};
+[[vk::binding(5, PER_PASS)]] SamplerState _alphaSampler;
+[[vk::binding(6, PER_PASS)]] SamplerState _colorSampler;
 
-[[vk::binding(2, PER_PASS)]] ByteAddressBuffer _cellData;
-[[vk::binding(3, PER_PASS)]] ByteAddressBuffer _chunkData;
-
-[[vk::binding(4, PER_PASS)]] SamplerState _alphaSampler;
-[[vk::binding(5, PER_PASS)]] SamplerState _colorSampler;
-
-[[vk::binding(6, PER_PASS)]] Texture2D<float4> _terrainColorTextures[4096];
-[[vk::binding(7, PER_PASS)]] Texture2DArray<float4> _terrainAlphaTextures[NUM_CHUNKS_PER_MAP_SIDE * NUM_CHUNKS_PER_MAP_SIDE];
+[[vk::binding(7, PER_PASS)]] Texture2D<float4> _terrainColorTextures[4096];
+[[vk::binding(8, PER_PASS)]] Texture2DArray<float4> _terrainAlphaTextures[NUM_CHUNKS_PER_MAP_SIDE * NUM_CHUNKS_PER_MAP_SIDE];
 
 struct PSInput
 {
@@ -30,16 +20,22 @@ struct PSOutput
     float4 color : SV_Target0;
 };
 
-uint4 LoadCellTextureIDs(uint globalCellID)
+CellData LoadCellData(uint globalCellID)
 {
-    const CellData cellData = _cellData.Load<CellData>(globalCellID * 8); // sizeof(CellData) = 8
+    const PackedCellData rawCellData = _cellData.Load<PackedCellData>(globalCellID * 8); // sizeof(PackedCellData) = 8
 
-    uint4 ids;
-    ids.x = cellData.diffuseIDs.x & 0xffff;
-    ids.y = cellData.diffuseIDs.x >> 16;
-    ids.z = cellData.diffuseIDs.y & 0xffff;
-    ids.w = cellData.diffuseIDs.y >> 16;
-    return ids;
+    CellData cellData;
+
+    // Unpack diffuse IDs
+    cellData.diffuseIDs.x = (rawCellData.packedDiffuseIDs >> 0)  & 0xff;
+    cellData.diffuseIDs.y = (rawCellData.packedDiffuseIDs >> 8)  & 0xff;
+    cellData.diffuseIDs.z = (rawCellData.packedDiffuseIDs >> 16) & 0xff;
+    cellData.diffuseIDs.w = (rawCellData.packedDiffuseIDs >> 24) & 0xff;
+
+    // Unpack holes
+    cellData.holes = rawCellData.packedHoles >> 16;
+
+    return cellData;
 }
 
 PSOutput main(PSInput input)
@@ -56,7 +52,7 @@ PSOutput main(PSInput input)
     float3 alphaUV = float3(uv / 8.0f, float(cellID));
 
     const uint globalCellID = (chunkID * NUM_CELLS_PER_CHUNK) + cellID;
-    const uint4 diffuseIDs = LoadCellTextureIDs(globalCellID);
+    const CellData cellData = LoadCellData(globalCellID);
 
     const ChunkData chunkData = _chunkData.Load<ChunkData>(chunkID * 4); // sizeof(ChunkData) = 4
 
@@ -67,10 +63,10 @@ PSOutput main(PSInput input)
     // [2222] diffuseIDs.y
     // [3333] diffuseIDs.z
     // [AA44] diffuseIDs.w Alpha is read from the most significant bits, the fourth diffuseID read from the least 
-    uint diffuse0ID = diffuseIDs.x;
-    uint diffuse1ID = diffuseIDs.y;
-    uint diffuse2ID = diffuseIDs.z;
-    uint diffuse3ID = diffuseIDs.w;
+    uint diffuse0ID = cellData.diffuseIDs.x;
+    uint diffuse1ID = cellData.diffuseIDs.y;
+    uint diffuse2ID = cellData.diffuseIDs.z;
+    uint diffuse3ID = cellData.diffuseIDs.w;
     uint alphaID = chunkData.alphaID;
 
     float3 alpha = _terrainAlphaTextures[alphaID].Sample(_alphaSampler, alphaUV).rgb;

@@ -15,8 +15,8 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-const int WIDTH = 1920;
-const int HEIGHT = 1080;
+const int WIDTH = 1280;
+const int HEIGHT = 720;
 const size_t FRAME_ALLOCATOR_SIZE = 8 * 1024 * 1024; // 8 MB
 u32 MAIN_RENDER_LAYER = "MainLayer"_h; // _h will compiletime hash the string into a u32
 u32 DEPTH_PREPASS_RENDER_LAYER = "DepthPrepass"_h; // _h will compiletime hash the string into a u32
