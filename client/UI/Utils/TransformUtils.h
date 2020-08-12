@@ -50,7 +50,7 @@ namespace UIUtils::Transform
     *   modifer: amount to modify depth by.
     */
     void UpdateChildDepths(entt::registry* registry, UIComponent::Transform* parent, u32 modifier);
-
+    
     void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent);
 
     /*
@@ -66,5 +66,7 @@ namespace UIUtils::Transform
     *   transform: Transform to update bounds of.
     */
     void ShallowUpdateBounds(entt::registry* registry, UIComponent::Transform* transform);
+
+    void MarkChildrenDirty(entt::registry* registry, const UIComponent::Transform* transform);
 
 };

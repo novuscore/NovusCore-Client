@@ -1,5 +1,6 @@
 #include "TransformUtils.h"
 #include <tracy/Tracy.hpp>
+#include <shared_mutex>
 #include "entity/registry.hpp"
 #include "../ECS/Components/Dirty.h"
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
@@ -33,9 +34,6 @@ namespace UIUtils::Transform
             childTransform->position = UIUtils::Transform::GetAnchorPosition(parent, childTransform->anchor);
             if (childTransform->fillParentSize)
                 childTransform->size = parent->size;
-
-            if (!registry->has<UIComponent::Dirty>(child.entId))
-                registry->emplace<UIComponent::Dirty>(child.entId);
 
             UpdateChildTransforms(registry, childTransform);
         }
@@ -102,5 +100,17 @@ namespace UIUtils::Transform
         UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(transform->parent);
         if (parentTransform->includeChildBounds)
             ShallowUpdateBounds(registry, parentTransform);
+    }
+
+    void MarkChildrenDirty(entt::registry* registry, const UIComponent::Transform* transform)
+    {
+        for (const UI::UIChild& child : transform->children)
+        {
+            const auto childTransform = &registry->get<UIComponent::Transform>(child.entId);
+            MarkChildrenDirty(registry, childTransform);
+
+            if (!registry->has<UIComponent::Dirty>(child.entId))
+                registry->emplace<UIComponent::Dirty>(child.entId);
+        }
     }
 }

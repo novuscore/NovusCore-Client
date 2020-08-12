@@ -51,96 +51,71 @@ namespace UIScripting
 
     const std::string Label::GetText() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         return text->text;
     }
     void Label::SetText(const std::string& newText)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->text = newText;
-
-        MarkDirty(registry);
     }
 
     void Label::SetFont(const std::string& fontPath, f32 fontSize)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->fontPath = fontPath;
         text->fontSize = fontSize;
-
-        MarkDirty(registry);
     }
 
     const Color& Label::GetColor() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         return text->outlineColor;
     }
     void Label::SetColor(const Color& color)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->color = color;
-
-        MarkDirty(registry);
     }
 
     const Color& Label::GetOutlineColor() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         return text->outlineColor;
     }
     void Label::SetOutlineColor(const Color& outlineColor)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->outlineColor = outlineColor;
-
-        MarkDirty(registry);
     }
 
     const f32 Label::GetOutlineWidth() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         return text->outlineWidth;
     }
     void Label::SetOutlineWidth(f32 outlineWidth)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->outlineWidth = outlineWidth;
-
-        MarkDirty(registry);
     }
 
     void Label::SetHorizontalAlignment(UI::TextHorizontalAlignment alignment)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->horizontalAlignment = alignment;
-
-        MarkDirty(registry);
     }
     void Label::SetVerticalAlignment(UI::TextVerticalAlignment alignment)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->verticalAlignment = alignment;
-
-        MarkDirty(registry);
     }
 
     Label* Label::CreateLabel()

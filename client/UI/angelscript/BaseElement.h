@@ -109,16 +109,14 @@ namespace UIScripting
 
         void Destroy();
 
-    protected:
-        void MarkDirty(entt::registry* registry);
-        void MarkBoundsDirty(entt::registry* registry);
+        void MarkDirty();
+        void MarkSelfDirty();
+        void MarkBoundsDirty();
 
         inline LockToken* GetLock(LockState state)
         {
             return new LockToken(_mutex, state);
         }
-
-        static std::shared_mutex& GetRegistryMutex();
     protected:
         entt::entity _entityId;
         UI::UIElementType _elementType;

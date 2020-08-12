@@ -24,25 +24,21 @@ namespace UIScripting
 
     vec2 BaseElement::GetScreenPosition() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
         return UIUtils::Transform::GetScreenPosition(transform);
     }
     vec2 BaseElement::GetLocalPosition() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
         return transform->parent == entt::null ? vec2(0, 0) : transform->localPosition;
     }
     vec2 BaseElement::GetParentPosition() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
         return transform->parent == entt::null ? vec2(0, 0) : transform->position;
     }
     void BaseElement::SetPosition(const vec2& position)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto transform = &registry->get<UIComponent::Transform>(_entityId);
 
@@ -52,19 +48,15 @@ namespace UIScripting
             transform->localPosition = position;
 
         UIUtils::Transform::UpdateChildTransforms(registry, transform);
-        MarkBoundsDirty(registry);
-        MarkDirty(registry);
     }
 
     vec2 BaseElement::GetSize() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
         return transform->size;
     }
     void BaseElement::SetSize(const vec2& size)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto transform = &registry->get<UIComponent::Transform>(_entityId);
 
@@ -74,13 +66,10 @@ namespace UIScripting
         transform->size = size;
 
         UIUtils::Transform::UpdateChildTransforms(registry, transform);
-        MarkBoundsDirty(registry);
-        MarkDirty(registry);
     }
 
     void BaseElement::SetTransform(const vec2& position, const vec2& size)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto transform = &registry->get<UIComponent::Transform>(_entityId);
 
@@ -93,19 +82,15 @@ namespace UIScripting
             transform->size = size;
 
         UIUtils::Transform::UpdateChildTransforms(registry, transform);
-        MarkBoundsDirty(registry);
-        MarkDirty(registry);
     }
 
     vec2 BaseElement::GetAnchor() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
         return transform->anchor;
     }
     void BaseElement::SetAnchor(const vec2& anchor)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto transform = &registry->get<UIComponent::Transform>(_entityId);
 
@@ -122,19 +107,15 @@ namespace UIScripting
         }
 
         UIUtils::Transform::UpdateChildTransforms(registry, transform);
-        MarkBoundsDirty(registry);
-        MarkDirty(registry);
     }
 
     vec2 BaseElement::GetLocalAnchor() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
         return transform->localAnchor;
     }
     void BaseElement::SetLocalAnchor(const vec2& localAnchor)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto transform = &registry->get<UIComponent::Transform>(_entityId);
 
@@ -143,19 +124,15 @@ namespace UIScripting
         transform->localAnchor = localAnchor;
 
         UIUtils::Transform::UpdateChildTransforms(registry, transform);
-        MarkBoundsDirty(registry);
-        MarkDirty(registry);
     }
 
     bool BaseElement::GetFillParentSize() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
         return transform->fillParentSize;
     }
     void BaseElement::SetFillParentSize(bool fillParent)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto transform = &registry->get<UIComponent::Transform>(_entityId);
 
@@ -170,19 +147,15 @@ namespace UIScripting
         transform->size = parentTransform->size;
 
         UIUtils::Transform::UpdateChildTransforms(registry, transform);
-        MarkBoundsDirty(registry);
-        MarkDirty(registry);
     }
 
     UI::DepthLayer BaseElement::GetDepthLayer() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
         return transform->sortData.depthLayer;
     }
     void BaseElement::SetDepthLayer(const UI::DepthLayer layer)
     {
-        std::shared_lock rl(GetRegistryMutex());
         auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
 
         transform->sortData.depthLayer = layer;
@@ -190,13 +163,11 @@ namespace UIScripting
 
     u16 BaseElement::GetDepth() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
         return transform->sortData.depth;
     }
     void BaseElement::SetDepth(const u16 depth)
     {
-        std::shared_lock rl(GetRegistryMutex());
         auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
 
         transform->sortData.depth = depth;
@@ -204,7 +175,6 @@ namespace UIScripting
 
     void BaseElement::SetParent(BaseElement* parent)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto transform = &registry->get<UIComponent::Transform>(_entityId);
 
@@ -235,14 +205,10 @@ namespace UIScripting
         u16 difference = parentTransform->sortData.depth - transform->sortData.depth + 1;
         transform->sortData.depth = parentTransform->sortData.depth + 1;
         UIUtils::Transform::UpdateChildDepths(registry, transform, difference);
-
         UIUtils::Transform::UpdateChildTransforms(registry, transform);
-        MarkBoundsDirty(registry);
-        MarkDirty(registry);
     }
     void BaseElement::UnsetParent()
     {
-        std::shared_lock rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto transform = &registry->get<UIComponent::Transform>(_entityId);
 
@@ -255,44 +221,36 @@ namespace UIScripting
 
     bool BaseElement::GetExpandBoundsToChildren() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
         return transform->includeChildBounds;
     }
     void BaseElement::SetExpandBoundsToChildren(bool expand)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto transform = &registry->get<UIComponent::Transform>(_entityId);
 
         if (transform->includeChildBounds == expand)
             return;
         transform->includeChildBounds = expand;
-
-        MarkBoundsDirty(registry);
     }
 
     bool BaseElement::IsVisible() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Visibility* visibility = &ServiceLocator::GetUIRegistry()->get<UIComponent::Visibility>(_entityId);
         return UIUtils::Visibility::IsVisible(visibility);
     }
     bool BaseElement::IsLocallyVisible() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Visibility* visibility = &ServiceLocator::GetUIRegistry()->get<UIComponent::Visibility>(_entityId);
         return visibility->visible;
     }
     bool BaseElement::IsParentVisible() const
     {
-        std::shared_lock rl(GetRegistryMutex());
         const UIComponent::Visibility* visibility = &ServiceLocator::GetUIRegistry()->get<UIComponent::Visibility>(_entityId);
         return visibility->parentVisible;
     }
     void BaseElement::SetVisible(bool visible)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto visibility = &registry->get<UIComponent::Visibility>(_entityId);
 
@@ -315,7 +273,6 @@ namespace UIScripting
 
     void BaseElement::SetCollisionEnabled(bool enabled)
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         if (registry->has<UIComponent::Collidable>(_entityId) == enabled)
@@ -329,27 +286,31 @@ namespace UIScripting
 
     void BaseElement::Destroy()
     {
-        std::lock_guard rl(GetRegistryMutex());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->ctx<UISingleton::UIDataSingleton>().DestroyWidget(_entityId);
     }
 
-    void BaseElement::MarkDirty(entt::registry* registry)
+    void BaseElement::MarkDirty()
     {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        if (!registry->has<UIComponent::Dirty>(_entityId))
+            registry->emplace<UIComponent::Dirty>(_entityId);
+
+        const auto transform = &registry->get<UIComponent::Transform>(_entityId);
+        UIUtils::Transform::MarkChildrenDirty(registry, transform);
+    }
+
+    void BaseElement::MarkSelfDirty()
+    {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
         if (!registry->has<UIComponent::Dirty>(_entityId))
             registry->emplace<UIComponent::Dirty>(_entityId);
     }
 
-    void BaseElement::MarkBoundsDirty(entt::registry* registry)
+    void BaseElement::MarkBoundsDirty()
     {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
         if (!registry->has<UIComponent::BoundsDirty>(_entityId))
             registry->emplace<UIComponent::BoundsDirty>(_entityId);
-    }
-
-    std::shared_mutex& BaseElement::GetRegistryMutex()
-    {
-        UISingleton::UILockSingleton& lockSingleton = ServiceLocator::GetUIRegistry()->ctx<UISingleton::UILockSingleton>();
-
-        return lockSingleton.mutex;
     }
 }

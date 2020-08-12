@@ -135,8 +135,6 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
         image->texture = texture;
-
-        MarkDirty(registry);
     }
 
     const Color Checkbox::GetBackgroundColor() const
@@ -149,8 +147,6 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
         image->color = color;
-
-        MarkDirty(registry);
     }
 
     const std::string& Checkbox::GetCheckTexture() const
