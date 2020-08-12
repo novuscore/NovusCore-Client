@@ -14,7 +14,6 @@ namespace UIScripting
     class BaseElement
     {
         friend struct ::UISingleton::UIDataSingleton;
-        friend class LockToken;
 
     public:
         BaseElement(UI::UIElementType elementType);

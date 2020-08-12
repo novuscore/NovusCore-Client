@@ -40,8 +40,8 @@ namespace UIScripting
 
         checkPanel = Panel::CreatePanel();
         checkPanel->SetFillParentSize(true);
-        checkPanel->SetParent(this);
         checkPanel->SetCollisionEnabled(false);
+        checkPanel->SetParent(this);
 
         SetEventFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }
