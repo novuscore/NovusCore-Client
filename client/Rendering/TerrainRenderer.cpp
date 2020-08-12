@@ -680,6 +680,18 @@ void TerrainRenderer::CreatePermanentResources()
     }
 }
 
+static inline u16 transpose4x4BitMatrix(u16 in)
+{
+    u16 out = 0;
+    for (u16 i = 0; i < 16; ++i)
+    {
+        const u16 set = (in >> i) & 1;
+        const u16 outIndex = ((i * 4) + (i / 4)) % 16;
+        out |= (set << outIndex);
+    }
+    return out;
+}
+
 void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
 {
     u16 chunkId;
@@ -713,6 +725,7 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
             const Terrain::Cell& cell = chunk.cells[i];
 
             TerrainCellData& cellData = cellDatas[i];
+            //cellData.hole = transpose4x4BitMatrix(cell.hole);
             cellData.hole = cell.hole;
             cellData._padding = 1337;
 
@@ -722,13 +735,13 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
                 if (layer.textureId == Terrain::LayerData::TextureIdInvalid)
                     break;
 
-                //const std::string& texturePath = stringTable.GetString(layer.textureId);
-                //
-                //Renderer::TextureDesc textureDesc;
-                //textureDesc.path = texturePath;
+                const std::string& texturePath = stringTable.GetString(layer.textureId);
+                
+                Renderer::TextureDesc textureDesc;
+                textureDesc.path = "Data/extracted/Textures/" + texturePath;
 
                 u32 diffuseID = 0;
-                //_renderer->LoadTextureIntoArray(textureDesc, _terrainColorTextureArray, diffuseID);
+                _renderer->LoadTextureIntoArray(textureDesc, _terrainColorTextureArray, diffuseID);
                 assert(diffuseID < 256);
 
                 cellData.diffuseIDs[layerCount++] = diffuseID;

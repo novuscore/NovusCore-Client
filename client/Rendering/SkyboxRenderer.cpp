@@ -51,12 +51,9 @@ void SkyboxRenderer::AddSkyboxPass(Renderer::RenderGraph* renderGraph, Renderer:
 
     const auto execute = [=](TerrainPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList)
     {
-        TracySourceLocation(terrainPass, "SkyboxPass", tracy::Color::Yellow2);
-        commandList.BeginTrace(&terrainPass);
+        GPU_SCOPED_PROFILER_ZONE(commandList, SkyboxPass);
 
 
-
-        commandList.EndTrace();
     };
 
     renderGraph->AddPass<TerrainPassData>("Skybox Pass", setup, execute);

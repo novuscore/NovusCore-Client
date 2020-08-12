@@ -33,7 +33,7 @@ CellData LoadCellData(uint globalCellID)
     cellData.diffuseIDs.w = (rawCellData.packedDiffuseIDs >> 24) & 0xff;
 
     // Unpack holes
-    cellData.holes = rawCellData.packedHoles >> 16;
+    cellData.holes = rawCellData.packedHoles & 0xffff;
 
     return cellData;
 }
@@ -79,8 +79,6 @@ PSOutput main(PSInput input)
     color = (diffuse2 * alpha.y) + (color * (1.0f - alpha.y));
     color = (diffuse3 * alpha.z) + (color * (1.0f - alpha.z));
     output.color = color;
-
-    //output.color = float4(1, 0, 0, 1);
 
     return output;
 }

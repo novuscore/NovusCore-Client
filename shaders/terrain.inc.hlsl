@@ -122,7 +122,7 @@ bool IsHoleVertex(uint vertexId, uint hole)
             return true;
         }
     }
-
+    
     if (shiftedHole & 0b0100)
     {
         if (blockVertexId == 13 || blockVertexId == 14 || blockVertexId == 30 || blockVertexId == 31)
@@ -130,7 +130,7 @@ bool IsHoleVertex(uint vertexId, uint hole)
             return true;
         }
     }
-
+    
     if (shiftedHole & 0b1000)
     {
         if (blockVertexId == 15 || blockVertexId == 16 || blockVertexId == 32 || blockVertexId == 33)
@@ -141,3 +141,4 @@ bool IsHoleVertex(uint vertexId, uint hole)
 
     return false;
 }
+

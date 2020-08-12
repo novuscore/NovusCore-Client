@@ -79,19 +79,19 @@ VSOutput main(VSInput input)
     const uint chunkID = input.packedChunkCellID >> 16;
 
     const uint globalCellID = GetGlobalCellID(chunkID, cellID);
+    CellData cellData = LoadCellData(globalCellID);
+    if (IsHoleVertex(input.vertexID, cellData.holes))
+    {
+        const float NaN = asfloat(0b01111111100000000000000000000000);
+        output.position = float4(NaN, NaN, NaN, NaN);
+        return output;
+    }
 
     Vertex vertex = LoadVertex(chunkID, cellID, input.vertexID);
 
     output.position = mul(float4(vertex.position, 1.0f), viewProjectionMatrix);
     output.uv = vertex.uv;
     output.packedChunkCellID = input.packedChunkCellID;
-
-    CellData cellData = LoadCellData(globalCellID);
-    if (IsHoleVertex(globalCellID, cellData.holes))
-    {
-        const float NaN = asfloat(0b01111111100000000000000000000000);
-        output.position = float4(NaN, NaN, NaN, NaN);
-    }
 
     return output;
 }
