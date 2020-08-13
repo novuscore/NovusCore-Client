@@ -31,7 +31,7 @@ namespace UIScripting
     void Label::RegisterType()
     {
         i32 r = ScriptEngine::RegisterScriptClass("Label", 0, asOBJ_REF | asOBJ_NOCOUNT);
-        r = ScriptEngine::RegisterScriptInheritance<BaseElement, Label>("Transform");
+        r = ScriptEngine::RegisterScriptInheritance<BaseElement, Label>("BaseElement");
         r = ScriptEngine::RegisterScriptFunction("Label@ CreateLabel()", asFUNCTION(Label::CreateLabel)); assert(r >= 0);
 
         //Text Functions

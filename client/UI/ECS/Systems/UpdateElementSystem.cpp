@@ -65,7 +65,7 @@ namespace UISystem
     {
         Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
 
-        // Destroy widgets queued for destruction.
+        // Destroy elements queued for destruction.
         {
             auto& dataSingleton = registry.ctx<UISingleton::UIDataSingleton>();
             size_t deleteEntityNum = dataSingleton.destructionQueue.size_approx();
@@ -80,6 +80,17 @@ namespace UISystem
 
             registry.destroy(deleteEntities.begin(), deleteEntities.end());
         }
+
+        // Toggle visibility of elements
+        {
+
+        }
+
+        auto boundsUpdateView = registry.view<UIComponent::Transform, UIComponent::BoundsDirty>();
+        boundsUpdateView.each([&](UIComponent::Transform& transform)
+            {
+                UIUtils::Transform::UpdateBounds(ServiceLocator::GetUIRegistry(), &transform, true);
+            });
 
         auto imageView = registry.view<UIComponent::Transform, UIComponent::Image, UIComponent::Dirty>();
         imageView.each([&](UIComponent::Transform& transform, UIComponent::Image& image)

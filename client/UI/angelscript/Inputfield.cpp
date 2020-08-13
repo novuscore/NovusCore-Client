@@ -35,16 +35,17 @@ namespace UIScripting
 
             UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
             events->asObject = this;
+
+            events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
         }
         uiLockSingleton.mutex.unlock();
 
-        SetFocusable(true);
     }
 
     void InputField::RegisterType()
     {
         i32 r = ScriptEngine::RegisterScriptClass("InputField", 0, asOBJ_REF | asOBJ_NOCOUNT);
-        r = ScriptEngine::RegisterScriptInheritance<BaseElement, InputField>("Transform");
+        r = ScriptEngine::RegisterScriptInheritance<BaseElement, InputField>("BaseElement");
         r = ScriptEngine::RegisterScriptFunction("InputField@ CreateInputField()", asFUNCTION(InputField::CreateInputField)); assert(r >= 0);
 
         r = ScriptEngine::RegisterScriptFunctionDef("void InputFieldEventCallback(InputField@ inputfield)"); assert(r >= 0);
@@ -99,6 +100,7 @@ namespace UIScripting
             registry->get<UIComponent::InputField>(_entityId).OnSubmit();
             registry->get<UIComponent::TransformEvents>(_entityId).OnUnfocused();
             registry->ctx<UISingleton::UIDataSingleton>().focusedWidget = entt::null;
+            MarkSelfDirty();
             break;
         }
         default:
@@ -118,6 +120,7 @@ namespace UIScripting
             text->text.insert(inputField->writeHeadIndex, 1, input);
 
         MovePointerRight();
+        MarkDirty();
     }
 
     void InputField::RemovePreviousCharacter()
@@ -131,6 +134,7 @@ namespace UIScripting
 
         text->text.erase(inputField->writeHeadIndex - 1, 1);
         inputField->writeHeadIndex--;
+        MarkDirty();
     }
     void InputField::RemoveNextCharacter()
     {
@@ -142,6 +146,7 @@ namespace UIScripting
             return;
 
         text->text.erase(inputField->writeHeadIndex, 1);
+        MarkDirty();
     }
 
     void InputField::MovePointerLeft()

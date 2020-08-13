@@ -9,7 +9,7 @@ namespace UIComponent
     public:
         Checkbox() { }
 
-        bool checked = false;
+        bool checked = true;
 
         asIScriptFunction* onChecked = nullptr;
         asIScriptFunction* onUnchecked = nullptr;

@@ -11,12 +11,7 @@
 #include "Classes/Player.h"
 
 #include "../UI/angelscript/LockToken.h"
-#include "../UI/angelscript/BaseElement.h"
-#include "../UI/angelscript/Panel.h"
-#include "../UI/angelscript/Label.h"
-#include "../UI/angelscript/Button.h"
-#include "../UI/angelscript/Inputfield.h"
-#include "../UI/angelscript/Checkbox.h"
+#include "../UI/angelscript/UITypeRegister.h"
 
 #include <entity/entity.hpp>
 
@@ -114,12 +109,7 @@ void ScriptEngine::RegisterFunctions()
 
     Player::RegisterType();
     UIScripting::LockToken::RegisterType();
-    UIScripting::BaseElement::RegisterType();
-    UIScripting::Panel::RegisterType();
-    UIScripting::Label::RegisterType();
-    UIScripting::Button::RegisterType();
-    UIScripting::InputField::RegisterType();
-    UIScripting::Checkbox::RegisterType();
+    UI::RegisterTypes();
 
     ScriptEngine::RegisterScriptFunction("void Print(string msg)", asFUNCTION(ScriptEngine::Print));
 }

@@ -42,13 +42,11 @@ namespace UIUtils::Transform
     void UpdateBounds(entt::registry* registry, UIComponent::Transform* transform, bool updateParent)
     {
         ZoneScoped;
-        auto dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();
         transform->minBound = UIUtils::Transform::GetMinBounds(transform);
         transform->maxBound = UIUtils::Transform::GetMaxBounds(transform);
 
         for (const UI::UIChild& child : transform->children)
         {
-            std::lock_guard l(dataSingleton->GetMutex(child.entId));
             UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
             UpdateBounds(registry, childTransform, false);
 
@@ -65,7 +63,6 @@ namespace UIUtils::Transform
         if (!updateParent || transform->parent == entt::null)
             return;
 
-        std::lock_guard l(dataSingleton->GetMutex(transform->parent));
         UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(transform->parent);
         if (parentTransform->includeChildBounds)
             ShallowUpdateBounds(registry, parentTransform);

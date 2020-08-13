@@ -61,9 +61,6 @@ namespace ASDataStorageUtils
             ScriptEngine::RegisterScriptFunction("bool ClearEntity(string name)", asFUNCTION(ClearEntity));
         }
 
-
-        asIScriptEngine* scriptEngine = ScriptEngine::GetScriptEngine();
-
         r = ScriptEngine::ResetNamespace();
         assert(r >= 0);
     }

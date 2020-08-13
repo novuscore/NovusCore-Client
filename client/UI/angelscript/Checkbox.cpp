@@ -35,6 +35,8 @@ namespace UIScripting
 
             UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
             events->asObject = this;
+            
+            events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
         }
         uiLockSingleton.mutex.unlock();
 
@@ -42,14 +44,14 @@ namespace UIScripting
         checkPanel->SetFillParentSize(true);
         checkPanel->SetCollisionEnabled(false);
         checkPanel->SetParent(this);
+        checkPanel->SetDepth(500);
 
-        SetEventFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }
 
     void Checkbox::RegisterType()
     {
         i32 r = ScriptEngine::RegisterScriptClass("Checkbox", 0, asOBJ_REF | asOBJ_NOCOUNT);
-        r = ScriptEngine::RegisterScriptInheritance<BaseElement, Checkbox>("Transform");
+        r = ScriptEngine::RegisterScriptInheritance<BaseElement, Checkbox>("BaseElement");
         r = ScriptEngine::RegisterScriptFunction("Checkbox@ CreateCheckbox()", asFUNCTION(Checkbox::CreateCheckbox)); assert(r >= 0);
 
         // TransformEvents Functions

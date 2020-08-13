@@ -51,7 +51,7 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("uint16 GetDepth()", asMETHOD(T, GetDepth)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetDepth(uint16 depth)", asMETHOD(T, SetDepth)); assert(r >= 0);
 
-            r = ScriptEngine::RegisterScriptClassFunction("void SetParent(Transform@ parent)", asMETHOD(T, SetParent)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetParent(BaseElement@ parent)", asMETHOD(T, SetParent)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void UnsetParent()", asMETHOD(T, UnsetParent)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void Destroy()", asMETHOD(T, Destroy)); assert(r >= 0);
 
@@ -62,6 +62,10 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("bool IsParentVisible()", asMETHOD(T, IsParentVisible)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetVisible(bool visible)", asMETHOD(T, SetVisible)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("LockToken@ GetLock(uint8 lockState)", asMETHOD(T, GetLock)); assert(r >= 0);
+
+            r = ScriptEngine::RegisterScriptClassFunction("void MarkDirty()", asMETHOD(T, MarkDirty)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void MarkSelfDirty()", asMETHOD(T, MarkSelfDirty)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void MarkBoundsDirty()", asMETHOD(T, MarkBoundsDirty)); assert(r >= 0);
         }
 
         const entt::entity GetEntityId() const { return _entityId; }

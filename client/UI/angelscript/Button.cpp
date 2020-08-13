@@ -50,7 +50,7 @@ namespace UIScripting
     void Button::RegisterType()
     {
         i32 r = ScriptEngine::RegisterScriptClass("Button", 0, asOBJ_REF | asOBJ_NOCOUNT);
-        r = ScriptEngine::RegisterScriptInheritance<BaseElement, Button>("Transform");
+        r = ScriptEngine::RegisterScriptInheritance<BaseElement, Button>("BaseElement");
         r = ScriptEngine::RegisterScriptFunction("Button@ CreateButton()", asFUNCTION(Button::CreateButton)); assert(r >= 0);
 
         //Button Functions.

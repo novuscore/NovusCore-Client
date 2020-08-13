@@ -46,11 +46,11 @@ namespace UIComponent
         {
             struct
             {
-                UI::DepthLayer depthLayer;
-                u16 depth;
-                UI::UIElementType type;
                 entt::entity entId;
-            } sortData{ UI::DepthLayer::MEDIUM, 0, UI::UIElementType::UITYPE_NONE, entt::null };
+                UI::UIElementType type;
+                u16 depth;
+                UI::DepthLayer depthLayer;
+            } sortData{ entt::null, UI::UIElementType::UITYPE_NONE, 0, UI::DepthLayer::MEDIUM };
             u64 sortKey;
         };
         entt::entity parent = entt::null;

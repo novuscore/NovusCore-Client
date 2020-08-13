@@ -36,7 +36,7 @@ namespace UIScripting
     void Panel::RegisterType()
     {
         i32 r = ScriptEngine::RegisterScriptClass("Panel", 0, asOBJ_REF | asOBJ_NOCOUNT);
-        r = ScriptEngine::RegisterScriptInheritance<BaseElement, Panel>("Transform");
+        r = ScriptEngine::RegisterScriptInheritance<BaseElement, Panel>("BaseElement");
         r = ScriptEngine::RegisterScriptFunction("Panel@ CreatePanel()", asFUNCTION(Panel::CreatePanel)); assert(r >= 0);
 
         // TransformEvents Functions

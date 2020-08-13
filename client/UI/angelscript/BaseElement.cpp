@@ -143,7 +143,7 @@ namespace UIScripting
         if (transform->parent == entt::null)
             return;
 
-        auto parentTransform = &registry->get<UIComponent::Transform>(_entityId);
+        auto parentTransform = &registry->get<UIComponent::Transform>(transform->parent);
         transform->size = parentTransform->size;
 
         UIUtils::Transform::UpdateChildTransforms(registry, transform);
