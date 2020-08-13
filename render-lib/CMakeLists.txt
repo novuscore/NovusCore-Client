@@ -16,6 +16,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 	glfw ${GLFW_LIBRARIES}
     Vulkan::Vulkan
     gli::gli
+    imgui::imgui
 )
 add_dependencies(${PROJECT_NAME} shaders)
 

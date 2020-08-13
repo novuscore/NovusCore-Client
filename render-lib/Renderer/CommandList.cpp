@@ -29,7 +29,7 @@
 #include "Commands/AddWaitSemaphore.h"
 #include "Commands/CopyBuffer.h"
 #include "Commands/PipelineBarrier.h"
-
+#include "Commands/DrawImgui.h"
 namespace Renderer
 {
     ScopedGPUProfilerZone::ScopedGPUProfilerZone(CommandList& commandList, const tracy::SourceLocationData* sourceLocation)
@@ -297,5 +297,9 @@ namespace Renderer
         command->barrierType = type;
         command->buffer = buffer;
 
+    }
+    void CommandList::DrawImgui()
+    {		
+		Commands::DrawImgui* command = AddCommand<Commands::DrawImgui>();		
     }
 }

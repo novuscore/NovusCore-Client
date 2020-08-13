@@ -40,6 +40,10 @@
 #include <GLFW/glfw3.h>
 #include <tracy/Tracy.hpp>
 
+#include "imgui.h"
+#include "examples/imgui_impl_vulkan.h"
+#include "examples/imgui_impl_glfw.h"
+
 EngineLoop::EngineLoop() : _isRunning(false), _inputQueue(256), _outputQueue(256)
 {
     _network.asioService = std::make_shared<asio::io_service>(2);
@@ -171,6 +175,8 @@ void EngineLoop::Run()
     _network.gameSocket->SetConnectHandler(std::bind(&ConnectionUpdateSystem::GameSocket_HandleConnect, std::placeholders::_1, std::placeholders::_2));
     _network.gameSocket->SetDisconnectHandler(std::bind(&ConnectionUpdateSystem::GameSocket_HandleDisconnect, std::placeholders::_1));
 
+	
+
     while (true)
     {
         f32 deltaTime = timer.GetDeltaTime();
@@ -180,10 +186,20 @@ void EngineLoop::Run()
         timeSingleton.lifeTimeInMS = timeSingleton.lifeTimeInS * 1000;
         timeSingleton.deltaTime = deltaTime;
 
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
         if (!Update(deltaTime))
             break;
-
-        Render();
+		
+		static bool bShowDemo = true;
+		ImGui::ShowDemoWindow(&bShowDemo);
+		
+        ImGui::Render();
+		Render();
+       
+		
 
         // Wait for tick rate, this might be an overkill implementation but it has the most even tickrate I've seen - MPursche
         for (deltaTime = timer.GetDeltaTime(); deltaTime < targetDelta - 0.0025f; deltaTime = timer.GetDeltaTime())

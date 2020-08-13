@@ -21,6 +21,9 @@
 #include "Backend/DescriptorSetBuilderVK.h"
 #include "Backend/FormatConverterVK.h"
 
+#include "imgui.h"
+#include "examples/imgui_impl_vulkan.h"
+
 namespace Renderer
 {
     RendererVK::RendererVK(TextureDesc& debugTexture)
@@ -986,4 +989,21 @@ namespace Renderer
     {
         vmaUnmapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(buffer));
     }
+
+	void RendererVK::InitImgui()
+	{
+        _device->InitializeImguiVulkan();
+	}
+
+
+	
+
+
+	void RendererVK::DrawImgui(CommandListID commandListID)
+	{
+        VkCommandBuffer cmd = _commandListHandler->GetCommandBuffer(commandListID);
+		
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+	}
+
 }

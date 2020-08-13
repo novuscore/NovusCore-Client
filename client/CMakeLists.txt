@@ -5,6 +5,10 @@ file(GLOB_RECURSE CLIENT_DEMO_FILES "*.cpp" "*.h")
 add_executable(${PROJECT_NAME} ${CLIENT_DEMO_FILES})
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${ROOT_FOLDER})
 
+set_target_properties(
+    ${PROJECT_NAME} PROPERTIES
+    VS_DEBUGGER_WORKING_DIRECTORY "K:/Programming/NovusCore/build/NovusCore/NovusCore-Client")
+
 find_assign_files(${CLIENT_DEMO_FILES})
 
 include_directories(../../dep/glfw/include)
@@ -22,6 +26,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 	Entt::Entt
 	taskflow::taskflow
 	angelscript::angelscript
+	imgui::imgui
 )
 target_precompile_headers(${PROJECT_NAME} PRIVATE "pch.h")
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

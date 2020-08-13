@@ -14,6 +14,9 @@
 #include <tracy/TracyVulkan.hpp>
 
 #include <glm/gtc/matrix_transform.hpp>
+#include "examples/imgui_impl_glfw.h"
+#include "misc/cpp/imgui_stdlib.h"
+#include "examples/imgui_impl_vulkan.h"
 
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
@@ -80,6 +83,9 @@ ClientRenderer::ClientRenderer()
     
     _renderer = new Renderer::RendererVK(debugTexture);
     _renderer->InitWindow(_window);
+
+    InitImgui();
+
     ServiceLocator::SetRenderer(_renderer);
 
     CreatePermanentResources();
@@ -357,6 +363,16 @@ void ClientRenderer::Render()
 
     // Flip the frameIndex between 0 and 1
     _frameIndex = !_frameIndex;
+}
+
+
+void ClientRenderer::InitImgui()
+{
+	ImGui::CreateContext();
+
+	ImGui_ImplGlfw_InitForVulkan(_window->GetWindow(),true);
+
+    _renderer->InitImgui();
 }
 
 void ClientRenderer::CreatePermanentResources()
