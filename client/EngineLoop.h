@@ -92,6 +92,8 @@ private:
 
     void SetupUpdateFramework();
     void SetMessageHandler();
+
+    void DrawTimingStats(struct EngineStatsSingleton* stats);
 private:
     bool _isRunning;
 
