@@ -108,6 +108,9 @@ namespace Renderer
         void* MapBuffer(BufferID buffer) override;
         void UnmapBuffer(BufferID buffer) override;
 
+        void InitImgui() override;
+        void DrawImgui(CommandListID commandListID) override;
+
     private:
         bool ReflectDescriptorSet(const std::string& name, u32 nameHash, u32 type, i32& set, const std::vector<Backend::BindInfo>& bindInfos, u32& outBindInfoIndex, VkDescriptorSetLayoutBinding* outDescriptorLayoutBinding);
         void BindDescriptor(Backend::DescriptorSetBuilderVK* builder, void* imageInfosArraysVoid, Descriptor& descriptor, u32 frameIndex);

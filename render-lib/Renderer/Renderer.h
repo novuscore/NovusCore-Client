@@ -30,7 +30,6 @@ namespace tracy
 {
     struct SourceLocationData;
 }
-
 namespace Renderer
 {
     class Renderer
@@ -118,6 +117,9 @@ namespace Renderer
         virtual void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
         virtual void* MapBuffer(BufferID buffer) = 0;
         virtual void UnmapBuffer(BufferID buffer) = 0;
+
+        virtual void InitImgui() = 0;
+        virtual void DrawImgui(CommandListID commandListID) = 0;
 
     protected:
         Renderer() {}; // Pure virtual class, disallow creation of it

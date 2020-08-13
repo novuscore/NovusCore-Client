@@ -97,6 +97,8 @@ namespace Renderer
 
         void PipelineBarrier(PipelineBarrierType type, BufferID buffer);
 
+        void DrawImgui();
+
     private:
         // Execute gets friend-called from RenderGraph
         void Execute();

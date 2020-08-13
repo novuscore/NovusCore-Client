@@ -205,6 +205,9 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                 });
 
             commandList.EndPipeline(activePipeline);
+
+            commandList.DrawImgui();
+			
         });
 }
 

@@ -51,6 +51,8 @@ namespace Renderer
         private:
             void InitOnce();
 
+            
+
             // InitOnce helper functions
             void InitVulkan();
             void SetupDebugMessenger();
@@ -59,6 +61,7 @@ namespace Renderer
             void CreateAllocator();
             void CreateCommandPool();
             void CreateTracyContext();
+			void InitializeImguiVulkan();
 
             // InitWindow helper functions
             void CreateSurface(GLFWwindow* window, SwapChainVK* swapChain);
