@@ -3,24 +3,23 @@ project(imgui VERSION 3.2.2)
 
 find_package(Vulkan REQUIRED) 
 
- set(imgui_folder  "${CMAKE_CURRENT_LIST_DIR}/src")
+set(imgui_folder "${CMAKE_CURRENT_LIST_DIR}/src")
 
- set(imgui_sources 
-   "${imgui_folder}/imgui.cpp"
-   "${imgui_folder}/imgui_demo.cpp"
-   "${imgui_folder}/imgui_draw.cpp"   
-   "${imgui_folder}/imgui_widgets.cpp"
-   "${imgui_folder}/examples/imgui_impl_vulkan.cpp"
-   "${imgui_folder}/examples/imgui_impl_glfw.cpp"
-   "${imgui_folder}/misc/cpp/imgui_stdlib.cpp"
-   )
+set(imgui_sources
+	"${imgui_folder}/imgui.cpp"
+	"${imgui_folder}/imgui_demo.cpp"
+	"${imgui_folder}/imgui_draw.cpp"   
+	"${imgui_folder}/imgui_widgets.cpp"
+	"${imgui_folder}/examples/imgui_impl_vulkan.cpp"
+	"${imgui_folder}/examples/imgui_impl_glfw.cpp"
+	"${imgui_folder}/misc/cpp/imgui_stdlib.cpp"
+	)
 
 add_library(${PROJECT_NAME} STATIC ${imgui_sources})
 
 
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${ROOT_FOLDER}/dep)
 target_link_libraries(${PROJECT_NAME} 
-
 	glfw ${GLFW_LIBRARIES}
 	Vulkan::Vulkan
 	)

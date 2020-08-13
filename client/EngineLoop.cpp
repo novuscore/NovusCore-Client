@@ -193,30 +193,25 @@ void EngineLoop::Run()
         timeSingleton.lifeTimeInMS = timeSingleton.lifeTimeInS * 1000;
         timeSingleton.deltaTime = deltaTime;
 
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-        
-        updateTimer.Reset();
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
+        updateTimer.Reset();
+        
         if (!Update(deltaTime))
             break;
-
+        
         DrawTimingStats(&statsSingleton);
         
         timings.simulationFrameTime = updateTimer.GetLifeTime();
-		
-		//static bool bShowDemo = true;
-		//ImGui::ShowDemoWindow(&bShowDemo);
-		
-
-
+        
         renderTimer.Reset();
-       
-		Render();
-       
+        
+        Render();
+        
         timings.renderFrameTime = renderTimer.GetLifeTime();
-
+        
         statsSingleton.AddTimings(timings.deltaTime, timings.simulationFrameTime, timings.renderFrameTime);
 
         // Wait for tick rate, this might be an overkill implementation but it has the most even tickrate I've seen - MPursche
@@ -384,21 +379,23 @@ void EngineLoop::DrawTimingStats(EngineStatsSingleton* stats)
 
     static bool advancedStats = false;
     ImGui::Checkbox("Advanced Stats", &advancedStats);
-    if(advancedStats) {
+    if(advancedStats)
+    {
 
-		ImGui::Text("update time : %f ms", average.simulationFrameTime * 1000);
-		ImGui::Text("render time (CPU): %f ms", average.renderFrameTime * 1000);
+        ImGui::Text("update time : %f ms", average.simulationFrameTime * 1000);
+        ImGui::Text("render time (CPU): %f ms", average.renderFrameTime * 1000);
 
 
         //read the frame buffer to gather timings for the histograms
 
         std::vector<float> updateTimes;
         updateTimes.reserve(stats->frameStats.size());
-        
-		std::vector<float> renderTimes;
+
+        std::vector<float> renderTimes;
         renderTimes.reserve(stats->frameStats.size());
 
-        for (int i = 0; i < stats->frameStats.size(); i++) {
+        for (int i = 0; i < stats->frameStats.size(); i++)
+        {
             updateTimes.push_back(stats->frameStats[i].simulationFrameTime * 1000);
             renderTimes.push_back(stats->frameStats[i].renderFrameTime * 1000);
         }
