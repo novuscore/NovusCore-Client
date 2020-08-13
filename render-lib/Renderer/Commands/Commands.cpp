@@ -2,7 +2,12 @@
 #include "Clear.h"
 #include "Draw.h"
 #include "DrawBindless.h"
+#include "DrawIndexed.h"
 #include "DrawIndexedBindless.h"
+#include "DrawIndexedIndirect.h"
+#include "DrawIndexedIndirectCount.h"
+#include "Dispatch.h"
+#include "DispatchIndirect.h"
 #include "PopMarker.h"
 #include "PushMarker.h"
 #include "SetPipeline.h"
@@ -17,6 +22,8 @@
 #include "EndTrace.h"
 #include "AddSignalSemaphore.h"
 #include "AddWaitSemaphore.h"
+#include "CopyBuffer.h"
+#include "PipelineBarrier.h"
 
 namespace Renderer
 {
@@ -27,6 +34,11 @@ namespace Renderer
         const BackendDispatchFunction Draw::DISPATCH_FUNCTION = &BackendDispatch::Draw;
         const BackendDispatchFunction DrawBindless::DISPATCH_FUNCTION = &BackendDispatch::DrawBindless;
         const BackendDispatchFunction DrawIndexedBindless::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexedBindless;
+        const BackendDispatchFunction DrawIndexed::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexed;
+        const BackendDispatchFunction DrawIndexedIndirect::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexedIndirect;
+        const BackendDispatchFunction DrawIndexedIndirectCount::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexedIndirectCount;
+        const BackendDispatchFunction Dispatch::DISPATCH_FUNCTION = &BackendDispatch::Dispatch;
+        const BackendDispatchFunction DispatchIndirect::DISPATCH_FUNCTION = &BackendDispatch::DispatchIndirect;
         const BackendDispatchFunction PopMarker::DISPATCH_FUNCTION = &BackendDispatch::PopMarker;
         const BackendDispatchFunction PushMarker::DISPATCH_FUNCTION = &BackendDispatch::PushMarker;
         const BackendDispatchFunction BeginGraphicsPipeline::DISPATCH_FUNCTION = &BackendDispatch::BeginGraphicsPipeline;
@@ -43,5 +55,7 @@ namespace Renderer
         const BackendDispatchFunction EndTrace::DISPATCH_FUNCTION = &BackendDispatch::EndTrace;
         const BackendDispatchFunction AddSignalSemaphore::DISPATCH_FUNCTION = &BackendDispatch::AddSignalSemaphore;
         const BackendDispatchFunction AddWaitSemaphore::DISPATCH_FUNCTION = &BackendDispatch::AddWaitSemaphore;
+        const BackendDispatchFunction CopyBuffer::DISPATCH_FUNCTION = &BackendDispatch::CopyBuffer;
+        const BackendDispatchFunction PipelineBarrier::DISPATCH_FUNCTION = &BackendDispatch::PipelineBarrier;
     }
 }

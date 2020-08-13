@@ -1,5 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
+#include "Descriptors/BufferDesc.h"
 #include "Descriptors/SamplerDesc.h"
 #include "Descriptors/TextureDesc.h"
 #include "Descriptors/TextureArrayDesc.h"
@@ -7,16 +8,12 @@
 
 namespace Renderer
 {
-    struct IConstantBuffer;
-    struct IStorageBuffer;
-
     enum DescriptorType
     {
         DESCRIPTOR_TYPE_SAMPLER,
         DESCRIPTOR_TYPE_TEXTURE,
         DESCRIPTOR_TYPE_TEXTURE_ARRAY,
-        DESCRIPTOR_TYPE_CONSTANT_BUFFER,
-        DESCRIPTOR_TYPE_STORAGE_BUFFER
+        DESCRIPTOR_TYPE_BUFFER,
     };
 
     struct Descriptor
@@ -28,8 +25,7 @@ namespace Renderer
         TextureID textureID;
         SamplerID samplerID;
         TextureArrayID textureArrayID;
-        IConstantBuffer* constantBuffer;
-        IStorageBuffer* storageBuffer;
+        BufferID bufferID;
     };
 
     enum DescriptorSetSlot
@@ -62,11 +58,8 @@ namespace Renderer
         void Bind(const std::string& name, TextureArrayID textureArrayID);
         void Bind(u32 nameHash, TextureArrayID textureArrayID);
 
-        void Bind(const std::string& name, IConstantBuffer* constantBuffer);
-        void Bind(u32 nameHash, IConstantBuffer* constantBuffer);
-
-        void Bind(const std::string& name, IStorageBuffer* storageBuffer);
-        void Bind(u32 nameHash, IStorageBuffer* storageBuffer);
+        void Bind(const std::string& name, BufferID buffer);
+        void Bind(u32 nameHash, BufferID buffer);
 
         const std::vector<Descriptor>& GetDescriptors() { return _boundDescriptors; }
         

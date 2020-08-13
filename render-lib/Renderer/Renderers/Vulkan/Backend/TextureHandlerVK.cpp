@@ -6,6 +6,7 @@
 #include "FormatConverterVK.h"
 #include "DebugMarkerUtilVK.h"
 #include <gli/gli.hpp>
+#include "BufferHandlerVK.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -17,9 +18,10 @@ namespace Renderer
 {
     namespace Backend
     {
-        void TextureHandlerVK::Init(RenderDeviceVK* device)
+        void TextureHandlerVK::Init(RenderDeviceVK* device, BufferHandlerVK* bufferHandler)
         {
             _device = device;
+            _bufferHandler = bufferHandler;
 
             DataTextureDesc dataTextureDesc;
             dataTextureDesc.width = 1;
@@ -58,7 +60,7 @@ namespace Renderer
             texture.debugName = desc.path;
 
             u8* pixels;
-            pixels = ReadFile(desc.path, texture.width, texture.height, texture.mipLevels, texture.format, texture.fileSize);
+            pixels = ReadFile(desc.path, texture.width, texture.height, texture.layers, texture.mipLevels, texture.format, texture.fileSize);
             if (!pixels)
             {
                 NC_LOG_FATAL("Failed to load texture!");
@@ -257,13 +259,14 @@ namespace Renderer
             return false;
         }
 
-        u8* TextureHandlerVK::ReadFile(const std::string& filename, i32& width, i32& height, i32& mipLevels, VkFormat& format, size_t& fileSize)
+        u8* TextureHandlerVK::ReadFile(const std::string& filename, i32& width, i32& height, i32& layers, i32& mipLevels, VkFormat& format, size_t& fileSize)
         {
             format = VK_FORMAT_R8G8B8A8_UNORM;
             int channels;
             stbi_uc* pixels = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
             u8* textureMemory = nullptr;
             mipLevels = 1; // If we are not loading using gli we don't support mips, so don't bother with it
+            layers = 1; // If we are not loading using gli we don't support layers, so don't bother with it
 
             if (!pixels)
             {
@@ -275,6 +278,7 @@ namespace Renderer
 
                 width = texture.extent().x;
                 height = texture.extent().y;
+                layers = static_cast<i32>(texture.layers());
                 mipLevels = static_cast<i32>(texture.levels());
 
                 format = vkGetFormatFromOpenGLInternalFormat(gliFormat.Internal);
@@ -297,15 +301,17 @@ namespace Renderer
         void TextureHandlerVK::CreateTexture(Texture& texture, u8* pixels)
         {
             // Create staging buffer
-            VkBuffer stagingBuffer;
-            VmaAllocation stagingBufferAllocation;
-
-            _device->CreateBuffer(texture.fileSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer, stagingBufferAllocation);
+            BufferDesc bufferDesc;
+            bufferDesc.name = texture.debugName + "_StagingBuffer";
+            bufferDesc.size = texture.fileSize;
+            bufferDesc.usage = BUFFER_USAGE_TRANSFER_SOURCE;
+            bufferDesc.cpuAccess = BufferCPUAccess::WriteOnly;
+            BufferID stagingBuffer = _bufferHandler->CreateBuffer(bufferDesc);
 
             void* data;
-            vmaMapMemory(_device->_allocator, stagingBufferAllocation, &data);
+            vmaMapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(stagingBuffer), &data);
             memcpy(data, pixels, texture.fileSize);
-            vmaUnmapMemory(_device->_allocator, stagingBufferAllocation);
+            vmaUnmapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(stagingBuffer));
 
             delete[] pixels;
 
@@ -338,14 +344,16 @@ namespace Renderer
 
             // Copy data from stagingBuffer into image
             _device->TransitionImageLayout(texture.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture.layers, texture.mipLevels);
-            _device->CopyBufferToImage(stagingBuffer, texture.image, texture.format, static_cast<u32>(texture.width), static_cast<u32>(texture.height), texture.layers, texture.mipLevels);
+            _device->CopyBufferToImage(_bufferHandler->GetBuffer(stagingBuffer), texture.image, texture.format, static_cast<u32>(texture.width), static_cast<u32>(texture.height), texture.layers, texture.mipLevels);
             _device->TransitionImageLayout(texture.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.layers, texture.mipLevels);
+
+            _bufferHandler->DestroyBuffer(stagingBuffer);
 
             // Create color view
             VkImageViewCreateInfo viewInfo = {};
             viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             viewInfo.image = texture.image;
-            viewInfo.viewType = texture.layers == 1 ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+            viewInfo.viewType = (texture.layers > 1) ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
             viewInfo.format = texture.format;
             viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             viewInfo.subresourceRange.baseMipLevel = 0;

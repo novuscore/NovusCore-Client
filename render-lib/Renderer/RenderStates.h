@@ -60,6 +60,14 @@ namespace Renderer
         SampleCount sampleCount = SAMPLE_COUNT_1;
     };
 
+    enum class PrimitiveTopology
+    {
+        Triangles,
+        TriangleStrip,
+        Lines,
+        LineStrip,
+    };
+
     enum BlendMode
     {
         BLEND_MODE_ZERO,
@@ -230,6 +238,7 @@ namespace Renderer
         INPUT_FORMAT_R16_UINT,
         INPUT_FORMAT_R16_SINT,
         // 8 bit per component
+        INPUT_FORMAT_R8G8B8A8_UNORM,
         INPUT_FORMAT_R8G8B8A8_UINT,
         INPUT_FORMAT_R8G8B8A8_SINT,
         INPUT_FORMAT_R8G8_UINT,
@@ -418,6 +427,12 @@ namespace Renderer
         IMAGE_FORMAT_R8_SINT
     };
 
+    enum class IndexFormat : u8
+    {
+        UInt16,
+        UInt32,
+    };
+
     enum DepthImageFormat
     {
         DEPTH_IMAGE_FORMAT_UNKNOWN,
@@ -452,6 +467,34 @@ namespace Renderer
     {
         DIMENSION_ABSOLUTE, // vec2(1,1) means 1x1 pixels
         DIMENSION_SCALE     // vec2(1,1) means 100% of window size
+    };
+
+    enum BufferUsage
+    {
+        BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER   = (1 << 0),
+        BUFFER_USAGE_STORAGE_BUFFER             = (1 << 1),
+        BUFFER_USAGE_VERTEX_BUFFER              = (1 << 2),
+        BUFFER_USAGE_INDEX_BUFFER               = (1 << 3),
+        BUFFER_USAGE_UNIFORM_BUFFER             = (1 << 4),
+        BUFFER_USAGE_TRANSFER_SOURCE            = (1 << 5),
+        BUFFER_USAGE_TRANSFER_DESTINATION       = (1 << 6),
+    };
+
+    enum class BufferCPUAccess : u8
+    {
+        None,
+        WriteOnly,
+        ReadOnly,
+    };
+
+    enum class PipelineBarrierType : u8
+    {
+        TransferDestToIndirectArguments,
+        ComputeWriteToIndirectArguments,
+        ComputeWriteToVertexBuffer,
+        ComputeWriteToVertexShaderRead,
+        ComputeWriteToPixelShaderRead,
+        ComputeWriteToComputeShaderRead,
     };
 
     inline ImageComponentType ToImageComponentType(ImageFormat imageFormat)

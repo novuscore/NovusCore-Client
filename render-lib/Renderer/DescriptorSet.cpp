@@ -79,20 +79,20 @@ namespace Renderer
         boundDescriptor.textureArrayID = textureArrayID;
     }
 
-    void DescriptorSet::Bind(const std::string& name, IConstantBuffer* constantBuffer)
+    void DescriptorSet::Bind(const std::string& name, BufferID buffer)
     {
         u32 nameHash = StringUtils::fnv1a_32(name.c_str(), name.size());
-        Bind(nameHash, constantBuffer);
+        Bind(nameHash, buffer);
     }
 
-    void DescriptorSet::Bind(u32 nameHash, IConstantBuffer* constantBuffer)
+    void DescriptorSet::Bind(u32 nameHash, BufferID buffer)
     {
         for (u32 i = 0; i < _boundDescriptors.size(); i++)
         {
             if (nameHash == _boundDescriptors[i].nameHash)
             {
-                _boundDescriptors[i].descriptorType = DescriptorType::DESCRIPTOR_TYPE_CONSTANT_BUFFER;
-                _boundDescriptors[i].constantBuffer = constantBuffer;
+                _boundDescriptors[i].descriptorType = DescriptorType::DESCRIPTOR_TYPE_BUFFER;
+                _boundDescriptors[i].bufferID = buffer;
                 return;
             }
         }
@@ -100,32 +100,7 @@ namespace Renderer
         u32 newIndex = static_cast<u32>(_boundDescriptors.size());
         Descriptor& boundDescriptor = _boundDescriptors.emplace_back();
         boundDescriptor.nameHash = nameHash;
-        boundDescriptor.descriptorType = DESCRIPTOR_TYPE_CONSTANT_BUFFER;
-        boundDescriptor.constantBuffer = constantBuffer;
-    }
-
-    void DescriptorSet::Bind(const std::string& name, IStorageBuffer* storageBuffer)
-    {
-        u32 nameHash = StringUtils::fnv1a_32(name.c_str(), name.size());
-        Bind(nameHash, storageBuffer);
-    }
-
-    void DescriptorSet::Bind(u32 nameHash, IStorageBuffer* storageBuffer)
-    {
-        for (u32 i = 0; i < _boundDescriptors.size(); i++)
-        {
-            if (nameHash == _boundDescriptors[i].nameHash)
-            {
-                _boundDescriptors[i].descriptorType = DescriptorType::DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                _boundDescriptors[i].storageBuffer = storageBuffer;
-                return;
-            }
-        }
-
-        u32 newIndex = static_cast<u32>(_boundDescriptors.size());
-        Descriptor& boundDescriptor = _boundDescriptors.emplace_back();
-        boundDescriptor.nameHash = nameHash;
-        boundDescriptor.descriptorType = DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        boundDescriptor.storageBuffer = storageBuffer;
+        boundDescriptor.descriptorType = DESCRIPTOR_TYPE_BUFFER;
+        boundDescriptor.bufferID = buffer;
     }
 }

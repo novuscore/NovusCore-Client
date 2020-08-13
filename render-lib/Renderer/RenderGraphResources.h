@@ -20,11 +20,13 @@ namespace Memory
 namespace Renderer
 {
     struct GraphicsPipelineDesc;
+    struct ComputePipelineDesc;
 
     class RenderGraphResources
     {
     public:
         void InitializePipelineDesc(GraphicsPipelineDesc& desc);
+        void InitializePipelineDesc(ComputePipelineDesc& desc);
 
     private:
         RenderGraphResources(Memory::Allocator* allocator);

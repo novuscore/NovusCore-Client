@@ -30,6 +30,10 @@ namespace Renderer
         };
     }
 
+    void RenderGraphResources::InitializePipelineDesc(ComputePipelineDesc& desc)
+    {
+    }
+
     ImageID RenderGraphResources::GetImage(RenderPassResource resource)
     {
         using type = type_safe::underlying_type<RenderPassResource>;

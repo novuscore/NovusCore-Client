@@ -1,6 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
 #include <Renderer/Renderer.h>
+#include <Renderer/Buffer.h>
 #include <vector>
 
 namespace UI
@@ -59,6 +60,6 @@ namespace UIComponent
         std::vector<Renderer::ModelID> models;
         std::vector<Renderer::TextureID> textures;
 
-        Renderer::ConstantBuffer<TextConstantBuffer>* constantBuffer = nullptr;
+        Renderer::Buffer<TextConstantBuffer>* constantBuffer = nullptr;
     };
 }

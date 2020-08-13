@@ -1,6 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
 #include <Renderer/Renderer.h>
+#include <Renderer/Buffer.h>
 
 namespace UIComponent
 {
@@ -19,6 +20,6 @@ namespace UIComponent
         Renderer::TextureID textureID;
         Renderer::ModelID modelID;
         Color color;
-        Renderer::ConstantBuffer<ImageConstantBuffer>* constantBuffer;
+        Renderer::Buffer<ImageConstantBuffer>* constantBuffer;
     };
 }

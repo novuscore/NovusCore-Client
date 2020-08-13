@@ -16,7 +16,7 @@ Model& EntityUtils::CreateModelComponent(entt::registry& registry, entt::entity&
     registry.emplace<VisibleModel>(entity);
 
     model.modelId = renderer->LoadModel(desc);
-    model.instanceData.Init(renderer);
+    //model.instanceData.Init(renderer);
 
     return model;
 }

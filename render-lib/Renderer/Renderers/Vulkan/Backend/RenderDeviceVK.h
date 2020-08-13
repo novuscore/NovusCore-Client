@@ -5,8 +5,6 @@
 #include <vulkan/vulkan.h>
 #include "vk_mem_alloc.h"
 
-#include "BufferBackendVK.h"
-
 #include "../../../Descriptors/ImageDesc.h"
 #include "../../../Descriptors/DepthImageDesc.h"
 
@@ -22,8 +20,6 @@ namespace Renderer
 {
     namespace Backend
     {
-        struct BufferBackend;
-        struct BufferBackendVK;
         struct SwapChainVK;
         class ShaderHandlerVK;
         struct DescriptorMegaPoolVK;
@@ -46,8 +42,6 @@ namespace Renderer
 
             void Init();
             void InitWindow(ShaderHandlerVK* shaderHandler, Window* window);
-
-            BufferBackend* CreateBufferBackend(size_t size, Backend::BufferBackend::Type type);
 
             u32 GetFrameIndex() { return _frameIndex; }
             void EndFrame() { _frameIndex = (_frameIndex + 1) % FRAME_INDEX_COUNT; }
@@ -86,8 +80,7 @@ namespace Renderer
             VkCommandBuffer BeginSingleTimeCommands();
             void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
 
-            void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, VkBuffer& buffer, VmaAllocation& allocation);
-            void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+            void CopyBuffer(VkBuffer dstBuffer, u64 dstOffset, VkBuffer srcBuffer, u64 srcOffset, u64 range);
             void CopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, VkFormat format, u32 width, u32 height, u32 numLayers, u32 numMipLevels);
             void TransitionImageLayout(VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout, u32 numLayers, u32 numMipLevels);
             void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout, u32 numLayers, u32 numMipLevels);
@@ -110,7 +103,6 @@ namespace Renderer
             VkQueue _graphicsQueue = VK_NULL_HANDLE;
             VkQueue _presentQueue = VK_NULL_HANDLE;
 
-            std::vector<BufferBackendVK*> _bufferBackends;
             std::vector<SwapChainVK*> _swapChains;
 
             VmaAllocator _allocator;
@@ -120,7 +112,7 @@ namespace Renderer
             tracy::VkCtx* _tracyContext = nullptr;
 
             friend class RendererVK;
-            friend struct BufferBackendVK;
+            friend class BufferHandlerVK;
             friend class ImageHandlerVK;
             friend class TextureHandlerVK;
             friend class ModelHandlerVK;

@@ -6,6 +6,7 @@
 #include <tracy/TracyVulkan.hpp>
 
 #include "Backend/RenderDeviceVK.h"
+#include "Backend/BufferHandlerVK.h"
 #include "Backend/ImageHandlerVK.h"
 #include "Backend/TextureHandlerVK.h"
 #include "Backend/ModelHandlerVK.h"
@@ -16,9 +17,9 @@
 #include "Backend/SemaphoreHandlerVK.h"
 #include "Backend/SwapChainVK.h"
 #include "Backend/DebugMarkerUtilVK.h"
-#include "Backend/BufferBackendVK.h"
 #include "Backend/DescriptorSetBackendVK.h"
 #include "Backend/DescriptorSetBuilderVK.h"
+#include "Backend/FormatConverterVK.h"
 
 namespace Renderer
 {
@@ -26,6 +27,7 @@ namespace Renderer
         : _device(new Backend::RenderDeviceVK())
     {
         // Create handlers
+        _bufferHandler = new Backend::BufferHandlerVK();
         _imageHandler = new Backend::ImageHandlerVK();
         _textureHandler = new Backend::TextureHandlerVK();
         _modelHandler = new Backend::ModelHandlerVK();
@@ -37,9 +39,10 @@ namespace Renderer
 
         // Init
         _device->Init();
+        _bufferHandler->Init(_device);
         _imageHandler->Init(_device);
-        _textureHandler->Init(_device);
-        _modelHandler->Init(_device);
+        _textureHandler->Init(_device, _bufferHandler);
+        _modelHandler->Init(_device, _bufferHandler);
         _shaderHandler->Init(_device);
         _pipelineHandler->Init(_device, _shaderHandler, _imageHandler);
         _commandListHandler->Init(_device);
@@ -59,6 +62,7 @@ namespace Renderer
         _device->FlushGPU(); // Make sure it has finished rendering
 
         delete(_device);
+        delete(_bufferHandler);
         delete(_imageHandler);
         delete(_textureHandler);
         delete(_modelHandler);
@@ -67,6 +71,16 @@ namespace Renderer
         delete(_commandListHandler);
         delete(_samplerHandler);
         delete(_semaphoreHandler);
+    }
+
+    BufferID RendererVK::CreateBuffer(BufferDesc& desc)
+    {
+        return _bufferHandler->CreateBuffer(desc);
+    }
+
+    void RendererVK::QueueDestroyBuffer(BufferID buffer)
+    {
+        _destroyLists[_destroyListIndex].buffers.push_back(buffer);
     }
 
     ImageID RendererVK::CreateImage(ImageDesc& desc)
@@ -94,10 +108,9 @@ namespace Renderer
         return _pipelineHandler->CreatePipeline(desc);
     }
 
-    ComputePipelineID RendererVK::CreatePipeline(ComputePipelineDesc& /*desc*/)
+    ComputePipelineID RendererVK::CreatePipeline(ComputePipelineDesc& desc)
     {
-        NC_LOG_FATAL("Compuer Shaders are not supported yet");
-        return ComputePipelineID::Invalid();
+        return _pipelineHandler->CreatePipeline(desc);
     }
 
     ModelID RendererVK::CreatePrimitiveModel(PrimitiveModelDesc& desc)
@@ -265,27 +278,11 @@ namespace Renderer
         _device->TransitionImageLayout(commandBuffer, image, range.aspectMask, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1, 1);
     }
 
-    void RendererVK::Draw(CommandListID commandListID, ModelID modelID)
+    void RendererVK::Draw(CommandListID commandListID, u32 numVertices, u32 numInstances, u32 vertexOffset, u32 instanceOffset)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
-        // Bind vertex buffer
-        VkBuffer vertexBuffer = _modelHandler->GetVertexBuffer(modelID);
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, offsets);
-
-        if (_boundModelIndexBuffer != modelID)
-        {
-            // Bind index buffer
-            VkBuffer indexBuffer = _modelHandler->GetIndexBuffer(modelID);
-            vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-            _boundModelIndexBuffer = modelID;
-        }
-
-        // Draw
-        u32 numIndices = _modelHandler->GetNumIndices(modelID);
-        vkCmdDrawIndexed(commandBuffer, numIndices, 1, 0, 0, 0);
+        vkCmdDraw(commandBuffer, numVertices, numInstances, vertexOffset, instanceOffset);
     }
 
     void RendererVK::DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances)
@@ -311,6 +308,48 @@ namespace Renderer
         
         // Draw
         vkCmdDrawIndexed(commandBuffer, numVertices, numInstances, 0, 0, 0);
+    }
+
+    void RendererVK::DrawIndexed(CommandListID commandListID, u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        vkCmdDrawIndexed(commandBuffer, numIndices, numInstances, indexOffset, vertexOffset, instanceOffset);
+    }
+
+    void RendererVK::DrawIndexedIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
+
+        vkCmdDrawIndexedIndirect(commandBuffer, vkArgumentBuffer, argumentBufferOffset, drawCount, sizeof(VkDrawIndexedIndirectCommand));
+    }
+
+    void RendererVK::DrawIndexedIndirectCount(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
+        VkBuffer vkDrawCountBuffer = _bufferHandler->GetBuffer(drawCountBuffer);
+
+        vkCmdDrawIndexedIndirectCount(commandBuffer, vkArgumentBuffer, argumentBufferOffset, vkDrawCountBuffer, drawCountBufferOffset, maxDrawCount, sizeof(VkDrawIndexedIndirectCommand));
+    }
+
+    void RendererVK::Dispatch(CommandListID commandListID, u32 threadGroupCountX, u32 threadGroupCountY, u32 threadGroupCountZ)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        vkCmdDispatch(commandBuffer, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+    }
+
+    void RendererVK::DispatchIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
+
+        vkCmdDispatchIndirect(commandBuffer, vkArgumentBuffer, argumentBufferOffset);
     }
 
     void RendererVK::PopMarker(CommandListID commandListID)
@@ -374,9 +413,15 @@ namespace Renderer
         vkCmdEndRenderPass(commandBuffer);
     }
 
-    void RendererVK::SetPipeline(CommandListID /*commandListID*/, ComputePipelineID /*pipelineID*/)
+    void RendererVK::SetPipeline(CommandListID commandListID, ComputePipelineID pipelineID)
     {
-        
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkPipeline pipeline = _pipelineHandler->GetPipeline(pipelineID);
+
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+
+        _commandListHandler->SetBoundComputePipeline(commandListID, pipelineID);
     }
 
     void RendererVK::SetScissorRect(CommandListID commandListID, ScissorRect scissorRect)
@@ -396,40 +441,40 @@ namespace Renderer
 
         VkViewport vkViewport = {};
         vkViewport.x = viewport.topLeftX;
-        vkViewport.y = viewport.topLeftY;
+        vkViewport.y = viewport.height - viewport.topLeftY;
         vkViewport.width = viewport.width;
-        vkViewport.height = viewport.height;
+        vkViewport.height = -viewport.height;
         vkViewport.minDepth = viewport.minDepth;
         vkViewport.maxDepth = viewport.maxDepth;
 
         vkCmdSetViewport(commandBuffer, 0, 1, &vkViewport);
     }
 
-    void RendererVK::SetVertexBuffer(CommandListID commandListID, u32 slot, ModelID modelID)
+    void RendererVK::SetVertexBuffer(CommandListID commandListID, u32 slot, BufferID bufferID)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
         // Bind vertex buffer
-        VkBuffer vertexBuffer = _modelHandler->GetVertexBuffer(modelID);
+        VkBuffer vertexBuffer = _bufferHandler->GetBuffer(bufferID);
         VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(commandBuffer, slot, 1, &vertexBuffer, offsets);
     }
 
-    void RendererVK::SetIndexBuffer(CommandListID commandListID, ModelID modelID)
+    void RendererVK::SetIndexBuffer(CommandListID commandListID, BufferID bufferID, IndexFormat indexFormat)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
         // Bind index buffer
-        VkBuffer indexBuffer = _modelHandler->GetIndexBuffer(modelID);
-        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        VkBuffer indexBuffer = _bufferHandler->GetBuffer(bufferID);
+        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, Backend::FormatConverterVK::ToVkIndexType(indexFormat));
     }
 
-    void RendererVK::SetBuffer(CommandListID commandListID, u32 slot, void* buffer)
+    void RendererVK::SetBuffer(CommandListID commandListID, u32 slot, BufferID buffer)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
         // Bind buffer
-        VkBuffer vkBuffer = *static_cast<VkBuffer*>(buffer);
+        VkBuffer vkBuffer = _bufferHandler->GetBuffer(buffer);
         VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(commandBuffer, slot, 1, &vkBuffer, offsets);
     }
@@ -537,19 +582,11 @@ namespace Renderer
             
             builder->BindImageArray(descriptor.nameHash, imageInfos.data(), static_cast<i32>(imageInfos.size()));
         }
-        else if (descriptor.descriptorType == DescriptorType::DESCRIPTOR_TYPE_CONSTANT_BUFFER)
+        else if (descriptor.descriptorType == DescriptorType::DESCRIPTOR_TYPE_BUFFER)
         {
             VkDescriptorBufferInfo bufferInfo = {};
-            bufferInfo.buffer = *static_cast<VkBuffer*>(descriptor.constantBuffer->GetBuffer(frameIndex));
-            bufferInfo.range = descriptor.constantBuffer->GetSize();
-
-            builder->BindBuffer(descriptor.nameHash, bufferInfo);
-        }
-        else if (descriptor.descriptorType == DescriptorType::DESCRIPTOR_TYPE_STORAGE_BUFFER)
-        {
-            VkDescriptorBufferInfo bufferInfo = {};
-            bufferInfo.buffer = *static_cast<VkBuffer*>(descriptor.storageBuffer->GetBuffer(frameIndex));
-            bufferInfo.range = descriptor.storageBuffer->GetSize();
+            bufferInfo.buffer = _bufferHandler->GetBuffer(descriptor.bufferID);
+            bufferInfo.range = _bufferHandler->GetBufferSize(descriptor.bufferID);
 
             builder->BindBuffer(descriptor.nameHash, bufferInfo);
         }
@@ -562,34 +599,69 @@ namespace Renderer
         _imageHandler->OnWindowResize();
     }
 
+    void RendererVK::DestroyObjects(ObjectDestroyList& destroyList)
+    {
+        for (const BufferID buffer : destroyList.buffers)
+        {
+            _bufferHandler->DestroyBuffer(buffer);
+        }
+
+        destroyList.buffers.clear();
+    }
+
     void RendererVK::BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex)
     {
         ZoneScopedNC("RendererVK::BindDescriptorSet", tracy::Color::Red3);
 
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
         GraphicsPipelineID graphicsPipelineID = _commandListHandler->GetBoundGraphicsPipeline(commandListID);
+        ComputePipelineID computePipelineID = _commandListHandler->GetBoundComputePipeline(commandListID);
 
-        using type = type_safe::underlying_type<GraphicsPipelineID>;
-        
-        std::vector<std::vector<VkDescriptorImageInfo>> imageInfosArrays; // These need to live until builder->BuildDescriptor()
-        imageInfosArrays.reserve(8);
-
-        Backend::DescriptorSetBuilderVK* builder = _pipelineHandler->GetDescriptorSetBuilder(graphicsPipelineID);
-        assert(slot != DescriptorSetSlot::GLOBAL); // TODO: this won't need or have a graphicspipelineID, not sure how to do that yet
-
-        for (u32 i = 0; i < numDescriptors; i++)
+        if (graphicsPipelineID != GraphicsPipelineID::Invalid())
         {
-            ZoneScopedNC("BindDescriptor", tracy::Color::Red3);
-            Descriptor& descriptor = descriptors[i];
-            BindDescriptor(builder, &imageInfosArrays, descriptor, frameIndex);
+            std::vector<std::vector<VkDescriptorImageInfo>> imageInfosArrays; // These need to live until builder->BuildDescriptor()
+            imageInfosArrays.reserve(8);
+
+            Backend::DescriptorSetBuilderVK* builder = _pipelineHandler->GetDescriptorSetBuilder(graphicsPipelineID);
+            assert(slot != DescriptorSetSlot::GLOBAL); // TODO: this won't need or have a graphicspipelineID, not sure how to do that yet
+
+            for (u32 i = 0; i < numDescriptors; i++)
+            {
+                ZoneScopedNC("BindDescriptor", tracy::Color::Red3);
+                Descriptor& descriptor = descriptors[i];
+                BindDescriptor(builder, &imageInfosArrays, descriptor, frameIndex);
+            }
+
+            VkDescriptorSet descriptorSet = builder->BuildDescriptor(static_cast<i32>(slot), Backend::DescriptorLifetime::PerFrame);
+
+            VkPipelineLayout pipelineLayout = _pipelineHandler->GetPipelineLayout(graphicsPipelineID);
+
+            // Bind descriptor set
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, slot, 1, &descriptorSet, 0, nullptr);
         }
 
-        VkDescriptorSet descriptorSet = builder->BuildDescriptor(static_cast<i32>(slot), Backend::DescriptorLifetime::PerFrame);
-                
-        VkPipelineLayout pipelineLayout = _pipelineHandler->GetPipelineLayout(graphicsPipelineID);
+        if (computePipelineID != ComputePipelineID::Invalid())
+        {
+            std::vector<std::vector<VkDescriptorImageInfo>> imageInfosArrays; // These need to live until builder->BuildDescriptor()
+            imageInfosArrays.reserve(8);
 
-        // Bind descriptor set
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, slot, 1, &descriptorSet, 0, nullptr);
+            Backend::DescriptorSetBuilderVK* builder = _pipelineHandler->GetDescriptorSetBuilder(computePipelineID);
+            assert(slot != DescriptorSetSlot::GLOBAL); // TODO: this won't need or have a graphicspipelineID, not sure how to do that yet
+
+            for (u32 i = 0; i < numDescriptors; i++)
+            {
+                ZoneScopedNC("BindDescriptor", tracy::Color::Red3);
+                Descriptor& descriptor = descriptors[i];
+                BindDescriptor(builder, &imageInfosArrays, descriptor, frameIndex);
+            }
+
+            VkDescriptorSet descriptorSet = builder->BuildDescriptor(static_cast<i32>(slot), Backend::DescriptorLifetime::PerFrame);
+
+            VkPipelineLayout pipelineLayout = _pipelineHandler->GetPipelineLayout(computePipelineID);
+
+            // Bind descriptor set
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, slot, 1, &descriptorSet, 0, nullptr);
+        }
     }
 
     void RendererVK::MarkFrameStart(CommandListID commandListID, u32 frameIndex)
@@ -607,8 +679,13 @@ namespace Renderer
         _device->_descriptorMegaPool->SetFrame(frameIndex);
     }
 
+#if !TRACY_ENABLE
+    void RendererVK::BeginTrace(CommandListID /*commandListID*/, const tracy::SourceLocationData* /*sourceLocation*/)
+    {
+#else
     void RendererVK::BeginTrace(CommandListID commandListID, const tracy::SourceLocationData* sourceLocation)
     {
+
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
         tracy::VkCtxManualScope*& tracyScope = _commandListHandler->GetTracyScope(commandListID);
 
@@ -619,8 +696,13 @@ namespace Renderer
 
         tracyScope = new tracy::VkCtxManualScope(_device->_tracyContext, sourceLocation, true);
         tracyScope->Start(commandBuffer);
+#endif
     }
 
+#if !TRACY_ENABLE
+    void RendererVK::EndTrace(CommandListID /*commandListID*/)
+    {
+#else
     void RendererVK::EndTrace(CommandListID commandListID)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
@@ -634,6 +716,7 @@ namespace Renderer
         tracyScope->End();
         delete tracyScope;
         tracyScope = nullptr;
+#endif
     }
 
     void RendererVK::AddSignalSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID)
@@ -646,6 +729,79 @@ namespace Renderer
     {
         VkSemaphore semaphore = _semaphoreHandler->GetVkSemaphore(semaphoreID);
         _commandListHandler->AddWaitSemaphore(commandListID, semaphore);
+    }
+
+    void RendererVK::CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkBuffer vkDstBuffer = _bufferHandler->GetBuffer(dstBuffer);
+        VkBuffer vkSrcBuffer = _bufferHandler->GetBuffer(srcBuffer);
+
+        VkBufferCopy copyRegion = {};
+        copyRegion.srcOffset = srcOffset;
+        copyRegion.dstOffset = dstOffset;
+        copyRegion.size = range;
+        vkCmdCopyBuffer(commandBuffer, vkSrcBuffer, vkDstBuffer, 1, &copyRegion);
+    }
+
+    void RendererVK::PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkPipelineStageFlags srcStageMask;
+        VkPipelineStageFlags dstStageMask;
+
+        VkBufferMemoryBarrier bufferBarrier = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+        bufferBarrier.buffer = _bufferHandler->GetBuffer(buffer);
+        bufferBarrier.size = VK_WHOLE_SIZE;
+
+        switch (type)
+        {
+        case PipelineBarrierType::TransferDestToIndirectArguments:
+            srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+            break;
+
+        case PipelineBarrierType::ComputeWriteToVertexShaderRead:
+            srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            break;
+
+        case PipelineBarrierType::ComputeWriteToPixelShaderRead:
+            srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            break;
+
+        case PipelineBarrierType::ComputeWriteToComputeShaderRead:
+            srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            break;
+
+        case PipelineBarrierType::ComputeWriteToIndirectArguments:
+            srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+            break;
+
+        case PipelineBarrierType::ComputeWriteToVertexBuffer:
+            srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+            break;
+        }
+
+        vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &bufferBarrier, 0, nullptr);
     }
 
     void RendererVK::Present(Window* window, ImageID imageID, GPUSemaphoreID semaphoreID)
@@ -662,9 +818,11 @@ namespace Renderer
             NC_LOG_FATAL("Tried to begin GPU trace on a commandlist that already had a begun GPU trace");
         }
 
+#if TRACY_ENABLE
         TracySourceLocation(presentBlitting, "PresentBlitting", tracy::Color::Yellow2);
         tracyScope = new tracy::VkCtxManualScope(_device->_tracyContext, &presentBlitting, true);
         tracyScope->Start(commandBuffer);
+#endif
 
         Backend::SwapChainVK* swapChain = static_cast<Backend::SwapChainVK*>(window->GetSwapChain());
         u32 semaphoreIndex = swapChain->frameIndex;
@@ -760,8 +918,11 @@ namespace Renderer
         _device->TransitionImageLayout(commandBuffer, image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, imageDesc.depth, 1);
         PopMarker(commandListID);
 
+#if TRACY_ENABLE
         tracyScope->End();
         tracyScope = nullptr;
+#endif
+
         _commandListHandler->EndCommandList(commandListID, frameFence);
 
         // Present
@@ -791,15 +952,38 @@ namespace Renderer
 
         // Flip frameIndex between 0 and 1
         swapChain->frameIndex = !swapChain->frameIndex;
+
+        _destroyListIndex = (_destroyListIndex + 1) % _destroyLists.size();
+        DestroyObjects(_destroyLists[_destroyListIndex]);
     }
 
     void RendererVK::Present(Window* /*window*/, DepthImageID /*image*/, GPUSemaphoreID /*semaphoreID*/)
     {
         
     }
-
-    Backend::BufferBackend* RendererVK::CreateBufferBackend(size_t size, Backend::BufferBackend::Type type)
+    
+    void RendererVK::CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range)
     {
-        return _device->CreateBufferBackend(size, type);
+        VkBuffer vkDstBuffer = _bufferHandler->GetBuffer(dstBuffer);
+        VkBuffer vkSrcBuffer = _bufferHandler->GetBuffer(srcBuffer);
+        _device->CopyBuffer(vkDstBuffer, dstOffset, vkSrcBuffer, srcOffset, range);
+
+        DestroyObjects(_destroyLists[_destroyListIndex]);
+    }
+
+    void* RendererVK::MapBuffer(BufferID buffer)
+    {
+        void* mappedMemory;
+        if (vmaMapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(buffer), &mappedMemory) != VK_SUCCESS)
+        {
+            NC_LOG_ERROR("vmaMapMemory failed!\n");
+            return nullptr;
+        }
+        return mappedMemory;
+    }
+    
+    void RendererVK::UnmapBuffer(BufferID buffer)
+    {
+        vmaUnmapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(buffer));
     }
 }

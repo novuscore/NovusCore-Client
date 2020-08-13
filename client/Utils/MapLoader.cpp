@@ -84,30 +84,34 @@ bool MapLoader::ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk, Stri
     reader.Read(buffer, buffer.size);
 
     buffer.Get<Terrain::ChunkHeader>(chunk.chunkHeader);
+
+    if (chunk.chunkHeader.token != Terrain::MAP_CHUNK_TOKEN)
+    {
+        NC_LOG_FATAL("Tried to load a map chunk file with the wrong token");
+    }
+
+    if (chunk.chunkHeader.version != Terrain::MAP_CHUNK_VERSION)
+    {
+        NC_LOG_FATAL("Loaded map chunk has version of %u instead of expected version of %u, try reextracting your data", chunk.chunkHeader.version, Terrain::MAP_CHUNK_VERSION);
+    }
+
     buffer.Get<Terrain::HeightHeader>(chunk.heightHeader);
     buffer.Get<Terrain::HeightBox>(chunk.heightBox);
 
-    for (u32 i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i++)
+    buffer.GetBytes(reinterpret_cast<u8*>(&chunk.cells[0]), sizeof(Terrain::Cell) * Terrain::MAP_CELLS_PER_CHUNK);
+
+    buffer.Get<u32>(chunk.alphaMapStringID);
+
+    u32 numMapObjectPlacements;
+    buffer.Get<u32>(numMapObjectPlacements);
+
+    if (numMapObjectPlacements > 0)
     {
-        buffer.Get<Terrain::Cell>(chunk.cells[i]);
-
-        u32 numAlphaMaps;
-        buffer.Get<u32>(numAlphaMaps);
-
-        if (numAlphaMaps > 0)
-        {
-            chunk.alphaMaps[i].resize(numAlphaMaps);
-            for (u32 j = 0; j < numAlphaMaps; j++)
-            {
-                buffer.Get<Terrain::AlphaMap>(chunk.alphaMaps[i][j]);
-            }
-        }
+        chunk.mapObjectPlacements.resize(numMapObjectPlacements);
+        buffer.GetBytes(reinterpret_cast<u8*>(&chunk.mapObjectPlacements[0]), sizeof(Terrain::MapObjectPlacement) * numMapObjectPlacements);
     }
-
-    //buffer.Get<Terrain::Chunk>(chunk);
-    
     
     stringTable.Deserialize(buffer);
-
+    assert(stringTable.GetNumStrings() > 0); // We always expect to have at least 1 string in our stringtable, a path for the base texture
     return true;
 }

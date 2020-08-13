@@ -3,8 +3,46 @@
 #include "Renderer.h"
 #include <tracy/Tracy.hpp>
 
+// Commands
+#include "Commands/Clear.h"
+#include "Commands/Draw.h"
+#include "Commands/DrawBindless.h"
+#include "Commands/DrawIndexedBindless.h"
+#include "Commands/DrawIndexed.h"
+#include "Commands/DrawIndexedIndirect.h"
+#include "Commands/DrawIndexedIndirectCount.h"
+#include "Commands/Dispatch.h"
+#include "Commands/DispatchIndirect.h"
+#include "Commands/PopMarker.h"
+#include "Commands/PushMarker.h"
+#include "Commands/SetPipeline.h"
+#include "Commands/SetScissorRect.h"
+#include "Commands/SetViewport.h"
+#include "Commands/SetVertexBuffer.h"
+#include "Commands/SetIndexBuffer.h"
+#include "Commands/SetBuffer.h"
+#include "Commands/BindDescriptorSet.h"
+#include "Commands/MarkFrameStart.h"
+#include "Commands/BeginTrace.h"
+#include "Commands/EndTrace.h"
+#include "Commands/AddSignalSemaphore.h"
+#include "Commands/AddWaitSemaphore.h"
+#include "Commands/CopyBuffer.h"
+#include "Commands/PipelineBarrier.h"
+
 namespace Renderer
 {
+    ScopedGPUProfilerZone::ScopedGPUProfilerZone(CommandList& commandList, const tracy::SourceLocationData* sourceLocation)
+        : _commandList(commandList)
+    {
+        _commandList.BeginTrace(sourceLocation);
+    }
+
+    ScopedGPUProfilerZone::~ScopedGPUProfilerZone()
+    {
+        _commandList.EndTrace();
+    }
+
     void CommandList::Execute()
     {
         assert(_markerScope == 0); // We need to pop all markers that we push
@@ -70,6 +108,12 @@ namespace Renderer
         command->pipeline = pipelineID;
     }
 
+    void CommandList::BindPipeline(ComputePipelineID pipelineID)
+    {
+        Commands::SetComputePipeline* command = AddCommand<Commands::SetComputePipeline>();
+        command->pipeline = pipelineID;
+    }
+
     void CommandList::BindDescriptorSet(DescriptorSetSlot slot, DescriptorSet* descriptorSet, u32 frameIndex)
     {
         const std::vector<Descriptor>& descriptors = descriptorSet->GetDescriptors();
@@ -106,20 +150,21 @@ namespace Renderer
         command->viewport.maxDepth = maxDepth;
     }
 
-    void CommandList::SetVertexBuffer(u32 slot, ModelID model)
+    void CommandList::SetVertexBuffer(u32 slot, BufferID buffer)
     {
         Commands::SetVertexBuffer* command = AddCommand<Commands::SetVertexBuffer>();
         command->slot = slot;
-        command->modelID = model;
+        command->bufferID = buffer;
     }
 
-    void CommandList::SetIndexBuffer(ModelID model)
+    void CommandList::SetIndexBuffer(BufferID buffer, IndexFormat indexFormat)
     {
         Commands::SetIndexBuffer* command = AddCommand<Commands::SetIndexBuffer>();
-        command->modelID = model;
+        command->bufferID = buffer;
+        command->indexFormat = indexFormat;
     }
 
-    void CommandList::SetBuffer(u32 slot, void* buffer)
+    void CommandList::SetBuffer(u32 slot, BufferID buffer)
     {
         Commands::SetBuffer* command = AddCommand<Commands::SetBuffer>();
         command->slot = slot;
@@ -142,13 +187,6 @@ namespace Renderer
         command->stencil = stencil;
     }
 
-    void CommandList::Draw(ModelID modelID)
-    {
-        assert(modelID != ModelID::Invalid());
-        Commands::Draw* command = AddCommand<Commands::Draw>();
-        command->model = modelID;
-    }
-
     void CommandList::DrawBindless(u32 numVertices, u32 numInstances)
     {
         assert(numVertices > 0);
@@ -169,6 +207,65 @@ namespace Renderer
         command->numInstances = numInstances;
     }
 
+    void CommandList::Draw(u32 numVertices, u32 numInstances, u32 vertexOffset, u32 instanceOffset)
+    {
+        Commands::Draw* command = AddCommand<Commands::Draw>();
+        command->vertexCount = numVertices;
+        command->instanceCount = numInstances;
+        command->vertexOffset = vertexOffset;
+        command->instanceOffset = instanceOffset;
+    }
+
+    void CommandList::DrawIndexed(u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset)
+    {
+        Commands::DrawIndexed* command = AddCommand<Commands::DrawIndexed>();
+        command->indexCount = numIndices;
+        command->instanceCount = numInstances;
+        command->indexOffset = indexOffset;
+        command->vertexOffset = vertexOffset;
+        command->instanceOffset = instanceOffset;
+    }
+
+    void CommandList::DrawIndexedIndirect(BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount)
+    {
+        assert(argumentBuffer != BufferID::Invalid());
+        Commands::DrawIndexedIndirect* command = AddCommand<Commands::DrawIndexedIndirect>();
+        command->argumentBuffer = argumentBuffer;
+        command->argumentBufferOffset = argumentBufferOffset;
+        command->drawCount = drawCount;
+    }
+
+    void CommandList::DrawIndexedIndirectCount(BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount)
+    {
+        assert(argumentBuffer != BufferID::Invalid());
+        assert(drawCountBuffer != BufferID::Invalid());
+        Commands::DrawIndexedIndirectCount* command = AddCommand<Commands::DrawIndexedIndirectCount>();
+        command->argumentBuffer = argumentBuffer;
+        command->argumentBufferOffset = argumentBufferOffset;
+        command->drawCountBuffer = drawCountBuffer;
+        command->drawCountBufferOffset = drawCountBufferOffset;
+        command->maxDrawCount = maxDrawCount;
+    }
+
+    void CommandList::Dispatch(u32 numThreadGroupsX, u32 numThreadGroupsY, u32 numThreadGroupsZ)
+    {
+        assert(numThreadGroupsX > 0);
+        assert(numThreadGroupsY > 0);
+        assert(numThreadGroupsZ > 0);
+        Commands::Dispatch* command = AddCommand<Commands::Dispatch>();
+        command->threadGroupCountX = numThreadGroupsX;
+        command->threadGroupCountY = numThreadGroupsY;
+        command->threadGroupCountZ = numThreadGroupsZ;
+    }
+
+    void CommandList::DispatchIndirect(BufferID argumentBuffer, u32 argumentBufferOffset)
+    {
+        assert(argumentBuffer != BufferID::Invalid());
+        Commands::DispatchIndirect* command = AddCommand<Commands::DispatchIndirect>();
+        command->argumentBuffer = argumentBuffer;
+        command->argumentBufferOffset = argumentBufferOffset;
+    }
+
     void CommandList::AddSignalSemaphore(GPUSemaphoreID semaphoreID)
     {
         Commands::AddSignalSemaphore* command = AddCommand<Commands::AddSignalSemaphore>();
@@ -179,5 +276,26 @@ namespace Renderer
     {
         Commands::AddWaitSemaphore* command = AddCommand<Commands::AddWaitSemaphore>();
         command->semaphore = semaphoreID;
+    }
+
+    void CommandList::CopyBuffer(BufferID dstBuffer, u64 dstBufferOffset, BufferID srcBuffer, u64 srcBufferOffset, u64 region)
+    {
+        assert(dstBuffer != BufferID::Invalid());
+        assert(srcBuffer != BufferID::Invalid());
+        Commands::CopyBuffer* command = AddCommand<Commands::CopyBuffer>();
+        command->dstBuffer = dstBuffer;
+        command->dstBufferOffset = dstBufferOffset;
+        command->srcBuffer = srcBuffer;
+        command->srcBufferOffset = srcBufferOffset;
+        command->region = region;
+    }
+
+    void CommandList::PipelineBarrier(PipelineBarrierType type, BufferID buffer)
+    {
+        assert(buffer != BufferID::Invalid());
+        Commands::PipelineBarrier* command = AddCommand<Commands::PipelineBarrier>();
+        command->barrierType = type;
+        command->buffer = buffer;
+
     }
 }

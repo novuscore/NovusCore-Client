@@ -6,19 +6,21 @@
 #include "vk_mem_alloc.h"
 
 #include "../../../Descriptors/ModelDesc.h"
+#include "../../../Descriptors/BufferDesc.h"
 
 namespace Renderer
 {
     namespace Backend
     {
         class RenderDeviceVK;
+        class BufferHandlerVK;
 
         class ModelHandlerVK
         {
             // Update the second value of this when the format exported from the converter gets changed
             const NovusTypeHeader EXPECTED_TYPE_HEADER = NovusTypeHeader(42, 2);
         public:
-            void Init(RenderDeviceVK* device);
+            void Init(RenderDeviceVK* device, BufferHandlerVK* bufferHandler);
 
             ModelID CreatePrimitiveModel(const PrimitiveModelDesc& desc);
             void UpdatePrimitiveModel(ModelID model, const PrimitiveModelDesc& desc);
@@ -35,11 +37,8 @@ namespace Renderer
             {
                 ModelDesc desc;
 
-                VkBuffer vertexBuffer = VK_NULL_HANDLE;
-                VmaAllocation vertexBufferAllocation;
-
-                VkBuffer indexBuffer = VK_NULL_HANDLE;
-                VmaAllocation indexBufferAllocation;
+                BufferID vertexBuffer = BufferID::Invalid();
+                BufferID indexBuffer = BufferID::Invalid();
 
                 u32 numVertices = 0;
                 u32 numIndices = 0;
@@ -63,6 +62,7 @@ namespace Renderer
 
         private:
             RenderDeviceVK* _device;
+            BufferHandlerVK* _bufferHandler;
 
             std::vector<Model> _models;
         };

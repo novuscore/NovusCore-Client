@@ -10,7 +10,10 @@ namespace Renderer
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
 
-            ModelID model = ModelID::Invalid();
+            u32 vertexCount = 0;
+            u32 instanceCount = 0;
+            u32 vertexOffset = 0;
+            u32 instanceOffset = 0;
         };
     }
 }

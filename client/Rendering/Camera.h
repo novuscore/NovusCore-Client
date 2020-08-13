@@ -1,6 +1,16 @@
 #pragma once
 #include <NovusTypes.h>
 
+enum class FrustumPlane
+{
+    Left,
+    Right,
+    Bottom,
+    Top,
+    Near,
+    Far,
+};
+
 class Window;
 class InputBinding;
 class Camera
@@ -9,10 +19,12 @@ public:
     Camera(const vec3& pos);
     
     void Init();
-    void Update(f32 deltaTime);
+    void Update(f32 deltaTime, float fovInDegrees, float aspectRatioWH);
 
-    mat4x4 GetViewMatrix() const;
-    mat4x4 GetCameraMatrix() const;
+    __forceinline const mat4x4& GetViewMatrix() const { return _viewMatrix; }
+    __forceinline const mat4x4& GetProjectionMatrix() const { return _projectionMatrix; }
+    __forceinline const mat4x4& GetViewProjectionMatrix() const { return _viewProjectionMatrix; }
+    __forceinline const vec4* GetFrustumPlanes() const { return _frustumPlanes; }
 
     vec3 GetPosition() { return _position; }
     vec3 GetRotation() { return vec3(0, _yaw, _pitch); }
@@ -20,13 +32,17 @@ public:
 
 private:
     void UpdateCameraVectors();
+    void UpdateFrustumPlanes(const mat4x4& m);
 
 private:
     Window* _window;
     vec3 _position;
 
     // Rotation Matrix
-    mat4x4 _rotation;
+    mat4x4 _rotationMatrix;
+    mat4x4 _viewMatrix;
+    mat4x4 _projectionMatrix;
+    mat4x4 _viewProjectionMatrix;
 
     // Direction vectors
     vec3 _front;
@@ -45,4 +61,6 @@ private:
     f32 _movementSpeed = 50.0f;
     f32 _mouseSensitivity = 0.05f;
     f32 _lastDeltaTime = 0.0f;
+
+    vec4 _frustumPlanes[6];
 };

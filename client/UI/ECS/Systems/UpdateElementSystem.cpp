@@ -1,9 +1,10 @@
 #include "UpdateElementSystem.h"
 #include <entity/registry.hpp>
 #include <tracy/Tracy.hpp>
-#include "../../../Utils/ServiceLocator.h"
 #include "../../render-lib/Renderer/Descriptors/ModelDesc.h"
+#include "../../render-lib/Renderer/Buffer.h"
 
+#include "../../../Utils/ServiceLocator.h"
 #include "../Components/Transform.h"
 #include "../Components/Image.h"
 #include "../Components/Text.h"
@@ -14,8 +15,8 @@
 #include "../Components/Singletons/UIDataSingleton.h"
 #include "../../Utils/TransformUtils.h"
 #include "../../Utils/TextUtils.h"
-
 #include "../../angelscript/BaseElement.h"
+
 
 namespace UISystem
 {
@@ -130,7 +131,7 @@ namespace UISystem
                 auto constantBuffer = image.constantBuffer;
                 if (constantBuffer == nullptr)
                 {
-                    constantBuffer = renderer->CreateConstantBuffer<UIComponent::Image::ImageConstantBuffer>();
+                    constantBuffer = new Renderer::Buffer<UIComponent::Image::ImageConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
                     image.constantBuffer = constantBuffer;
                 }
                 constantBuffer->resource.color = image.color;
@@ -251,7 +252,7 @@ namespace UISystem
 
                 // Create constant buffer if necessary
                 if (!text.constantBuffer)
-                    text.constantBuffer = renderer->CreateConstantBuffer<UIComponent::Text::TextConstantBuffer>();
+                    text.constantBuffer = new Renderer::Buffer<UIComponent::Text::TextConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
                 text.constantBuffer->resource.textColor = text.color;
                 text.constantBuffer->resource.outlineColor = text.outlineColor;

@@ -20,8 +20,8 @@
 #include <map>
 #include <set>
 
-#define NOVUSCORE_RENDERER_DEBUG_OVERRIDE 1
-#define NOVUSCORE_RENDERER_GPU_VALIDATION 1
+#define NOVUSCORE_RENDERER_DEBUG_OVERRIDE 0
+#define NOVUSCORE_RENDERER_GPU_VALIDATION 0
 
 namespace Renderer
 {
@@ -83,39 +83,6 @@ namespace Renderer
             CreateBlitPipeline(shaderHandler, swapChain, "blitFloat", IMAGE_COMPONENT_TYPE_FLOAT);
             CreateBlitPipeline(shaderHandler, swapChain, "blitUint", IMAGE_COMPONENT_TYPE_UINT);
             CreateBlitPipeline(shaderHandler, swapChain, "blitInt", IMAGE_COMPONENT_TYPE_SINT);
-        }
-
-        BufferBackend* RenderDeviceVK::CreateBufferBackend(size_t size, Backend::BufferBackend::Type type)
-        {
-            BufferBackendVK* backend = new BufferBackendVK();
-            backend->device = this;
-            backend->bufferSize = size;
-
-            VkDeviceSize bufferSize = size;
-
-            VkBufferUsageFlags flags = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-
-            if (type == Backend::BufferBackend::Type::TYPE_CONSTANT_BUFFER)
-            {
-                flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-            }
-            else
-            {
-                flags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-            }
-
-            for (int i = 0; i < backend->buffers.Num; i++)
-            {
-                CreateBuffer(bufferSize, flags, VMA_MEMORY_USAGE_CPU_TO_GPU, backend->buffers.Get(i), backend->allocations.Get(i));
-
-                char debugName[16];
-
-                snprintf(debugName, sizeof(debugName), "%s%i", "Buffer", i);
-                DebugMarkerUtilVK::SetObjectName(_device, (u64)backend->buffers.Get(i), VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, debugName);
-            }
-
-            _bufferBackends.push_back(backend);
-            return backend;
         }
 
         void RenderDeviceVK::FlushGPU()
@@ -989,13 +956,17 @@ namespace Renderer
                     indices.graphicsFamily = i;
                 }
                 
-                // This is disabled since when we initialize Vulkan and pick a device we don't have a surface yet, I have no idea if this will cause an issue in the future...
-                /*VkBool32 presentSupport = false;
-                vkGetPhysicalDeviceSurfaceSupportKHR(device, i, _surface, &presentSupport);
+                VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
+                VkSurfaceKHR surface;
+                vkCreateWin32SurfaceKHR(_instance, &surfaceCreateInfo, nullptr, &surface);
+
+                VkBool32 presentSupport = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
                 if (queueFamily.queueCount > 0 && presentSupport) {
                     indices.presentFamily = i;
-                }*/
-                indices.presentFamily = i; // So we just assume it works for now
+                }
+
+                vkDestroySurfaceKHR(_instance, surface, nullptr);
 
                 if (indices.IsComplete())
                 {
@@ -1107,31 +1078,14 @@ namespace Renderer
             vkFreeCommandBuffers(_device, _commandPool, 1, &commandBuffer);
         }
 
-        void RenderDeviceVK::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, VkBuffer& buffer, VmaAllocation& allocation)
-        {
-            VkBufferCreateInfo bufferInfo = {};
-            bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-            bufferInfo.size = size;
-            bufferInfo.usage = usage;
-            bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-            VmaAllocationCreateInfo allocInfo = {};
-            allocInfo.usage = memoryUsage;
-
-            if (vmaCreateBuffer(_allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr) != VK_SUCCESS)
-            {
-                NC_LOG_FATAL("Failed to create buffer!");
-            }
-        }
-
-        void RenderDeviceVK::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+        void RenderDeviceVK::CopyBuffer(VkBuffer dstBuffer, u64 dstOffset, VkBuffer srcBuffer, u64 srcOffset, u64 range)
         {
             VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
 
             VkBufferCopy copyRegion = {};
-            copyRegion.srcOffset = 0; // Optional
-            copyRegion.dstOffset = 0; // Optional
-            copyRegion.size = size;
+            copyRegion.srcOffset = srcOffset;
+            copyRegion.dstOffset = dstOffset;
+            copyRegion.size = range;
             vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
             EndSingleTimeCommands(commandBuffer);

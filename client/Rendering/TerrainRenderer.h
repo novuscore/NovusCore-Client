@@ -1,5 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
+
 #include <array>
 
 #include <Utils/StringUtils.h>
@@ -9,12 +10,11 @@
 #include <Renderer/Descriptors/TextureArrayDesc.h>
 #include <Renderer/Descriptors/ModelDesc.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
-#include <Renderer/ConstantBuffer.h>
-#include <Renderer/StorageBuffer.h>
+#include <Renderer/Descriptors/BufferDesc.h>
+#include <Renderer/Buffer.h>
 #include <Renderer/DescriptorSet.h>
 
 #include "../Gameplay/Map/Chunk.h"
-#include "Renderer/InstanceData.h"
 #include "ViewConstantBuffer.h"
 
 namespace Terrain
@@ -22,7 +22,7 @@ namespace Terrain
     struct Map;
 
     constexpr u32 NUM_VERTICES_PER_CHUNK = Terrain::CELL_TOTAL_GRID_SIZE * Terrain::MAP_CELLS_PER_CHUNK;
-    constexpr u32 NUM_INDICES_PER_CHUNK = 768;
+    constexpr u32 NUM_INDICES_PER_CELL = 768;
 }
 
 namespace Renderer
@@ -32,51 +32,53 @@ namespace Renderer
     class DescriptorSet;
 }
 
+class Camera;
+class DebugRenderer;
+class MapObjectRenderer;
+
+struct BoundingBox
+{
+    vec3 min;
+    vec3 max;
+};
+
 class TerrainRenderer
 {
 public:
-    TerrainRenderer(Renderer::Renderer* renderer);
+    TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer);
+    ~TerrainRenderer();
 
-    void Update(f32 deltaTime);
+    void Update(f32 deltaTime, const Camera& camera);
 
-    void AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::ConstantBuffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex);
-    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::ConstantBuffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode);
+    void AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex);
+    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode, const Camera& camera);
 
 private:
     void CreatePermanentResources();
     void LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY);
     void LoadChunksAround(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance);
-
-    struct TerrainVertex
-    {
-        f32 height = 0.0f;
-    };
-
-    struct TerrainChunkData
-    {
-        u32 diffuseIDs[4] = { 0 };
-    };
-
-    struct TerrainDebugData
-    {
-        u32 debugMode = 0;
-    };
-
-    struct TerrainInstanceData
-    {
-        Renderer::StorageBuffer<std::array<TerrainVertex, Terrain::NUM_VERTICES_PER_CHUNK>>* vertexBuffer = nullptr;
-        Renderer::ConstantBuffer<std::array<TerrainChunkData, Terrain::MAP_CELLS_PER_CHUNK>>* chunkData = nullptr;
-    };
+    void CPUCulling(const Camera& camera);
 
 private:
     Renderer::Renderer* _renderer;
 
-    Renderer::ModelID _chunkModel = Renderer::ModelID::Invalid();
-    std::vector<Renderer::InstanceData> _chunkModelInstances;
+    struct CullingConstants
+    {
+        vec4 frustumPlanes[6];
+    };
 
-    Renderer::ConstantBuffer<TerrainDebugData>* _terrainDebugData = nullptr;
+    Renderer::Buffer<CullingConstants>* _cullingConstantBuffer;
 
-    Renderer::ConstantBuffer<std::array<u32, Terrain::MAP_CELLS_PER_CHUNK>>* _terrainInstanceIDs = nullptr;
+    Renderer::BufferID _argumentBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _instanceBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _culledInstanceBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _cellHeightRangeBuffer = Renderer::BufferID::Invalid();
+
+    Renderer::BufferID _chunkBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _cellBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _vertexBuffer = Renderer::BufferID::Invalid();
+
+    Renderer::BufferID _cellIndexBuffer = Renderer::BufferID::Invalid();
     
     Renderer::TextureArrayID _terrainColorTextureArray = Renderer::TextureArrayID::Invalid();
     Renderer::TextureArrayID _terrainAlphaTextureArray = Renderer::TextureArrayID::Invalid();
@@ -86,4 +88,16 @@ private:
 
     Renderer::DescriptorSet _passDescriptorSet;
     Renderer::DescriptorSet _drawDescriptorSet;
+
+    Renderer::DescriptorSet _cullingPassDescriptorSet;
+
+    std::vector<u16> _loadedChunks;
+    std::vector<BoundingBox> _cellBoundingBoxes;
+
+    std::vector<u32> _culledInstances;
+
+    DebugRenderer* _debugRenderer;
+    
+    // Subrenderers
+    MapObjectRenderer* _mapObjectRenderer = nullptr;
 };

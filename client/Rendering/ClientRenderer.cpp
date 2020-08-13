@@ -1,6 +1,7 @@
 #include "ClientRenderer.h"
 #include "UIRenderer.h"
 #include "TerrainRenderer.h"
+#include "DebugRenderer.h"
 #include "Camera.h"
 #include "../Utils/ServiceLocator.h"
 
@@ -52,9 +53,11 @@ void WindowIconifyCallback(GLFWwindow* window, int iconified)
 
 ClientRenderer::ClientRenderer()
 {
-    _camera = new Camera(vec3(-8000.0f, 0.0f, 1600.0f)); // Goldshire
+    _camera = new Camera(vec3(-8000.0f, 100.0f, 1600.0f)); // Goldshire
     //_camera = new Camera(vec3(300.0f, 0.0f, -4700.0f)); // Razor Hill
     //_camera = new Camera(vec3(3308.0f, 0.0f, 5316.0f)); // Borean Tundra
+
+    //_camera = new Camera(vec3(0.0f, 0.0f, 0.0f));
 
     _window = new Window();
     _window->Init(WIDTH, HEIGHT);
@@ -80,8 +83,10 @@ ClientRenderer::ClientRenderer()
     ServiceLocator::SetRenderer(_renderer);
 
     CreatePermanentResources();
+
+    _debugRenderer = new DebugRenderer(_renderer);
     _uiRenderer = new UIRenderer(_renderer);
-    _terrainRenderer = new TerrainRenderer(_renderer);
+    _terrainRenderer = new TerrainRenderer(_renderer, _debugRenderer);
 
     _inputManager->RegisterKeybind("ToggleDebugDraw", GLFW_KEY_F1, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
@@ -105,22 +110,13 @@ void ClientRenderer::Update(f32 deltaTime)
     _frameAllocator->Reset();
 
     // Update the camera movement
-    _camera->Update(deltaTime);
-    
-    // Update the view matrix to match the new camera position
-    _viewConstantBuffer->resource.viewMatrix = _camera->GetViewMatrix();
-    _viewConstantBuffer->Apply(_frameIndex);
+    _camera->Update(deltaTime, 75.0f, (float)WIDTH / (float)HEIGHT);
 
-    // Register models to be rendered TODO: Push this to the ECS later
-    Renderer::RenderLayer& depthPrepassLayer = _renderer->GetRenderLayer(DEPTH_PREPASS_RENDER_LAYER);
-    depthPrepassLayer.Reset(); // Reset the layer first so we don't just infinitely grow our layer
+    _terrainRenderer->Update(deltaTime, *_camera);
 
-    // Register models to be rendered TODO: Push this to the ECS later
-    Renderer::RenderLayer& mainLayer = _renderer->GetRenderLayer(MAIN_RENDER_LAYER);
-    mainLayer.Reset(); // Reset the layer first so we don't just infinitely grow our layer
-    mainLayer.RegisterModel(_cubeModel, &_cubeModelInstance);
-
-    _terrainRenderer->Update(deltaTime);
+    _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(100.0f, 0.0f, 0.0f), 0xff0000ff);
+    _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 100.0f, 0.0f), 0xff00ff00);
+    _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 100.0f), 0xffff0000);
 }
 
 void ClientRenderer::Render()
@@ -138,6 +134,12 @@ void ClientRenderer::Render()
 
     _renderer->FlipFrame(_frameIndex);
 
+    // Update the view matrix to match the new camera position
+    _viewConstantBuffer->resource.viewProjectionMatrix = _camera->GetViewProjectionMatrix();
+    _viewConstantBuffer->Apply(_frameIndex);
+
+    _passDescriptorSet.Bind("_viewData"_h, _viewConstantBuffer->GetBuffer(_frameIndex));
+
     // Depth Prepass
     {
         struct DepthPrepassData
@@ -154,10 +156,9 @@ void ClientRenderer::Render()
         },
             [&](DepthPrepassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
         {
-            TracySourceLocation(depthPrepass, "DepthPrepass", tracy::Color::Yellow2);
-            commandList.BeginTrace(&depthPrepass);
-
             commandList.MarkFrameStart(_frameIndex);
+
+            GPU_SCOPED_PROFILER_ZONE(commandList, DepthPrepass);
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
             resources.InitializePipelineDesc(pipelineDesc);
@@ -206,26 +207,26 @@ void ClientRenderer::Render()
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, _frameIndex);
 
             // Render depth prepass layer
-            Renderer::RenderLayer& layer = _renderer->GetRenderLayer(DEPTH_PREPASS_RENDER_LAYER);
-
-            for (auto const& model : layer.GetModels())
-            {
-                auto const& modelID = Renderer::ModelID(model.first);
-                auto const& instances = model.second;
-
-                for (auto const& instance : instances)
-                {
-                    instance->Apply(_frameIndex);
-
-                    _drawDescriptorSet.Bind("_modelData", instance->GetConstantBuffer());
-                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, _frameIndex);
-
-                    // Draw
-                    commandList.Draw(modelID);
-                }
-            }
+            //Renderer::RenderLayer& layer = _renderer->GetRenderLayer(DEPTH_PREPASS_RENDER_LAYER);
+            //
+            //for (auto const& model : layer.GetModels())
+            //{
+            //    auto const& modelID = Renderer::ModelID(model.first);
+            //    auto const& instances = model.second;
+            //
+            //
+            //    for (auto const& instance : instances)
+            //    {
+            //        instance->Apply(_frameIndex);
+            //
+            //        //_drawDescriptorSet.Bind("_modelData", instance->GetConstantBuffer());
+            //        commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, _frameIndex);
+            //
+            //        // Draw
+            //        commandList.Draw(modelID);
+            //    }
+            //}
             commandList.EndPipeline(pipeline);
-            commandList.EndTrace();
         });
     }
 
@@ -252,8 +253,7 @@ void ClientRenderer::Render()
         },
             [&](MainPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
         {
-            TracySourceLocation(mainPass, "MainPass", tracy::Color::Yellow2);
-            commandList.BeginTrace(&mainPass);
+            GPU_SCOPED_PROFILER_ZONE(commandList, MainPass);
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
             resources.InitializePipelineDesc(pipelineDesc);
@@ -306,29 +306,30 @@ void ClientRenderer::Render()
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, _frameIndex);
 
             // Render main layer
-            Renderer::RenderLayer& mainLayer = _renderer->GetRenderLayer(MAIN_RENDER_LAYER);
-
-            for (auto const& model : mainLayer.GetModels())
-            {
-                auto const& modelID = Renderer::ModelID(model.first);
-                auto const& instances = model.second;
-
-                for (auto const& instance : instances)
-                {
-                    _drawDescriptorSet.Bind("_modelData", instance->GetConstantBuffer());
-                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, _frameIndex);
-
-                    // Draw
-                    commandList.Draw(modelID);
-                }
-            }
+            //Renderer::RenderLayer& mainLayer = _renderer->GetRenderLayer(MAIN_RENDER_LAYER);
+            //
+            //for (auto const& model : mainLayer.GetModels())
+            //{
+            //    auto const& modelID = Renderer::ModelID(model.first);
+            //    auto const& instances = model.second;
+            //
+            //    for (auto const& instance : instances)
+            //    {
+            //        _drawDescriptorSet.Bind("_modelData", instance->GetBuffer(_frameIndex));
+            //        commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, _frameIndex);
+            //
+            //        // Draw
+            //        commandList.Draw(modelID);
+            //    }
+            //}
             commandList.EndPipeline(pipeline);
-            commandList.EndTrace();
         });
     }
 
-    _terrainRenderer->AddTerrainPass(&renderGraph, _viewConstantBuffer, _mainColor, _mainDepth, _frameIndex, _debugDrawingMode);
+    _terrainRenderer->AddTerrainPass(&renderGraph, _viewConstantBuffer, _mainColor, _mainDepth, _frameIndex, _debugDrawingMode, *_camera);
     
+    _debugRenderer->Add3DPass(&renderGraph, _viewConstantBuffer->GetBuffer(_frameIndex), _mainColor, _mainDepth, _frameIndex);
+
     _uiRenderer->AddUIPass(&renderGraph, _mainColor, _frameIndex);
 
     renderGraph.AddSignalSemaphore(_sceneRenderedSemaphore); // Signal that we are ready to present
@@ -401,26 +402,10 @@ void ClientRenderer::CreatePermanentResources()
     _linearSampler = _renderer->CreateSampler(samplerDesc);
 
     // View Constant Buffer (for camera data)
-    _viewConstantBuffer = _renderer->CreateConstantBuffer<ViewConstantBuffer>();
-    {
-        mat4x4& projMatrix = _viewConstantBuffer->resource.projMatrix;
-
-        const f32 fov = 68.0f;
-        const f32 nearClip = 0.1f;
-        const f32 farClip = 4000.0f;
-        f32 aspectRatio = static_cast<f32>(WIDTH) / static_cast<f32>(HEIGHT);
-
-        projMatrix = glm::perspective(fov, aspectRatio, nearClip, farClip);
-
-        _viewConstantBuffer->ApplyAll();
-    }
-
-    // Model Constant Buffer (for per-model data)
-    _cubeModelInstance.Init(_renderer);
+    _viewConstantBuffer = new Renderer::Buffer<ViewConstantBuffer>(_renderer, "ViewConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
     // Create descriptor sets
     _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
-    _passDescriptorSet.Bind("_viewData"_h, _viewConstantBuffer);
     _passDescriptorSet.Bind("_sampler"_h, _linearSampler);
 
     _drawDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
