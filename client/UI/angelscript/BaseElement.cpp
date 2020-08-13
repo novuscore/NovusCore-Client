@@ -263,12 +263,9 @@ namespace UIScripting
             return;
 
         const bool newVisibility = UIUtils::Visibility::IsVisible(visibility);
-        if (newVisibility)
-            registry->emplace<UIComponent::Visible>(_entityId);
-        else
-            registry->remove<UIComponent::Visible>(_entityId);
-
         UIUtils::Visibility::UpdateChildVisibility(registry, _entityId, newVisibility);
+
+        registry->ctx<UISingleton::UIDataSingleton>().visibilityToggleQueue.enqueue(_entityId);
     }
 
     void BaseElement::SetCollisionEnabled(bool enabled)
@@ -278,10 +275,7 @@ namespace UIScripting
         if (registry->has<UIComponent::Collidable>(_entityId) == enabled)
             return;
 
-        if (enabled)
-            registry->emplace<UIComponent::Collidable>(_entityId);
-        else
-            registry->remove<UIComponent::Collidable>(_entityId);
+        registry->ctx<UISingleton::UIDataSingleton>().collisionToggleQueue.enqueue(_entityId);
     }
 
     void BaseElement::Destroy()

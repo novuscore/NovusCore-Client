@@ -19,7 +19,7 @@ namespace UISingleton
     struct UIDataSingleton
     {
     public:
-        UIDataSingleton() : entityToAsObject(), focusedWidget(entt::null), destructionQueue(10000) { }
+        UIDataSingleton() : entityToAsObject(), focusedWidget(entt::null), destructionQueue(1000), visibilityToggleQueue(1000), collisionToggleQueue(1000) { }
 
         std::shared_mutex& GetMutex(entt::entity entId);
 
@@ -36,5 +36,7 @@ namespace UISingleton
         vec2 UIRESOLUTION = vec2(1920, 1080);
 
         moodycamel::ConcurrentQueue<entt::entity> destructionQueue;
+        moodycamel::ConcurrentQueue<entt::entity> visibilityToggleQueue;
+        moodycamel::ConcurrentQueue<entt::entity> collisionToggleQueue;
     };
 }
