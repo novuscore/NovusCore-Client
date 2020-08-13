@@ -1,7 +1,7 @@
 /*
 *	NOVUSCORE LOGIN SCREEN
-*	Version 0.1
-*	Updated 27/07/2020
+*	Version 0.1.1
+*	Updated 13/08/2020
 */
 
 void Login()
@@ -45,15 +45,16 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	Checkbox@ checkBox = CreateCheckbox();
 	Label@ rememberAccountLabel = CreateLabel();
 
-	// Phase 2: Read lock registry.
-	LockToken@ uiReadLock = UI::GetLock(1);
+	// Phase 2: Write lock registry.
+	LockToken@ uiLock = UI::GetLock(2);
 	{
-		// Phase 2.5: Lock each element individually and set properties.
+		// Phase 3: Lock each element individually and set properties.
 		LockToken@ ICCLoadScreenLock = ICCLoadScreen.GetLock(2);
 		{
 			ICCLoadScreen.SetSize(vec2(1920,1080));
 			ICCLoadScreen.SetTexture("Data/extracted/textures/Interface/Glues/LoadingScreens/LoadScreenIcecrownCitadel.dds");
 			ICCLoadScreen.SetDepthLayer(0);
+			ICCLoadScreen.MarkDirty();
 		}
 		ICCLoadScreenLock.Unlock();
 
@@ -64,10 +65,8 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 			userNameLabel.SetFont(FONT, LABELFONTSIZE);
 			userNameLabel.SetColor(TEXTCOLOR);
 			userNameLabel.SetText("Username");
-			userNameFieldPanel.SetTransform(vec2(CENTERX, CENTERY - 50), SIZE);
-			userNameFieldPanel.SetLocalAnchor(vec2(0.5,0));
-			//userNameFieldPanel.SetTexture("Data/extracted/textures/Interface/Tooltips/UI-Tooltip-Background.dds");
-			userNameFieldPanel.SetTexture("Data/textures/NovusUIPanel.png");
+			userNameLabel.MarkDirty();
+			userNameLabel.MarkBoundsDirty();
 		}
 		userNameLabelLock.Unlock();
 
@@ -77,6 +76,8 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 			userNameFieldPanel.SetLocalAnchor(vec2(0.5,0));
 			//userNameFieldPanel.SetTexture("Data/extracted/textures/Interface/Tooltips/UI-Tooltip-Background.dds");
 			userNameFieldPanel.SetTexture("Data/textures/NovusUIPanel.png");
+			userNameFieldPanel.MarkDirty();
+			userNameFieldPanel.MarkBoundsDirty();
 		}
 		userNameFieldPanelLock.Unlock();
 
@@ -87,6 +88,8 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 			usernameField.SetFillParentSize(true);
 			usernameField.SetFont(FONT, INPUTFIELDFONTSIZE);
 			usernameField.OnSubmit(OnFieldSubmit);
+			usernameField.MarkDirty();
+			usernameField.MarkBoundsDirty();
 			DataStorage::EmplaceEntity("LOGIN-usernameField", usernameField.GetEntityId());
 		}
 		usernameFieldLock.Unlock();
@@ -98,6 +101,8 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 			passwordLabel.SetFont(FONT, LABELFONTSIZE);
 			passwordLabel.SetColor(TEXTCOLOR);
 			passwordLabel.SetText("Password");
+			passwordLabel.MarkDirty();
+			passwordLabel.MarkBoundsDirty();
 		}
 		passwordLabelLock.Unlock();
 		
@@ -107,6 +112,8 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 			passwordFieldPanel.SetLocalAnchor(vec2(0.5,0));
 			//passwordFieldPanel.SetTexture("Data/extracted/textures/Interface/Tooltips/UI-Tooltip-Background.dds");
 			passwordFieldPanel.SetTexture("Data/textures/NovusUIPanel.png");
+			passwordFieldPanel.MarkDirty();
+			passwordFieldPanel.MarkBoundsDirty();
 		
 		}
 		passwordFieldPanelLock.Unlock();
@@ -118,6 +125,8 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 			passwordField.SetFillParentSize(true);
 			passwordField.SetFont(FONT, INPUTFIELDFONTSIZE);
 			passwordField.OnSubmit(OnFieldSubmit);
+			passwordField.MarkDirty();
+			passwordField.MarkBoundsDirty();
 			DataStorage::EmplaceEntity("LOGIN-passwordField", passwordField.GetEntityId());
 		}
 		passwordFieldLock.Unlock();
@@ -131,6 +140,8 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 			submitButton.SetFont(FONT, INPUTFIELDFONTSIZE);
 			submitButton.SetText("Submit");
 			submitButton.OnClick(OnLoginButtonClick);
+			submitButton.MarkDirty();
+			submitButton.MarkBoundsDirty();
 		}
 		submitButtonLock.Unlock();
 		
@@ -139,9 +150,11 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 			checkBox.SetPosition(vec2(CENTERX - SIZE.x/2 + 5, CENTERY +  SIZE.y * 4));
 			checkBox.SetSize(vec2(25,25));
 			checkBox.SetBackgroundTexture("Data/textures/NovusUIPanel.png");
-			checkBox.SetCheckTexture("Data/textures/NovusUIPanel.png");
+			checkBox.SetCheckTexture("Data/textures/debug.jpg");
 			checkBox.SetCheckColor(Color(0,1,0));
 			checkBox.SetExpandBoundsToChildren(true);
+			checkBox.MarkDirty();
+			checkBox.MarkBoundsDirty();
 		}
 		checkBoxLock.Unlock();
 		
@@ -152,35 +165,12 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 			rememberAccountLabel.SetFont(FONT, 25);
 			rememberAccountLabel.SetColor(TEXTCOLOR);
 			rememberAccountLabel.SetText("Remember Account Name");
+			rememberAccountLabel.MarkDirty();
+			rememberAccountLabel.MarkBoundsDirty();
 		}
 		rememberAccountLabelLock.Unlock();
-		
 	}
-	uiReadLock.Unlock();
-
-	// Phase 3: Mark everything as dirty.
-	LockToken@ uiWriteLock = UI::GetLock(2);
-	{
-		ICCLoadScreen.MarkDirty();
-		
-		userNameLabel.MarkDirty();
-		userNameFieldPanel.MarkDirty();
-		usernameField.MarkDirty();
-		usernameField.MarkBoundsDirty();
-		
-		passwordLabel.MarkDirty();
-		passwordFieldPanel.MarkDirty();
-		passwordField.MarkDirty();
-		passwordField.MarkBoundsDirty();
-		
-		submitButton.MarkDirty();
-		submitButton.MarkBoundsDirty();
-
-		checkBox.MarkDirty();
-		checkBox.MarkBoundsDirty();
-		rememberAccountLabel.MarkSelfDirty();
-	}
-	uiWriteLock.Unlock();
+	uiLock.Unlock();
 }
 
 void main()
