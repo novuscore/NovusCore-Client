@@ -40,9 +40,10 @@
 #include <GLFW/glfw3.h>
 #include <tracy/Tracy.hpp>
 
-#include "imgui.h"
-#include "examples/imgui_impl_vulkan.h"
-#include "examples/imgui_impl_glfw.h"
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_vulkan.h"
+#include "imgui/imgui_impl_glfw.h"
+
 #include "ECS/Components/Singletons/StatsSingleton.h"
 
 EngineLoop::EngineLoop() : _isRunning(false), _inputQueue(256), _outputQueue(256)
