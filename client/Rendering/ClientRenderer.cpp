@@ -16,7 +16,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "imgui/imgui_impl_glfw.h"
-#include "imgui/imgui_impl_vulkan.h"
 
 const int WIDTH = 1920;
 const int HEIGHT = 1080;

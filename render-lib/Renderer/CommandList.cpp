@@ -299,7 +299,7 @@ namespace Renderer
 
     }
     void CommandList::DrawImgui()
-    {		
-		Commands::DrawImgui* command = AddCommand<Commands::DrawImgui>();		
+    {
+        Commands::DrawImgui* command = AddCommand<Commands::DrawImgui>();
     }
 }
