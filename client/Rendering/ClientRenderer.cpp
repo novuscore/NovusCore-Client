@@ -193,7 +193,6 @@ void ClientRenderer::Render()
             pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_LESS;
 
             // Rasterizer state
-            pipelineDesc.states.rasterizerState.fillMode = Renderer::FILL_MODE_WIREFRAME;
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
             pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
 
@@ -292,7 +291,6 @@ void ClientRenderer::Render()
             pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_EQUAL;
 
             // Rasterizer state
-            pipelineDesc.states.rasterizerState.fillMode = Renderer::FILL_MODE_WIREFRAME;
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
             pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
 
