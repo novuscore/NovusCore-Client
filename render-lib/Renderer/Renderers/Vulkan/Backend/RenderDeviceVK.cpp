@@ -20,8 +20,8 @@
 #include <map>
 #include <set>
 
-#include "examples/imgui_impl_vulkan.h"
-#include "imgui.h"
+#include "imgui/imgui_impl_vulkan.h"
+
 
 
 #define NOVUSCORE_RENDERER_DEBUG_OVERRIDE 0
@@ -46,11 +46,18 @@ namespace Renderer
             "VK_EXT_descriptor_indexing"
         };
 
+		struct ImguiContext {
+			VkRenderPass imguiPass;
+			VkDescriptorPool imguiPool;
+		};
+
+
         RenderDeviceVK::~RenderDeviceVK()
         {
             // TODO: All cleanup
 
             delete _descriptorMegaPool;
+            delete _imguiContext;
         }
 
         void RenderDeviceVK::Init()
@@ -141,15 +148,21 @@ namespace Renderer
         }
 
 
+       
 		void RenderDeviceVK::InitializeImguiVulkan()
 		{
-			VkRenderPass imguiPass;
-			// Create the Render Pass
-			{//IMAGE_FORMAT_R16G16B16A16_FLOAT
+            if (_imguiContext == nullptr)
+            {
+                _imguiContext = new ImguiContext();
+            }
+
+          
+            // Create the Render Pass
+            {
 				VkAttachmentDescription attachment = {};
-				attachment.format = VK_FORMAT_R16G16B16A16_SFLOAT;//wd->SurfaceFormat.format;
+				attachment.format = VK_FORMAT_R16G16B16A16_SFLOAT;
 				attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-				attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;// : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+				attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 				attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 				attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 				attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -177,10 +190,8 @@ namespace Renderer
 				info.pSubpasses = &subpass;
 				info.dependencyCount = 1;
 				info.pDependencies = &dependency;
-
-
-				vkCreateRenderPass(_device, &info, nullptr, &imguiPass);
-			}
+                vkCreateRenderPass(_device, &info, nullptr, &_imguiContext->imguiPass);
+            }
 
 
 			VkDescriptorPoolSize pool_sizes[] =
@@ -198,14 +209,14 @@ namespace Renderer
 				{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
 			};
 
-			VkDescriptorPool imguiPool;
+		
 			VkDescriptorPoolCreateInfo pool_info = {};
 			pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 			pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 			pool_info.maxSets = 1000 * ARRAYSIZE(pool_sizes);
 			pool_info.poolSizeCount = (uint32_t)ARRAYSIZE(pool_sizes);
 			pool_info.pPoolSizes = pool_sizes;
-			vkCreateDescriptorPool(_device, &pool_info, nullptr, &imguiPool);
+			vkCreateDescriptorPool(_device, &pool_info, nullptr, &_imguiContext->imguiPool);
 
 			ImGui_ImplVulkan_InitInfo init_info = {};
 			init_info.Instance = _instance;
@@ -214,12 +225,12 @@ namespace Renderer
 			//init_info.QueueFamily = ;
 			init_info.Queue = _graphicsQueue;
 			//init_info.PipelineCache = ;
-			init_info.DescriptorPool = imguiPool;
+			init_info.DescriptorPool = _imguiContext->imguiPool;
 			//init_info.Allocator = g_Allocator;
 			init_info.MinImageCount = 3;
 			init_info.ImageCount = 3;
 			//init_info.CheckVkResultFn = check_vk_result;
-			ImGui_ImplVulkan_Init(&init_info, imguiPass);
+			ImGui_ImplVulkan_Init(&init_info, _imguiContext->imguiPass);
 
 
 			VkCommandBufferAllocateInfo allocInfo = {};

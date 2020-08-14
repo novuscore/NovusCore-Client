@@ -113,7 +113,7 @@ namespace Renderer
             DescriptorMegaPoolVK* _descriptorMegaPool;
 
             tracy::VkCtx* _tracyContext = nullptr;
-
+            struct ImguiContext* _imguiContext = nullptr;
             friend class RendererVK;
             friend class BufferHandlerVK;
             friend class ImageHandlerVK;

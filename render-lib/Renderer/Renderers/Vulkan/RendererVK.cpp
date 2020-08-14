@@ -21,8 +21,7 @@
 #include "Backend/DescriptorSetBuilderVK.h"
 #include "Backend/FormatConverterVK.h"
 
-#include "imgui.h"
-#include "examples/imgui_impl_vulkan.h"
+#include "imgui/imgui_impl_vulkan.h"
 
 namespace Renderer
 {
@@ -994,10 +993,6 @@ namespace Renderer
 	{
         _device->InitializeImguiVulkan();
 	}
-
-
-	
-
 
 	void RendererVK::DrawImgui(CommandListID commandListID)
 	{
