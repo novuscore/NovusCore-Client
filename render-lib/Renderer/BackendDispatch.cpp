@@ -28,6 +28,7 @@
 #include "Commands/CopyBuffer.h"
 #include "Commands/PipelineBarrier.h"
 #include "Commands/DrawImgui.h"
+
 namespace Renderer
 {
     void BackendDispatch::ClearImage(Renderer* renderer, CommandListID commandList, const void* data)
@@ -223,11 +224,10 @@ namespace Renderer
         renderer->PipelineBarrier(commandList, actualData->barrierType, actualData->buffer);
     }
 
-	void BackendDispatch::DrawImgui(Renderer* renderer, CommandListID commandList, const void* data)
-	{
-		ZoneScopedNC("Imgui Draw", tracy::Color::Red3);
-       
-        renderer->DrawImgui(commandList);
-	}
+    void BackendDispatch::DrawImgui(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedNC("Imgui Draw", tracy::Color::Red3);
 
+        renderer->DrawImgui(commandList);
+    }
 }

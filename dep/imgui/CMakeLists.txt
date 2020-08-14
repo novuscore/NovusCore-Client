@@ -1,5 +1,4 @@
-project(imgui VERSION 3.2.2)
-
+project(imgui VERSION 1.78)
 
 find_package(Vulkan REQUIRED) 
 
@@ -16,7 +15,6 @@ set(imgui_sources
 	)
 
 add_library(${PROJECT_NAME} STATIC ${imgui_sources})
-
 
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${ROOT_FOLDER}/dep)
 target_link_libraries(${PROJECT_NAME} 

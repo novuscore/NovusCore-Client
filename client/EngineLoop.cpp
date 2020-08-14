@@ -371,24 +371,22 @@ void EngineLoop::SetMessageHandler()
 
 void EngineLoop::DrawTimingStats(EngineStatsSingleton* stats)
 {
-	ImGui::Begin("Engine Stats");
+    ImGui::Begin("Engine Stats");
 
     EngineStatsSingleton::Frame average = stats->AverageFrame(60);
 
     ImGui::Text("FPS : %f ", 1.f/  average.deltaTime);
-    ImGui::Text("global frametime : %f ms", average.deltaTime * 1000);  
+    ImGui::Text("global frametime : %f ms", average.deltaTime * 1000);
 
     static bool advancedStats = false;
     ImGui::Checkbox("Advanced Stats", &advancedStats);
+
     if(advancedStats)
     {
-
         ImGui::Text("update time : %f ms", average.simulationFrameTime * 1000);
         ImGui::Text("render time (CPU): %f ms", average.renderFrameTime * 1000);
 
-
         //read the frame buffer to gather timings for the histograms
-
         std::vector<float> updateTimes;
         updateTimes.reserve(stats->frameStats.size());
 
@@ -405,7 +403,7 @@ void EngineLoop::DrawTimingStats(EngineStatsSingleton* stats)
         ImGui::PlotHistogram("Render Times", renderTimes.data(), (int)renderTimes.size());
     }
 
-	ImGui::End();
+    ImGui::End();
 }
 
 void EngineLoop::UpdateSystems()

@@ -989,16 +989,15 @@ namespace Renderer
         vmaUnmapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(buffer));
     }
 
-	void RendererVK::InitImgui()
-	{
+    void RendererVK::InitImgui()
+    {
         _device->InitializeImguiVulkan();
-	}
+    }
 
-	void RendererVK::DrawImgui(CommandListID commandListID)
-	{
+    void RendererVK::DrawImgui(CommandListID commandListID)
+    {
         VkCommandBuffer cmd = _commandListHandler->GetCommandBuffer(commandListID);
-		
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-	}
 
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+    }
 }

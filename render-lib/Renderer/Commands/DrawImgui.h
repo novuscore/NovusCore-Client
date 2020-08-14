@@ -1,11 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include "../Descriptors/ModelDesc.h"
 
-namespace ImGui {
-
-    class ImDrawData;
-}
 namespace Renderer
 {
     namespace Commands
