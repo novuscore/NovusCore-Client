@@ -43,6 +43,7 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_vulkan.h"
 #include "imgui/imgui_impl_glfw.h"
+#include "imgui/misc/cpp/imgui_stdlib.h"
 
 #include "ECS/Components/Singletons/StatsSingleton.h"
 
@@ -203,8 +204,9 @@ void EngineLoop::Run()
         if (!Update(deltaTime))
             break;
         
-        DrawTimingStats(&statsSingleton);
-        
+        DrawEngineStats(&statsSingleton);
+        DrawImguiMenuBar();
+
         timings.simulationFrameTime = updateTimer.GetLifeTime();
         
         renderTimer.Reset();
@@ -369,14 +371,20 @@ void EngineLoop::SetMessageHandler()
     GameSocket::GameHandlers::Setup(gameSocketMessageHandler);
 }
 
-void EngineLoop::DrawTimingStats(EngineStatsSingleton* stats)
+void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
 {
-    ImGui::Begin("Engine Stats");
+    ImGui::Begin("Engine Info");
 
     EngineStatsSingleton::Frame average = stats->AverageFrame(60);
 
     ImGui::Text("FPS : %f ", 1.f/  average.deltaTime);
     ImGui::Text("global frametime : %f ms", average.deltaTime * 1000);
+
+    vec3 cameraLocation = ServiceLocator::GetCamera()->GetPosition();
+    vec3 cameraRotation = ServiceLocator::GetCamera()->GetRotation();
+
+    ImGui::Text("Camera Location : %f x, %f y, %f z", cameraLocation.x, cameraLocation.y, cameraLocation.z);
+    ImGui::Text("Camera Rotation : %f x, %f y, %f z", cameraRotation.x, cameraRotation.y, cameraRotation.z);
 
     static bool advancedStats = false;
     ImGui::Checkbox("Advanced Stats", &advancedStats);
@@ -404,6 +412,44 @@ void EngineLoop::DrawTimingStats(EngineStatsSingleton* stats)
     }
 
     ImGui::End();
+}
+
+
+void EngineLoop::DrawImguiMenuBar()
+{
+    if (ImGui::BeginMainMenuBar())
+    {
+        if (ImGui::BeginMenu("File"))
+        {
+            if (ImGui::BeginMenu("Load Map", "CTRL+Z")) 
+            {
+                static std::string mapload = "Azeroth";
+
+                ImGui::InputText("Map to load", &mapload);
+
+                if (ImGui::Button("Load Map"))
+                {
+                    u32 namehash = StringUtils::fnv1a_32(mapload.data(), mapload.size());
+                    ServiceLocator::GetClientRenderer()->GetTerrainRenderer()->LoadMap(namehash);
+                }
+                ImGui::EndMenu();
+            }
+           
+            ImGui::EndMenu();
+        }
+        //mockup
+        if (ImGui::BeginMenu("Edit"))
+        {
+            if (ImGui::MenuItem("Undo", "CTRL+Z")) {}
+            if (ImGui::MenuItem("Redo", "CTRL+Y", false, false)) {}
+            ImGui::Separator();
+            if (ImGui::MenuItem("Cut", "CTRL+X")) {}
+            if (ImGui::MenuItem("Copy", "CTRL+C")) {}
+            if (ImGui::MenuItem("Paste", "CTRL+V")) {}
+            ImGui::EndMenu();
+        }
+        ImGui::EndMainMenuBar();
+    }
 }
 
 void EngineLoop::UpdateSystems()
