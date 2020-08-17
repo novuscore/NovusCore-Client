@@ -30,15 +30,17 @@ namespace Renderer
             VkShaderStageFlagBits stageFlags;
         };
 
-        struct BindInfoPushConstants
+        struct BindInfoPushConstant
         {
-            int size;
+            VkShaderStageFlags stageFlags;
+            u32 offset;
+            u32 size;
         };
 
         struct BindReflection
         {
             std::vector<BindInfo> dataBindings;
-            std::vector<BindInfoPushConstants> pushConstants;
+            std::vector<BindInfoPushConstant> pushConstants;
         };
 
         class ShaderHandlerVK
@@ -112,8 +114,8 @@ namespace Renderer
                     NC_LOG_FATAL("We failed to reflect the spirv of %s", shaderPath.c_str());
                 }
 
-                uint32_t count = 0;
-                result = spvReflectEnumerateDescriptorSets(&reflectModule, &count, NULL);
+                uint32_t descriptorSetCount = 0;
+                result = spvReflectEnumerateDescriptorSets(&reflectModule, &descriptorSetCount, NULL);
 
                 if (result != SPV_REFLECT_RESULT_SUCCESS)
                 {
@@ -121,11 +123,11 @@ namespace Renderer
                 }
 
                 
-                if (count > 0)
+                if (descriptorSetCount > 0)
                 {
-                    std::vector<SpvReflectDescriptorSet*> descriptorSets(count);
+                    std::vector<SpvReflectDescriptorSet*> descriptorSets(descriptorSetCount);
                     
-                    result = spvReflectEnumerateDescriptorSets(&reflectModule, &count, descriptorSets.data());
+                    result = spvReflectEnumerateDescriptorSets(&reflectModule, &descriptorSetCount, descriptorSets.data());
 
                     if (result != SPV_REFLECT_RESULT_SUCCESS)
                     {
@@ -149,6 +151,29 @@ namespace Renderer
 
                             shader.bindReflection.dataBindings.push_back(bindInfo);
                         }
+                    }
+                }
+
+                uint32_t pushConstantCount = 0;
+                result = spvReflectEnumeratePushConstantBlocks(&reflectModule, &pushConstantCount, NULL);
+
+                if (result != SPV_REFLECT_RESULT_SUCCESS)
+                {
+                    NC_LOG_FATAL("We failed to reflect the spirv push constant count of %s", shaderPath.c_str());
+                }
+
+                if (pushConstantCount > 0)
+                {
+                    std::vector<SpvReflectBlockVariable*> blockVariables(pushConstantCount);
+
+                    result = spvReflectEnumeratePushConstantBlocks(&reflectModule, &pushConstantCount, blockVariables.data());
+
+                    for (SpvReflectBlockVariable* variable : blockVariables)
+                    {
+                        BindInfoPushConstant& pushConstant = shader.bindReflection.pushConstants.emplace_back();
+                        pushConstant.offset = variable->offset;
+                        pushConstant.size = variable->size;
+                        pushConstant.stageFlags = static_cast<VkShaderStageFlagBits>(reflectModule.shader_stage);
                     }
                 }
                 

@@ -24,13 +24,13 @@
 #pragma once
 #include <Utils/Message.h>
 #include "../Utils/ServiceLocator.h"
+#include "../Utils/MapUtils.h"
 
 #include "../EngineLoop.h"
 #include "../Scripting/ScriptHandler.h"
 #include "../Rendering/ClientRenderer.h"
 #include "../Rendering/TerrainRenderer.h"
 #include "../Rendering/Camera.h"
-
 #include <vector>
 
 void ReloadCommand(EngineLoop& engineLoop, std::vector<std::string> subCommands)
@@ -42,6 +42,14 @@ void ReloadCommand(EngineLoop& engineLoop, std::vector<std::string> subCommands)
 }
 
 
+void GetChunkIds(EngineLoop& engineLoop, std::vector<std::string> subCommands)
+{
+    Camera* camera = ServiceLocator::GetCamera();
+
+    f32 height = Terrain::MapUtils::GetHeightFromWorldPosition(camera->GetPosition());
+
+    NC_LOG_MESSAGE("Height(%f), Camera Height(%f)", height, camera->GetPosition().y);
+}
 void LoadMapCommand(EngineLoop& engineLoop, std::vector<std::string> subCommands)
 {
     size_t argSize = subCommands.size();

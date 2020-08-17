@@ -97,9 +97,8 @@ private:
     std::vector<BoundingBox> _cellBoundingBoxes;
 
     std::vector<u32> _culledInstances;
-
-    DebugRenderer* _debugRenderer;
     
     // Subrenderers
     MapObjectRenderer* _mapObjectRenderer = nullptr;
+    DebugRenderer* _debugRenderer = nullptr;
 };

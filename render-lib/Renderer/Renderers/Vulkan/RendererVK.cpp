@@ -399,6 +399,7 @@ namespace Renderer
 
         _commandListHandler->SetBoundGraphicsPipeline(commandListID, pipelineID);
 
+
         _boundModelIndexBuffer = ModelID::Invalid();
     }
 
@@ -804,6 +805,19 @@ namespace Renderer
         }
 
         vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &bufferBarrier, 0, nullptr);
+    }
+
+    void RendererVK::PushConstant(CommandListID commandListID, void* data, u32 offset, u32 size)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        GraphicsPipelineID graphicsPipelineID = _commandListHandler->GetBoundGraphicsPipeline(commandListID);
+
+        if (graphicsPipelineID != GraphicsPipelineID::Invalid())
+        {
+            VkPipelineLayout layout = _pipelineHandler->GetPipelineLayout(graphicsPipelineID);
+            vkCmdPushConstants(commandBuffer, layout, VkShaderStageFlagBits::VK_SHADER_STAGE_FRAGMENT_BIT, offset, size, data);
+        }
     }
 
     void RendererVK::Present(Window* window, ImageID imageID, GPUSemaphoreID semaphoreID)

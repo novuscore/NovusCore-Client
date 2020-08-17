@@ -39,12 +39,9 @@ namespace Terrain
     constexpr u32 INVALID_TEXTURE_ID = 9999;
     struct MapObjectMaterial
     {
-        u32 textureID[3] = { INVALID_TEXTURE_ID, INVALID_TEXTURE_ID, INVALID_TEXTURE_ID };
-    };
-
-    struct MapObjectGroup
-    {
-
+        u16 materialType;
+        u16 transparencyMode;
+        u32 textureNameID[3] = { INVALID_TEXTURE_ID, INVALID_TEXTURE_ID, INVALID_TEXTURE_ID };
     };
 
     struct MapObjectRoot

@@ -29,13 +29,6 @@ namespace Terrain
     constexpr i32 MAP_OBJECT_TOKEN = 7236975; // UTF8 -> Binary -> Decimal for "nmo"
     constexpr i32 MAP_OBJECT_VERSION = 1;
 
-#pragma pack(push, 1)
-    struct MapObjectHeader
-    {
-        u32 token = 0;
-        u32 version = 0;
-    };
-
     struct TriangleData
     {
         struct
@@ -60,11 +53,23 @@ namespace Terrain
         u8 materialID; // This is an index into MapObjectRoot::materials
     };
 
+#pragma pack(push, 1)
+    struct MapObjectHeader
+    {
+        u32 token = 0;
+        u32 version = 0;
+    };
+
     struct RenderBatch
     {
         u32 startIndex;
         u16 indexCount;
         u8 materialID;
+    };
+
+    struct UVSet
+    {
+        std::vector<vec2> vertexUVs;
     };
 
     struct MapObject
@@ -75,7 +80,7 @@ namespace Terrain
        
         std::vector<vec3> vertexPositions;
         std::vector<vec3> vertexNormals;
-        std::vector<vec2> vertexUVs;
+        std::vector<UVSet> uvSets;
 
         std::vector<TriangleData> triangleData;
         std::vector<RenderBatch> renderBatches;

@@ -28,6 +28,7 @@
 #include "Commands/CopyBuffer.h"
 #include "Commands/PipelineBarrier.h"
 #include "Commands/DrawImgui.h"
+#include "Commands/PushConstant.h"
 
 namespace Renderer
 {
@@ -229,5 +230,12 @@ namespace Renderer
         ZoneScopedNC("Imgui Draw", tracy::Color::Red3);
 
         renderer->DrawImgui(commandList);
+    }
+
+    void BackendDispatch::PushConstant(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::PushConstant* actualData = static_cast<const Commands::PushConstant*>(data);
+        renderer->PushConstant(commandList, actualData->data, actualData->offset, actualData->size);
     }
 }

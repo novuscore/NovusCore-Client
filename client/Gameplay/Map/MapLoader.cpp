@@ -59,6 +59,11 @@ bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
     MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
     DBCSingleton& dbcSingleton = registry->ctx<DBCSingleton>();
 
+    if (mapSingleton.loadedMapHash == mapInternalNameHash)
+    {
+        return false; // Don't reload the map we're on
+    }
+
     auto itr = mapSingleton.mapInternalNameToDBC.find(mapInternalNameHash);
     if (itr == mapSingleton.mapInternalNameToDBC.end())
     {
@@ -122,7 +127,7 @@ bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
 
         u16 x = std::stoi(splitName[numberOfSplits - 2]);
         u16 y = std::stoi(splitName[numberOfSplits - 1]);
-        int chunkId = x + (y * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
+        u32 chunkId = x + (y * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
 
         mapSingleton.currentMap.chunks[chunkId] = chunk;
         mapSingleton.currentMap.stringTables[chunkId].CopyFrom(chunkStringTable);

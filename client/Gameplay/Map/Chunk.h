@@ -47,6 +47,7 @@ namespace Terrain
 
     constexpr f32 MAP_CHUNK_SIZE = 533.3333f; // yards
     constexpr f32 MAP_SIZE = MAP_CHUNK_SIZE * MAP_CHUNKS_PER_MAP_SIDE; // yards
+    constexpr f32 MAP_HALF_SIZE = MAP_SIZE / 2.0f; // yards
 
 #pragma pack(push, 1)
     struct ChunkHeader

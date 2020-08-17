@@ -72,6 +72,8 @@ namespace Renderer
                 std::vector<DescriptorSetLayoutData> descriptorSetLayoutDatas;
                 std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
 
+                std::vector<VkPushConstantRange> pushConstantRanges;
+
                 VkDescriptorPool descriptorPool;
                 std::vector<VkDescriptorSet> descriptorSets;
 

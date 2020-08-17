@@ -43,6 +43,8 @@ namespace Terrain
     constexpr u16 CELL_TOTAL_GRID_SIZE = CELL_OUTER_GRID_SIZE + CELL_INNER_GRID_SIZE;
 
     constexpr f32 CELL_SIZE = 33.3333f; // yards
+    constexpr f32 PATCH_SIZE = 4.1666625f; // yards
+    constexpr f32 PATCH_HALF_SIZE = PATCH_SIZE / 2.0f; // yards
 
 #pragma pack(push, 1)
     struct LiquidData
