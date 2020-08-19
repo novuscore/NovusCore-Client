@@ -33,7 +33,7 @@ namespace UIInput
         }
 
         auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::Transform, UIComponent::Collidable, UIComponent::Visible>);
-        eventGroup.sort<UIComponent::Transform>([](const UIComponent::Transform& left, const UIComponent::Transform& right) { return left.sortKey > right.sortKey; });
+        eventGroup.sort<UIComponent::Transform>([](UIComponent::Transform& first, UIComponent::Transform& second) { return first.sortKey > second.sortKey; });
         for (auto entity : eventGroup)
         {
             const UIComponent::Transform& transform = eventGroup.get<UIComponent::Transform>(entity);

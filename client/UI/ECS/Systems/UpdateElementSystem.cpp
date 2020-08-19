@@ -161,14 +161,16 @@ namespace UISystem
             if (text.fontPath.length() == 0)
                 return;
 
-            text.font = Renderer::Font::GetFont(renderer, text.fontPath, text.fontSize);
-
+            {
+                ZoneScopedNC("(Re)load Font", tracy::Color::RoyalBlue);
+                text.font = Renderer::Font::GetFont(renderer, text.fontPath, text.fontSize);
+            }
+            
             std::vector<f32> lineWidths;
             std::vector<size_t> lineBreakPoints;
             size_t finalCharacter = UIUtils::Text::CalculateLineWidthsAndBreaks(&text, transform.size.x, transform.size.y, lineWidths, lineBreakPoints);
 
             size_t textLengthWithoutSpaces = std::count_if(text.text.begin() + text.pushback, text.text.end() - (text.text.length() - finalCharacter), [](char c) { return !std::isspace(c); });
-            size_t difference = textLengthWithoutSpaces - text.glyphCount;
 
             // If textLengthWithoutSpaces is bigger than the amount of glyphs we allocated in our buffer we need to reallocate the buffer
             static const u32 perGlyphVertexSize = sizeof(UISystem::UIVertex) * 4; // 4 vertices per glyph
