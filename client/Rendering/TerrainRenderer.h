@@ -53,8 +53,10 @@ public:
     void AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex);
     void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode, const Camera& camera);
 
+    bool LoadMap(u32 mapInternalNameHash);
 private:
     void CreatePermanentResources();
+
     void LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY);
     void LoadChunksAround(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance);
     void CPUCulling(const Camera& camera);
@@ -95,9 +97,8 @@ private:
     std::vector<BoundingBox> _cellBoundingBoxes;
 
     std::vector<u32> _culledInstances;
-
-    DebugRenderer* _debugRenderer;
     
     // Subrenderers
     MapObjectRenderer* _mapObjectRenderer = nullptr;
+    DebugRenderer* _debugRenderer = nullptr;
 };

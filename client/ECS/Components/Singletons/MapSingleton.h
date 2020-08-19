@@ -31,8 +31,13 @@ struct MapSingleton
 {
     MapSingleton() {}
 
-    robin_hood::unordered_map<u16, Terrain::Map> maps;
-	robin_hood::unordered_map<u16, DBC::Map> mapIdToDBC;
-	robin_hood::unordered_map<u32, DBC::Map> mapInternalNameToDBC;
+    Terrain::Map currentMap;
+	u32 loadedMapHash = 0;
+
+	robin_hood::unordered_map<u16, DBC::Map*> mapIdToDBC;
+	robin_hood::unordered_map<u32, DBC::Map*> mapNameToDBC;
+	robin_hood::unordered_map<u32, DBC::Map*> mapInternalNameToDBC;
+	std::vector<DBC::Map> mapDBCFiles;
+
 	StringTable mapsDBCStringTable;
 };

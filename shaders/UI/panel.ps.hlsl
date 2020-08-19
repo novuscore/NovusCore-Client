@@ -6,8 +6,8 @@ struct PanelData
 
 [[vk::binding(0, PER_PASS)]] SamplerState _sampler;
 
-[[vk::binding(0, PER_DRAW)]] ConstantBuffer<PanelData> _panelData;
-[[vk::binding(1, PER_DRAW)]] Texture2D<float4> _texture;
+[[vk::binding(1, PER_DRAW)]] ConstantBuffer<PanelData> _panelData;
+[[vk::binding(2, PER_DRAW)]] Texture2D<float4> _texture;
 
 struct VertexOutput
 {

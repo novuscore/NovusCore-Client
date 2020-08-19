@@ -12,7 +12,8 @@
 
 struct PackedCellData
 {
-    uint packedDiffuseIDs;
+    uint packedDiffuseIDs1;
+    uint packedDiffuseIDs2;
     uint packedHoles;
 };
 

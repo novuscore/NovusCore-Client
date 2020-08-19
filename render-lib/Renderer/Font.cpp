@@ -55,6 +55,12 @@ namespace Renderer
 
             font->scale = stbtt_ScaleForPixelHeight(font->fontInfo, fontSize);
 
+            // Create texture array
+            TextureArrayDesc desc;
+            desc.size = 128;
+
+            font->_textureArray = renderer->CreateTextureArray(desc);
+
             // Preload char 32 to 127 (commonly used ASCII characters)
             for (int i = 32; i < 127; i++)
             {
@@ -89,8 +95,13 @@ namespace Renderer
         textureDesc.data = fontChar.data;
         textureDesc.debugName = desc.path + " " + character;
 
-        fontChar.texture = _renderer->CreateDataTexture(textureDesc);
+        _renderer->CreateDataTextureIntoArray(textureDesc, _textureArray, fontChar.textureIndex);
 
         return true;
+    }
+
+    TextureArrayID Font::GetTextureArray()
+    {
+        return _textureArray;
     }
 }

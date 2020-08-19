@@ -41,6 +41,9 @@ public:
 
     u8 GetFrameIndex() { return _frameIndex; }
     UIRenderer* GetUIRenderer() { return _uiRenderer; }
+
+    void InitImgui();
+    TerrainRenderer* GetTerrainRenderer() { return _terrainRenderer; }
 private:
     void CreatePermanentResources();
 

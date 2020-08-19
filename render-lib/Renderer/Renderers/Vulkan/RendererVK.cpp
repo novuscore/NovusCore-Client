@@ -21,6 +21,8 @@
 #include "Backend/DescriptorSetBuilderVK.h"
 #include "Backend/FormatConverterVK.h"
 
+#include "imgui/imgui_impl_vulkan.h"
+
 namespace Renderer
 {
     RendererVK::RendererVK(TextureDesc& debugTexture)
@@ -282,12 +284,22 @@ namespace Renderer
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
+        if (_renderPassOpenCount <= 0)
+        {
+            NC_LOG_FATAL("You tried to draw without first calling BeginPipeline!");
+        }
+
         vkCmdDraw(commandBuffer, numVertices, numInstances, vertexOffset, instanceOffset);
     }
 
     void RendererVK::DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        if (_renderPassOpenCount <= 0)
+        {
+            NC_LOG_FATAL("You tried to draw without first calling BeginPipeline!");
+        }
 
         // Draw
         vkCmdDraw(commandBuffer, numVertices, numInstances, 0, 0);
@@ -296,6 +308,11 @@ namespace Renderer
     void RendererVK::DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        if (_renderPassOpenCount <= 0)
+        {
+            NC_LOG_FATAL("You tried to draw without first calling BeginPipeline!");
+        }
 
         if (_boundModelIndexBuffer != modelID)
         {
@@ -314,12 +331,22 @@ namespace Renderer
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
+        if (_renderPassOpenCount <= 0)
+        {
+            NC_LOG_FATAL("You tried to draw without first calling BeginPipeline!");
+        }
+
         vkCmdDrawIndexed(commandBuffer, numIndices, numInstances, indexOffset, vertexOffset, instanceOffset);
     }
 
     void RendererVK::DrawIndexedIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        if (_renderPassOpenCount <= 0)
+        {
+            NC_LOG_FATAL("You tried to draw without first calling BeginPipeline!");
+        }
 
         VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
 
@@ -329,6 +356,11 @@ namespace Renderer
     void RendererVK::DrawIndexedIndirectCount(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        if (_renderPassOpenCount <= 0)
+        {
+            NC_LOG_FATAL("You tried to draw without first calling BeginPipeline!");
+        }
 
         VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
         VkBuffer vkDrawCountBuffer = _bufferHandler->GetBuffer(drawCountBuffer);
@@ -340,12 +372,22 @@ namespace Renderer
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
+        if (_renderPassOpenCount <= 0)
+        {
+            NC_LOG_FATAL("You tried to dispatch without first calling BeginPipeline!");
+        }
+
         vkCmdDispatch(commandBuffer, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
     }
 
     void RendererVK::DispatchIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        if (_renderPassOpenCount <= 0)
+        {
+            NC_LOG_FATAL("You tried to dispatch without first calling BeginPipeline!");
+        }
 
         VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
 
@@ -396,6 +438,7 @@ namespace Renderer
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
         _commandListHandler->SetBoundGraphicsPipeline(commandListID, pipelineID);
+
 
         _boundModelIndexBuffer = ModelID::Invalid();
     }
@@ -804,6 +847,19 @@ namespace Renderer
         vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &bufferBarrier, 0, nullptr);
     }
 
+    void RendererVK::PushConstant(CommandListID commandListID, void* data, u32 offset, u32 size)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        GraphicsPipelineID graphicsPipelineID = _commandListHandler->GetBoundGraphicsPipeline(commandListID);
+
+        if (graphicsPipelineID != GraphicsPipelineID::Invalid())
+        {
+            VkPipelineLayout layout = _pipelineHandler->GetPipelineLayout(graphicsPipelineID);
+            vkCmdPushConstants(commandBuffer, layout, VkShaderStageFlagBits::VK_SHADER_STAGE_FRAGMENT_BIT, offset, size, data);
+        }
+    }
+
     void RendererVK::Present(Window* window, ImageID imageID, GPUSemaphoreID semaphoreID)
     {
         CommandListID commandListID = _commandListHandler->BeginCommandList();
@@ -985,5 +1041,17 @@ namespace Renderer
     void RendererVK::UnmapBuffer(BufferID buffer)
     {
         vmaUnmapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(buffer));
+    }
+
+    void RendererVK::InitImgui()
+    {
+        _device->InitializeImguiVulkan();
+    }
+
+    void RendererVK::DrawImgui(CommandListID commandListID)
+    {
+        VkCommandBuffer cmd = _commandListHandler->GetCommandBuffer(commandListID);
+
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
     }
 }

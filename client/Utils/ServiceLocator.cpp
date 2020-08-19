@@ -6,6 +6,7 @@ MessageHandler* ServiceLocator::_authSocketMessageHandler = nullptr;
 MessageHandler* ServiceLocator::_gameSocketMessageHandler = nullptr;
 Window* ServiceLocator::_window = nullptr;
 InputManager* ServiceLocator::_inputManager = nullptr;
+ClientRenderer* ServiceLocator::_clientRenderer = nullptr;
 Camera* ServiceLocator::_camera = nullptr;
 Renderer::Renderer* ServiceLocator::_renderer = nullptr;
 SceneManager* ServiceLocator::_sceneManager = nullptr;
@@ -42,6 +43,12 @@ void ServiceLocator::SetInputManager(InputManager* inputManager)
 {
     assert(_inputManager == nullptr);
     _inputManager = inputManager;
+}
+
+void ServiceLocator::SetClientRenderer(ClientRenderer* clientRenderer)
+{
+    assert(_clientRenderer == nullptr);
+    _clientRenderer = clientRenderer;
 }
 
 void ServiceLocator::SetCamera(Camera* camera)

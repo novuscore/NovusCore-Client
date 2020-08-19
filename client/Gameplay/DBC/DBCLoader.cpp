@@ -4,7 +4,7 @@
 
 namespace fs = std::filesystem;
 
-bool DBCLoader::Load(entt::registry& registry)
+bool DBCLoader::Load(entt::registry* registry)
 {
     fs::path absolutePath = std::filesystem::absolute("Data/extracted/Ndbc");
     if (!fs::is_directory(absolutePath))
@@ -13,7 +13,7 @@ bool DBCLoader::Load(entt::registry& registry)
         return false;
     }
 
-    DBCSingleton& dbcSingleton = registry.set<DBCSingleton>();
+    DBCSingleton& dbcSingleton = registry->set<DBCSingleton>();
 
     size_t loadedDBCs = 0;
     for (const auto& entry : std::filesystem::recursive_directory_iterator(absolutePath))

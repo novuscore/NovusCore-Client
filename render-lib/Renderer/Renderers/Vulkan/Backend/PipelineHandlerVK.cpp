@@ -140,19 +140,23 @@ namespace Renderer
             // -- Create Framebuffer --
             CreateFramebuffer(pipeline);
 
-            // -- Create Descriptor Set Layout from reflected SPIR-V --
+            // -- Get Reflection data from shader --
             std::vector<BindInfo> bindInfos;
+            std::vector<BindInfoPushConstant> bindInfoPushConstants;
             if (desc.states.vertexShader != VertexShaderID::Invalid())
             {
                 const BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.states.vertexShader);
                 bindInfos.insert(bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
+                bindInfoPushConstants.insert(bindInfoPushConstants.end(), bindReflection.pushConstants.begin(), bindReflection.pushConstants.end());
             }
             if (desc.states.pixelShader != PixelShaderID::Invalid())
             {
                 const BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.states.pixelShader);
                 bindInfos.insert(bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
+                bindInfoPushConstants.insert(bindInfoPushConstants.end(), bindReflection.pushConstants.begin(), bindReflection.pushConstants.end());
             }
 
+            // -- Create Descriptor Set Layout from reflected SPIR-V --
             for (BindInfo& bindInfo : bindInfos)
             {
                 DescriptorSetLayoutData& layout = GetDescriptorSet(bindInfo.set, pipeline.descriptorSetLayoutDatas);
@@ -178,6 +182,15 @@ namespace Renderer
                 {
                     NC_LOG_FATAL("Failed to create descriptor set layout!");
                 }
+            }
+
+            // -- Create Push Constant Range from reflected SPIR-V --
+            for (BindInfoPushConstant& pushConstant : bindInfoPushConstants)
+            {
+                VkPushConstantRange& range = pipeline.pushConstantRanges.emplace_back();
+                range.offset = pushConstant.offset;
+                range.size = pushConstant.size;
+                range.stageFlags = pushConstant.stageFlags;
             }
 
             std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
@@ -387,8 +400,8 @@ namespace Renderer
             pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
             pipelineLayoutInfo.setLayoutCount = static_cast<u32>(pipeline.descriptorSetLayouts.size());
             pipelineLayoutInfo.pSetLayouts = pipeline.descriptorSetLayouts.data();
-            pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
-            pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+            pipelineLayoutInfo.pushConstantRangeCount = static_cast<u32>(pipeline.pushConstantRanges.size()); // Optional
+            pipelineLayoutInfo.pPushConstantRanges = pipeline.pushConstantRanges.data();
 
             if (vkCreatePipelineLayout(_device->_device, &pipelineLayoutInfo, nullptr, &pipeline.pipelineLayout) != VK_SUCCESS)
             {

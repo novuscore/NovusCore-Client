@@ -46,7 +46,6 @@ namespace UIComponent
         Color outlineColor = Color(0, 0, 0, 0);
         f32 outlineWidth = 0.f;
 
-
         UI::TextHorizontalAlignment horizontalAlignment = UI::TextHorizontalAlignment::LEFT;
         UI::TextVerticalAlignment verticalAlignment = UI::TextVerticalAlignment::TOP;
         bool isMultiline = false;
@@ -57,8 +56,13 @@ namespace UIComponent
         f32 fontSize = 0;
         Renderer::Font* font = nullptr;
 
-        std::vector<Renderer::ModelID> models;
-        std::vector<Renderer::TextureID> textures;
+        size_t vertexBufferGlyphCount = 0;
+        Renderer::BufferID vertexBufferID = Renderer::BufferID::Invalid();
+        Renderer::BufferID textureIDBufferID = Renderer::BufferID::Invalid();
+        //Renderer::TextureArrayID textureArray = Renderer::TextureArrayID::Invalid();
+
+        /*std::vector<Renderer::BufferID> vertexBuffers;
+        std::vector<Renderer::TextureID> textures;*/
 
         Renderer::Buffer<TextConstantBuffer>* constantBuffer = nullptr;
     };

@@ -59,6 +59,7 @@ namespace Renderer
             void CreateAllocator();
             void CreateCommandPool();
             void CreateTracyContext();
+            void InitializeImguiVulkan();
 
             // InitWindow helper functions
             void CreateSurface(GLFWwindow* window, SwapChainVK* swapChain);
@@ -110,7 +111,7 @@ namespace Renderer
             DescriptorMegaPoolVK* _descriptorMegaPool;
 
             tracy::VkCtx* _tracyContext = nullptr;
-
+            struct ImguiContext* _imguiContext = nullptr;
             friend class RendererVK;
             friend class BufferHandlerVK;
             friend class ImageHandlerVK;

@@ -30,7 +30,6 @@ namespace tracy
 {
     struct SourceLocationData;
 }
-
 namespace Renderer
 {
     class Renderer
@@ -109,6 +108,7 @@ namespace Renderer
         virtual void AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) = 0;
         virtual void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
         virtual void PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer) = 0;
+        virtual void PushConstant(CommandListID commandListID, void* data, u32 offset, u32 size) = 0;
 
         // Present functions
         virtual void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) = 0;
@@ -118,6 +118,9 @@ namespace Renderer
         virtual void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
         virtual void* MapBuffer(BufferID buffer) = 0;
         virtual void UnmapBuffer(BufferID buffer) = 0;
+
+        virtual void InitImgui() = 0;
+        virtual void DrawImgui(CommandListID commandListID) = 0;
 
     protected:
         Renderer() {}; // Pure virtual class, disallow creation of it

@@ -50,7 +50,7 @@ i32 main()
         if (future.wait_for(std::chrono::milliseconds(50)) == std::future_status::ready)
         {
             std::string command = future.get();
-            std::transform(command.begin(), command.end(), command.begin(), ::tolower); // Convert command to lowercase
+            //std::transform(command.begin(), command.end(), command.begin(), ::tolower); // Convert command to lowercase
 
             consoleCommandHandler.HandleCommand(engineLoop, command);
             future = std::async(std::launch::async, StringUtils::GetLineFromCin);

@@ -15,6 +15,8 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "imgui/imgui_impl_glfw.h"
+
 const int WIDTH = 1920;
 const int HEIGHT = 1080;
 const size_t FRAME_ALLOCATOR_SIZE = 8 * 1024 * 1024; // 8 MB
@@ -80,6 +82,9 @@ ClientRenderer::ClientRenderer()
     
     _renderer = new Renderer::RendererVK(debugTexture);
     _renderer->InitWindow(_window);
+
+    InitImgui();
+
     ServiceLocator::SetRenderer(_renderer);
 
     CreatePermanentResources();
@@ -97,6 +102,8 @@ ClientRenderer::ClientRenderer()
         }
         return true;
     });
+
+    ServiceLocator::SetClientRenderer(this);
 }
 
 bool ClientRenderer::UpdateWindow(f32 deltaTime)
@@ -355,6 +362,16 @@ void ClientRenderer::Render()
 
     // Flip the frameIndex between 0 and 1
     _frameIndex = !_frameIndex;
+}
+
+
+void ClientRenderer::InitImgui()
+{
+	ImGui::CreateContext();
+
+	ImGui_ImplGlfw_InitForVulkan(_window->GetWindow(),true);
+
+    _renderer->InitImgui();
 }
 
 void ClientRenderer::CreatePermanentResources()

@@ -7,6 +7,7 @@
 class MessageHandler;
 class Window;
 class InputManager;
+class ClientRenderer;
 class Camera;
 class SceneManager;
 namespace Renderer
@@ -52,6 +53,12 @@ public:
         return _inputManager; 
     }
     static void SetInputManager(InputManager* inputManager);
+    static ClientRenderer* GetClientRenderer()
+    {
+        assert(_clientRenderer != nullptr);
+        return _clientRenderer;
+    }
+    static void SetClientRenderer(ClientRenderer* clientRenderer);
     static Camera* GetCamera() 
     {
         assert(_camera != nullptr);
@@ -85,6 +92,7 @@ private:
     static MessageHandler* _gameSocketMessageHandler;
     static Window* _window;
     static InputManager* _inputManager;
+    static ClientRenderer* _clientRenderer;
     static Camera* _camera;
     static moodycamel::ConcurrentQueue<Message>* _mainInputQueue;
     static Renderer::Renderer* _renderer;

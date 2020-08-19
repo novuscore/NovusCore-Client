@@ -10,7 +10,7 @@
 
 namespace fs = std::filesystem;
 
-bool MapLoader::Load(entt::registry& registry)
+bool MapLoader::Init(entt::registry* registry)
 {
     fs::path absolutePath = std::filesystem::absolute("Data/extracted/maps");
     if (!fs::is_directory(absolutePath))
@@ -19,8 +19,14 @@ bool MapLoader::Load(entt::registry& registry)
         return false;
     }
 
-    MapSingleton& mapSingleton = registry.set<MapSingleton>();
-    DBCSingleton& dbcSingleton = registry.ctx<DBCSingleton>();
+    MapSingleton& mapSingleton = registry->set<MapSingleton>();
+    DBCSingleton& dbcSingleton = registry->ctx<DBCSingleton>();
+
+    if (mapSingleton.mapDBCFiles.size() != 0)
+    {
+        NC_LOG_ERROR("MapLoader::Init can only be called once");
+        return false;
+    }
 
     auto itr = dbcSingleton.dbcs.find("Maps"_h);
     if (itr == dbcSingleton.dbcs.end())
@@ -29,32 +35,57 @@ bool MapLoader::Load(entt::registry& registry)
         return false;
     }
 
-    std::vector<DBC::Map> maps;
-    if (!ExtractMapDBC(itr->second, maps, mapSingleton.mapsDBCStringTable))
+    if (!ExtractMapDBC(itr->second, mapSingleton.mapDBCFiles, mapSingleton.mapsDBCStringTable))
     {
         NC_LOG_ERROR("Failed to correctly load Maps.ndbc data");
         return false;
     }
 
-    for (const DBC::Map& map : maps)
+    for (DBC::Map& map : mapSingleton.mapDBCFiles)
     {
-        mapSingleton.mapIdToDBC[map.Id].Id = map.Id;
-        mapSingleton.mapIdToDBC[map.Id].Name = map.Name;
-        mapSingleton.mapIdToDBC[map.Id].InternalName = map.InternalName;
-        mapSingleton.mapIdToDBC[map.Id].InstanceType = map.InstanceType;
-        mapSingleton.mapIdToDBC[map.Id].Flags = map.Flags;
-        mapSingleton.mapIdToDBC[map.Id].Expansion = map.Expansion;
-        mapSingleton.mapIdToDBC[map.Id].MaxPlayers = map.MaxPlayers;
-
+        u32 mapNameHash = mapSingleton.mapsDBCStringTable.GetStringHash(map.Name);
         u32 mapInternalNameHash = mapSingleton.mapsDBCStringTable.GetStringHash(map.InternalName);
-        mapSingleton.mapInternalNameToDBC[mapInternalNameHash].Id = map.Id;
-        mapSingleton.mapInternalNameToDBC[mapInternalNameHash].Name = map.Name;
-        mapSingleton.mapInternalNameToDBC[mapInternalNameHash].InternalName = map.InternalName;
-        mapSingleton.mapInternalNameToDBC[mapInternalNameHash].InstanceType = map.InstanceType;
-        mapSingleton.mapInternalNameToDBC[mapInternalNameHash].Flags = map.Flags;
-        mapSingleton.mapInternalNameToDBC[mapInternalNameHash].Expansion = map.Expansion;
-        mapSingleton.mapInternalNameToDBC[mapInternalNameHash].MaxPlayers = map.MaxPlayers;
+
+        mapSingleton.mapIdToDBC[map.Id] = &map;
+        mapSingleton.mapNameToDBC[mapNameHash] = &map;
+        mapSingleton.mapInternalNameToDBC[mapInternalNameHash] = &map;
     }
+
+    return true;
+}
+
+bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
+{
+    MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
+    DBCSingleton& dbcSingleton = registry->ctx<DBCSingleton>();
+
+    if (mapSingleton.loadedMapHash == mapInternalNameHash)
+    {
+        return false; // Don't reload the map we're on
+    }
+
+    auto itr = mapSingleton.mapInternalNameToDBC.find(mapInternalNameHash);
+    if (itr == mapSingleton.mapInternalNameToDBC.end())
+    {
+        NC_LOG_ERROR("Tried to Load Map with no entry in Maps.ndbc");
+        return false;
+    }
+
+    const DBC::Map* map = mapSingleton.mapInternalNameToDBC[mapInternalNameHash];
+
+    const std::string& mapInternalName = mapSingleton.mapsDBCStringTable.GetString(map->InternalName);
+    fs::path absolutePath = std::filesystem::absolute("Data/extracted/maps/" + mapInternalName);
+    if (!fs::is_directory(absolutePath))
+    {
+        NC_LOG_ERROR("Failed to find map folder for %s", mapInternalName);
+        return false;
+    }
+
+    // Clear currently loaded map
+    mapSingleton.currentMap.Clear();
+
+    mapSingleton.currentMap.id = map->Id;
+    mapSingleton.currentMap.name = mapInternalName;
 
     size_t loadedChunks = 0;
     for (const auto& entry : std::filesystem::recursive_directory_iterator(absolutePath))
@@ -82,7 +113,10 @@ bool MapLoader::Load(entt::registry& registry)
         size_t numberOfSplits = splitName.size();
 
         std::string mapInternalName = splitName[0];
-        u32 mapInternalNameHash = StringUtils::fnv1a_32(mapInternalName.c_str(), mapInternalName.size());
+        for (size_t i = 1; i < numberOfSplits - 2; i++)
+        {
+            mapInternalName += "_" + splitName[i];
+        }
 
         auto itr = mapSingleton.mapInternalNameToDBC.find(mapInternalNameHash);
         if (itr == mapSingleton.mapInternalNameToDBC.end())
@@ -91,20 +125,12 @@ bool MapLoader::Load(entt::registry& registry)
             continue;
         }
 
-        u16 mapId = mapSingleton.mapInternalNameToDBC[mapInternalNameHash].Id;
-
-        if (mapSingleton.maps.find(mapId) == mapSingleton.maps.end())
-        {
-            mapSingleton.maps[mapId].id = mapId;
-            mapSingleton.maps[mapId].name = mapInternalName;// mapData.name;
-        }
-
         u16 x = std::stoi(splitName[numberOfSplits - 2]);
         u16 y = std::stoi(splitName[numberOfSplits - 1]);
+        u32 chunkId = x + (y * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
 
-        int chunkId = x + (y * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
-        mapSingleton.maps[mapId].chunks[chunkId] = chunk;
-        mapSingleton.maps[mapId].stringTables[chunkId].CopyFrom(chunkStringTable);
+        mapSingleton.currentMap.chunks[chunkId] = chunk;
+        mapSingleton.currentMap.stringTables[chunkId].CopyFrom(chunkStringTable);
 
         loadedChunks++;
     }

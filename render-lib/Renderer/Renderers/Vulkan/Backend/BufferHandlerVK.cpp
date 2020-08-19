@@ -4,7 +4,7 @@
 
 #include "vulkan/vulkan.h"
 
-constexpr size_t MaxBufferCount = 4096;
+constexpr size_t MaxBufferCount = 65535;
 
 static_assert(MaxBufferCount <= std::numeric_limits<Renderer::BufferID::type>::max(), "Too many buffers to fit inside BufferID");
 

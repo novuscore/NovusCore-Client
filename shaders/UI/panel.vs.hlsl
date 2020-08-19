@@ -1,9 +1,18 @@
 
+struct Vertex
+{
+    float2 position;
+    float2 uv;
+};
+
+[[vk::binding(0, PER_DRAW)]] cbuffer _vertices
+{
+    Vertex vertices[6];
+};
+
 struct VertexInput
 {
-    float3 position : POSITION;
-    float3 normal : TEXCOORD0;
-    float2 uv : TEXCOORD1;
+    uint vertexID : SV_VertexID;
 };
 
 struct VertexOutput
@@ -15,7 +24,11 @@ struct VertexOutput
 VertexOutput main(VertexInput input)
 {
     VertexOutput output;
-    output.position = float4((input.position.xy * 2.0f) - 1.0f, input.position.z, 1.0f);
-    output.uv = input.uv;
+
+    Vertex vertex = vertices[input.vertexID];
+
+    output.position = float4((vertex.position * 2.0f) - 1.0f, 0.0f, 1.0f);
+    output.uv = vertex.uv;
+
     return output;
 }

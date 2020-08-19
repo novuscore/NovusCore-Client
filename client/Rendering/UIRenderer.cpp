@@ -82,27 +82,15 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
         },
         [=](UIPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
         {
+            
             GPU_SCOPED_PROFILER_ZONE(commandList, UIPass);
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
             resources.InitializePipelineDesc(pipelineDesc);
 
-            // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
-            pipelineDesc.states.inputLayouts[0].enabled = true;
-            pipelineDesc.states.inputLayouts[0].SetName("POSITION");
-            pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::INPUT_FORMAT_R32G32B32_FLOAT;
-            pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
-            pipelineDesc.states.inputLayouts[1].enabled = true;
-            pipelineDesc.states.inputLayouts[1].SetName("NORMAL");
-            pipelineDesc.states.inputLayouts[1].format = Renderer::InputFormat::INPUT_FORMAT_R32G32B32_FLOAT;
-            pipelineDesc.states.inputLayouts[1].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
-            pipelineDesc.states.inputLayouts[2].enabled = true;
-            pipelineDesc.states.inputLayouts[2].SetName("TEXCOORD");
-            pipelineDesc.states.inputLayouts[2].format = Renderer::InputFormat::INPUT_FORMAT_R32G32_FLOAT;
-            pipelineDesc.states.inputLayouts[2].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
-
             // Rasterizer state
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
+            //pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
 
             // Render targets
             pipelineDesc.renderTargets[0] = data.renderTarget;
@@ -144,9 +132,9 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             auto renderGroup = registry->group<UIComponent::Transform>(entt::get<UIComponent::Renderable, UIComponent::Visible>);
             renderGroup.sort<UIComponent::Transform>([](UIComponent::Transform& first, UIComponent::Transform& second) { return first.sortKey < second.sortKey; });
             renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UIComponent::Transform& transform)
+            {
+                switch (transform.sortData.type)
                 {
-                    switch (transform.sortData.type)
-                    {
                     case UI::UIElementType::UITYPE_LABEL:
                     case UI::UIElementType::UITYPE_INPUTFIELD:
                     {
@@ -154,29 +142,30 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                         if (!text.constantBuffer)
                             return;
 
+                        if (text.vertexBufferID == Renderer::BufferID::Invalid())
+                            return;
+
                         if (activePipeline != textPipeline)
                         {
                             commandList.EndPipeline(activePipeline);
                             commandList.BeginPipeline(textPipeline);
+                            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
                             activePipeline = textPipeline;
                         }
 
                         commandList.PushMarker("Text", Color(0.0f, 0.1f, 0.0f));
 
-                        // Bind textdata descriptor
-                        _drawDescriptorSet.Bind("_textData"_h, text.constantBuffer->GetBuffer(frameIndex));
+                        // Bind descriptors
+                        _drawTextDescriptorSet.Bind("_vertexData"_h, text.vertexBufferID);
+                        _drawTextDescriptorSet.Bind("_textData"_h, text.constantBuffer->GetBuffer(frameIndex));
+                        _drawTextDescriptorSet.Bind("_textureIDs"_h, text.textureIDBufferID);
+                        _drawTextDescriptorSet.Bind("_textures"_h, text.font->GetTextureArray());
 
-                        // Each glyph in the label has it's own plane and texture, this could be optimized in the future.
-                        for (u32 i = 0; i < text.glyphCount; i++)
-                        {
-                            // Bind texture descriptor
-                            _drawDescriptorSet.Bind("_texture"_h, text.textures[i]);
+                        commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawTextDescriptorSet, frameIndex);
 
-                            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
+                        commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
 
-                            // Draw
-                            //commandList.Draw(text.models[i]); // TODO
-                        }
+                        commandList.DrawIndexed(6, static_cast<u32>(text.glyphCount), 0, 0, 0);
 
                         commandList.PopMarker();
                         break;
@@ -191,26 +180,30 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                         {
                             commandList.EndPipeline(activePipeline);
                             commandList.BeginPipeline(imagePipeline);
+                            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
                             activePipeline = imagePipeline;
                         }
 
                         commandList.PushMarker("Image", Color(0.0f, 0.1f, 0.0f));
 
                         // Bind descriptors
-                        _drawDescriptorSet.Bind("_panelData"_h, image.constantBuffer->GetBuffer(frameIndex));
-                        _drawDescriptorSet.Bind("_texture"_h, image.textureID);
+                        _drawImageDescriptorSet.Bind("_vertices"_h, image.vertexBufferID);
+                        _drawImageDescriptorSet.Bind("_panelData"_h, image.constantBuffer->GetBuffer(frameIndex));
+                        _drawImageDescriptorSet.Bind("_texture"_h, image.textureID);
 
-                        commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawDescriptorSet, frameIndex);
+                        commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawImageDescriptorSet, frameIndex);
 
-                        // Draw
-                        //commandList.Draw(image.modelID); // TODO
+                        commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
+
+                        commandList.DrawIndexed(6, 1, 0, 0, 0);
 
                         commandList.PopMarker();
                         break;
                     }
-                    }
-                });
+                }
+            });
 
+            commandList.DrawImgui();
             commandList.EndPipeline(activePipeline);
         });
 }
@@ -228,9 +221,41 @@ void UIRenderer::CreatePermanentResources()
 
     _linearSampler = _renderer->CreateSampler(samplerDesc);
 
+    // Index buffer
+    static const u32 indexBufferSize = sizeof(u16) * 6;
+
+    Renderer::BufferDesc bufferDesc;
+    bufferDesc.name = "IndexBuffer";
+    bufferDesc.size = indexBufferSize;
+    bufferDesc.usage = Renderer::BufferUsage::BUFFER_USAGE_INDEX_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
+    bufferDesc.cpuAccess = Renderer::BufferCPUAccess::None;
+
+    _indexBuffer = _renderer->CreateBuffer(bufferDesc);
+
+    Renderer::BufferDesc stagingBufferDesc;
+    stagingBufferDesc.name = "StagingBuffer";
+    stagingBufferDesc.size = indexBufferSize;
+    stagingBufferDesc.usage = Renderer::BufferUsage::BUFFER_USAGE_INDEX_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+    stagingBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+    Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(stagingBufferDesc);
+
+    u16* index = static_cast<u16*>(_renderer->MapBuffer(stagingBuffer));
+    index[0] = 0;
+    index[1] = 1;
+    index[2] = 2;
+    index[3] = 1;
+    index[4] = 3;
+    index[5] = 2;
+    _renderer->UnmapBuffer(stagingBuffer);
+
+    _renderer->QueueDestroyBuffer(stagingBuffer);
+    _renderer->CopyBuffer(_indexBuffer, 0, stagingBuffer, 0, indexBufferSize);
+
     // Create descriptor sets
     _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
     _passDescriptorSet.Bind("_sampler"_h, _linearSampler);
 
-    _drawDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
+    _drawImageDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
+    _drawTextDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
 }

@@ -3,9 +3,11 @@
 #include <robin_hood.h>
 
 #include <Renderer/Buffer.h>
+#include <Renderer/Descriptors/SamplerDesc.h>
 #include <Renderer/Descriptors/ImageDesc.h>
 #include <Renderer/Descriptors/DepthImageDesc.h>
 #include <Renderer/Descriptors/ModelDesc.h>
+#include <Renderer/Descriptors/BufferDesc.h>
 
 #include "ViewConstantBuffer.h"
 
@@ -30,23 +32,64 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddMapObjectDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex);
     void AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 
-    void LoadMapObjects(Terrain::Chunk& chunk, StringTable& stringTable);
+    void LoadMapObjects(const Terrain::Chunk& chunk, StringTable& stringTable);
+    void Clear();
 
 private:
     void CreatePermanentResources();
-    u32 LoadMapObject(u32 nameID, StringTable& stringTable);
+    bool LoadMapObject(u32 nameID, StringTable& stringTable, u32& objectID);
 
+    struct Material
+    {
+        u32 textureIDs[3];
+        f32 alphaTestVal = -1.0f;//1.0f / 255.0f;//1.0f / 16.0f;//1.0f / 255.0f;
+        u32 materialType = 0;
+    };
+
+    struct Instance
+    {
+        mat4x4 instanceMatrix;
+    };
+
+    struct Mesh
+    {
+        // Per submesh data
+        std::vector<u32> numIndices;
+        std::vector<Renderer::BufferID> indexBuffers; 
+        std::vector<u32> materialIDs;
+
+        // Per mesh data
+        Renderer::BufferID vertexPositionsBuffer;
+        Renderer::BufferID vertexNormalsBuffer;
+
+        u32 numUVSets;
+        Renderer::BufferID vertexUVsBuffer;
+    };
+
+    static const u32 MAX_INSTANCES = 256;
     struct LoadedMapObject
     {
-        std::vector<Renderer::ModelID> modelIDs;
+        std::string debugName = "";
+
+        std::vector<Mesh> meshes;
+
+        Renderer::BufferID materialsBuffer;
+
+        u32 numInstances;
+        Renderer::BufferID instanceBuffer; // One per instance
     };
 
 private:
     Renderer::Renderer* _renderer;
 
+    Renderer::SamplerID _sampler;
+    Renderer::DescriptorSet _passDescriptorSet;
+    Renderer::DescriptorSet _meshDescriptorSet;
+
     std::vector<LoadedMapObject> _loadedMapObjects;
     robin_hood::unordered_map<u32, u32> _nameHashToIndexMap;
+
+    Renderer::TextureArrayID _mapObjectTextures;
 };

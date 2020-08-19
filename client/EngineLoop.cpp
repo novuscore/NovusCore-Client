@@ -6,6 +6,7 @@
 #include <Networking/MessageHandler.h>
 #include <Renderer/Renderer.h>
 #include "Rendering/ClientRenderer.h"
+#include "Rendering/TerrainRenderer.h"
 #include "Rendering/Camera.h"
 #include "Gameplay/Map/MapLoader.h"
 #include "Gameplay/DBC/DBCLoader.h"
@@ -38,6 +39,13 @@
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
 #include <tracy/Tracy.hpp>
+
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_vulkan.h"
+#include "imgui/imgui_impl_glfw.h"
+#include "imgui/misc/cpp/imgui_stdlib.h"
+
+#include "ECS/Components/Singletons/StatsSingleton.h"
 
 EngineLoop::EngineLoop() : _isRunning(false), _inputQueue(256), _outputQueue(256)
 {
@@ -92,8 +100,8 @@ void EngineLoop::Run()
     _updateFramework.uiRegistry.create();
     SetupUpdateFramework();
 
-    DBCLoader::Load(_updateFramework.gameRegistry);
-    MapLoader::Load(_updateFramework.gameRegistry);
+    DBCLoader::Load(&_updateFramework.gameRegistry);
+    MapLoader::Init(&_updateFramework.gameRegistry);
 
     TimeSingleton& timeSingleton = _updateFramework.gameRegistry.set<TimeSingleton>();
     ScriptSingleton& scriptSingleton = _updateFramework.gameRegistry.set<ScriptSingleton>();
@@ -102,6 +110,8 @@ void EngineLoop::Run()
     ConnectionSingleton& connectionSingleton = _updateFramework.gameRegistry.set<ConnectionSingleton>();
     AuthenticationSingleton& authenticationSingleton = _updateFramework.gameRegistry.set<AuthenticationSingleton>();
     LocalplayerSingleton& localplayerSingleton = _updateFramework.gameRegistry.set<LocalplayerSingleton>();
+    EngineStatsSingleton& statsSingleton = _updateFramework.gameRegistry.set<EngineStatsSingleton>();
+
     connectionSingleton.authConnection = _network.authSocket;
     connectionSingleton.gameConnection = _network.gameSocket;
 
@@ -170,19 +180,38 @@ void EngineLoop::Run()
     _network.gameSocket->SetConnectHandler(std::bind(&ConnectionUpdateSystem::GameSocket_HandleConnect, std::placeholders::_1, std::placeholders::_2));
     _network.gameSocket->SetDisconnectHandler(std::bind(&ConnectionUpdateSystem::GameSocket_HandleDisconnect, std::placeholders::_1));
 
+    Timer updateTimer;
+    Timer renderTimer;
+
+    EngineStatsSingleton::Frame timings;
     while (true)
     {
         f32 deltaTime = timer.GetDeltaTime();
         timer.Tick();
 
+        timings.deltaTime = deltaTime;
+
         timeSingleton.lifeTimeInS = timer.GetLifeTime();
         timeSingleton.lifeTimeInMS = timeSingleton.lifeTimeInS * 1000;
         timeSingleton.deltaTime = deltaTime;
 
+        updateTimer.Reset();
+        
         if (!Update(deltaTime))
             break;
+        
+        DrawEngineStats(&statsSingleton);
+        DrawImguiMenuBar();
 
+        timings.simulationFrameTime = updateTimer.GetLifeTime();
+        
+        renderTimer.Reset();
+        
         Render();
+        
+        timings.renderFrameTime = renderTimer.GetLifeTime();
+        
+        statsSingleton.AddTimings(timings.deltaTime, timings.simulationFrameTime, timings.renderFrameTime);
 
         // Wait for tick rate, this might be an overkill implementation but it has the most even tickrate I've seen - MPursche
         for (deltaTime = timer.GetDeltaTime(); deltaTime < targetDelta - 0.0025f; deltaTime = timer.GetDeltaTime())
@@ -218,6 +247,8 @@ bool EngineLoop::Update(f32 deltaTime)
     if (shouldExit)
         return false;
 
+    ImguiNewFrame();
+
     Message message;
     while (_inputQueue.try_dequeue(message))
     {
@@ -246,6 +277,15 @@ bool EngineLoop::Update(f32 deltaTime)
 
             ScriptHandler::ReloadScripts();
         }
+        else if (message.code == MSG_IN_LOAD_MAP)
+        {
+            LoadMapInfo* loadMapInfo = reinterpret_cast<LoadMapInfo*>(message.object);
+
+            ServiceLocator::GetClientRenderer()->GetTerrainRenderer()->LoadMap(loadMapInfo->mapInternalNameHash);
+            ServiceLocator::GetCamera()->SetPosition(vec3(loadMapInfo->y, 100, loadMapInfo->x));
+
+            delete loadMapInfo;
+        }
     }
 
     _clientRenderer->Update(deltaTime);
@@ -257,6 +297,8 @@ bool EngineLoop::Update(f32 deltaTime)
 void EngineLoop::Render()
 {
     ZoneScopedNC("EngineLoop::Render", tracy::Color::Red2)
+
+    ImGui::Render();
     _clientRenderer->Render();
 }
 
@@ -326,6 +368,95 @@ void EngineLoop::SetMessageHandler()
     ServiceLocator::SetGameSocketMessageHandler(gameSocketMessageHandler);
     GameSocket::GameHandlers::Setup(gameSocketMessageHandler);
 }
+
+void EngineLoop::ImguiNewFrame()
+{
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+}
+
+void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
+{
+    ImGui::Begin("Engine Info");
+
+    EngineStatsSingleton::Frame average = stats->AverageFrame(60);
+
+    ImGui::Text("FPS : %f ", 1.f/  average.deltaTime);
+    ImGui::Text("global frametime : %f ms", average.deltaTime * 1000);
+
+    vec3 cameraLocation = ServiceLocator::GetCamera()->GetPosition();
+    vec3 cameraRotation = ServiceLocator::GetCamera()->GetRotation();
+
+    ImGui::Text("Camera Location : %f x, %f y, %f z", cameraLocation.x, cameraLocation.y, cameraLocation.z);
+    ImGui::Text("Camera Rotation : %f x, %f y, %f z", cameraRotation.x, cameraRotation.y, cameraRotation.z);
+
+    static bool advancedStats = false;
+    ImGui::Checkbox("Advanced Stats", &advancedStats);
+
+    if(advancedStats)
+    {
+        ImGui::Text("update time : %f ms", average.simulationFrameTime * 1000);
+        ImGui::Text("render time (CPU): %f ms", average.renderFrameTime * 1000);
+
+        //read the frame buffer to gather timings for the histograms
+        std::vector<float> updateTimes;
+        updateTimes.reserve(stats->frameStats.size());
+
+        std::vector<float> renderTimes;
+        renderTimes.reserve(stats->frameStats.size());
+
+        for (int i = 0; i < stats->frameStats.size(); i++)
+        {
+            updateTimes.push_back(stats->frameStats[i].simulationFrameTime * 1000);
+            renderTimes.push_back(stats->frameStats[i].renderFrameTime * 1000);
+        }
+
+        ImGui::PlotHistogram("Update Times", updateTimes.data(), (int)updateTimes.size());
+        ImGui::PlotHistogram("Render Times", renderTimes.data(), (int)renderTimes.size());
+    }
+
+    ImGui::End();
+}
+
+
+void EngineLoop::DrawImguiMenuBar()
+{
+    if (ImGui::BeginMainMenuBar())
+    {
+        if (ImGui::BeginMenu("File"))
+        {
+            if (ImGui::BeginMenu("Load Map", "CTRL+Z")) 
+            {
+                static std::string mapload = "Azeroth";
+
+                ImGui::InputText("Map to load", &mapload);
+
+                if (ImGui::Button("Load Map"))
+                {
+                    u32 namehash = StringUtils::fnv1a_32(mapload.data(), mapload.size());
+                    ServiceLocator::GetClientRenderer()->GetTerrainRenderer()->LoadMap(namehash);
+                }
+                ImGui::EndMenu();
+            }
+           
+            ImGui::EndMenu();
+        }
+        //mockup
+        if (ImGui::BeginMenu("Edit"))
+        {
+            if (ImGui::MenuItem("Undo", "CTRL+Z")) {}
+            if (ImGui::MenuItem("Redo", "CTRL+Y", false, false)) {}
+            ImGui::Separator();
+            if (ImGui::MenuItem("Cut", "CTRL+X")) {}
+            if (ImGui::MenuItem("Copy", "CTRL+C")) {}
+            if (ImGui::MenuItem("Paste", "CTRL+V")) {}
+            ImGui::EndMenu();
+        }
+        ImGui::EndMainMenuBar();
+    }
+}
+
 void EngineLoop::UpdateSystems()
 {
     ZoneScopedNC("UpdateSystems", tracy::Color::DarkBlue)

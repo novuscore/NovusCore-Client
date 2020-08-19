@@ -27,8 +27,6 @@
 #include <entt.hpp>
 #include <vector>
 
-//#include "../Gameplay/Map/Map.h"
-
 class StringTable;
 namespace Terrain
 {
@@ -45,7 +43,9 @@ class MapLoader
 {
 public:
     MapLoader() { }
-    static bool Load(entt::registry& registry);
+
+    static bool Init(entt::registry* registry);
+    static bool LoadMap(entt::registry* registry, u32 mapInternalNameHash);
 
 private:
     static bool ExtractMapDBC(DBC::File& file, std::vector<DBC::Map>& maps, StringTable& stringTable);

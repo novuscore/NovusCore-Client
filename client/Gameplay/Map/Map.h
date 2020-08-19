@@ -38,15 +38,28 @@ namespace Terrain
     struct Map
     {
         Map() {}
+
         u16 id = std::numeric_limits<u16>().max(); // Default Map to Invalid ID
-        std::string name;
+        std::string_view name;
         robin_hood::unordered_map<u16, Chunk> chunks;
         robin_hood::unordered_map<u16, StringTable> stringTables;
-        robin_hood::unordered_map<u16, std::vector<u32>> playersInChunks;
 
         /*f32 GetHeight(Vector2& pos);
         bool GetAdtIdFromWorldPosition(Vector2& pos, u16& adtId);*/
         void GetChunkPositionFromChunkId(u16 chunkId, u16& x, u16& y) const;
         bool GetChunkIdFromChunkPosition(u16 x, u16 y, u16& chunkId) const;
+
+        void Clear()
+        {
+            id = std::numeric_limits<u16>().max();
+
+            chunks.clear();
+
+            for (auto& itr : stringTables)
+            {
+                itr.second.Clear();
+            }
+            stringTables.clear();
+        }
     };
 }

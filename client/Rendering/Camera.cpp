@@ -1,13 +1,16 @@
 #include "Camera.h"
 #include <windows.h>
 #include <InputManager.h>
-#include "../Utils/ServiceLocator.h"
+#include <filesystem>
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <GLFW/glfw3.h>
 #include <Window/Window.h>
 #include <Utils/DebugHandler.h>
+#include <Utils/FileReader.h>
+#include "../Utils/ServiceLocator.h"
 
+namespace fs = std::filesystem;
 Camera::Camera(const vec3& pos)
 {
     _position = pos;
@@ -26,11 +29,6 @@ void Camera::Init()
     inputManager->RegisterKeybind("Camera Right", GLFW_KEY_D, KEYBIND_ACTION_PRESS | KEYBIND_ACTION_REPEAT, KEYBIND_MOD_ANY);
     inputManager->RegisterKeybind("Camera Up", GLFW_KEY_SPACE, KEYBIND_ACTION_PRESS | KEYBIND_ACTION_REPEAT, KEYBIND_MOD_ANY);
     inputManager->RegisterKeybind("Camera Down", GLFW_KEY_LEFT_CONTROL, KEYBIND_ACTION_PRESS | KEYBIND_ACTION_REPEAT, KEYBIND_MOD_ANY);
-
-    inputManager->RegisterKeybind("Camera Rotate Up", GLFW_KEY_DOWN, KEYBIND_ACTION_PRESS | KEYBIND_ACTION_REPEAT, KEYBIND_MOD_ANY);
-    inputManager->RegisterKeybind("Camera Rotate Down", GLFW_KEY_UP, KEYBIND_ACTION_PRESS | KEYBIND_ACTION_REPEAT, KEYBIND_MOD_ANY);
-    inputManager->RegisterKeybind("Camera Rotate Left", GLFW_KEY_LEFT, KEYBIND_ACTION_PRESS | KEYBIND_ACTION_REPEAT, KEYBIND_MOD_ANY);
-    inputManager->RegisterKeybind("Camera Rotate Right", GLFW_KEY_RIGHT, KEYBIND_ACTION_PRESS | KEYBIND_ACTION_REPEAT, KEYBIND_MOD_ANY);
 
     inputManager->RegisterKeybind("ToggleMouseCapture", GLFW_KEY_TAB, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
@@ -80,17 +78,29 @@ void Camera::Init()
 
     inputManager->RegisterKeybind("IncreaseCameraSpeed", GLFW_KEY_PAGE_UP, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
-        _movementSpeed += 5.0f;
+        _movementSpeed += 15.0f;
         return true;
     });
 
     inputManager->RegisterKeybind("DecreaseCameraSpeed", GLFW_KEY_PAGE_DOWN, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
-        _movementSpeed -= 5.0f;
+        _movementSpeed -= 15.0f;
         if (_movementSpeed < 7.3333f)
         {
             _movementSpeed = 7.3333f;
         }
+        return true;
+    });
+    
+    inputManager->RegisterKeybind("SaveCameraDefault", GLFW_KEY_F9, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
+    {
+        SaveToFile("default.cameradata");
+        return true;
+    });
+    
+    inputManager->RegisterKeybind("LoadCameraDefault", GLFW_KEY_F10, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
+    {
+        LoadFromFile("default.cameradata");
         return true;
     });
 
@@ -146,6 +156,61 @@ void Camera::Update(f32 deltaTime, float fovInDegrees, float aspectRatioWH)
 
     UpdateCameraVectors();
     UpdateFrustumPlanes(glm::transpose(_viewProjectionMatrix));
+}
+
+bool Camera::LoadFromFile(std::string filename)
+{
+    fs::path filePath = fs::current_path().append("Data/CameraSaves").append(filename).make_preferred();
+    if (!fs::exists(filePath))
+    {
+        printf("Failed to OPEN Camera Save file. Check admin permissions\n");
+        return false;
+    }
+
+    FileReader reader(filePath.string(), filename);
+    if (!reader.Open())
+        return false;
+
+    size_t length = reader.Length();
+    if (length < sizeof(CameraSaveData))
+        return false;
+
+    Bytebuffer buffer(nullptr, length);
+    reader.Read(&buffer, length);
+    reader.Close();
+
+    CameraSaveData saveData;
+    if (!buffer.Get(saveData))
+        return false;
+
+    _position = saveData.position;
+    _yaw = saveData.yaw;
+    _pitch = saveData.pitch;
+    _movementSpeed = saveData.movement;
+    UpdateCameraVectors();
+
+    return true;
+}
+
+bool Camera::SaveToFile(std::string filename)
+{
+    // Create a file
+    fs::path outputPath = fs::current_path().append("Data/CameraSaves").append(filename).make_preferred();
+    fs::create_directories(outputPath.parent_path());
+
+    std::ofstream output(outputPath, std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
+    if (!output)
+    {
+        printf("Failed to create Camera Save file. Check admin permissions\n");
+        return false;
+    }
+
+    output.write(reinterpret_cast<char const*>(&_position), sizeof(vec3)); // Write camera position
+    output.write(reinterpret_cast<char const*>(&_yaw), sizeof(f32)); // Write camera yaw
+    output.write(reinterpret_cast<char const*>(&_pitch), sizeof(f32)); // Write camera pitch
+    output.write(reinterpret_cast<char const*>(&_movementSpeed), sizeof(f32)); // Write camera speed
+    output.close();
+    return true;
 }
 
 void Camera::UpdateCameraVectors()

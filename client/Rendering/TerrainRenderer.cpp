@@ -3,6 +3,7 @@
 #include "MapObjectRenderer.h"
 #include <entt.hpp>
 #include "../Utils/ServiceLocator.h"
+#include "../Utils/MapUtils.h"
 
 #include "../ECS/Components/Singletons/MapSingleton.h"
 
@@ -16,12 +17,17 @@
 #include <tracy/Tracy.hpp>
 
 #include "Camera.h"
+#include "../Gameplay/Map/MapLoader.h"
 
 #define USE_PACKED_HEIGHT_RANGE 1
 
 static bool s_cullingEnabled = true;
-static bool s_gpuCullingEnabled = true;
+static bool s_gpuCullingEnabled = false;
 static bool s_lockCullingFrustum = false;
+
+static vec3 s_debugPosition = vec3(0, 0, 0);
+static f32 s_debugPositionScale = 0.1f;
+static bool s_lockDebugPosition = false;
 
 struct TerrainChunkData
 {
@@ -30,7 +36,7 @@ struct TerrainChunkData
 
 struct TerrainCellData
 {
-    u8 diffuseIDs[4];
+    u16 diffuseIDs[4];
     u16 hole;
     u16 _padding;
 };
@@ -69,6 +75,22 @@ TerrainRenderer::TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* de
         s_lockCullingFrustum = !s_lockCullingFrustum;
         return true;
     });
+
+    ServiceLocator::GetInputManager()->RegisterKeybind("ToggleLockDebugPosition", GLFW_KEY_F6, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
+    {
+        s_lockDebugPosition = !s_lockDebugPosition;
+        return true;
+    });
+    ServiceLocator::GetInputManager()->RegisterKeybind("DecreaseDebugPositionScale", GLFW_KEY_F7, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
+    {
+        s_debugPositionScale -= 0.1f;
+        return true;
+    });
+    ServiceLocator::GetInputManager()->RegisterKeybind("IncreaseDebugPositionScale", GLFW_KEY_F8, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
+    {
+        s_debugPositionScale += 0.1f;
+        return true;
+    });
 }
 
 TerrainRenderer::~TerrainRenderer()
@@ -83,13 +105,32 @@ void TerrainRenderer::Update(f32 deltaTime, const Camera& camera)
     //    _debugRenderer->DrawAABB3D(boundingBox.min, boundingBox.max, 0xff00ff00);
     //}
 
+    if (!s_lockDebugPosition)
+    {
+        s_debugPosition = camera.GetPosition();
+        s_debugPosition.y = Terrain::MapUtils::GetHeightFromWorldPosition(s_debugPosition);
+    }
+    
+    f32 halfSize = s_debugPositionScale;
+    vec3 min = s_debugPosition;
+    min.x -= halfSize;
+    min.z -= halfSize;
+
+    vec3 max = s_debugPosition;
+    max.x += halfSize;
+    max.z += halfSize;
+
+    max.y += s_debugPositionScale;
+
+    _debugRenderer->DrawAABB3D(min, max, 0xff00ff00);
+
     if (s_cullingEnabled && !s_gpuCullingEnabled)
     {
         CPUCulling(camera);
     }
 
     // Subrenderers
-    _mapObjectRenderer->Update(deltaTime);
+    //_mapObjectRenderer->Update(deltaTime);
 }
 
 __forceinline bool IsInsideFrustum(const vec4* planes, const BoundingBox& boundingBox)
@@ -245,9 +286,6 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
             commandList.EndPipeline(pipeline);
         });
     }
-
-    // Subrenderers
-    _mapObjectRenderer->AddMapObjectDepthPrepass(renderGraph, viewConstantBuffer, depthTarget, frameIndex);
 }
 
 void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode, const Camera& camera)
@@ -457,7 +495,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
     }
 
     // Subrenderers
-    _mapObjectRenderer->AddMapObjectPass(renderGraph, viewConstantBuffer, renderTarget, depthTarget, frameIndex);
+    //_mapObjectRenderer->AddMapObjectPass(renderGraph, viewConstantBuffer, renderTarget, depthTarget, frameIndex);
 }
 
 void TerrainRenderer::CreatePermanentResources()
@@ -642,9 +680,25 @@ void TerrainRenderer::CreatePermanentResources()
         _renderer->CopyBuffer(_cellIndexBuffer, 0, indexUploadBuffer, 0, indexUploadBufferDesc.size);
     }
 
-    // Load map
-    Terrain::Map& map = mapSingleton.maps[0];
-    LoadChunksAround(map, ivec2(32, 32), 32); // Goldshire
+    // Load default map
+    LoadMap("Azeroth"_h);
+}
+
+bool TerrainRenderer::LoadMap(u32 mapInternalNameHash)
+{
+    entt::registry* registry = ServiceLocator::GetGameRegistry();
+    MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
+
+    if (!MapLoader::LoadMap(registry, mapInternalNameHash))
+        return false;
+
+    // Clear Terrain & WMOs
+    _loadedChunks.clear();
+    _cellBoundingBoxes.clear();
+    _mapObjectRenderer->Clear();
+
+    LoadChunksAround(mapSingleton.currentMap, ivec2(32, 32), 32); // Load everything
+    //LoadChunksAround(mapSingleton.currentMap, ivec2(32, 50), 4); // Goldshire
     //LoadChunksAround(map, ivec2(40, 32), 8); // Razor Hill
     //LoadChunksAround(map, ivec2(22, 25), 8); // Borean Tundra
 
@@ -678,6 +732,8 @@ void TerrainRenderer::CreatePermanentResources()
         _renderer->UnmapBuffer(instanceUploadBuffer);
         _renderer->CopyBuffer(_instanceBuffer, 0, instanceUploadBuffer, 0, uploadBufferDesc.size);
     }
+
+    return true;
 }
 
 void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
@@ -729,7 +785,7 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
 
                 u32 diffuseID = 0;
                 _renderer->LoadTextureIntoArray(textureDesc, _terrainColorTextureArray, diffuseID);
-                assert(diffuseID < 256);
+                assert(diffuseID < 65536);
 
                 cellData.diffuseIDs[layerCount++] = diffuseID;
             }
@@ -862,6 +918,7 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         }
     }
 
+    //_mapObjectRenderer->LoadMapObjects(chunk, stringTable);
     _loadedChunks.push_back(chunkId);
 }
 

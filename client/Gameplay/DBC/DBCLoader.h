@@ -13,7 +13,7 @@ class DBCLoader
 {
 public:
     DBCLoader() { }
-    static bool Load(entt::registry& registry);
+    static bool Load(entt::registry* registry);
 
 private:
     static bool ExtractFileData(FileReader& reader, DBC::File& file);

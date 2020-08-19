@@ -22,15 +22,15 @@ struct PSOutput
 
 CellData LoadCellData(uint globalCellID)
 {
-    const PackedCellData rawCellData = _cellData.Load<PackedCellData>(globalCellID * 8); // sizeof(PackedCellData) = 8
+    const PackedCellData rawCellData = _cellData.Load<PackedCellData>(globalCellID * 12); // sizeof(PackedCellData) = 12
 
     CellData cellData;
 
     // Unpack diffuse IDs
-    cellData.diffuseIDs.x = (rawCellData.packedDiffuseIDs >> 0)  & 0xff;
-    cellData.diffuseIDs.y = (rawCellData.packedDiffuseIDs >> 8)  & 0xff;
-    cellData.diffuseIDs.z = (rawCellData.packedDiffuseIDs >> 16) & 0xff;
-    cellData.diffuseIDs.w = (rawCellData.packedDiffuseIDs >> 24) & 0xff;
+    cellData.diffuseIDs.x = (rawCellData.packedDiffuseIDs1 >> 0)  & 0xffff;
+    cellData.diffuseIDs.y = (rawCellData.packedDiffuseIDs1 >> 16)  & 0xffff;
+    cellData.diffuseIDs.z = (rawCellData.packedDiffuseIDs2 >> 0) & 0xffff;
+    cellData.diffuseIDs.w = (rawCellData.packedDiffuseIDs2 >> 16) & 0xffff;
 
     // Unpack holes
     cellData.holes = rawCellData.packedHoles & 0xffff;

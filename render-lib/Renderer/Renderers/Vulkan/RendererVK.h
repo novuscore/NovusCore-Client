@@ -98,6 +98,7 @@ namespace Renderer
         void AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) override;
         void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
         void PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer) override;
+        void PushConstant(CommandListID commandListID, void* data, u32 offset, u32 size) override;
 
         // Non-commandlist based present functions
         void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;
@@ -107,6 +108,9 @@ namespace Renderer
         void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
         void* MapBuffer(BufferID buffer) override;
         void UnmapBuffer(BufferID buffer) override;
+
+        void InitImgui() override;
+        void DrawImgui(CommandListID commandListID) override;
 
     private:
         bool ReflectDescriptorSet(const std::string& name, u32 nameHash, u32 type, i32& set, const std::vector<Backend::BindInfo>& bindInfos, u32& outBindInfoIndex, VkDescriptorSetLayoutBinding* outDescriptorLayoutBinding);

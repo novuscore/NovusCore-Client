@@ -43,7 +43,7 @@ namespace Renderer
             {
                 { VK_DESCRIPTOR_TYPE_SAMPLER, 4.0f},
                 { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.0f},
-                { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 4.0f},
+                { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 10.0f},
                 { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.0f},
                 { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1.0f},
                 { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1.0f},

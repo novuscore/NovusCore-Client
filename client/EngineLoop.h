@@ -51,6 +51,13 @@ struct NetworkPair
     std::shared_ptr<asio::io_service> asioService;
 };
 
+struct LoadMapInfo
+{
+    u32 mapInternalNameHash = 0;
+    f32 x = 0;
+    f32 y = 0;
+};
+
 class ClientRenderer;
 class EngineLoop
 {
@@ -85,6 +92,11 @@ private:
 
     void SetupUpdateFramework();
     void SetMessageHandler();
+
+    void ImguiNewFrame();
+    void DrawEngineStats(struct EngineStatsSingleton* stats);
+    void DrawImguiMenuBar();
+
 private:
     bool _isRunning;
 

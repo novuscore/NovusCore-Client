@@ -49,5 +49,9 @@ namespace Renderer
         static void CopyBuffer(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void PipelineBarrier(Renderer* renderer, CommandListID commandList, const void* data);
+
+        static void DrawImgui(Renderer* renderer, CommandListID commandList, const void* data);
+
+        static void PushConstant(Renderer* renderer, CommandListID commandList, const void* data);
     };
 }

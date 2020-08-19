@@ -3,6 +3,12 @@
 
 namespace UISystem
 {
+    struct UIVertex
+    {
+        vec2 pos;
+        vec2 uv;
+    };
+
     class UpdateElementSystem
     {
     public:

@@ -11,6 +11,14 @@ enum class FrustumPlane
     Far,
 };
 
+struct CameraSaveData
+{
+    vec3 position;
+    f32 yaw;
+    f32 pitch;
+    f32 movement;
+};
+
 class Window;
 class InputBinding;
 class Camera
@@ -21,14 +29,21 @@ public:
     void Init();
     void Update(f32 deltaTime, float fovInDegrees, float aspectRatioWH);
 
+    bool LoadFromFile(std::string filename);
+    bool SaveToFile(std::string filename);
+
     __forceinline const mat4x4& GetViewMatrix() const { return _viewMatrix; }
     __forceinline const mat4x4& GetProjectionMatrix() const { return _projectionMatrix; }
     __forceinline const mat4x4& GetViewProjectionMatrix() const { return _viewProjectionMatrix; }
     __forceinline const vec4* GetFrustumPlanes() const { return _frustumPlanes; }
 
-    vec3 GetPosition() { return _position; }
-    vec3 GetRotation() { return vec3(0, _yaw, _pitch); }
-    bool IsMouseCaptured() { return _captureMouse; }
+    void SetPosition(vec3 position)
+    {
+        _position = position;
+    }
+    vec3 GetPosition() const { return _position; }
+    vec3 GetRotation() const { return vec3(0, _yaw, _pitch); }
+    bool IsMouseCaptured() const { return _captureMouse; }
 
 private:
     void UpdateCameraVectors();
