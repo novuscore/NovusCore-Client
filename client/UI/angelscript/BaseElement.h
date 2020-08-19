@@ -53,7 +53,7 @@ namespace UIScripting
 
             r = ScriptEngine::RegisterScriptClassFunction("void SetParent(BaseElement@ parent)", asMETHOD(T, SetParent)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void UnsetParent()", asMETHOD(T, UnsetParent)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void Destroy()", asMETHOD(T, Destroy)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void Destroy(bool destroyChildren = true)", asMETHOD(T, Destroy)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("void SetExpandBoundsToChildren(bool enabled)", asMETHOD(T, SetExpandBoundsToChildren)); assert(r >= 0);
 
@@ -110,7 +110,7 @@ namespace UIScripting
     
         void SetCollisionEnabled(bool enabled);
 
-        void Destroy();
+        void Destroy(bool destroyChildren = true);
 
         void MarkDirty();
         void MarkSelfDirty();

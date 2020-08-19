@@ -19,7 +19,7 @@ namespace UIScripting
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         _entityId = registry->ctx<UISingleton::UIEntityPoolSingleton>().GetId();
-        registry->ctx<UISingleton::UIDataSingleton>().entityToAsObject[_entityId] = this;
+        registry->ctx<UISingleton::UIDataSingleton>().entityToElement[_entityId] = this;
     }
 
     vec2 BaseElement::GetScreenPosition() const
@@ -278,10 +278,10 @@ namespace UIScripting
         registry->ctx<UISingleton::UIDataSingleton>().collisionToggleQueue.enqueue(_entityId);
     }
 
-    void BaseElement::Destroy()
+    void BaseElement::Destroy(bool destroyChildren)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        registry->ctx<UISingleton::UIDataSingleton>().DestroyWidget(_entityId);
+        registry->ctx<UISingleton::UIDataSingleton>().DestroyWidget(_entityId, destroyChildren);
     }
 
     void BaseElement::MarkDirty()

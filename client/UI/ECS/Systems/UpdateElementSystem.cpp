@@ -78,7 +78,7 @@ namespace UISystem
             dataSingleton.destructionQueue.try_dequeue_bulk(deleteEntities.begin(), deleteEntityNum);
             for (entt::entity entId : deleteEntities)
             {
-                delete dataSingleton.entityToAsObject[entId];
+                delete dataSingleton.entityToElement[entId];
             }
 
             registry.destroy(deleteEntities.begin(), deleteEntities.end());

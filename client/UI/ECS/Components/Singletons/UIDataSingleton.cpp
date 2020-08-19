@@ -8,20 +8,20 @@ namespace UISingleton
 {
     std::shared_mutex& UIDataSingleton::GetMutex(entt::entity entId)
     {
-        return entityToAsObject[entId]->_mutex;
+        return entityToElement[entId]->_mutex;
     }
 
     void UIDataSingleton::ClearWidgets()
     {
         std::vector<entt::entity> entityIds;
-        entityIds.reserve(entityToAsObject.size());
+        entityIds.reserve(entityToElement.size());
 
-        for (auto asObject : entityToAsObject)
+        for (auto asObject : entityToElement)
         {
             entityIds.push_back(asObject.first);
             delete asObject.second;
         }
-        entityToAsObject.clear();
+        entityToElement.clear();
 
         // Delete entities.
         ServiceLocator::GetUIRegistry()->destroy(entityIds.begin(), entityIds.end());
@@ -29,8 +29,17 @@ namespace UISingleton
         focusedWidget = entt::null;
     }
 
-    void UIDataSingleton::DestroyWidget(entt::entity entId)
+    void UIDataSingleton::DestroyWidget(entt::entity entId, bool destroyChildren)
     {
         destructionQueue.enqueue(entId);
+
+        if (destroyChildren)
+        {
+            UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(entId);
+            for (UI::UIChild child : transform->children)
+            {
+                DestroyWidget(child.entId, true);
+            }
+        }
     }
 }

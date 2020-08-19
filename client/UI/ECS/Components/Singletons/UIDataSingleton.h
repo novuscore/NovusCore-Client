@@ -19,16 +19,16 @@ namespace UISingleton
     struct UIDataSingleton
     {
     public:
-        UIDataSingleton() : entityToAsObject(), focusedWidget(entt::null), destructionQueue(1000), visibilityToggleQueue(1000), collisionToggleQueue(1000) { }
+        UIDataSingleton() : entityToElement(), focusedWidget(entt::null), destructionQueue(1000), visibilityToggleQueue(1000), collisionToggleQueue(1000) { }
 
         std::shared_mutex& GetMutex(entt::entity entId);
 
         void ClearWidgets();
 
-        void DestroyWidget(entt::entity entId);
+        void DestroyWidget(entt::entity entId, bool destroyChildren);
 
     public:
-        robin_hood::unordered_map<entt::entity, UIScripting::BaseElement*> entityToAsObject;
+        robin_hood::unordered_map<entt::entity, UIScripting::BaseElement*> entityToElement;
 
         entt::entity focusedWidget;
 

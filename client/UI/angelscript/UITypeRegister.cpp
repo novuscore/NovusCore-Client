@@ -11,12 +11,12 @@ namespace UI
 {
     void RegisterTypes()
     {
-        UIUtils::Registry::RegisterNamespace();
         UIScripting::BaseElement::RegisterType();
         UIScripting::Panel::RegisterType();
         UIScripting::Label::RegisterType();
         UIScripting::Button::RegisterType();
         UIScripting::InputField::RegisterType();
         UIScripting::Checkbox::RegisterType();
+        UIUtils::Registry::RegisterNamespace();
     }
 }
