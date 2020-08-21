@@ -28,7 +28,6 @@ namespace UIInput
         if (dataSingleton.focusedWidget != entt::null)
         {
             registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget).OnUnfocused();
-
             dataSingleton.focusedWidget = entt::null;
         }
 

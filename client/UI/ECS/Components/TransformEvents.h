@@ -31,7 +31,7 @@ namespace UIComponent
 
         // Usually Components do not store logic, however this is an exception
     private:
-        void _OnEvent(asIScriptFunction* callback)
+        inline void _OnEvent(asIScriptFunction* callback)
         {
             asIScriptContext* context = ScriptEngine::GetScriptContext();
             {
@@ -72,10 +72,10 @@ namespace UIComponent
             _OnEvent(onUnfocusedCallback);
         }
 
-        void SetFlag(const UI::UITransformEventsFlags inFlags) { flags |= inFlags; }
-        void UnsetFlag(const UI::UITransformEventsFlags inFlags) { flags &= ~inFlags; }
-        const bool IsClickable() const { return (flags & UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE) == UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE; }
-        const bool IsDraggable() const { return (flags & UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE) == UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE; }
-        const bool IsFocusable() const { return (flags & UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE) == UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE; }
+        inline void SetFlag(const UI::UITransformEventsFlags inFlags) { flags |= inFlags; }
+        inline void UnsetFlag(const UI::UITransformEventsFlags inFlags) { flags &= ~inFlags; }
+        inline const bool IsClickable() const { return (flags & UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE) == UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE; }
+        inline const bool IsDraggable() const { return (flags & UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE) == UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE; }
+        inline const bool IsFocusable() const { return (flags & UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE) == UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE; }
     };
 }
