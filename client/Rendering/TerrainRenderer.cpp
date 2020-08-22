@@ -100,7 +100,7 @@ TerrainRenderer::~TerrainRenderer()
 
 void TerrainRenderer::Update(f32 deltaTime, const Camera& camera)
 {
-    //for (const BoundingBox& boundingBox : _cellBoundingBoxes)
+    //for (const Terrain::MapUtils::AABoundingBox& boundingBox : _cellBoundingBoxes)
     //{
     //    _debugRenderer->DrawAABB3D(boundingBox.min, boundingBox.max, 0xff00ff00);
     //}
@@ -122,7 +122,9 @@ void TerrainRenderer::Update(f32 deltaTime, const Camera& camera)
 
     max.y += s_debugPositionScale;
 
-    _debugRenderer->DrawAABB3D(min, max, 0xff00ff00);
+    _debugRenderer->DrawAABB3D(min, max, 0xff00ff00);    
+    
+    DebugRenderCellTriangles(camera);
 
     if (s_cullingEnabled && !s_gpuCullingEnabled)
     {
@@ -133,7 +135,7 @@ void TerrainRenderer::Update(f32 deltaTime, const Camera& camera)
     //_mapObjectRenderer->Update(deltaTime);
 }
 
-__forceinline bool IsInsideFrustum(const vec4* planes, const BoundingBox& boundingBox)
+__forceinline bool IsInsideFrustum(const vec4* planes, const Terrain::MapUtils::AABoundingBox& boundingBox)
 {
     // this is why god abandoned us
     for (int i = 0; i < 6; ++i) 
@@ -203,7 +205,7 @@ void TerrainRenderer::CPUCulling(const Camera& camera)
     {
         for (u16 cellId = 0; cellId < Terrain::MAP_CELLS_PER_CHUNK; ++cellId)
         {
-            const BoundingBox& boundingBox = _cellBoundingBoxes[boundingBoxIndex++];
+            const Terrain::MapUtils::AABoundingBox& boundingBox = _cellBoundingBoxes[boundingBoxIndex++];
             if (IsInsideFrustum(frustumPlanes, boundingBox))
             {
                 const u16 chunkId = _loadedChunks[i];
@@ -215,80 +217,20 @@ void TerrainRenderer::CPUCulling(const Camera& camera)
     _debugRenderer->DrawFrustum(lockedViewProjectionMatrix, 0xff0000ff);
 }
 
-void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void TerrainRenderer::DebugRenderCellTriangles(const Camera& camera)
 {
-    return;
-
-    // Terrain Depth Prepass
+    std::vector<Terrain::MapUtils::Triangle> triangles = Terrain::MapUtils::GetCellTrianglesFromWorldPosition(camera.GetPosition());
     {
-        struct TerrainDepthPrepassData
+        for (auto& triangle : triangles)
         {
-            Renderer::RenderPassMutableResource mainDepth;
-        };
-        renderGraph->AddPass<TerrainDepthPrepassData>("TerrainDepth",
-            [=](TerrainDepthPrepassData& data, Renderer::RenderGraphBuilder& builder) // Setup
-        {
-            data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-            
-            return true;// Return true from setup to enable this pass, return false to disable it
-        },
-            [=](TerrainDepthPrepassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
-        {
-            GPU_SCOPED_PROFILER_ZONE(commandList, TerrainDepth);
-
-            Renderer::GraphicsPipelineDesc pipelineDesc;
-            resources.InitializePipelineDesc(pipelineDesc);
-            
-            // Shader
-            Renderer::VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "Data/shaders/terrain.vs.hlsl.spv";
-            pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
-
-            // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
-            pipelineDesc.states.inputLayouts[0].enabled = true;
-            pipelineDesc.states.inputLayouts[0].SetName("INSTANCEID");
-            pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::INPUT_FORMAT_R32_UINT;
-            pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_INSTANCE;
-
-            // Depth state
-            pipelineDesc.states.depthStencilState.depthEnable = true;
-            pipelineDesc.states.depthStencilState.depthWriteEnable = true;
-            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_LESS;
-
-            // Rasterizer state
-            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
-            pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
-
-            pipelineDesc.depthStencil = data.mainDepth;
-
-            // Set pipeline
-            Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
-            commandList.BeginPipeline(pipeline);
-
-            // Set instance buffer
-            commandList.SetBuffer(0, _instanceBuffer);
-
-            // Set index buffer
-            commandList.SetIndexBuffer(_cellIndexBuffer, Renderer::IndexFormat::UInt16);
-
-            // Bind viewbuffer
-            _passDescriptorSet.Bind("ViewData"_h, viewConstantBuffer->GetBuffer(frameIndex));
-            _passDescriptorSet.Bind("_vertexHeights"_h, _vertexBuffer);
-            _passDescriptorSet.Bind("_cellData"_h, _cellBuffer);
-            _passDescriptorSet.Bind("_cellDataVS"_h, _cellBuffer);
-            _passDescriptorSet.Bind("_chunkData"_h, _chunkBuffer);
-
-            // Bind descriptorset
-            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
-            commandList.DrawIndexed(Terrain::NUM_INDICES_PER_CELL, Terrain::MAP_CELLS_PER_CHUNK * (u32)_loadedChunks.size(), 0, 0, 0);
-            //commandList.DrawIndexedIndirect(_argumentBuffer, 0, 1 );
-
-            commandList.EndPipeline(pipeline);
-        });
+            _debugRenderer->DrawLine3D(triangle.vert1, triangle.vert2, 0xff00ff00);
+            _debugRenderer->DrawLine3D(triangle.vert2, triangle.vert3, 0xff00ff00);
+            _debugRenderer->DrawLine3D(triangle.vert3, triangle.vert1, 0xff00ff00);
+        }
     }
 }
 
-void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode, const Camera& camera)
+void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, const Camera& camera)
 {
     // Terrain Pass
     {
@@ -427,7 +369,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
             Renderer::PixelShaderDesc pixelShaderDesc;
-            pixelShaderDesc.path = (debugMode == 0) ? "Data/shaders/terrain.ps.hlsl.spv" : "Data/shaders/terrainDebug.ps.hlsl.spv";
+            pixelShaderDesc.path = "Data/shaders/terrain.ps.hlsl.spv";
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
             // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
@@ -510,7 +452,7 @@ void TerrainRenderer::CreatePermanentResources()
     _terrainColorTextureArray = _renderer->CreateTextureArray(textureColorArrayDesc);
 
     Renderer::TextureArrayDesc textureAlphaArrayDesc;
-    textureAlphaArrayDesc.size = Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE;
+    textureAlphaArrayDesc.size = Terrain::MAP_CHUNKS_PER_MAP;
 
     _terrainAlphaTextureArray = _renderer->CreateTextureArray(textureAlphaArrayDesc);
 
@@ -570,7 +512,7 @@ void TerrainRenderer::CreatePermanentResources()
     {
         Renderer::BufferDesc desc;
         desc.name = "CulledTerrainInstanceBuffer";
-        desc.size = sizeof(u32) * Terrain::MAP_CELLS_PER_CHUNK * (Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
+        desc.size = sizeof(u32) * Terrain::MAP_CELLS_PER_CHUNK * Terrain::MAP_CHUNKS_PER_MAP;
         desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_VERTEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
         _instanceBuffer = _renderer->CreateBuffer(desc);
     }
@@ -578,7 +520,7 @@ void TerrainRenderer::CreatePermanentResources()
     {
         Renderer::BufferDesc desc;
         desc.name = "TerrainInstanceBuffer";
-        desc.size = sizeof(u32) * Terrain::MAP_CELLS_PER_CHUNK * (Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
+        desc.size = sizeof(u32) * Terrain::MAP_CELLS_PER_CHUNK * Terrain::MAP_CHUNKS_PER_MAP;
         desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_VERTEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
         _culledInstanceBuffer = _renderer->CreateBuffer(desc);
     }
@@ -594,7 +536,7 @@ void TerrainRenderer::CreatePermanentResources()
     {
         Renderer::BufferDesc desc;
         desc.name = "TerrainChunkBuffer";
-        desc.size = sizeof(TerrainChunkData) * (Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
+        desc.size = sizeof(TerrainChunkData) * Terrain::MAP_CHUNKS_PER_MAP;
         desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
         _chunkBuffer = _renderer->CreateBuffer(desc);
     }
@@ -602,7 +544,7 @@ void TerrainRenderer::CreatePermanentResources()
     {
         Renderer::BufferDesc desc;
         desc.name = "TerrainCellBuffer";
-        desc.size = sizeof(TerrainCellData) * Terrain::MAP_CELLS_PER_CHUNK * (Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
+        desc.size = sizeof(TerrainCellData) * Terrain::MAP_CELLS_PER_CHUNK * Terrain::MAP_CHUNKS_PER_MAP;
         desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
         _cellBuffer = _renderer->CreateBuffer(desc);
     }
@@ -610,7 +552,7 @@ void TerrainRenderer::CreatePermanentResources()
     {
         Renderer::BufferDesc desc;
         desc.name = "TerrainVertexBuffer";
-        desc.size = sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK * (Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
+        desc.size = sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK * Terrain::MAP_CHUNKS_PER_MAP;
         desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
         _vertexBuffer = _renderer->CreateBuffer(desc);
     }
@@ -618,7 +560,7 @@ void TerrainRenderer::CreatePermanentResources()
     {
         Renderer::BufferDesc desc;
         desc.name = "CellHeightRangeBuffer";
-        desc.size = sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK * (Terrain::MAP_CHUNKS_PER_MAP_SIDE * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
+        desc.size = sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK * Terrain::MAP_CHUNKS_PER_MAP;
         desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
         _cellHeightRangeBuffer = _renderer->CreateBuffer(desc);
     }
@@ -638,11 +580,11 @@ void TerrainRenderer::CreatePermanentResources()
 
         // Fill index buffer
         size_t indexIndex = 0;
-        for (u16 row = 0; row < Terrain::CELL_INNER_GRID_SIDE; row++)
+        for (u16 row = 0; row < Terrain::MAP_CELL_INNER_GRID_STRIDE; row++)
         {
-            for (u16 col = 0; col < Terrain::CELL_INNER_GRID_SIDE; col++)
+            for (u16 col = 0; col < Terrain::MAP_CELL_INNER_GRID_STRIDE; col++)
             {
-                const u16 baseVertex = (row * Terrain::CELL_TOTAL_GRID_SIDE + col);
+                const u16 baseVertex = (row * Terrain::MAP_CELL_TOTAL_GRID_STRIDE + col);
 
                 //1     2
                 //   0
@@ -650,9 +592,9 @@ void TerrainRenderer::CreatePermanentResources()
 
                 const u16 topLeftVertex = baseVertex;
                 const u16 topRightVertex = baseVertex + 1;
-                const u16 bottomLeftVertex = baseVertex + Terrain::CELL_TOTAL_GRID_SIDE;
-                const u16 bottomRightVertex = baseVertex + Terrain::CELL_TOTAL_GRID_SIDE + 1;
-                const u16 centerVertex = baseVertex + Terrain::CELL_OUTER_GRID_SIDE;
+                const u16 bottomLeftVertex = baseVertex + Terrain::MAP_CELL_TOTAL_GRID_STRIDE;
+                const u16 bottomRightVertex = baseVertex + Terrain::MAP_CELL_TOTAL_GRID_STRIDE + 1;
+                const u16 centerVertex = baseVertex + Terrain::MAP_CELL_OUTER_GRID_STRIDE;
 
                 // Up triangle
                 indices[indexIndex++] = centerVertex;
@@ -840,9 +782,9 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         void* vertexBufferMemory = _renderer->MapBuffer(vertexUploadBuffer);
         for (size_t i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; ++i)
         {
-            void* dstVertices = static_cast<u8*>(vertexBufferMemory) + (i * Terrain::CELL_TOTAL_GRID_SIZE * sizeof(f32));
+            void* dstVertices = static_cast<u8*>(vertexBufferMemory) + (i * Terrain::MAP_CELL_TOTAL_GRID_SIZE * sizeof(f32));
             const void* srcVertices = chunk.cells[i].heightData;
-            memcpy(dstVertices, srcVertices, Terrain::CELL_TOTAL_GRID_SIZE * sizeof(f32));
+            memcpy(dstVertices, srcVertices, Terrain::MAP_CELL_TOTAL_GRID_SIZE * sizeof(f32));
         }
 
         _renderer->UnmapBuffer(vertexUploadBuffer);
@@ -856,7 +798,7 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
 
         vec2 chunkOrigin;
         chunkOrigin.x = -((chunkPosY)*Terrain::MAP_CHUNK_SIZE - halfWorldSize);
-        chunkOrigin.y = ((Terrain::MAP_CHUNKS_PER_MAP_SIDE - chunkPosX) * Terrain::MAP_CHUNK_SIZE - halfWorldSize);
+        chunkOrigin.y = ((Terrain::MAP_CHUNKS_PER_MAP_STRIDE - chunkPosX) * Terrain::MAP_CHUNK_SIZE - halfWorldSize);
 
         std::vector<TerrainCellHeightRange> heightRanges;
         heightRanges.reserve(Terrain::MAP_CELLS_PER_CHUNK);
@@ -864,7 +806,7 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         for (u32 cellIndex = 0; cellIndex < Terrain::MAP_CELLS_PER_CHUNK; cellIndex++)
         {
             const Terrain::Cell& cell = chunk.cells[cellIndex];
-            const auto minmax = std::minmax_element(cell.heightData, cell.heightData + Terrain::CELL_TOTAL_GRID_SIZE);
+            const auto minmax = std::minmax_element(cell.heightData, cell.heightData + Terrain::MAP_CELL_TOTAL_GRID_SIZE);
 
             const u16 cellX = cellIndex % Terrain::MAP_CELLS_PER_CHUNK_SIDE;
             const u16 cellY = cellIndex / Terrain::MAP_CELLS_PER_CHUNK_SIDE;
@@ -872,15 +814,15 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
             vec3 min;
             vec3 max;
 
-            min.x = chunkOrigin.x - (cellY * Terrain::CELL_SIZE);
+            min.x = chunkOrigin.x - (cellY * Terrain::MAP_CELL_SIZE);
             min.y = *minmax.first;
-            min.z = chunkOrigin.y - (cellX * Terrain::CELL_SIZE);
+            min.z = chunkOrigin.y - (cellX * Terrain::MAP_CELL_SIZE);
 
-            max.x = chunkOrigin.x - ((cellY + 1) * Terrain::CELL_SIZE);
+            max.x = chunkOrigin.x - ((cellY + 1) * Terrain::MAP_CELL_SIZE);
             max.y = *minmax.second;
-            max.z = chunkOrigin.y - ((cellX + 1) * Terrain::CELL_SIZE);
+            max.z = chunkOrigin.y - ((cellX + 1) * Terrain::MAP_CELL_SIZE);
 
-            BoundingBox boundingBox;
+            Terrain::MapUtils::AABoundingBox boundingBox;
             boundingBox.min = glm::max(min, max);
             boundingBox.max = glm::min(min, max);
             _cellBoundingBoxes.push_back(boundingBox);

@@ -9,6 +9,7 @@
 #include <Utils/DebugHandler.h>
 #include <Utils/FileReader.h>
 #include "../Utils/ServiceLocator.h"
+#include "../Utils/MapUtils.h"
 
 namespace fs = std::filesystem;
 Camera::Camera(const vec3& pos)

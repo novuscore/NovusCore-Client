@@ -1,3 +1,4 @@
+#pragma once
 #include <NovusTypes.h>
 #include <functional>
 #include <Utils/StringUtils.h>

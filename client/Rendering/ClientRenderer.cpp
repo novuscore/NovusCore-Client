@@ -93,16 +93,6 @@ ClientRenderer::ClientRenderer()
     _uiRenderer = new UIRenderer(_renderer);
     _terrainRenderer = new TerrainRenderer(_renderer, _debugRenderer);
 
-    _inputManager->RegisterKeybind("ToggleDebugDraw", GLFW_KEY_F1, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
-    {
-        _debugDrawingMode++;
-        if (_debugDrawingMode > 2)
-        {
-            _debugDrawingMode = 0;
-        }
-        return true;
-    });
-
     ServiceLocator::SetClientRenderer(this);
 }
 
@@ -237,9 +227,6 @@ void ClientRenderer::Render()
         });
     }
 
-    // Terrain depth prepass
-    _terrainRenderer->AddTerrainDepthPrepass(&renderGraph, _viewConstantBuffer, _mainDepth, _frameIndex);
-
     // Main Pass
     {
         struct MainPassData
@@ -333,7 +320,7 @@ void ClientRenderer::Render()
         });
     }
 
-    _terrainRenderer->AddTerrainPass(&renderGraph, _viewConstantBuffer, _mainColor, _mainDepth, _frameIndex, _debugDrawingMode, *_camera);
+    _terrainRenderer->AddTerrainPass(&renderGraph, _viewConstantBuffer, _mainColor, _mainDepth, _frameIndex, *_camera);
     
     _debugRenderer->Add3DPass(&renderGraph, _viewConstantBuffer->GetBuffer(_frameIndex), _mainColor, _mainDepth, _frameIndex);
 

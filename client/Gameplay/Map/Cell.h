@@ -33,18 +33,22 @@
 
 namespace Terrain
 {
-    constexpr u16 CELL_OUTER_GRID_SIDE = 9;
-    constexpr u16 CELL_OUTER_GRID_SIZE = CELL_OUTER_GRID_SIDE * CELL_OUTER_GRID_SIDE;
+    constexpr u16 MAP_CELLS_PER_CHUNK_SIDE = 16;
+    constexpr u16 MAP_CELLS_PER_CHUNK = MAP_CELLS_PER_CHUNK_SIDE * MAP_CELLS_PER_CHUNK_SIDE;
 
-    constexpr u16 CELL_INNER_GRID_SIDE = 8;
-    constexpr u16 CELL_INNER_GRID_SIZE = CELL_INNER_GRID_SIDE * CELL_INNER_GRID_SIDE;
+    constexpr u16 MAP_CELL_OUTER_GRID_STRIDE = 9;
+    constexpr u16 MAP_CELL_OUTER_GRID_SIZE = MAP_CELL_OUTER_GRID_STRIDE * MAP_CELL_OUTER_GRID_STRIDE;
 
-    constexpr u16 CELL_TOTAL_GRID_SIDE = CELL_OUTER_GRID_SIDE + CELL_INNER_GRID_SIDE;
-    constexpr u16 CELL_TOTAL_GRID_SIZE = CELL_OUTER_GRID_SIZE + CELL_INNER_GRID_SIZE;
+    constexpr u16 MAP_CELL_INNER_GRID_STRIDE = 8;
+    constexpr u16 MAP_CELL_INNER_GRID_SIZE = MAP_CELL_INNER_GRID_STRIDE * MAP_CELL_INNER_GRID_STRIDE;
 
-    constexpr f32 CELL_SIZE = 33.3333f; // yards
-    constexpr f32 PATCH_SIZE = 4.1666625f; // yards
-    constexpr f32 PATCH_HALF_SIZE = PATCH_SIZE / 2.0f; // yards
+    constexpr u16 MAP_CELL_TOTAL_GRID_STRIDE = MAP_CELL_OUTER_GRID_STRIDE + MAP_CELL_INNER_GRID_STRIDE;
+    constexpr u16 MAP_CELL_TOTAL_GRID_SIZE = MAP_CELL_OUTER_GRID_SIZE + MAP_CELL_INNER_GRID_SIZE;
+
+    constexpr f32 MAP_CELL_SIZE = 33.3333f; // yards
+    constexpr f32 MAP_CELL_HALF_SIZE = MAP_CELL_SIZE / 2.0f; // yards
+    constexpr f32 MAP_PATCH_SIZE = 4.1666625f; // yards
+    constexpr f32 MAP_PATCH_HALF_SIZE = MAP_PATCH_SIZE / 2.0f; // yards
 
 #pragma pack(push, 1)
     struct LiquidData
@@ -72,7 +76,7 @@ namespace Terrain
     {
         u16 areaId = 0;
 
-        f32 heightData[CELL_TOTAL_GRID_SIZE] = { 0 };
+        f32 heightData[MAP_CELL_TOTAL_GRID_SIZE] = { 0 };
 
         LiquidData liquidData;
 

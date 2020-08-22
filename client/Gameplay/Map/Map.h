@@ -35,6 +35,9 @@
 
 namespace Terrain
 {
+    constexpr f32 MAP_SIZE = MAP_CHUNK_SIZE * MAP_CHUNKS_PER_MAP_STRIDE; // yards
+    constexpr f32 MAP_HALF_SIZE = MAP_SIZE / 2.0f; // yards
+
     struct Map
     {
         Map() {}

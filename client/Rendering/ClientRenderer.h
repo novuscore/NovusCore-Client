@@ -44,6 +44,7 @@ public:
 
     void InitImgui();
     TerrainRenderer* GetTerrainRenderer() { return _terrainRenderer; }
+    DebugRenderer* GetDebugRenderer() { return _debugRenderer; }
 private:
     void CreatePermanentResources();
 
@@ -78,6 +79,5 @@ private:
     UIRenderer* _uiRenderer;
     TerrainRenderer* _terrainRenderer;
 
-    u8 _debugDrawingMode = 0;
     bool _isMinimized = false;
 };

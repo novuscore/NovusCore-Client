@@ -127,7 +127,7 @@ bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
 
         u16 x = std::stoi(splitName[numberOfSplits - 2]);
         u16 y = std::stoi(splitName[numberOfSplits - 1]);
-        u32 chunkId = x + (y * Terrain::MAP_CHUNKS_PER_MAP_SIDE);
+        u32 chunkId = x + (y * Terrain::MAP_CHUNKS_PER_MAP_STRIDE);
 
         mapSingleton.currentMap.chunks[chunkId] = chunk;
         mapSingleton.currentMap.stringTables[chunkId].CopyFrom(chunkStringTable);

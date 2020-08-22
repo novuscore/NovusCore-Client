@@ -42,6 +42,7 @@ namespace Renderer
         {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
             //"VK_KHR_get_physical_device_properties2",
+            "VK_KHR_maintenance1",
             "VK_KHR_maintenance3",
             "VK_EXT_descriptor_indexing",
             "VK_KHR_draw_indirect_count"

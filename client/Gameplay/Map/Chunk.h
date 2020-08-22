@@ -38,16 +38,13 @@ namespace Terrain
 {
     constexpr i32 MAP_CHUNK_TOKEN = 1313685840;
     constexpr i32 MAP_CHUNK_VERSION = 2;
+    constexpr u16 MAP_CHUNK_ID_INVALID = std::numeric_limits<u16>().max();
 
-    constexpr u32 MAP_CHUNKS_PER_MAP_SIDE = 64;
-    constexpr u16 MAP_CHUNK_INVALID = std::numeric_limits<u16>().max();
-
-    constexpr u16 MAP_CELLS_PER_CHUNK_SIDE = 16;
-    constexpr u16 MAP_CELLS_PER_CHUNK = MAP_CELLS_PER_CHUNK_SIDE * MAP_CELLS_PER_CHUNK_SIDE;
+    constexpr u32 MAP_CHUNKS_PER_MAP_STRIDE = 64;
+    constexpr u32 MAP_CHUNKS_PER_MAP = MAP_CHUNKS_PER_MAP_STRIDE * MAP_CHUNKS_PER_MAP_STRIDE;
 
     constexpr f32 MAP_CHUNK_SIZE = 533.3333f; // yards
-    constexpr f32 MAP_SIZE = MAP_CHUNK_SIZE * MAP_CHUNKS_PER_MAP_SIDE; // yards
-    constexpr f32 MAP_HALF_SIZE = MAP_SIZE / 2.0f; // yards
+    constexpr f32 MAP_CHUNK_HALF_SIZE = MAP_CHUNK_SIZE / 2.0f; // yards
 
 #pragma pack(push, 1)
     struct ChunkHeader

@@ -5,6 +5,7 @@
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/euler_angles.hpp>
 
+#include "../Gameplay/Map/Map.h"
 #include "../Gameplay/Map/Chunk.h"
 #include "../Gameplay/Map/MapObjectRoot.h"
 #include "../Gameplay/Map/MapObject.h"

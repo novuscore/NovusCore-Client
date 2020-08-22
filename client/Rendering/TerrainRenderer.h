@@ -4,6 +4,7 @@
 #include <array>
 
 #include <Utils/StringUtils.h>
+#include "../Utils/MapUtils.h"
 #include <Renderer/Descriptors/ImageDesc.h>
 #include <Renderer/Descriptors/DepthImageDesc.h>
 #include <Renderer/Descriptors/TextureDesc.h>
@@ -21,7 +22,7 @@ namespace Terrain
 {
     struct Map;
 
-    constexpr u32 NUM_VERTICES_PER_CHUNK = Terrain::CELL_TOTAL_GRID_SIZE * Terrain::MAP_CELLS_PER_CHUNK;
+    constexpr u32 NUM_VERTICES_PER_CHUNK = Terrain::MAP_CELL_TOTAL_GRID_SIZE * Terrain::MAP_CELLS_PER_CHUNK;
     constexpr u32 NUM_INDICES_PER_CELL = 768;
 }
 
@@ -36,11 +37,7 @@ class Camera;
 class DebugRenderer;
 class MapObjectRenderer;
 
-struct BoundingBox
-{
-    vec3 min;
-    vec3 max;
-};
+
 
 class TerrainRenderer
 {
@@ -50,8 +47,7 @@ public:
 
     void Update(f32 deltaTime, const Camera& camera);
 
-    void AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::DepthImageID depthTarget, u8 frameIndex);
-    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, u8 debugMode, const Camera& camera);
+    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, const Camera& camera);
 
     bool LoadMap(u32 mapInternalNameHash);
 private:
@@ -61,6 +57,7 @@ private:
     void LoadChunksAround(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance);
     void CPUCulling(const Camera& camera);
 
+    void DebugRenderCellTriangles(const Camera& camera);
 private:
     Renderer::Renderer* _renderer;
 
@@ -94,7 +91,7 @@ private:
     Renderer::DescriptorSet _cullingPassDescriptorSet;
 
     std::vector<u16> _loadedChunks;
-    std::vector<BoundingBox> _cellBoundingBoxes;
+    std::vector<Terrain::MapUtils::AABoundingBox> _cellBoundingBoxes;
 
     std::vector<u32> _culledInstances;
     
