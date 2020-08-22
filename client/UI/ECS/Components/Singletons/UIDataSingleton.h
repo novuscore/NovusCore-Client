@@ -19,7 +19,7 @@ namespace UISingleton
     struct UIDataSingleton
     {
     public:
-        UIDataSingleton() : entityToElement(), focusedWidget(entt::null), destructionQueue(1000), visibilityToggleQueue(1000), collisionToggleQueue(1000) { }
+        UIDataSingleton() : destructionQueue(1000), visibilityToggleQueue(1000), collisionToggleQueue(1000) { }
 
         std::shared_mutex& GetMutex(entt::entity entId);
 
@@ -30,11 +30,14 @@ namespace UISingleton
     public:
         robin_hood::unordered_map<entt::entity, UIScripting::BaseElement*> entityToElement;
 
-        entt::entity focusedWidget;
+        entt::entity focusedWidget = entt::null;
+        entt::entity draggedWidget = entt::null;
+        vec2 dragOffset = vec2(0,0);
 
         //Resolution
         vec2 UIRESOLUTION = vec2(1920, 1080);
 
+        // Queues
         moodycamel::ConcurrentQueue<entt::entity> destructionQueue;
         moodycamel::ConcurrentQueue<entt::entity> visibilityToggleQueue;
         moodycamel::ConcurrentQueue<entt::entity> collisionToggleQueue;

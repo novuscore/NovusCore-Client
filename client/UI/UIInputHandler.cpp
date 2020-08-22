@@ -20,7 +20,6 @@ namespace UIInput
         ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
-
         const vec2 mouse = ServiceLocator::GetInputManager()->GetMousePosition();
 
         //Unfocus last focused widget.
@@ -29,6 +28,13 @@ namespace UIInput
         {
             registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget).OnUnfocused();
             dataSingleton.focusedWidget = entt::null;
+        }
+
+        if(dataSingleton.draggedWidget != entt::null && keybind->state == GLFW_RELEASE)
+        {
+            // TODO OnDragEnded
+            dataSingleton.draggedWidget = entt::null;
+            dataSingleton.dragOffset = vec2(0,0);
         }
 
         auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::Transform, UIComponent::Collidable, UIComponent::Visible>);
@@ -42,22 +48,22 @@ namespace UIInput
             if (!((mouse.x > transform.minBound.x && mouse.x < transform.maxBound.x) && (mouse.y > transform.minBound.y && mouse.y < transform.maxBound.y)))
                 continue;
 
-            // Don't interact with the last focused widget directly again. The first click is reserved for unfocusing it. But we still need to block clicking through it.
-            if (lastFocusedWidget == entity)
-                return true;
-
-            // Check if we have any events we can actually call else exit out early. It needs to still block clicking through though.
-            if (!events.flags)
+            // Don't interact with the last focused widget directly. Reserving first click for unfocusing it but still block clicking through it.
+            // Also check if we have any events we can actually call else exit out early.
+            if (lastFocusedWidget == entity || !events.flags)
                 return true;
 
             if (keybind->state == GLFW_PRESS)
             {
                 if (events.IsDraggable())
                 {
-                    // TODO FEATURE: Dragging
+                    dataSingleton.draggedWidget = entity;
+                    dataSingleton.dragOffset = (transform.position + transform.localPosition) - mouse;
+
+                    events.OnDragged();
                 }
             }
-            else
+            else if(keybind->state == GLFW_RELEASE)
             {
                 if (events.IsFocusable())
                 {
@@ -86,6 +92,9 @@ namespace UIInput
 
     void OnMousePositionUpdate(Window* window, f32 x, f32 y)
     {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
+
         // TODO FEATURE: Handle Dragging
     }
 
