@@ -7,8 +7,19 @@
 void Login()
 {
 	// LOGIN
-	Entity usernameFieldId;
-	DataStorage::GetEntity("LOGIN-usernameField", usernameFieldId);
+	Entity ICCLoadScreenId;
+	DataStorage::GetEntity("LOGIN-ICCLoadScreen", ICCLoadScreenId);
+	
+	LockToken@ uiLock = UI::GetLock(1);
+	{
+		Panel@ panel = cast<Panel>(UI::GetElement(ICCLoadScreenId));
+		LockToken@ lock = panel.GetLock(2);
+		{
+			panel.SetVisible(false);
+		}
+		lock.Unlock();
+	}
+
 
 	Print("Login!");
 }
@@ -55,6 +66,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 			ICCLoadScreen.SetTexture("Data/extracted/textures/Interface/Glues/LoadingScreens/LoadScreenIcecrownCitadel.dds");
 			ICCLoadScreen.SetDepthLayer(0);
 			ICCLoadScreen.MarkDirty();
+			DataStorage::EmplaceEntity("LOGIN-ICCLoadScreen", ICCLoadScreen.GetEntityId());
 		}
 		ICCLoadScreenLock.Unlock();
 
@@ -74,7 +86,6 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 		{
 			userNameFieldPanel.SetTransform(vec2(CENTERX, CENTERY - 50), SIZE);
 			userNameFieldPanel.SetLocalAnchor(vec2(0.5,0));
-			//userNameFieldPanel.SetTexture("Data/extracted/textures/Interface/Tooltips/UI-Tooltip-Background.dds");
 			userNameFieldPanel.SetTexture("Data/textures/NovusUIPanel.png");
 			userNameFieldPanel.MarkDirty();
 			userNameFieldPanel.MarkBoundsDirty();
@@ -110,7 +121,6 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 		{
 			passwordFieldPanel.SetTransform(vec2(CENTERX, CENTERY + 50), SIZE);
 			passwordFieldPanel.SetLocalAnchor(vec2(0.5,0));
-			//passwordFieldPanel.SetTexture("Data/extracted/textures/Interface/Tooltips/UI-Tooltip-Background.dds");
 			passwordFieldPanel.SetTexture("Data/textures/NovusUIPanel.png");
 			passwordFieldPanel.MarkDirty();
 			passwordFieldPanel.MarkBoundsDirty();

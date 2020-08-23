@@ -59,8 +59,35 @@ namespace UISystem
     void UpdateElementSystem::Update(entt::registry& registry)
     {
         Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
-
         auto& dataSingleton = registry.ctx<UISingleton::UIDataSingleton>();
+
+        // Toggle visibility of elements
+        {
+            entt::entity entId;
+            while (dataSingleton.visibilityToggleQueue.try_dequeue(entId))
+            {
+                UIComponent::Visibility* visibility = &registry.get<UIComponent::Visibility>(entId);
+                bool shouldBeVisible = visibility->visible && visibility->parentVisible;
+                bool hasVisibleComponent = registry.has<UIComponent::Visible>(entId);
+
+                if (shouldBeVisible && !hasVisibleComponent)
+                    registry.emplace<UIComponent::Visible>(entId);
+                else if (!shouldBeVisible && hasVisibleComponent)
+                    registry.remove<UIComponent::Visible>(entId);
+            }
+        }
+        // Toggle collision of elements
+        {
+            entt::entity entId;
+            while (dataSingleton.collisionToggleQueue.try_dequeue(entId))
+            {
+                if (registry.has<UIComponent::Collidable>(entId))
+                    registry.remove<UIComponent::Collidable>(entId);
+                else
+                    registry.emplace<UIComponent::Collidable>(entId);
+            }
+        }
+        
         // Destroy elements queued for destruction.
         {
             size_t deleteEntityNum = dataSingleton.destructionQueue.size_approx();
@@ -74,28 +101,6 @@ namespace UISystem
             }
 
             registry.destroy(deleteEntities.begin(), deleteEntities.end());
-        }
-        // Toggle visibility of elements
-        {
-            entt::entity entId;
-            while (dataSingleton.visibilityToggleQueue.try_dequeue(entId))
-            {
-                if (registry.has<UIComponent::Visible>(entId))
-                    registry.remove<UIComponent::Visible>(entId);
-                else
-                    registry.emplace<UIComponent::Visible>(entId);
-            }
-        }
-        // Toggle collision of elements
-        {
-            entt::entity entId;
-            while (dataSingleton.collisionToggleQueue.try_dequeue(entId))
-            {
-                if (registry.has<UIComponent::Collidable>(entId))
-                    registry.remove<UIComponent::Collidable>(entId);
-                else
-                    registry.emplace<UIComponent::Collidable>(entId);
-            }
         }
 
         auto boundsUpdateView = registry.view<UIComponent::Transform, UIComponent::BoundsDirty>();
