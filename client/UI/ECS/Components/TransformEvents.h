@@ -30,6 +30,9 @@ namespace UIComponent
         asIScriptFunction* onUnfocusedCallback = nullptr;
         void* asObject = nullptr;
 
+        bool dragLockX = false;
+        bool dragLockY = false;
+
         // Usually Components do not store logic, however this is an exception
     private:
         inline void _OnEvent(asIScriptFunction* callback)

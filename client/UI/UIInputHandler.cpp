@@ -31,7 +31,7 @@ namespace UIInput
             dataSingleton.focusedWidget = entt::null;
         }
 
-        if(dataSingleton.draggedWidget != entt::null && keybind->state == GLFW_RELEASE)
+        if (dataSingleton.draggedWidget != entt::null && keybind->state == GLFW_RELEASE)
         {
             registry->get<UIComponent::TransformEvents>(dataSingleton.draggedWidget).OnDragEnded();
             dataSingleton.draggedWidget = entt::null;
@@ -62,7 +62,7 @@ namespace UIInput
                     events.OnDragStarted();
                 }
             }
-            else if(keybind->state == GLFW_RELEASE)
+            else if (keybind->state == GLFW_RELEASE)
             {
                 if (events.IsFocusable())
                 {
@@ -91,26 +91,37 @@ namespace UIInput
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
+        if (dataSingleton.draggedWidget == entt::null)
+            return;
 
-        // TODO FEATURE: Handle Dragging
-        if (dataSingleton.draggedWidget != entt::null)
+        auto transform = &registry->get<UIComponent::Transform>(dataSingleton.draggedWidget);
+        auto events = &registry->get<UIComponent::TransformEvents>(dataSingleton.draggedWidget);
+
+        if (transform->parent != entt::null)
         {
-            auto transform = &registry->get<UIComponent::Transform>(dataSingleton.draggedWidget);
+            vec2 newLocalPos = vec2(x, y) - transform->position - dataSingleton.dragOffset;
+            if (events->dragLockX)
+                newLocalPos.x = transform->localPosition.x;
+            else if (events->dragLockY)
+                newLocalPos.y = transform->localPosition.y;
 
-            if (transform->parent != entt::null)
-            {
-                transform->localPosition = vec2(x, y) - transform->position - dataSingleton.dragOffset;
-            }
-            else
-            {
-                transform->position = vec2(x, y) - dataSingleton.dragOffset;
-            }
-
-            UIUtils::Transform::UpdateChildTransforms(registry, transform);
-            UIUtils::Transform::MarkDirty(registry, dataSingleton.draggedWidget);
-            UIUtils::Transform::MarkBoundsDirty(registry, dataSingleton.draggedWidget);
-            UIUtils::Transform::MarkChildrenDirty(registry, transform);
+            transform->localPosition = newLocalPos;
         }
+        else
+        {
+            vec2 newPos = vec2(x, y) - dataSingleton.dragOffset;
+            if (events->dragLockX)
+                newPos.x = transform->position.x;
+            else if (events->dragLockY)
+                newPos.y = transform->position.y;
+
+            transform->position = newPos;
+        }
+
+        UIUtils::Transform::UpdateChildTransforms(registry, transform);
+        UIUtils::Transform::MarkDirty(registry, dataSingleton.draggedWidget);
+        UIUtils::Transform::MarkBoundsDirty(registry, dataSingleton.draggedWidget);
+        UIUtils::Transform::MarkChildrenDirty(registry, transform);
     }
 
     bool OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
