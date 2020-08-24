@@ -2,6 +2,8 @@
 #include <NovusTypes.h>
 #include <entity/fwd.hpp>
 #include "../ECS/Components/Transform.h"
+#include "../ECS/Components/Dirty.h"
+#include "../ECS/Components/BoundsDirty.h"
 
 namespace UIUtils::Transform
 {
@@ -41,6 +43,18 @@ namespace UIUtils::Transform
         child->position = child->position + child->localPosition;
         child->localPosition = vec2(0, 0);
         child->parent = entt::null;
+    }
+
+    inline static void MarkDirty(entt::registry* registry, entt::entity entId)
+    {
+        if (!registry->has<UIComponent::Dirty>(entId))
+            registry->emplace<UIComponent::Dirty>(entId);
+    }
+
+    inline static void MarkBoundsDirty(entt::registry* registry, entt::entity entId)
+    {
+        if (!registry->has<UIComponent::BoundsDirty>(entId))
+            registry->emplace<UIComponent::BoundsDirty>(entId);
     }
 
     /*

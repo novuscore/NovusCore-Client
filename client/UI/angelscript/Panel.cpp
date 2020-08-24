@@ -93,7 +93,7 @@ namespace UIScripting
     void Panel::SetOnDragCallback(asIScriptFunction* callback)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        events->onDraggedCallback = callback;
+        events->onDragStartedCallback = callback;
         events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
     }
     void Panel::SetOnFocusCallback(asIScriptFunction* callback)

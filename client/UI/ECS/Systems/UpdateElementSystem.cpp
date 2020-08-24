@@ -66,14 +66,10 @@ namespace UISystem
             entt::entity entId;
             while (dataSingleton.visibilityToggleQueue.try_dequeue(entId))
             {
-                UIComponent::Visibility* visibility = &registry.get<UIComponent::Visibility>(entId);
-                bool shouldBeVisible = visibility->visible && visibility->parentVisible;
-                bool hasVisibleComponent = registry.has<UIComponent::Visible>(entId);
-
-                if (shouldBeVisible && !hasVisibleComponent)
-                    registry.emplace<UIComponent::Visible>(entId);
-                else if (!shouldBeVisible && hasVisibleComponent)
+                if (registry.has<UIComponent::Visibility>(entId))
                     registry.remove<UIComponent::Visible>(entId);
+                else
+                    registry.emplace<UIComponent::Visible>(entId);
             }
         }
         // Toggle collision of elements

@@ -24,7 +24,8 @@ namespace UIComponent
 
         u8 flags = 0;
         asIScriptFunction* onClickCallback = nullptr;
-        asIScriptFunction* onDraggedCallback = nullptr;
+        asIScriptFunction* onDragStartedCallback = nullptr;
+        asIScriptFunction* onDragEndedCallback = nullptr;
         asIScriptFunction* onFocusedCallback = nullptr;
         asIScriptFunction* onUnfocusedCallback = nullptr;
         void* asObject = nullptr;
@@ -33,6 +34,9 @@ namespace UIComponent
     private:
         inline void _OnEvent(asIScriptFunction* callback)
         {
+            if (!callback)
+                return;
+
             asIScriptContext* context = ScriptEngine::GetScriptContext();
             {
                 context->Prepare(callback);
@@ -45,30 +49,22 @@ namespace UIComponent
     public:
         void OnClick()
         {
-            if (!onClickCallback)
-                return;
-
             _OnEvent(onClickCallback);
         }
-        void OnDragged()
+        void OnDragStarted()
         {
-            if (!onDraggedCallback)
-                return;
-
-            _OnEvent(onDraggedCallback);
+            _OnEvent(onDragStartedCallback);
+        }
+        void OnDragEnded()
+        {
+            _OnEvent(onDragEndedCallback);
         }
         void OnFocused()
         {
-            if (!onFocusedCallback)
-                return;
-
             _OnEvent(onFocusedCallback);
         }
         void OnUnfocused()
         {
-            if (!onUnfocusedCallback)
-                return;
-
             _OnEvent(onUnfocusedCallback);
         }
 

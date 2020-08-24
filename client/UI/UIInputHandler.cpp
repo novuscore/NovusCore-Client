@@ -9,6 +9,7 @@
 #include "ECS/Components/TransformEvents.h"
 #include "ECS/Components/Collidable.h"
 #include "ECS/Components/Visible.h"
+#include "Utils/TransformUtils.h"
 
 #include "angelscript/Inputfield.h"
 #include "angelscript/Checkbox.h"
@@ -32,9 +33,8 @@ namespace UIInput
 
         if(dataSingleton.draggedWidget != entt::null && keybind->state == GLFW_RELEASE)
         {
-            // TODO OnDragEnded
+            registry->get<UIComponent::TransformEvents>(dataSingleton.draggedWidget).OnDragEnded();
             dataSingleton.draggedWidget = entt::null;
-            dataSingleton.dragOffset = vec2(0,0);
         }
 
         auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::Transform, UIComponent::Collidable, UIComponent::Visible>);
@@ -58,9 +58,8 @@ namespace UIInput
                 if (events.IsDraggable())
                 {
                     dataSingleton.draggedWidget = entity;
-                    dataSingleton.dragOffset = (transform.position + transform.localPosition) - mouse;
-
-                    events.OnDragged();
+                    dataSingleton.dragOffset = mouse - (transform.position + transform.localPosition);
+                    events.OnDragStarted();
                 }
             }
             else if(keybind->state == GLFW_RELEASE)
@@ -68,7 +67,6 @@ namespace UIInput
                 if (events.IsFocusable())
                 {
                     dataSingleton.focusedWidget = entity;
-
                     events.OnFocused();
                 }
 
@@ -79,7 +77,6 @@ namespace UIInput
                         UIScripting::Checkbox* checkBox = reinterpret_cast<UIScripting::Checkbox*>(transform.asObject);
                         checkBox->ToggleChecked();
                     }
-
                     events.OnClick();
                 }
             }
@@ -96,6 +93,24 @@ namespace UIInput
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
 
         // TODO FEATURE: Handle Dragging
+        if (dataSingleton.draggedWidget != entt::null)
+        {
+            auto transform = &registry->get<UIComponent::Transform>(dataSingleton.draggedWidget);
+
+            if (transform->parent != entt::null)
+            {
+                transform->localPosition = vec2(x, y) - transform->position - dataSingleton.dragOffset;
+            }
+            else
+            {
+                transform->position = vec2(x, y) - dataSingleton.dragOffset;
+            }
+
+            UIUtils::Transform::UpdateChildTransforms(registry, transform);
+            UIUtils::Transform::MarkDirty(registry, dataSingleton.draggedWidget);
+            UIUtils::Transform::MarkBoundsDirty(registry, dataSingleton.draggedWidget);
+            UIUtils::Transform::MarkChildrenDirty(registry, transform);
+        }
     }
 
     bool OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
