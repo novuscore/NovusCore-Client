@@ -23,7 +23,8 @@ namespace UISystem
     void CalculateVertices(const vec2& pos, const vec2& size, std::vector<UISystem::UIVertex>& vertices)
     {
         const UISingleton::UIDataSingleton& dataSingleton = ServiceLocator::GetUIRegistry()->ctx<UISingleton::UIDataSingleton>();
-        vertices.resize(4);
+        vertices.clear();
+        vertices.reserve(4);
 
         vec2 upperLeftPos = vec2(pos.x, pos.y);
         vec2 upperRightPos = vec2(pos.x + size.x, pos.y);
@@ -108,12 +109,9 @@ namespace UISystem
         imageView.each([&](UIComponent::Transform& transform, UIComponent::Image& image)
         {
             ZoneScopedNC("UpdateElementSystem::Update::ImageView", tracy::Color::RoyalBlue);
-
-            // Renderable Updates
             if (image.texture.length() == 0)
                 return;
 
-            // (Re)load texture
             {
                 ZoneScopedNC("(Re)load Texture", tracy::Color::RoyalBlue);
                 image.textureID = renderer->LoadTexture(Renderer::TextureDesc{ image.texture });
@@ -170,11 +168,11 @@ namespace UISystem
             std::vector<size_t> lineBreakPoints;
             size_t finalCharacter = UIUtils::Text::CalculateLineWidthsAndBreaks(&text, transform.size.x, transform.size.y, lineWidths, lineBreakPoints);
 
-            text.glyphCount = std::count_if(text.text.begin() + text.pushback, text.text.end() - (text.text.length() - finalCharacter), [](char c) { return !std::isspace(c); });
+            size_t textLengthWithoutSpaces = std::count_if(text.text.begin() + text.pushback, text.text.end() - (text.text.length() - finalCharacter), [](char c) { return !std::isspace(c); });
 
             // If textLengthWithoutSpaces is bigger than the amount of glyphs we allocated in our buffer we need to reallocate the buffer
             static const u32 perGlyphVertexSize = sizeof(UISystem::UIVertex) * 4; // 4 vertices per glyph
-            if (text.glyphCount > text.vertexBufferGlyphCount)
+            if (textLengthWithoutSpaces > text.vertexBufferGlyphCount)
             {
                 if (text.vertexBufferID != Renderer::BufferID::Invalid())
                 {
@@ -187,7 +185,7 @@ namespace UISystem
 
                 Renderer::BufferDesc vertexBufferDesc;
                 vertexBufferDesc.name = "TextView";
-                vertexBufferDesc.size = text.glyphCount * perGlyphVertexSize;
+                vertexBufferDesc.size = textLengthWithoutSpaces * perGlyphVertexSize;
                 vertexBufferDesc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER;
                 vertexBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
@@ -195,16 +193,17 @@ namespace UISystem
 
                 Renderer::BufferDesc textureIDBufferDesc;
                 textureIDBufferDesc.name = "TexturesIDs";
-                textureIDBufferDesc.size = text.glyphCount * sizeof(u32); // 1 u32 per glyph
+                textureIDBufferDesc.size = textLengthWithoutSpaces * sizeof(u32); // 1 u32 per glyph
                 textureIDBufferDesc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER;
                 textureIDBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
                 text.textureIDBufferID = renderer->CreateBuffer(textureIDBufferDesc);
 
-                text.vertexBufferGlyphCount = text.glyphCount;
+                text.vertexBufferGlyphCount = textLengthWithoutSpaces;
             }
+            text.glyphCount = textLengthWithoutSpaces;
 
-            if (text.glyphCount > 0)
+            if (textLengthWithoutSpaces > 0)
             {
                 vec2 alignment = UIUtils::Text::GetAlignment(&text);
                 vec2 currentPosition = UIUtils::Transform::GetAnchorPosition(&transform, alignment);

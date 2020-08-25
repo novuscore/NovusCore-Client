@@ -139,7 +139,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                     {
                         UIComponent::Text& text = registry->get<UIComponent::Text>(entity);
                         if (!text.constantBuffer || text.vertexBufferID == Renderer::BufferID::Invalid())
-                            return;
+                            break;
 
                         if (activePipeline != textPipeline)
                         {
