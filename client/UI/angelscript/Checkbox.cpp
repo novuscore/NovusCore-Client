@@ -24,19 +24,19 @@ namespace UIScripting
             transform->sortData.type = _elementType;
             transform->asObject = this;
 
-            registry->emplace<UIComponent::Visible>(_entityId);
-            registry->emplace<UIComponent::Visibility>(_entityId);
-            registry->emplace<UIComponent::Image>(_entityId);
             UIComponent::Checkbox* checkBox = &registry->emplace<UIComponent::Checkbox>(_entityId);
             checkBox->asObject = this;
 
-            registry->emplace<UIComponent::Renderable>(_entityId);
-            registry->emplace<UIComponent::Collidable>(_entityId);
-
             UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
             events->asObject = this;
-            
             events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+
+            registry->emplace<UIComponent::Visible>(_entityId);
+            registry->emplace<UIComponent::Visibility>(_entityId);
+            registry->emplace<UIComponent::Image>(_entityId);
+            registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
+            registry->emplace<UIComponent::Collidable>(_entityId);
+
         }
         uiLockSingleton.mutex.unlock();
 
@@ -62,7 +62,6 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("bool IsFocusable()", asMETHOD(Checkbox, IsFocusable)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptFunctionDef("void CheckboxEventCallback(Checkbox@ checkbox)"); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void OnClick(CheckboxEventCallback@ cb)", asMETHOD(Checkbox, SetOnClickCallback)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void OnDragged(CheckboxEventCallback@ cb)", asMETHOD(Checkbox, SetOnDragCallback)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void OnFocused(CheckboxEventCallback@ cb)", asMETHOD(Checkbox, SetOnFocusCallback)); assert(r >= 0);
 
         // Rendering Functions
@@ -113,12 +112,6 @@ namespace UIScripting
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onClickCallback = callback;
         events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
-    }
-    void Checkbox::SetOnDragCallback(asIScriptFunction* callback)
-    {
-        UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        events->onDragStartedCallback = callback;
-        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
     }
     void Checkbox::SetOnFocusCallback(asIScriptFunction* callback)
     {

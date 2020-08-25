@@ -24,13 +24,13 @@ namespace UIScripting
             transform->sortData.type = _elementType;
             transform->asObject = this;
 
-            registry->emplace<UIComponent::Visible>(_entityId);
-            registry->emplace<UIComponent::Visibility>(_entityId);
-            registry->emplace<UIComponent::Text>(_entityId);
             UIComponent::InputField* inputField = &registry->emplace<UIComponent::InputField>(_entityId);
             inputField->asObject = this;
 
-            registry->emplace<UIComponent::Renderable>(_entityId);
+            registry->emplace<UIComponent::Visible>(_entityId);
+            registry->emplace<UIComponent::Visibility>(_entityId);
+            registry->emplace<UIComponent::Text>(_entityId);
+            registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Text;
             registry->emplace<UIComponent::Collidable>(_entityId);
 
             UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);

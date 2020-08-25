@@ -23,7 +23,7 @@ namespace UIScripting
             registry->emplace<UIComponent::Visible>(_entityId);
             registry->emplace<UIComponent::Visibility>(_entityId);
             registry->emplace<UIComponent::Text>(_entityId);
-            registry->emplace<UIComponent::Renderable>(_entityId);
+            registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Text;
         }
         uiLockSingleton.mutex.unlock();
     }

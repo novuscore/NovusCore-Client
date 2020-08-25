@@ -21,14 +21,14 @@ namespace UIScripting
             transform->sortData.type = _elementType;
             transform->asObject = this;
 
+            UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
+            events->asObject = this;
+
             registry->emplace<UIComponent::Visible>(_entityId);
             registry->emplace<UIComponent::Visibility>(_entityId);
             registry->emplace<UIComponent::Image>(_entityId);
-            registry->emplace<UIComponent::Renderable>(_entityId);
+            registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
             registry->emplace<UIComponent::Collidable>(_entityId);
-
-            UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-            events->asObject = this;
         }
         uiLockSingleton.mutex.unlock();
     }
