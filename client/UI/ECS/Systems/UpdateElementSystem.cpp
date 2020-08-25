@@ -23,6 +23,7 @@ namespace UISystem
     void CalculateVertices(const vec2& pos, const vec2& size, std::vector<UISystem::UIVertex>& vertices)
     {
         const UISingleton::UIDataSingleton& dataSingleton = ServiceLocator::GetUIRegistry()->ctx<UISingleton::UIDataSingleton>();
+        vertices.resize(4);
 
         vec2 upperLeftPos = vec2(pos.x, pos.y);
         vec2 upperRightPos = vec2(pos.x + size.x, pos.y);
@@ -35,8 +36,6 @@ namespace UISystem
         upperRightPos /= dataSingleton.UIRESOLUTION;
         lowerLeftPos /= dataSingleton.UIRESOLUTION;
         lowerRightPos /= dataSingleton.UIRESOLUTION;
-
-        vertices.reserve(4);
 
         // UI Vertices
         UISystem::UIVertex& upperLeft = vertices.emplace_back();
@@ -171,11 +170,11 @@ namespace UISystem
             std::vector<size_t> lineBreakPoints;
             size_t finalCharacter = UIUtils::Text::CalculateLineWidthsAndBreaks(&text, transform.size.x, transform.size.y, lineWidths, lineBreakPoints);
 
-            size_t textLengthWithoutSpaces = std::count_if(text.text.begin() + text.pushback, text.text.end() - (text.text.length() - finalCharacter), [](char c) { return !std::isspace(c); });
+            text.glyphCount = std::count_if(text.text.begin() + text.pushback, text.text.end() - (text.text.length() - finalCharacter), [](char c) { return !std::isspace(c); });
 
             // If textLengthWithoutSpaces is bigger than the amount of glyphs we allocated in our buffer we need to reallocate the buffer
             static const u32 perGlyphVertexSize = sizeof(UISystem::UIVertex) * 4; // 4 vertices per glyph
-            if (textLengthWithoutSpaces > text.vertexBufferGlyphCount)
+            if (text.glyphCount > text.vertexBufferGlyphCount)
             {
                 if (text.vertexBufferID != Renderer::BufferID::Invalid())
                 {
@@ -188,7 +187,7 @@ namespace UISystem
 
                 Renderer::BufferDesc vertexBufferDesc;
                 vertexBufferDesc.name = "TextView";
-                vertexBufferDesc.size = textLengthWithoutSpaces * perGlyphVertexSize;
+                vertexBufferDesc.size = text.glyphCount * perGlyphVertexSize;
                 vertexBufferDesc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER;
                 vertexBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
@@ -196,26 +195,23 @@ namespace UISystem
 
                 Renderer::BufferDesc textureIDBufferDesc;
                 textureIDBufferDesc.name = "TexturesIDs";
-                textureIDBufferDesc.size = textLengthWithoutSpaces * sizeof(u32); // 1 u32 per glyph
+                textureIDBufferDesc.size = text.glyphCount * sizeof(u32); // 1 u32 per glyph
                 textureIDBufferDesc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER;
                 textureIDBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
                 text.textureIDBufferID = renderer->CreateBuffer(textureIDBufferDesc);
 
-                text.vertexBufferGlyphCount = textLengthWithoutSpaces;
+                text.vertexBufferGlyphCount = text.glyphCount;
             }
-            
-            text.glyphCount = textLengthWithoutSpaces;
 
-            f32 horizontalAlignment = UIUtils::Text::GetHorizontalAlignment(text.horizontalAlignment);
-            f32 verticalAlignment = UIUtils::Text::GetVerticalAlignment(text.verticalAlignment);
-            vec2 currentPosition = UIUtils::Transform::GetAnchorPosition(&transform, vec2(horizontalAlignment, verticalAlignment));
-            f32 startX = currentPosition.x;
-            currentPosition.x -= lineWidths[0] * horizontalAlignment;
-            currentPosition.y += text.fontSize * (1 - verticalAlignment);
-
-            if (textLengthWithoutSpaces > 0)
+            if (text.glyphCount > 0)
             {
+                vec2 alignment = UIUtils::Text::GetAlignment(&text);
+                vec2 currentPosition = UIUtils::Transform::GetAnchorPosition(&transform, alignment);
+                f32 startX = currentPosition.x;
+                currentPosition.x -= lineWidths[0] * alignment.x;
+                currentPosition.y += text.fontSize * (1 - alignment.y);
+
                 std::vector<UISystem::UIVertex> vertices;
 
                 UISystem::UIVertex* baseVertices = reinterpret_cast<UISystem::UIVertex*>(renderer->MapBuffer(text.vertexBufferID));
@@ -230,7 +226,7 @@ namespace UISystem
                     {
                         currentLine++;
                         currentPosition.y += text.fontSize * text.lineHeight;
-                        currentPosition.x = startX - lineWidths[currentLine] * horizontalAlignment;
+                        currentPosition.x = startX - lineWidths[currentLine] * alignment.x;
                     }
 
                     if (character == '\n')

@@ -131,18 +131,14 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             entt::registry* registry = ServiceLocator::GetUIRegistry();
             auto renderGroup = registry->group<UIComponent::Transform>(entt::get<UIComponent::Renderable, UIComponent::Visible>);
             renderGroup.sort<UIComponent::Transform>([](UIComponent::Transform& first, UIComponent::Transform& second) { return first.sortKey < second.sortKey; });
-            renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UIComponent::Transform& transform)
+            renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UIComponent::Transform& transform, UIComponent::Renderable& renderable)
             {
-                switch (transform.sortData.type)
+                switch (renderable.renderType)
                 {
-                    case UI::UIElementType::UITYPE_LABEL:
-                    case UI::UIElementType::UITYPE_INPUTFIELD:
+                case UI::RenderType::Text:
                     {
                         UIComponent::Text& text = registry->get<UIComponent::Text>(entity);
-                        if (!text.constantBuffer)
-                            return;
-
-                        if (text.vertexBufferID == Renderer::BufferID::Invalid())
+                        if (!text.constantBuffer || text.vertexBufferID == Renderer::BufferID::Invalid())
                             return;
 
                         if (activePipeline != textPipeline)
@@ -170,7 +166,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                         commandList.PopMarker();
                         break;
                     }
-                    default:
+                case UI::RenderType::Image:
                     {
                         UIComponent::Image& image = registry->get<UIComponent::Image>(entity);
                         if (!image.constantBuffer)
@@ -200,6 +196,8 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                         commandList.PopMarker();
                         break;
                     }
+                default:
+                    NC_LOG_FATAL("Renderable widget tried to render with invalid render type.");
                 }
             });
 
