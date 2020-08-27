@@ -64,7 +64,7 @@ namespace UISystem
         // Toggle visibility of elements
         {
             entt::entity entId;
-            while (dataSingleton.visibilityToggleQueue.try_dequeue(entId))
+            while (dataSingleton.visibilityToggleQueue.try_dequeue_non_interleaved(entId))
             {
                 if (registry.has<UIComponent::Visibility>(entId))
                     registry.remove<UIComponent::Visible>(entId);
@@ -75,7 +75,7 @@ namespace UISystem
         // Toggle collision of elements
         {
             entt::entity entId;
-            while (dataSingleton.collisionToggleQueue.try_dequeue(entId))
+            while (dataSingleton.collisionToggleQueue.try_dequeue_non_interleaved(entId))
             {
                 if (registry.has<UIComponent::Collidable>(entId))
                     registry.remove<UIComponent::Collidable>(entId);
@@ -85,8 +85,7 @@ namespace UISystem
         }
         
         // Destroy elements queued for destruction.
-        {
-            size_t deleteEntityNum = dataSingleton.destructionQueue.size_approx();
+        if(size_t deleteEntityNum = dataSingleton.destructionQueue.size_approx()) {
             std::vector<entt::entity> deleteEntities;
             deleteEntities.reserve(deleteEntityNum);
 

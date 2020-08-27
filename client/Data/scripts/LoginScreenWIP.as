@@ -1,7 +1,7 @@
 /*
 *	NOVUSCORE LOGIN SCREEN
 *	Version 0.1.1
-*	Updated 13/08/2020
+*	Updated 25/08/2020
 */
 
 void Login()
