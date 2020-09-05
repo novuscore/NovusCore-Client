@@ -28,7 +28,7 @@ namespace UIUtils::Text
             for (size_t i = oldPushback; i < writeHead; i++)
             {
                 if (std::isspace(text->text[i]))
-                    lineLength += text->fontSize * 0.15f;
+                    lineLength += text->style.fontSize * 0.15f;
                 else
                     lineLength += text->font->GetChar(text->text[i]).advance;
 
@@ -50,7 +50,7 @@ namespace UIUtils::Text
         for (size_t i = oldPushback; i > 0; i--)
         {
             if (std::isspace(text->text[i]))
-                lineLength += text->fontSize * 0.15f;
+                lineLength += text->style.fontSize * 0.15f;
             else
                 lineLength += text->font->GetChar(text->text[i]).advance;
 
@@ -63,7 +63,7 @@ namespace UIUtils::Text
 
     size_t CalculateMultilinePushback(const UIComponent::Text* text, const size_t writeHead, const f32 maxWidth, const f32 maxHeight)
     {
-        u32 maxLines = static_cast<u32>(maxHeight / (text->fontSize * text->lineHeight));
+        u32 maxLines = static_cast<u32>(maxHeight / (text->style.fontSize * text->style.lineHeight));
         std::vector<f32> lineWidths;
         std::vector<size_t> lineBreakPoints;
         CalculateAllLineWidthsAndBreaks(text, maxWidth, lineWidths, lineBreakPoints);
@@ -102,7 +102,7 @@ namespace UIUtils::Text
         lineWidths.push_back(0);
         lineBreakPoints.clear();
 
-        u32 maxLines = static_cast<u32>(text->isMultiline ? 1 : maxHeight / (text->fontSize * text->lineHeight));
+        u32 maxLines = static_cast<u32>(text->isMultiline ? 1 : maxHeight / (text->style.fontSize * text->style.lineHeight));
         size_t lastWordStart = 0;
         f32 wordWidth = 0.f;
 
@@ -131,7 +131,7 @@ namespace UIUtils::Text
             f32 advance = 0.f;
             if (std::isspace(text->text[i]))
             {
-                advance = text->fontSize * 0.15f;
+                advance = text->style.fontSize * 0.15f;
                 lastWordStart = i + 1;
                 wordWidth = 0.f;
             }
@@ -199,7 +199,7 @@ namespace UIUtils::Text
             f32 advance = 0.f;
             if (std::isspace(text->text[i]))
             {
-                advance = text->fontSize * 0.15f;
+                advance = text->style.fontSize * 0.15f;
                 lastWordStart = i + 1;
                 wordWidth = 0.f;
             }

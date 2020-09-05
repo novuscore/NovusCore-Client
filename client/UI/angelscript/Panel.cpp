@@ -28,6 +28,8 @@ namespace UIScripting
             registry->emplace<UIComponent::Visibility>(_entityId);
             registry->emplace<UIComponent::Image>(_entityId);
             registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
+
+            transform->collision = true;
             registry->emplace<UIComponent::Collidable>(_entityId);
         }
         uiLockSingleton.mutex.unlock();
@@ -47,7 +49,8 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("bool IsFocusable()", asMETHOD(Panel, IsFocusable)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptFunctionDef("void PanelEventCallback(Panel@ panel)"); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void OnClick(PanelEventCallback@ cb)", asMETHOD(Panel, SetOnClickCallback)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void OnDragged(PanelEventCallback@ cb)", asMETHOD(Panel, SetOnDragCallback)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void OnDragStarted(PanelEventCallback@ cb)", asMETHOD(Panel, SetOnDragStartedCallback)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void OnDragEnded(PanelEventCallback@ cb)", asMETHOD(Panel, SetOnDragEndedCallback)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void OnFocused(PanelEventCallback@ cb)", asMETHOD(Panel, SetOnFocusCallback)); assert(r >= 0);
 
         // Renderable Functions
@@ -90,12 +93,20 @@ namespace UIScripting
         events->onClickCallback = callback;
         events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }
-    void Panel::SetOnDragCallback(asIScriptFunction* callback)
+
+    void Panel::SetOnDragStartedCallback(asIScriptFunction* callback)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onDragStartedCallback = callback;
         events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
     }
+    void Panel::SetOnDragEndedCallback(asIScriptFunction* callback)
+    {
+        UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
+        events->onDragEndedCallback = callback;
+        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
+    }
+
     void Panel::SetOnFocusCallback(asIScriptFunction* callback)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
@@ -106,26 +117,26 @@ namespace UIScripting
     const std::string& Panel::GetTexture() const
     {
         const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->texture;
+        return image->style.texture;
     }
     void Panel::SetTexture(const std::string& texture)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
-        image->texture = texture;
+        image->style.texture = texture;
     }
 
     const Color Panel::GetColor() const
     {
         const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->color;
+        return image->style.color;
 
     }
     void Panel::SetColor(const Color& color)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
-        image->color = color;
+        image->style.color = color;
     }
 
     Panel* Panel::CreatePanel()

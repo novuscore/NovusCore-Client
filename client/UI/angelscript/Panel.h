@@ -21,7 +21,8 @@ namespace UIScripting
         void SetEventFlag(const UI::UITransformEventsFlags flags);
         void UnsetEventFlag(const UI::UITransformEventsFlags flags);
         void SetOnClickCallback(asIScriptFunction* callback);
-        void SetOnDragCallback(asIScriptFunction* callback);
+        void SetOnDragStartedCallback(asIScriptFunction* callback);
+        void SetOnDragEndedCallback(asIScriptFunction* callback);
         void SetOnFocusCallback(asIScriptFunction* callback);
 
         // Renderable Functions

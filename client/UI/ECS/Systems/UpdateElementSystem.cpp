@@ -66,7 +66,7 @@ namespace UISystem
             entt::entity entId;
             while (dataSingleton.visibilityToggleQueue.try_dequeue_non_interleaved(entId))
             {
-                if (registry.has<UIComponent::Visibility>(entId))
+                if (registry.has<UIComponent::Visible>(entId))
                     registry.remove<UIComponent::Visible>(entId);
                 else
                     registry.emplace<UIComponent::Visible>(entId);
@@ -86,8 +86,7 @@ namespace UISystem
         
         // Destroy elements queued for destruction.
         if(size_t deleteEntityNum = dataSingleton.destructionQueue.size_approx()) {
-            std::vector<entt::entity> deleteEntities;
-            deleteEntities.reserve(deleteEntityNum);
+            std::vector<entt::entity> deleteEntities(deleteEntityNum);
 
             dataSingleton.destructionQueue.try_dequeue_bulk(deleteEntities.begin(), deleteEntityNum);
             for (entt::entity entId : deleteEntities)
@@ -108,12 +107,12 @@ namespace UISystem
         imageView.each([&](UIComponent::Transform& transform, UIComponent::Image& image)
         {
             ZoneScopedNC("UpdateElementSystem::Update::ImageView", tracy::Color::RoyalBlue);
-            if (image.texture.length() == 0)
+            if (image.style.texture.length() == 0)
                 return;
 
             {
                 ZoneScopedNC("(Re)load Texture", tracy::Color::RoyalBlue);
-                image.textureID = renderer->LoadTexture(Renderer::TextureDesc{ image.texture });
+                image.textureID = renderer->LoadTexture(Renderer::TextureDesc{ image.style.texture });
             }
 
             // Create constant buffer if necessary
@@ -123,7 +122,7 @@ namespace UISystem
                 constantBuffer = new Renderer::Buffer<UIComponent::Image::ImageConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
                 image.constantBuffer = constantBuffer;
             }
-            constantBuffer->resource.color = image.color;
+            constantBuffer->resource.color = image.style.color;
             constantBuffer->ApplyAll();
 
             // Transform Updates.
@@ -155,12 +154,12 @@ namespace UISystem
         textView.each([&](UIComponent::Transform& transform, UIComponent::Text& text)
         {
             ZoneScopedNC("UpdateElementSystem::Update::TextView", tracy::Color::SkyBlue);
-            if (text.fontPath.length() == 0)
+            if (text.style.fontPath.length() == 0)
                 return;
 
             {
                 ZoneScopedNC("(Re)load Font", tracy::Color::RoyalBlue);
-                text.font = Renderer::Font::GetFont(renderer, text.fontPath, text.fontSize);
+                text.font = Renderer::Font::GetFont(renderer, text.style.fontPath, text.style.fontSize);
             }
             
             std::vector<f32> lineWidths;
@@ -208,7 +207,7 @@ namespace UISystem
                 vec2 currentPosition = UIUtils::Transform::GetAnchorPosition(&transform, alignment);
                 f32 startX = currentPosition.x;
                 currentPosition.x -= lineWidths[0] * alignment.x;
-                currentPosition.y += text.fontSize * (1 - alignment.y);
+                currentPosition.y += text.style.fontSize * (1 - alignment.y);
 
                 std::vector<UISystem::UIVertex> vertices;
 
@@ -223,7 +222,7 @@ namespace UISystem
                     if (currentLine < lineBreakPoints.size() && lineBreakPoints[currentLine] == i)
                     {
                         currentLine++;
-                        currentPosition.y += text.fontSize * text.lineHeight;
+                        currentPosition.y += text.style.fontSize * text.style.lineHeight;
                         currentPosition.x = startX - lineWidths[currentLine] * alignment.x;
                     }
 
@@ -233,7 +232,7 @@ namespace UISystem
                     }
                     else if (std::isspace(character))
                     {
-                        currentPosition.x += text.fontSize * 0.15f;
+                        currentPosition.x += text.style.fontSize * 0.15f;
                         continue;
                     }
 
@@ -260,9 +259,9 @@ namespace UISystem
             if (!text.constantBuffer)
                 text.constantBuffer = new Renderer::Buffer<UIComponent::Text::TextConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
-            text.constantBuffer->resource.textColor = text.color;
-            text.constantBuffer->resource.outlineColor = text.outlineColor;
-            text.constantBuffer->resource.outlineWidth = text.outlineWidth;
+            text.constantBuffer->resource.textColor = text.style.color;
+            text.constantBuffer->resource.outlineColor = text.style.outlineColor;
+            text.constantBuffer->resource.outlineWidth = text.style.outlineWidth;
             text.constantBuffer->Apply(0);
             text.constantBuffer->Apply(1);
         });

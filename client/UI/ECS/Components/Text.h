@@ -19,6 +19,18 @@ namespace UI
         CENTER,
         BOTTOM
     };
+
+    struct TextStylesheet
+    {
+        Color color = Color(1, 1, 1, 1);
+        Color outlineColor = Color(0, 0, 0, 0);
+        f32 outlineWidth = 0.f;
+
+        std::string fontPath = "";
+        f32 fontSize = 0;
+
+        f32 lineHeight = 1.15f;
+    };
 }
 
 namespace UIComponent
@@ -42,28 +54,17 @@ namespace UIComponent
         size_t glyphCount = 0;
         size_t pushback = 0;
 
-        Color color = Color(1, 1, 1, 1);
-        Color outlineColor = Color(0, 0, 0, 0);
-        f32 outlineWidth = 0.f;
+        UI::TextStylesheet style;
 
         UI::TextHorizontalAlignment horizontalAlignment = UI::TextHorizontalAlignment::LEFT;
         UI::TextVerticalAlignment verticalAlignment = UI::TextVerticalAlignment::TOP;
         bool isMultiline = false;
 
-        f32 lineHeight = 1.15f;
-
-        std::string fontPath = "";
-        f32 fontSize = 0;
         Renderer::Font* font = nullptr;
 
         size_t vertexBufferGlyphCount = 0;
         Renderer::BufferID vertexBufferID = Renderer::BufferID::Invalid();
         Renderer::BufferID textureIDBufferID = Renderer::BufferID::Invalid();
-        //Renderer::TextureArrayID textureArray = Renderer::TextureArrayID::Invalid();
-
-        /*std::vector<Renderer::BufferID> vertexBuffers;
-        std::vector<Renderer::TextureID> textures;*/
-
         Renderer::Buffer<TextConstantBuffer>* constantBuffer = nullptr;
     };
 }

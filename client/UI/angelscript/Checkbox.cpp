@@ -35,6 +35,8 @@ namespace UIScripting
             registry->emplace<UIComponent::Visibility>(_entityId);
             registry->emplace<UIComponent::Image>(_entityId);
             registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
+
+            transform->collision = true;
             registry->emplace<UIComponent::Collidable>(_entityId);
 
         }
@@ -123,25 +125,25 @@ namespace UIScripting
     const std::string& Checkbox::GetBackgroundTexture() const
     {
         const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->texture;
+        return image->style.texture;
     }
     void Checkbox::SetBackgroundTexture(const std::string& texture)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
-        image->texture = texture;
+        image->style.texture = texture;
     }
 
     const Color Checkbox::GetBackgroundColor() const
     {
         const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->color;
+        return image->style.color;
     }
     void Checkbox::SetBackgroundColor(const Color& color)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
-        image->color = color;
+        image->style.color = color;
     }
 
     const std::string& Checkbox::GetCheckTexture() const

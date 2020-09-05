@@ -1,16 +1,16 @@
 /*
 *	NOVUSCORE LOGIN SCREEN
-*	Version 0.1.1
-*	Updated 04/09/2020	
+*	Version 0.1.2.ILLIDAN
+*	Updated 05/09/2020	
 */
 
 void Login()
 {
 	// LOGIN
-	Entity ICCLoadScreenId;
+	Entity backgroundId;
 	Entity usernameFieldId;
 	Entity passwordFieldId;
-	DataStorage::GetEntity("LOGIN-ICCLoadScreen", ICCLoadScreenId);
+	DataStorage::GetEntity("LOGIN-background", backgroundId);
 	DataStorage::GetEntity("LOGIN-usernameField", usernameFieldId);
 	DataStorage::GetEntity("LOGIN-passwordField", passwordFieldId);
 	
@@ -33,7 +33,7 @@ void Login()
 		}
 		passwordFieldLock.Unlock();
 		
-		Panel@ background = cast<Panel>(UI::GetElement(ICCLoadScreenId));
+		Panel@ background = cast<Panel>(UI::GetElement(backgroundId));
 		LockToken@ backgroundLock = background.GetLock(2);
 		{
 			background.SetVisible(false);
@@ -57,8 +57,6 @@ void OnLoginButtonClick(Button@ button)
 
 void OnLoginScreenLoaded(uint SceneLoaded)
 {
-	uint CENTERX = 960;
-	uint CENTERY = 540;
 	vec2 SIZE = vec2(300,50);
 	uint LABELFONTSIZE = 50;
 	uint INPUTFIELDFONTSIZE = 35;
@@ -66,7 +64,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	string FONT = "Data/fonts/Ubuntu/Ubuntu-Regular.ttf";
 
 	// Phase 1: Create all elements.
-	Panel@ ICCLoadScreen = CreatePanel();
+	Panel@ background = CreatePanel();
 	Label@ userNameLabel = CreateLabel();
 	Panel@ userNameFieldPanel = CreatePanel();
 	InputField@ usernameField = CreateInputField();
@@ -81,20 +79,21 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	LockToken@ uiLock = UI::GetLock(2);
 	{
 		// Phase 3: Lock each element individually and set properties.
-		LockToken@ ICCLoadScreenLock = ICCLoadScreen.GetLock(2);
+		LockToken@ backgroundLock = background.GetLock(2);
 		{
-			ICCLoadScreen.SetSize(vec2(1920,1080));
-			ICCLoadScreen.SetTexture("Data/extracted/textures/Interface/Glues/LoadingScreens/LoadScreenIcecrownCitadel.dds");
-			ICCLoadScreen.SetDepthLayer(0);
-			ICCLoadScreen.MarkDirty();
-			DataStorage::EmplaceEntity("LOGIN-ICCLoadScreen", ICCLoadScreen.GetEntityId());
+			background.SetSize(vec2(1920,1080));
+			background.SetTexture("Data/extracted/textures/Interface/Glues/LoadingScreens/LoadScreenOutlandWide.dds");
+			background.SetDepthLayer(0);
+			background.MarkDirty();
+			DataStorage::EmplaceEntity("LOGIN-background", background.GetEntityId());
 		}
-		ICCLoadScreenLock.Unlock();
+		backgroundLock.Unlock();
 
 		LockToken@ userNameLabelLock = userNameLabel.GetLock(2);
 		{
-			userNameLabel.SetParent(ICCLoadScreen);
-			userNameLabel.SetTransform(vec2(CENTERX, CENTERY - 50), SIZE);
+			userNameLabel.SetParent(background);
+			userNameLabel.SetAnchor(vec2(0.5,0.5));
+			userNameLabel.SetTransform(vec2(0, -50), SIZE);
 			userNameLabel.SetLocalAnchor(vec2(0.5,1));
 			userNameLabel.SetFont(FONT, LABELFONTSIZE);
 			userNameLabel.SetColor(TEXTCOLOR);
@@ -106,8 +105,9 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 
 		LockToken@ userNameFieldPanelLock = userNameFieldPanel.GetLock(2);
 		{
-			userNameFieldPanel.SetParent(ICCLoadScreen);
-			userNameFieldPanel.SetTransform(vec2(CENTERX, CENTERY - 50), SIZE);
+			userNameFieldPanel.SetParent(background);
+			userNameFieldPanel.SetAnchor(vec2(0.5,0.5));
+			userNameFieldPanel.SetTransform(vec2(0, -50), SIZE);
 			userNameFieldPanel.SetLocalAnchor(vec2(0.5,0));
 			userNameFieldPanel.SetTexture("Data/textures/NovusUIPanel.png");
 			userNameFieldPanel.MarkDirty();
@@ -130,8 +130,9 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 
 		LockToken@ passwordLabelLock = passwordLabel.GetLock(2);
 		{
-			passwordLabel.SetParent(ICCLoadScreen);
-			passwordLabel.SetTransform(vec2(CENTERX, CENTERY + 50), SIZE);
+			passwordLabel.SetParent(background);
+			passwordLabel.SetAnchor(vec2(0.5,0.5));
+			passwordLabel.SetTransform(vec2(0, 50), SIZE);
 			passwordLabel.SetLocalAnchor(vec2(0.5,1));
 			passwordLabel.SetFont(FONT, LABELFONTSIZE);
 			passwordLabel.SetColor(TEXTCOLOR);
@@ -143,8 +144,9 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 		
 		LockToken@ passwordFieldPanelLock = passwordFieldPanel.GetLock(2);
 		{
-			passwordFieldPanel.SetParent(ICCLoadScreen);
-			passwordFieldPanel.SetTransform(vec2(CENTERX, CENTERY + 50), SIZE);
+			passwordFieldPanel.SetParent(background);
+			passwordFieldPanel.SetAnchor(vec2(0.5,0.5));
+			passwordFieldPanel.SetTransform(vec2(0, 50), SIZE);
 			passwordFieldPanel.SetLocalAnchor(vec2(0.5,0));
 			passwordFieldPanel.SetTexture("Data/textures/NovusUIPanel.png");
 			passwordFieldPanel.MarkDirty();
@@ -168,9 +170,9 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 		
 		LockToken@ submitButtonLock = submitButton.GetLock(2);
 		{
-			submitButton.SetParent(ICCLoadScreen);
-			submitButton.SetPosition(vec2(CENTERX, CENTERY +  SIZE.y * 2.5f));
-			submitButton.SetSize(SIZE);
+			submitButton.SetParent(background);
+			submitButton.SetAnchor(vec2(0.5,0.5));
+			submitButton.SetTransform(vec2(0, SIZE.y * 2.5f), SIZE);
 			submitButton.SetLocalAnchor(vec2(0.5,0));
 			submitButton.SetTexture("Data/textures/NovusUIPanel.png");
 			submitButton.SetFont(FONT, INPUTFIELDFONTSIZE);
@@ -183,9 +185,9 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 		
 		LockToken@ checkBoxLock = checkBox.GetLock(2);
 		{
-			checkBox.SetParent(ICCLoadScreen);
-			checkBox.SetPosition(vec2(CENTERX - SIZE.x/2 + 5, CENTERY +  SIZE.y * 4));
-			checkBox.SetSize(vec2(25,25));
+			checkBox.SetParent(background);
+			checkBox.SetAnchor(vec2(0.5,0.5));
+			checkBox.SetTransform(vec2(-SIZE.x/2, SIZE.y * 4), vec2(25,25));
 			checkBox.SetBackgroundTexture("Data/textures/NovusUIPanel.png");
 			checkBox.SetCheckTexture("Data/textures/debug.jpg");
 			checkBox.SetCheckColor(Color(0,1,0));

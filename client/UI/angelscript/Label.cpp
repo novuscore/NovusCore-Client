@@ -24,6 +24,8 @@ namespace UIScripting
             registry->emplace<UIComponent::Visibility>(_entityId);
             registry->emplace<UIComponent::Text>(_entityId);
             registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Text;
+
+            transform->collision = false;
         }
         uiLockSingleton.mutex.unlock();
     }
@@ -65,44 +67,44 @@ namespace UIScripting
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        text->fontPath = fontPath;
-        text->fontSize = fontSize;
+        text->style.fontPath = fontPath;
+        text->style.fontSize = fontSize;
     }
 
     const Color& Label::GetColor() const
     {
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        return text->outlineColor;
+        return text->style.outlineColor;
     }
     void Label::SetColor(const Color& color)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        text->color = color;
+        text->style.color = color;
     }
 
     const Color& Label::GetOutlineColor() const
     {
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        return text->outlineColor;
+        return text->style.outlineColor;
     }
     void Label::SetOutlineColor(const Color& outlineColor)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        text->outlineColor = outlineColor;
+        text->style.outlineColor = outlineColor;
     }
 
     const f32 Label::GetOutlineWidth() const
     {
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        return text->outlineWidth;
+        return text->style.outlineWidth;
     }
     void Label::SetOutlineWidth(f32 outlineWidth)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        text->outlineWidth = outlineWidth;
+        text->style.outlineWidth = outlineWidth;
     }
 
     void Label::SetHorizontalAlignment(UI::TextHorizontalAlignment alignment)

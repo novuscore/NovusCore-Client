@@ -31,6 +31,8 @@ namespace UIScripting
             registry->emplace<UIComponent::Visibility>(_entityId);
             registry->emplace<UIComponent::Text>(_entityId);
             registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Text;
+
+            transform->collision = true;
             registry->emplace<UIComponent::Collidable>(_entityId);
 
             UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
@@ -228,45 +230,45 @@ namespace UIScripting
     const Color& InputField::GetTextColor() const
     {
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        return text->color;
+        return text->style.color;
     }
     void InputField::SetTextColor(const Color& color)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        text->color = color;
+        text->style.color = color;
     }
 
     const Color& InputField::GetTextOutlineColor() const
     {
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        return text->outlineColor;
+        return text->style.outlineColor;
     }
     void InputField::SetTextOutlineColor(const Color& outlineColor)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        text->outlineColor = outlineColor;
+        text->style.outlineColor = outlineColor;
     }
 
     const f32 InputField::GetTextOutlineWidth() const
     {
         const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        return text->outlineWidth;
+        return text->style.outlineWidth;
     }
     void InputField::SetTextOutlineWidth(f32 outlineWidth)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        text->outlineWidth = outlineWidth;
+        text->style.outlineWidth = outlineWidth;
     }
 
     void InputField::SetTextFont(const std::string& fontPath, f32 fontSize)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        text->fontPath = fontPath;
-        text->fontSize = fontSize;
+        text->style.fontPath = fontPath;
+        text->style.fontSize = fontSize;
     }
 
     InputField* InputField::CreateInputField()

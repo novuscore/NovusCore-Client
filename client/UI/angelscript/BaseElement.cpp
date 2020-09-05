@@ -271,10 +271,11 @@ namespace UIScripting
     void BaseElement::SetCollisionEnabled(bool enabled)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-
-        if (registry->has<UIComponent::Collidable>(_entityId) == enabled)
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
+        if (transform->collision == enabled)
             return;
 
+        transform->collision = enabled;
         registry->ctx<UISingleton::UIDataSingleton>().collisionToggleQueue.enqueue(_entityId);
     }
 

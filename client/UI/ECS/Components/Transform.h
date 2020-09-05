@@ -57,6 +57,7 @@ namespace UIComponent
         std::vector<UI::UIChild> children;
         void* asObject = nullptr;
 
+        bool collision = true;
         vec2 minBound = vec2(0, 0);
         vec2 maxBound = vec2(0, 0);
         bool includeChildBounds = false;
