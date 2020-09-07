@@ -45,7 +45,7 @@ namespace UIInput
             UIComponent::TransformEvents& events = eventGroup.get<UIComponent::TransformEvents>(entity);
 
             // Check so mouse if within widget bounds.
-            if (!((mouse.x > transform.minBound.x && mouse.x < transform.maxBound.x) && (mouse.y > transform.minBound.y && mouse.y < transform.maxBound.y)))
+            if (mouse.x < transform.minBound.x || mouse.x > transform.maxBound.x || mouse.y < transform.minBound.y || mouse.y > transform.maxBound.y)
                 continue;
 
             // Don't interact with the last focused widget directly. Reserving first click for unfocusing it but still block clicking through it.
@@ -89,43 +89,71 @@ namespace UIInput
 
     void OnMousePositionUpdate(Window* window, f32 x, f32 y)
     {
+        ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
-        if (dataSingleton.draggedWidget == entt::null)
-            return;
-
-        auto transform = &registry->get<UIComponent::Transform>(dataSingleton.draggedWidget);
-        auto events = &registry->get<UIComponent::TransformEvents>(dataSingleton.draggedWidget);
-
-        if (transform->parent != entt::null)
+        if (dataSingleton.draggedWidget != entt::null)
         {
-            vec2 newLocalPos = vec2(x, y) - transform->position - dataSingleton.dragOffset;
-            if (events->dragLockX)
-                newLocalPos.x = transform->localPosition.x;
-            else if (events->dragLockY)
-                newLocalPos.y = transform->localPosition.y;
+            auto transform = &registry->get<UIComponent::Transform>(dataSingleton.draggedWidget);
+            auto events = &registry->get<UIComponent::TransformEvents>(dataSingleton.draggedWidget);
 
-            transform->localPosition = newLocalPos;
+            if (transform->parent != entt::null)
+            {
+                vec2 newLocalPos = vec2(x, y) - transform->position - dataSingleton.dragOffset;
+                if (events->dragLockX)
+                    newLocalPos.x = transform->localPosition.x;
+                else if (events->dragLockY)
+                    newLocalPos.y = transform->localPosition.y;
+
+                transform->localPosition = newLocalPos;
+            }
+            else
+            {
+                vec2 newPos = vec2(x, y) - dataSingleton.dragOffset;
+                if (events->dragLockX)
+                    newPos.x = transform->position.x;
+                else if (events->dragLockY)
+                    newPos.y = transform->position.y;
+
+                transform->position = newPos;
+            }
+
+            UIUtils::Transform::UpdateChildTransforms(registry, transform);
+            UIUtils::Transform::MarkDirty(registry, dataSingleton.draggedWidget);
+            UIUtils::Transform::MarkBoundsDirty(registry, dataSingleton.draggedWidget);
+            UIUtils::Transform::MarkChildrenDirty(registry, transform);
         }
-        else
+
+        // Handle hover.
+        auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::Transform, UIComponent::Collidable, UIComponent::Visible>);
+        eventGroup.sort<UIComponent::Transform>([](UIComponent::Transform& first, UIComponent::Transform& second) { return first.sortKey > second.sortKey; });
+        for (auto entity : eventGroup)
         {
-            vec2 newPos = vec2(x, y) - dataSingleton.dragOffset;
-            if (events->dragLockX)
-                newPos.x = transform->position.x;
-            else if (events->dragLockY)
-                newPos.y = transform->position.y;
+            if (dataSingleton.draggedWidget == entity)
+                continue;
 
-            transform->position = newPos;
+            const UIComponent::Transform& transform = eventGroup.get<UIComponent::Transform>(entity);
+            UIComponent::TransformEvents& events = eventGroup.get<UIComponent::TransformEvents>(entity);
+
+            // Check so mouse if within widget bounds.
+            if (x < transform.minBound.x || x > transform.maxBound.x || y < transform.minBound.y || y > transform.maxBound.y)
+                continue;
+
+            // Hovered widget hasn't changed.
+            if (dataSingleton.hoveredWidget == entity)
+                break;
+
+            dataSingleton.hoveredWidget = entity;
+
+            // TODO Update EventState.
+
+            break;
         }
-
-        UIUtils::Transform::UpdateChildTransforms(registry, transform);
-        UIUtils::Transform::MarkDirty(registry, dataSingleton.draggedWidget);
-        UIUtils::Transform::MarkBoundsDirty(registry, dataSingleton.draggedWidget);
-        UIUtils::Transform::MarkChildrenDirty(registry, transform);
     }
 
     bool OnKeyboardInput(Window* window, i32 key, i32 action, i32 modifiers)
     {
+        ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
 
@@ -170,6 +198,7 @@ namespace UIInput
 
     bool OnCharInput(Window* window, u32 unicodeKey)
     {
+        ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
 

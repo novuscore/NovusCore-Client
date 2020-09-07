@@ -24,10 +24,16 @@ namespace UIComponent
 
         u8 flags = 0;
         asIScriptFunction* onClickCallback = nullptr;
+
         asIScriptFunction* onDragStartedCallback = nullptr;
         asIScriptFunction* onDragEndedCallback = nullptr;
+        
         asIScriptFunction* onFocusedCallback = nullptr;
         asIScriptFunction* onUnfocusedCallback = nullptr;
+        
+        asIScriptFunction* onHoveredCallback = nullptr;
+        asIScriptFunction* onUnhoveredCallback = nullptr;
+
         void* asObject = nullptr;
 
         bool dragLockX = false;
@@ -54,6 +60,7 @@ namespace UIComponent
         {
             _OnEvent(onClickCallback);
         }
+
         void OnDragStarted()
         {
             _OnEvent(onDragStartedCallback);
@@ -62,6 +69,7 @@ namespace UIComponent
         {
             _OnEvent(onDragEndedCallback);
         }
+        
         void OnFocused()
         {
             _OnEvent(onFocusedCallback);
@@ -69,6 +77,15 @@ namespace UIComponent
         void OnUnfocused()
         {
             _OnEvent(onUnfocusedCallback);
+        }
+
+        void OnHovered()
+        {
+            _OnEvent(onHoveredCallback);
+        }
+        void OnUnhovered()
+        {
+            _OnEvent(onUnhoveredCallback);
         }
 
         inline void SetFlag(const UI::UITransformEventsFlags inFlags) { flags |= inFlags; }

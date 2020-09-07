@@ -32,6 +32,7 @@ namespace UISingleton
 
         entt::entity focusedWidget = entt::null;
         entt::entity draggedWidget = entt::null;
+        entt::entity hoveredWidget = entt::null;
         vec2 dragOffset = vec2(0,0);
 
         //Resolution
