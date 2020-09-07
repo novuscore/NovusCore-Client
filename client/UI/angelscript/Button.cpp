@@ -7,6 +7,7 @@
 #include "../ECS/Components/Singletons/UILockSingleton.h"
 #include "../ECS/Components/Visible.h"
 #include "../ECS/Components/Collidable.h"
+#include "../ECS/Components/Renderable.h"
 
 namespace UIScripting
 {
@@ -24,27 +25,23 @@ namespace UIScripting
 
             registry->emplace<UIComponent::Visible>(_entityId);
             registry->emplace<UIComponent::Visibility>(_entityId);
-            registry->emplace<UIComponent::Collidable>(_entityId);
+            registry->emplace<UIComponent::Image>(_entityId);
+            registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
 
             UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
             events->asObject = this;
+
+            transform->collision = true;
+            registry->emplace<UIComponent::Collidable>(_entityId);
         }
         uiLockSingleton.mutex.unlock();
-
-        _panel = Panel::CreatePanel();
-        _panel->SetFillParentSize(true);
-        _panel->SetAnchor(vec2(0.5, 0.5));
-        _panel->SetLocalAnchor(vec2(0.5, 0.5));
-        _panel->SetParent(this);
-        _panel->SetCollisionEnabled(false);
-
+        
+        // Not locking is fine here because no one else can reasonably modify this.
         _label = Label::CreateLabel();
-        _label->SetFillParentSize(true);
-        _label->SetAnchor(vec2(0.5, 0.5));
-        _label->SetLocalAnchor(vec2(0.5, 0.5));
-        _label->SetParent(this);
         _label->SetCollisionEnabled(false);
         _label->SetHorizontalAlignment(UI::TextHorizontalAlignment::CENTER);
+        _label->SetFillParentSize(true);
+        _label->SetParent(this);
     }
     
     void Button::RegisterType()
@@ -67,7 +64,7 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("Color GetOutlineColor()", asMETHOD(Button, GetTextOutlineColor)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineWidth(float width)", asMETHOD(Button, SetTextOutlineWidth)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("float GetOutlineWidth()", asMETHOD(Button, GetTextOutlineWidth)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetFont(string fontPath, float fontSize)", asMETHOD(Button, SetTextFont)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetFont(string fontPath, float fontSize)", asMETHOD(Button, SetFont)); assert(r >= 0);
 
         //Panel Functions.
         r = ScriptEngine::RegisterScriptClassFunction("string GetTexture()", asMETHOD(Button, GetTexture)); assert(r >= 0);
@@ -125,29 +122,33 @@ namespace UIScripting
         return _label->GetOutlineWidth();
     }
 
-    void Button::SetTextFont(std::string fontPath, f32 fontSize)
+    void Button::SetFont(std::string fontPath, f32 fontSize)
     {
         _label->SetFont(fontPath, fontSize);
     }
 
-    void Button::SetTexture(const std::string& texture)
-    {
-        _panel->SetTexture(texture);
-    }
-
     const std::string& Button::GetTexture() const
     {
-        return _panel->GetTexture();
+        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        return image->style.texture;
     }
-
-    void Button::SetColor(const Color& color)
+    void Button::SetTexture(const std::string& texture)
     {
-        _panel->SetColor(color);
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
+        image->style.texture = texture;
     }
 
     const Color Button::GetColor() const
     {
-        return _panel->GetColor();
+        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        return image->style.color;
+    }
+    void Button::SetColor(const Color& color)
+    {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
+        image->style.color = color;
     }
 
     Button* Button::CreateButton()
