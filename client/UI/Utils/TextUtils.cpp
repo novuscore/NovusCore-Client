@@ -102,7 +102,7 @@ namespace UIUtils::Text
 
         auto GetAdvance = [&](char c) { return std::isspace(c) ? text->style.fontSize * 0.15f : text->font->GetChar(c).advance; };
 
-        for (size_t i = text->pushback; i < text->text.length() - 1; i++)
+        for (size_t i = text->pushback; i < text->text.length(); i++)
         {
             lineWidths.back() += GetAdvance(text->text[i]);
         }
