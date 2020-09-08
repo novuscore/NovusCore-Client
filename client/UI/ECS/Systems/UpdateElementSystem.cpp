@@ -8,6 +8,7 @@
 #include "../Components/Transform.h"
 #include "../Components/Image.h"
 #include "../Components/Text.h"
+#include "../Components/InputField.h"
 #include "../Components/Dirty.h"
 #include "../Components/BoundsDirty.h"
 #include "../Components/Visible.h"
@@ -101,6 +102,12 @@ namespace UISystem
         boundsUpdateView.each([&](UIComponent::Transform& transform)
             {
                 UIUtils::Transform::UpdateBounds(ServiceLocator::GetUIRegistry(), &transform, true);
+            });
+
+        auto inputFieldView = registry.view<UIComponent::Transform, UIComponent::InputField, UIComponent::Text, UIComponent::Dirty>();
+        inputFieldView.each([&](const UIComponent::Transform& transform, const UIComponent::InputField& inputField, UIComponent::Text& text)
+            {
+                text.pushback = UIUtils::Text::CalculatePushback(&text, inputField.writeHeadIndex, 0.2f, transform.size.x, transform.size.y);
             });
 
         auto imageView = registry.view<UIComponent::Transform, UIComponent::Image, UIComponent::Dirty>();

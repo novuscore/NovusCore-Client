@@ -210,6 +210,7 @@ namespace UIInput
         {
             UIScripting::InputField* inputField = reinterpret_cast<UIScripting::InputField*>(transform.asObject);
             inputField->HandleCharInput((char)unicodeKey);
+            inputField->MarkSelfDirty();
         }
 
         return true;

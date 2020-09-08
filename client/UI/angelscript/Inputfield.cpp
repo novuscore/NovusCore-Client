@@ -102,12 +102,12 @@ namespace UIScripting
             registry->get<UIComponent::InputField>(_entityId).OnSubmit();
             registry->get<UIComponent::TransformEvents>(_entityId).OnUnfocused();
             registry->ctx<UISingleton::UIDataSingleton>().focusedWidget = entt::null;
-            MarkSelfDirty();
             break;
         }
         default:
             break;
         }
+        MarkSelfDirty();
     }
 
     void InputField::HandleCharInput(const char input)
@@ -122,7 +122,6 @@ namespace UIScripting
             text->text.insert(inputField->writeHeadIndex, 1, input);
 
         MovePointerRight();
-        MarkDirty();
     }
 
     void InputField::RemovePreviousCharacter()
@@ -136,7 +135,6 @@ namespace UIScripting
 
         text->text.erase(inputField->writeHeadIndex - 1, 1);
         inputField->writeHeadIndex--;
-        MarkDirty();
     }
     void InputField::RemoveNextCharacter()
     {
@@ -148,7 +146,6 @@ namespace UIScripting
             return;
 
         text->text.erase(inputField->writeHeadIndex, 1);
-        MarkDirty();
     }
 
     void InputField::MovePointerLeft()
