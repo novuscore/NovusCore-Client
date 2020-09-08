@@ -28,7 +28,7 @@ namespace UIUtils::Text
 
         f32 lineLength = 0.f;
         bool overflowed = false;
-        for (; finalCharacter < text->text.length() - 1; finalCharacter++)
+        for (; finalCharacter < text->text.length(); finalCharacter++)
         {
             lineLength += GetAdvance(text->text[finalCharacter]);
 
