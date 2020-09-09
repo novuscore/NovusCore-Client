@@ -58,7 +58,7 @@ namespace UIUtils::Text
     }
     size_t CalculateMultilinePushback(const UIComponent::Text* text, const size_t writeHead, const f32 maxWidth, const f32 maxHeight)
     {
-        u32 maxLines = static_cast<u32>(maxHeight / (text->style.fontSize * text->style.lineHeight));
+        u32 maxLines = static_cast<u32>(maxHeight / (text->style.fontSize * text->style.lineHeightMultiplier));
         std::vector<f32> lineWidths;
         std::vector<size_t> lineBreakPoints;
         CalculateAllLineWidthsAndBreaks(text, maxWidth, lineWidths, lineBreakPoints);
@@ -100,11 +100,62 @@ namespace UIUtils::Text
         lineWidths.push_back(0);
         lineBreakPoints.clear();
 
-        auto GetAdvance = [&](char c) { return std::isspace(c) ? text->style.fontSize * 0.15f : text->font->GetChar(c).advance; };
+        const u32 MaxLines = text->isMultiline ? (u32)(maxHeight / (text->style.fontSize * text->style.lineHeightMultiplier)) : 1;
+        size_t wordStart = 0;
+        f32 wordWidth = 0.f;
+        f32 advance = 0.f;
+
+        const auto IsLastLine = [&]() { return lineWidths.size() == MaxLines; };
+        const auto BreakWord = [&](size_t i)
+        {
+            wordStart = i + 1;
+            wordWidth = 0.f;
+        };
+        const auto BreakLine = [&](size_t i)
+        {
+            lineWidths.push_back(0);
+            lineBreakPoints.push_back(i);
+        };
 
         for (size_t i = text->pushback; i < text->text.length(); i++)
         {
-            lineWidths.back() += GetAdvance(text->text[i]);
+            if (text->text[i] == '\n')
+            {
+                if (IsLastLine())
+                    return i;
+
+                BreakWord(i);
+                BreakLine(i);
+                continue;
+            }
+
+            if (std::isspace(text->text[i]))
+            {
+                advance = text->style.fontSize * 0.15f;
+                BreakWord(i);
+            }
+            else
+            {
+                advance = text->font->GetChar(text->text[i]).advance;
+                wordWidth += advance;
+            }
+
+            if (lineWidths.back() + advance > maxWidth)
+            {
+                if (IsLastLine())
+                    return i;
+
+                if (wordWidth > maxWidth)
+                    BreakLine(i);
+                else
+                {
+                    BreakLine(wordStart);
+                    advance = wordWidth;
+                }
+
+            }
+
+            lineWidths.back() += advance;
         }
 
         return text->text.length();

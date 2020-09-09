@@ -157,7 +157,7 @@ namespace UIInput
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
 
-        if (dataSingleton.focusedWidget == entt::null || action != GLFW_RELEASE)
+        if (dataSingleton.focusedWidget == entt::null)
             return false;
 
         UIComponent::Transform& transform = registry->get<UIComponent::Transform>(dataSingleton.focusedWidget);

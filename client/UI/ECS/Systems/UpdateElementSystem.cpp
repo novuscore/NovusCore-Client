@@ -229,7 +229,7 @@ namespace UISystem
                     if (currentLine < lineBreakPoints.size() && lineBreakPoints[currentLine] == i)
                     {
                         currentLine++;
-                        currentPosition.y += text.style.fontSize * text.style.lineHeight;
+                        currentPosition.y += text.style.fontSize * text.style.lineHeightMultiplier;
                         currentPosition.x = startX - lineWidths[currentLine] * alignment.x;
                     }
 

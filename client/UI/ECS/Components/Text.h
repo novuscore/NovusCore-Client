@@ -29,7 +29,7 @@ namespace UI
         std::string fontPath = "";
         f32 fontSize = 0;
 
-        f32 lineHeight = 1.15f;
+        f32 lineHeightMultiplier = 1.15f;
     };
 }
 
