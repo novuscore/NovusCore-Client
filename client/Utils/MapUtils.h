@@ -1,5 +1,37 @@
 #pragma once
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//  * Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+//  * Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in the
+//    documentation and/or other materials provided with the distribution.
+//  * Neither the name of NVIDIA CORPORATION nor the names of its
+//    contributors may be used to endorse or promote products derived
+//    from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Copyright (c) 2008-2019 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
+// Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
+
+// Code used from PhysX was modified by us
+
 #include <NovusTypes.h>
+#include <Math/Geometry.h>
 #include <entt.hpp>
 #include "ServiceLocator.h"
 #include "../Gameplay/Map/Chunk.h"
@@ -9,20 +41,9 @@ namespace Terrain
 {
     namespace MapUtils
     {
-        struct Triangle
-        {
-            vec3 vert1;
-            vec3 vert2;
-            vec3 vert3;
-        };
+        constexpr f32 f32MaxValue = 3.40282346638528859812e+38F;
 
-        struct AABoundingBox
-        {
-            vec3 min;
-            vec3 max;
-        };
-
-        inline vec2 WorldPositionToADTCoordinates(const vec3& position) // TODO: Rename this to be poggers later
+        inline vec2 WorldPositionToADTCoordinates(const vec3& position)
         {
             // This is translated to remap positions [-17066 .. 17066] to [0 ..  34132]
             // This is because we want the Chunk Pos to be between [0 .. 64] and not [-32 .. 32]
@@ -44,21 +65,9 @@ namespace Terrain
             return Math::FloorToInt(chunkPos.x) + (Math::FloorToInt(chunkPos.y) * Terrain::MAP_CHUNKS_PER_MAP_STRIDE);
         }
 
-        inline vec2 GetCellPosFromChunkRemainder(const vec2& chunkRemainder, vec2& outCellRemainder)
-        {
-            outCellRemainder = vec2(fmod(chunkRemainder.y, Terrain::MAP_CELL_SIZE), fmod(chunkRemainder.x, Terrain::MAP_CELL_SIZE));
-            return glm::floor(chunkRemainder / Terrain::MAP_CELL_SIZE);
-        }
-
         inline u32 GetCellIdFromCellPos(const vec2& cellPos)
         {
             return Math::FloorToInt(cellPos.x) + (Math::FloorToInt(cellPos.y) * Terrain::MAP_CELLS_PER_CHUNK_SIDE);
-        }
-
-        inline vec2 GetPatchPosFromCellRemainder(const vec2& cellRemainder, vec2& outPatchRemainder)
-        {
-            outPatchRemainder = vec2(fmod(cellRemainder.x, Terrain::MAP_PATCH_SIZE), fmod(cellRemainder.y, Terrain::MAP_PATCH_SIZE));
-            return glm::floor(cellRemainder / Terrain::MAP_PATCH_SIZE);
         }
 
         inline f32 Sign(vec2 p1, vec2 p2, vec2 p3)
@@ -79,18 +88,6 @@ namespace Terrain
             has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
 
             return !(has_neg && has_pos);
-        }
-
-        inline vec2 GetLocalPosFromVertexId(i32 vertexId)
-        {
-            f32 aX = static_cast<f32>(vertexId % 17);
-            f32 aZ = static_cast<f32>(glm::floor(vertexId / 17.0f));
-
-            bool isOddRow = aX > 8.f;
-            aX = aX - (8.5f * isOddRow);
-            aZ = aZ + (0.5f * isOddRow);
-
-            return vec2(aX, aZ);
         }
 
         inline ivec3 GetVertexIDsFromPatchPos(const vec2& patchPos, const vec2& patchRemainder, vec2& outB, vec2& outC)
@@ -185,10 +182,25 @@ namespace Terrain
 
             return vertexIds;
         }
+        inline f32 GetHeightFromVertexIds(const ivec3& vertexIds, const f32* heightData, const vec2& a, const vec2& b, const vec2& c, const vec2& p)
+        {
+            // We do standard barycentric triangle interpolation to get the actual height of the position
 
-        
+            f32 det = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+            f32 factorA = (b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y);
+            f32 factorB = (c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y);
+            f32 alpha = factorA / det;
+            f32 beta = factorB / det;
+            f32 gamma = 1.0f - alpha - beta;
 
-        inline bool GetVerticesFromWorldPosition(const vec3& position, Triangle& triangle)
+            f32 aHeight = heightData[vertexIds.x];
+            f32 bHeight = heightData[vertexIds.y];
+            f32 cHeight = heightData[vertexIds.z];
+
+            return aHeight * alpha + bHeight * beta + cHeight * gamma;
+        }
+
+        inline bool GetTriangleFromWorldPosition(const vec3& position, Geometry::Triangle& triangle, f32& height)
         {
             entt::registry* registry = ServiceLocator::GetGameRegistry();
             MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
@@ -250,14 +262,15 @@ namespace Terrain
                 triangle.vert3.z = Terrain::MAP_HALF_SIZE - (z + c.x);
             }
 
+            height = GetHeightFromVertexIds(vertexIds, &currentChunk.cells[cellId].heightData[0], a, b, c, patchRemainder * Terrain::MAP_PATCH_SIZE);
             return true;
         }
-        inline std::vector<Triangle> GetCellTrianglesFromWorldPosition(const vec3& position)
+        inline std::vector<Geometry::Triangle> GetCellTrianglesFromWorldPosition(const vec3& position)
         {
             entt::registry* registry = ServiceLocator::GetGameRegistry();
             MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
 
-            std::vector<Triangle> triangles;
+            std::vector<Geometry::Triangle> triangles;
             triangles.reserve(256);
 
             vec2 adtPos = Terrain::MapUtils::WorldPositionToADTCoordinates(position);
@@ -321,7 +334,7 @@ namespace Terrain
                         f32 x = chunkWorldPos.y + cellWorldPos.y + patchWorldPos.y;
                         f32 z = chunkWorldPos.x + cellWorldPos.x + patchWorldPos.x;
 
-                        Triangle& triangle = triangles.emplace_back();
+                        Geometry::Triangle& triangle = triangles.emplace_back();
 
                         // Calculate Vertex A
                         {
@@ -350,23 +363,6 @@ namespace Terrain
             return triangles;
         }
 
-        inline f32 GetHeightFromVertexIds(const ivec3& vertexIds, const f32* heightData, const vec2& a, const vec2& b, const vec2& c, const vec2& p)
-        {
-            // We do standard barycentric triangle interpolation to get the actual height of the position
-
-            f32 det = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
-            f32 factorA = (b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y);
-            f32 factorB = (c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y);
-            f32 alpha = factorA / det;
-            f32 beta = factorB / det;
-            f32 gamma = 1.0f - alpha - beta;
-
-            f32 aHeight = heightData[vertexIds.x];
-            f32 bHeight = heightData[vertexIds.y];
-            f32 cHeight = heightData[vertexIds.z];
-
-            return aHeight * alpha + bHeight * beta + cHeight * gamma;
-        }
         inline f32 GetHeightFromWorldPosition(const vec3& position)
         {
             entt::registry* registry = ServiceLocator::GetGameRegistry();
@@ -408,7 +404,7 @@ namespace Terrain
             if (val < minMax.x) minMax.x = val;
             if (val > minMax.y) minMax.y = val;
         }
-        inline void ProjectTriangle(const Triangle& triangle, const vec3& axis, vec2& minMax)
+        inline void ProjectTriangle(const Geometry::Triangle& triangle, const vec3& axis, vec2& minMax)
         {
             minMax.x = 100000.0f;
             minMax.y = -100000.0f;
@@ -417,7 +413,7 @@ namespace Terrain
             Project(triangle.vert2, axis, minMax);
             Project(triangle.vert3, axis, minMax);
         }
-        inline void ProjectBox(const AABoundingBox& box, const vec3& axis, vec2& minMax)
+        inline void ProjectBox(const Geometry::AABoundingBox& box, const vec3& axis, vec2& minMax)
         {
              minMax.x = 100000.0f;
              minMax.y = -100000.0f;
@@ -433,7 +429,7 @@ namespace Terrain
              Project({box.max.x, box.min.y, box.max.z}, axis, minMax);
         }
 
-        inline bool Intersect_SPHERE_TRIANGLE(const vec3& spherePos, const f32 sphereRadius, const Triangle& triangle)
+        inline bool Intersect_SPHERE_TRIANGLE(const vec3& spherePos, const f32 sphereRadius, const Geometry::Triangle& triangle)
         {
             // Translate problem so sphere is centered at origin
             vec3 a = triangle.vert1 - spherePos;
@@ -487,7 +483,176 @@ namespace Terrain
             bool seperated = sep1 || sep2 || sep3 || sep4 || sep5 || sep6 || sep7;
             return !seperated;
         }
-        inline bool Intersect_AABB_TRIANGLE(const AABoundingBox& box, const Triangle& triangle)
+
+#pragma warning( push )
+#pragma warning( disable : 4723 )
+        inline bool TestOverlap(const f32& boxExt, bool& validMTD, const f32& triMin, const f32& triMax, f32& d0, f32& d1)
+        {
+            d0 = -boxExt - triMax;
+            d1 = boxExt - triMin;
+            const bool intersects = (d0 <= 0.0f && d1 >= 0.0f);
+            validMTD &= intersects;
+
+            return intersects;
+        }
+
+        inline i32 TestAxis(const vec3& boxScale, const Geometry::Triangle& triangle, const vec3& dir, const vec3& axis, bool& validMTD, f32& tFirst, f32& tLast)
+        {
+            const f32 d0t = glm::dot(triangle.vert1, axis);
+            const f32 d1t = glm::dot(triangle.vert2, axis);
+            const f32 d2t = glm::dot(triangle.vert3, axis);
+
+            f32 triMin = glm::min(d0t, d1t);
+            f32 triMax = glm::max(d0t, d1t);
+
+            triMin = glm::min(triMin, d2t);
+            triMax = glm::max(triMax, d2t);
+
+            const f32 boxExt = glm::abs(axis.x) * boxScale.x + glm::abs(axis.y) * boxScale.y + glm::abs(axis.z) * boxScale.z;
+
+            f32 d0 = 0;
+            f32 d1 = 0;
+            bool intersected = TestOverlap(boxExt, validMTD, triMin, triMax, d0, d1);
+
+            const f32 v = glm::dot(dir, axis);
+            if (glm::abs(v) < 1.0E-6f)
+                return intersected;
+
+            const f32 oneOverV = -1.0f / v;
+            const f32 t0_ = d0 * oneOverV;
+            const f32 t1_ = d1 * oneOverV;
+
+            f32 t0 = glm::min(t0_, t1_);
+            f32 t1 = glm::max(t0_, t1_);
+
+            if (t0 > tLast || t1 < tFirst)
+                return false;
+
+            tLast = glm::min(t1, tLast);
+            tFirst = glm::max(t0, tFirst);
+
+            return true;
+        }
+        inline i32 TestAxisXYZ(const i32 index, const vec3& boxScale, const Geometry::Triangle& triangle, const vec3& dir, const f32& oneOverDir, bool& validMTD, f32& tFirst, f32& tLast)
+        {
+            const f32 d0t = triangle.vert1[index];
+            const f32 d1t = triangle.vert2[index];
+            const f32 d2t = triangle.vert3[index];
+
+            f32 triMin = glm::min(d0t, d1t);
+            f32 triMax = glm::max(d0t, d1t);
+
+            triMin = glm::min(triMin, d2t);
+            triMax = glm::max(triMax, d2t);
+
+            const f32 boxExt = boxScale[index];
+
+            f32 d0 = 0;
+            f32 d1 = 0;
+            bool intersected = TestOverlap(boxExt, validMTD, triMin, triMax, d0, d1);
+
+            const f32 v = dir[index];
+            if (glm::abs(v) < 1.0E-6f)
+                return intersected;
+
+            const f32 oneOverV = -oneOverDir;
+            const f32 t0_ = d0 * oneOverV;
+            const f32 t1_ = d1 * oneOverV;
+
+            f32 t0 = glm::min(t0_, t1_);
+            f32 t1 = glm::max(t0_, t1_);
+
+            if (t0 > tLast || t1 < tFirst)
+                return false;
+
+            tLast = glm::min(t1, tLast);
+            tFirst = glm::max(t0, tFirst);
+
+            return true;
+        }
+        inline bool TestSeperationAxes(const vec3& boxScale, const Geometry::Triangle& triangle, const vec3& normal, const vec3& dir, const vec3& oneOverDir, f32 maxDist, f32& outDistToCollision)
+        {
+            bool validMTD = true;
+
+            f32 tFirst = -f32MaxValue;
+            f32 tLast = f32MaxValue;
+
+            // Test Triangle Normal
+            if (!TestAxis(boxScale, triangle, dir, normal, validMTD, tFirst, tLast))
+                return false;
+
+            // Test Box Normals
+            if (!TestAxisXYZ(0, boxScale, triangle, dir, oneOverDir.x, validMTD, tFirst, tLast))
+                return false;
+
+            if (!TestAxisXYZ(1, boxScale, triangle, dir, oneOverDir.y, validMTD, tFirst, tLast))
+                return false;
+
+            if (!TestAxisXYZ(2, boxScale, triangle, dir, oneOverDir.z, validMTD, tFirst, tLast))
+                return false;
+
+            for (u32 i = 0; i < 3; i++)
+            {
+                i32 j = i + 1;
+                if (i == 2)
+                    j = 0;
+
+                const vec3& triangleEdge = triangle.GetVert(j) - triangle.GetVert(i);
+
+                {
+                    // Cross100
+                    const vec3& sep = vec3(0.0f, -triangleEdge.z, triangleEdge.y);
+                    if ((glm::dot(sep, sep) >= 1.0E-6f) && !TestAxis(boxScale, triangle, dir, sep, validMTD, tFirst, tLast))
+                        return false;
+                }
+
+                {
+                    // Cross010
+                    const vec3& sep = vec3(triangleEdge.z, 0.0f, -triangleEdge.x);
+                    if ((glm::dot(sep, sep) >= 1.0E-6f) && !TestAxis(boxScale, triangle, dir, sep, validMTD, tFirst, tLast))
+                        return false;
+                }
+
+                {
+                    // Cross001
+                    const vec3& sep = vec3(-triangleEdge.y, triangleEdge.x, 0.0f);
+                    if ((glm::dot(sep, sep) >= 1.0E-6f) && !TestAxis(boxScale, triangle, dir, sep, validMTD, tFirst, tLast))
+                        return false;
+                }
+            }
+
+            if (tFirst > maxDist || tLast < 0.0f)
+                return false;
+
+            if (tFirst <= 0.0f)
+            {
+                if (!validMTD)
+                    return false;
+
+                outDistToCollision = 0.0f;
+            }
+            else
+            {
+                outDistToCollision = tFirst;
+            }
+
+            return true;
+        }
+
+        // This function assumes the triangle is "translated" as such that its position is relative to the box's center meaning the origin(0,0) is the box's center
+        // This function && (TestSeperationAxes, TestAxis and TestAxisXYZ) all come from https://github.com/NVIDIAGameWorks/PhysX/blob/4.1/physx/source/geomutils/src/sweep/GuSweepBoxTriangle_SAT.h
+        inline bool Intersect_AABB_TRIANGLE_SWEEP(const vec3& boxScale, const Geometry::Triangle& triangle, const vec3& dir, f32 maxDist, f32& outDistToCollision, bool backFaceCulling)
+        {
+            const vec3& oneOverDir = 1.0f / dir;
+            vec3 triangleNormal = triangle.GetNormal();
+
+            if (backFaceCulling && glm::dot(triangleNormal, dir) >= 0.0f)
+                return 0;
+
+            return TestSeperationAxes(boxScale, triangle, triangleNormal, dir, oneOverDir, maxDist, outDistToCollision);
+        }
+#pragma warning(pop)
+        inline bool Intersect_AABB_TRIANGLE(const Geometry::AABoundingBox& box, const Geometry::Triangle& triangle)
         {
             vec2 triangleMinMax;
             vec2 boxMinMax;
@@ -506,10 +671,7 @@ namespace Terrain
             }
 
             // Test the triangle normal
-            vec3 a = triangle.vert2 - triangle.vert1;
-            vec3 b = triangle.vert3 - triangle.vert1;
-            vec3 triangleNormal = vec3((a.y * b.z) - (a.z * b.y), (a.z * b.x) - (a.x * b.z), (a.x * b.y) - (a.y * b.x));
-
+            vec3 triangleNormal = triangle.GetNormal();
             f32 triangleOffset = glm::dot(triangleNormal, triangle.vert1);
             ProjectBox(box, triangleNormal, boxMinMax);
 
@@ -538,7 +700,7 @@ namespace Terrain
 
             return true;
         }
-        inline bool Intersect_AABB_TERRAIN(const vec3& position, const AABoundingBox& box, Triangle& triangle)
+        inline bool Intersect_AABB_TERRAIN(const vec3& position, const Geometry::AABoundingBox& box, Geometry::Triangle& triangle, f32& height)
         {
             vec3 scale = (box.max - box.min) / 2.0f;
 
@@ -551,11 +713,16 @@ namespace Terrain
                 {scale.x, 0, scale.z}
             };
 
+            // TODO: Look into if we want to optimize this, the reason we currently
+            //       always get the Verticies from pos is because we don't manually
+            //       check for chunk/cell borders, but we could speed this part up
+            //       by doing that manually instead of calling GetVerticiesFromWorldPosition
+            //       5 times.
             for (i32 i = 0; i < 5; i++)
             {
                 vec3 pos = position + offsets[i];
 
-                if (GetVerticesFromWorldPosition(pos, triangle))
+                if (GetTriangleFromWorldPosition(pos, triangle, height))
                 {
                     if (Intersect_AABB_TRIANGLE(box, triangle))
                         return true;
@@ -563,6 +730,56 @@ namespace Terrain
             }
 
             return false;
+        }
+        inline bool Intersect_AABB_TERRAIN_SWEEP(const Geometry::AABoundingBox& box, Geometry::Triangle& triangle, const vec3& direction, f32& height, f32 maxDist, vec3& outDistToCollision)
+        {
+            vec3 scale = (box.max - box.min) / 2.0f;
+            vec3 center = box.max - scale;
+
+            vec3 offsets[5] =
+            {
+                {0, 0, 0},
+                {-scale.x, 0, -scale.z},
+                {scale.x, 0, -scale.z},
+                {-scale.x, 0, scale.z},
+                {scale.x, 0, scale.z}
+            };
+
+
+            // TODO: Look into if we want to optimize this, the reason we currently
+            //       always get the Verticies from pos is because we don't manually
+            //       check for chunk/cell borders, but we could speed this part up
+            //       by doing that manually instead of calling GetVerticiesFromWorldPosition
+            //       5 times.
+
+            f32 timeToCollision = f32MaxValue;
+
+            for (i32 i = 0; i < 5; i++)
+            {
+                vec3 pos = center + offsets[i];
+                Geometry::Triangle tri;
+
+                if (GetTriangleFromWorldPosition(pos, tri, height))
+                {
+                    // First store tri in triangle and then translate tri's position so that center is origin(0,0)
+                    triangle = tri;
+
+                    tri.vert1 -= center;
+                    tri.vert2 -= center;
+                    tri.vert3 -= center;
+
+                    // We need to find the "shortest" collision here and not just "any" collision (Not doing this causes issues when testing against multiple triangles
+                    f32 tmpTimeToCollision = 0;
+                    if (Intersect_AABB_TRIANGLE_SWEEP(scale, tri, direction, maxDist, tmpTimeToCollision, true))
+                    {
+                        if (tmpTimeToCollision < timeToCollision)
+                            timeToCollision = tmpTimeToCollision;
+                    }
+                }
+            }
+
+            outDistToCollision = timeToCollision * direction;
+            return timeToCollision != f32MaxValue;
         }
     }
 }

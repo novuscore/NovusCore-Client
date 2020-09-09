@@ -27,12 +27,12 @@ namespace Renderer
             u32 set;
             u32 binding;
             u32 count;
-            VkShaderStageFlagBits stageFlags;
+            u32 stageFlags;
         };
 
         struct BindInfoPushConstant
         {
-            VkShaderStageFlags stageFlags;
+            u32 stageFlags;
             u32 offset;
             u32 size;
         };

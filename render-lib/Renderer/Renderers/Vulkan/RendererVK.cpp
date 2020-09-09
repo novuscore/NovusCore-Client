@@ -52,6 +52,15 @@ namespace Renderer
         _semaphoreHandler->Init(_device);
 
         _textureHandler->LoadDebugTexture(debugTexture);
+
+        // Load dummy pipeline containing our global descriptorset
+        VertexShaderDesc dummyShaderDesc;
+        dummyShaderDesc.path = "Data/shaders/globalDataDummy.vs.hlsl.spv";
+
+        GraphicsPipelineDesc dummyPipelineDesc;
+        dummyPipelineDesc.states.vertexShader = _shaderHandler->LoadShader(dummyShaderDesc);
+
+        _globalDummyPipeline = _pipelineHandler->CreatePipeline(dummyPipelineDesc);
     }
 
     void RendererVK::InitWindow(Window* window)
@@ -372,23 +381,12 @@ namespace Renderer
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
-        if (_renderPassOpenCount <= 0)
-        {
-            NC_LOG_FATAL("You tried to dispatch without first calling BeginPipeline!");
-        }
-
         vkCmdDispatch(commandBuffer, threadGroupCountX, threadGroupCountY, threadGroupCountZ);
     }
 
     void RendererVK::DispatchIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
-
-        if (_renderPassOpenCount <= 0)
-        {
-            NC_LOG_FATAL("You tried to dispatch without first calling BeginPipeline!");
-        }
-
         VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
 
         vkCmdDispatchIndirect(commandBuffer, vkArgumentBuffer, argumentBufferOffset);
@@ -454,11 +452,35 @@ namespace Renderer
         _renderPassOpenCount--;
 
         vkCmdEndRenderPass(commandBuffer);
+        _commandListHandler->SetBoundGraphicsPipeline(commandListID, GraphicsPipelineID::Invalid());
     }
 
-    void RendererVK::SetPipeline(CommandListID commandListID, ComputePipelineID pipelineID)
+    void RendererVK::BeginPipeline(CommandListID commandListID, ComputePipelineID pipelineID)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkPipeline pipeline = _pipelineHandler->GetPipeline(pipelineID);
+
+        if (_renderPassOpenCount != 0)
+        {
+            NC_LOG_FATAL("You need to match your BeginPipeline calls with a EndPipeline call before beginning another pipeline!");
+        }
+        _renderPassOpenCount++;
+
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+
+        _commandListHandler->SetBoundComputePipeline(commandListID, pipelineID);
+    }
+
+    void RendererVK::EndPipeline(CommandListID commandListID, ComputePipelineID pipelineID)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        if (_renderPassOpenCount <= 0)
+        {
+            NC_LOG_FATAL("You tried to call EndPipeline without first calling BeginPipeline!");
+        }
+        _renderPassOpenCount--;
 
         VkPipeline pipeline = _pipelineHandler->GetPipeline(pipelineID);
 
@@ -666,7 +688,6 @@ namespace Renderer
             imageInfosArrays.reserve(8);
 
             Backend::DescriptorSetBuilderVK* builder = _pipelineHandler->GetDescriptorSetBuilder(graphicsPipelineID);
-            assert(slot != DescriptorSetSlot::GLOBAL); // TODO: this won't need or have a graphicspipelineID, not sure how to do that yet
 
             for (u32 i = 0; i < numDescriptors; i++)
             {
@@ -681,15 +702,13 @@ namespace Renderer
 
             // Bind descriptor set
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, slot, 1, &descriptorSet, 0, nullptr);
-        }
-
-        if (computePipelineID != ComputePipelineID::Invalid())
+        } 
+        else if (computePipelineID != ComputePipelineID::Invalid())
         {
             std::vector<std::vector<VkDescriptorImageInfo>> imageInfosArrays; // These need to live until builder->BuildDescriptor()
             imageInfosArrays.reserve(8);
 
             Backend::DescriptorSetBuilderVK* builder = _pipelineHandler->GetDescriptorSetBuilder(computePipelineID);
-            assert(slot != DescriptorSetSlot::GLOBAL); // TODO: this won't need or have a graphicspipelineID, not sure how to do that yet
 
             for (u32 i = 0; i < numDescriptors; i++)
             {

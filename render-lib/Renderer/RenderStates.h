@@ -403,6 +403,13 @@ namespace Renderer
         IMAGE_FORMAT_R8G8B8A8_UINT,
         IMAGE_FORMAT_R8G8B8A8_SNORM,
         IMAGE_FORMAT_R8G8B8A8_SINT,
+
+        IMAGE_FORMAT_B8G8R8A8_UNORM,
+        IMAGE_FORMAT_B8G8R8A8_UNORM_SRGB,
+        IMAGE_FORMAT_B8G8R8A8_SNORM,
+        IMAGE_FORMAT_B8G8R8A8_UINT,
+        IMAGE_FORMAT_B8G8R8A8_SINT,
+
         IMAGE_FORMAT_R16G16_FLOAT,
         IMAGE_FORMAT_R16G16_UNORM,
         IMAGE_FORMAT_R16G16_UINT,
@@ -517,6 +524,7 @@ namespace Renderer
             case IMAGE_FORMAT_R32G32_UINT:
             case IMAGE_FORMAT_R10G10B10A2_UINT:
             case IMAGE_FORMAT_R8G8B8A8_UINT:
+            case IMAGE_FORMAT_B8G8R8A8_UINT:
             case IMAGE_FORMAT_R16G16_UINT:
             case IMAGE_FORMAT_R32_UINT:
             case IMAGE_FORMAT_R8G8_UINT:
@@ -529,6 +537,7 @@ namespace Renderer
             case IMAGE_FORMAT_R16G16B16A16_SINT:
             case IMAGE_FORMAT_R32G32_SINT:
             case IMAGE_FORMAT_R8G8B8A8_SINT:
+            case IMAGE_FORMAT_B8G8R8A8_SINT:
             case IMAGE_FORMAT_R16G16_SINT:
             case IMAGE_FORMAT_R32_SINT:
             case IMAGE_FORMAT_R8G8_SINT:
@@ -540,6 +549,8 @@ namespace Renderer
             case IMAGE_FORMAT_R10G10B10A2_UNORM:
             case IMAGE_FORMAT_R8G8B8A8_UNORM:
             case IMAGE_FORMAT_R8G8B8A8_UNORM_SRGB:
+            case IMAGE_FORMAT_B8G8R8A8_UNORM:
+            case IMAGE_FORMAT_B8G8R8A8_UNORM_SRGB:
             case IMAGE_FORMAT_R16G16_UNORM:
             case IMAGE_FORMAT_R8G8_UNORM:
             case IMAGE_FORMAT_D16_UNORM:
@@ -549,6 +560,7 @@ namespace Renderer
 
             case IMAGE_FORMAT_R16G16B16A16_SNORM:
             case IMAGE_FORMAT_R8G8B8A8_SNORM:
+            case IMAGE_FORMAT_B8G8R8A8_SNORM:
             case IMAGE_FORMAT_R16G16_SNORM:
             case IMAGE_FORMAT_R8G8_SNORM:
             case IMAGE_FORMAT_R16_SNORM:

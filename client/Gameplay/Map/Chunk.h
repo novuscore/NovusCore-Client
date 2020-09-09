@@ -37,7 +37,7 @@
 namespace Terrain
 {
     constexpr i32 MAP_CHUNK_TOKEN = 1313685840;
-    constexpr i32 MAP_CHUNK_VERSION = 2;
+    constexpr i32 MAP_CHUNK_VERSION = 3;
     constexpr u16 MAP_CHUNK_ID_INVALID = std::numeric_limits<u16>().max();
 
     constexpr u32 MAP_CHUNKS_PER_MAP_STRIDE = 64;

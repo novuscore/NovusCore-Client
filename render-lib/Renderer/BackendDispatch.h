@@ -32,7 +32,8 @@ namespace Renderer
 
         static void BeginGraphicsPipeline(Renderer* renderer, CommandListID commandList, const void* data);
         static void EndGraphicsPipeline(Renderer* renderer, CommandListID commandList, const void* data);
-        static void SetComputePipeline(Renderer* renderer, CommandListID commandList, const void* data);
+        static void BeginComputePipeline(Renderer* renderer, CommandListID commandList, const void* data);
+        static void EndComputePipeline(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void BindDescriptorSet(Renderer* renderer, CommandListID commandList, const void* data);
 

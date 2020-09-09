@@ -69,11 +69,11 @@ void DebugRenderer::Flush(Renderer::CommandList* commandList)
 	}
 }
 
-void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::BufferID viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
 {
 }
 
-void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::BufferID viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
 {
 	struct TerrainDepthPrepassData
 	{
@@ -139,13 +139,8 @@ void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::Buff
 			Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
 			commandList.BeginPipeline(pipeline);
 
+			commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
 			commandList.SetVertexBuffer(0, _debugVertexBuffer);
-
-			// Bind viewbuffer
-			_passDescriptorSet.Bind("ViewData"_h, viewConstantBuffer);
-
-			// Bind descriptorset
-			commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
 			// Draw
 			commandList.Draw(_debugVertexCount[DBG_VERTEX_BUFFER_LINES_3D], 1, _debugVertexOffset[DBG_VERTEX_BUFFER_LINES_3D], 0);

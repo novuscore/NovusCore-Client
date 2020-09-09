@@ -218,6 +218,13 @@ void InputManager::MousePositionHandler(Window* window, f32 x, f32 y)
         kv.second(window, x, y);
     }
 }
+void InputManager::MouseScrollHandler(Window* window, f32 x, f32 y)
+{
+    for (auto kv : _mouseScrollUpdateCallbacks)
+    {
+        kv.second(window, x, y);
+    }
+}
 
 bool InputManager::RegisterKeybind(std::string keybindTitle, i32 key, i32 actionMask, i32 modifierMask, std::function<KeybindCallbackFunc> callback)
 {
@@ -236,7 +243,6 @@ bool InputManager::RegisterKeybind(std::string keybindTitle, i32 key, i32 action
 
     return true;
 }
-
 bool InputManager::UnregisterKeybind(std::string keybindTitle)
 {
     u32 keybindTitleHash = StringUtils::fnv1a_32(keybindTitle.c_str(), keybindTitle.length());
@@ -260,7 +266,6 @@ bool InputManager::RegisterKeyboardInputCallback(u32 callbackNameHash, std::func
     _keyboardInputCallbackMap[callbackNameHash] = callback;
     return true;
 }
-
 bool InputManager::UnregisterKeyboardInputCallback(u32 callbackNameHash)
 {
     auto iterator = _keyboardInputCallbackMap.find(callbackNameHash);
@@ -280,7 +285,6 @@ bool InputManager::RegisterCharInputCallback(u32 callbackNameHash, std::function
     _charInputCallbackMap[callbackNameHash] = callback;
     return true;
 }
-
 bool InputManager::UnregisterCharInputCallback(u32 callbackNameHash)
 {
     auto iterator = _charInputCallbackMap.find(callbackNameHash);
@@ -302,7 +306,6 @@ bool InputManager::RegisterMousePositionCallback(std::string callbackName, std::
     _mousePositionUpdateCallbacks[hashedCallbackName] = callback;
     return true;
 }
-
 bool InputManager::UnregisterMousePositionCallback(std::string callbackName)
 {
     u32 hashedCallbackName = StringUtils::fnv1a_32(callbackName.c_str(), callbackName.length());
@@ -312,6 +315,29 @@ bool InputManager::UnregisterMousePositionCallback(std::string callbackName)
         return false;
 
     _mousePositionUpdateCallbacks.erase(hashedCallbackName);
+    return true;
+}
+
+bool InputManager::RegisterMouseScrollCallback(std::string callbackName, std::function<MouseScrollUpdateFunc> callback)
+{
+    u32 hashedCallbackName = StringUtils::fnv1a_32(callbackName.c_str(), callbackName.length());
+
+    auto iterator = _mouseScrollUpdateCallbacks.find(hashedCallbackName);
+    if (iterator != _mouseScrollUpdateCallbacks.end())
+        return false;
+
+    _mouseScrollUpdateCallbacks[hashedCallbackName] = callback;
+    return true;
+}
+bool InputManager::UnregisterMouseScrollCallback(std::string callbackName)
+{
+    u32 hashedCallbackName = StringUtils::fnv1a_32(callbackName.c_str(), callbackName.length());
+
+    auto iterator = _mouseScrollUpdateCallbacks.find(hashedCallbackName);
+    if (iterator == _mouseScrollUpdateCallbacks.end())
+        return false;
+
+    _mouseScrollUpdateCallbacks.erase(hashedCallbackName);
     return true;
 }
 
@@ -331,7 +357,6 @@ bool InputManager::IsKeyPressedInWindow(GLFWwindow* window, i32 key)
 {
     return glfwGetKey(window, key) == GLFW_RELEASE ? false : true;
 }
-
 bool InputManager::IsKeyPressedByTitle(std::string keybindTitle)
 {
     u32 hashedKeybindTitle = StringUtils::fnv1a_32(keybindTitle.c_str(), keybindTitle.length());

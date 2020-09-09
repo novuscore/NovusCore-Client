@@ -77,6 +77,8 @@ namespace Terrain
         u16 areaId = 0;
 
         f32 heightData[MAP_CELL_TOTAL_GRID_SIZE] = { 0 };
+        u8 normalData[MAP_CELL_TOTAL_GRID_SIZE][3] = { {127}, {255}, {127} }; // This is ugly but lets us pack this data into 25% of the original size
+        u8 colorData[MAP_CELL_TOTAL_GRID_SIZE][3] = { {127}, {127}, {127} }; // This is ugly but lets us pack this data into 25% of the original size
 
         LiquidData liquidData;
 

@@ -1,3 +1,4 @@
+#include "globalData.inc.hlsl"
 #include "terrain.inc.hlsl"
 
 #define USE_PACKED_HEIGHT_RANGE 1
@@ -93,11 +94,10 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 	}
 
 	const uint instanceIndex = dispatchThreadId.x;
-	const uint instance = _instances.Load(instanceIndex * 4);
+	CellInstance instance = _instances.Load<CellInstance>(instanceIndex * 8);
 
-	const uint cellID = instance & 0xffff;
-	const uint chunkID = instance >> 16;
-
+	const uint cellID = instance.packedChunkCellID & 0xffff;
+	const uint chunkID = instance.packedChunkCellID >> 16;
 
 	const float2 heightRange = ReadHeightRange(instanceIndex);
 	const AABB aabb = GetCellAABB(chunkID, cellID, heightRange);
@@ -110,5 +110,5 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 	uint outInstanceIndex;
 	_argumentBuffer.InterlockedAdd(4, 1, outInstanceIndex);
 
-	_culledInstances.Store(outInstanceIndex * 4, instance);
+	_culledInstances.Store<CellInstance>(outInstanceIndex * 8, instance);
 }

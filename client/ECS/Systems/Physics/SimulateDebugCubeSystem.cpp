@@ -5,6 +5,7 @@
 #include <tracy/Tracy.hpp>
 #include <Renderer/Renderer.h>
 #include <InputManager.h>
+#include <Math/Geometry.h>
 #include "../../../Utils/ServiceLocator.h"
 #include "../../../Utils/MapUtils.h"
 #include "../../../Rendering/DebugRenderer.h"
@@ -28,7 +29,7 @@ void SimulateDebugCubeSystem::Init(entt::registry& registry)
 
         Transform& transform = registry.emplace<Transform>(entity);
         transform.position = camera->GetPosition();
-        transform.scale = vec3(0.5f, 1.2f, 0.5f); // "Ish" scale for humans
+        transform.scale = vec3(0.5f, 2.f, 0.5f); // "Ish" scale for humans
         transform.isDirty = true;
 
         registry.emplace<Rigidbody>(entity);
@@ -48,23 +49,35 @@ void SimulateDebugCubeSystem::Update(entt::registry& registry, DebugRenderer* de
     rigidbodyView.each([&](const auto entity, Transform& transform)
     {
         // Make all rigidbodies "fall"
-        transform.position.y -= GRAVITY_SCALE * timeSingleton.deltaTime;
+        f32 dist = GRAVITY_SCALE * timeSingleton.deltaTime;
 
-        Terrain::MapUtils::AABoundingBox box;
-        box.min = transform.position - transform.scale;
+        Geometry::AABoundingBox box;
+        box.min = transform.position;
+        box.min.x -= transform.scale.x;
+        box.min.z -= transform.scale.z;
+
         box.max = transform.position + transform.scale;
 
-        Terrain::MapUtils::Triangle triangle;
-        if (Terrain::MapUtils::Intersect_AABB_TERRAIN(transform.position, box, triangle))
+        Geometry::Triangle triangle;
+        f32 height = 0;
+
+        vec3 distToCollision;
+        if (Terrain::MapUtils::Intersect_AABB_TERRAIN_SWEEP(box, triangle, vec3(0, -1, 0), height, dist, distToCollision))
         {
+            transform.position += distToCollision;
             registry.remove<Rigidbody>(entity);
         }
+        else
+            transform.position.y -= dist;
+
     });
 
     auto debugCubeView = registry.view<Transform, DebugBox>();
     debugCubeView.each([&](const auto entity, Transform& transform)
     {
-        vec3 min = transform.position - transform.scale;
+        vec3 min = transform.position;
+        min.x -= transform.scale.x;
+        min.z -= transform.scale.z;
         vec3 max = transform.position + transform.scale;
 
         u32 color = 0xff0000ff; // Red if it doesn't have a rigidbody

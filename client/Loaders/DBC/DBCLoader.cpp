@@ -1,4 +1,5 @@
 #include "DBCLoader.h"
+#include <entt.hpp>
 
 #include "../../ECS/Components/Singletons/DBCSingleton.h"
 
@@ -13,7 +14,31 @@ bool DBCLoader::Load(entt::registry* registry)
         return false;
     }
 
+
+    fs::path stringTablePath = std::filesystem::absolute("Data/extracted/Ndbc/NDBCStringTable.nst");
+    if (!fs::exists(stringTablePath))
+    {
+        NC_LOG_ERROR("Failed to find NDBCStringTable.nst");
+        return false;
+    }
+
     DBCSingleton& dbcSingleton = registry->set<DBCSingleton>();
+
+    // Load StringTable first
+    {
+        FileReader stringTableFile(stringTablePath.string(), stringTablePath.filename().string());
+        if (!stringTableFile.Open())
+        {
+            NC_LOG_ERROR("Failed to load %s", stringTablePath.filename().string().c_str());
+            return false;
+        }
+
+        Bytebuffer* buffer = new Bytebuffer(nullptr, stringTableFile.Length());
+        stringTableFile.Read(buffer, buffer->size);
+
+        dbcSingleton.stringTable.Deserialize(buffer);
+        assert(dbcSingleton.stringTable.GetNumStrings() > 0); // We always expect to have more than 0 strings for our NDBC files
+    }
 
     size_t loadedDBCs = 0;
     for (const auto& entry : std::filesystem::recursive_directory_iterator(absolutePath))
@@ -25,21 +50,21 @@ bool DBCLoader::Load(entt::registry* registry)
         FileReader dbcFile(entry.path().string(), filePath.filename().string());
         if (!dbcFile.Open())
         {
-            NC_LOG_ERROR("Failed to load all maps");
+            NC_LOG_ERROR("Failed to load %s", filePath.filename().string().c_str());
             return false;
         }
 
         DBC::File file;
-        file.buffer = Bytebuffer::Borrow<524288>();
+        file.buffer = new Bytebuffer(nullptr, dbcFile.Length());
         if (!ExtractFileData(dbcFile, file))
         {
-            NC_LOG_ERROR("Failed to load all maps");
+            NC_LOG_ERROR("Failed to read %s", filePath.filename().string().c_str());
             return false;
         }
 
         std::string dbcName = filePath.filename().replace_extension().string();
         u32 dbcNameHash = StringUtils::fnv1a_32(dbcName.c_str(), dbcName.size());
-        dbcSingleton.dbcs[dbcNameHash] = file;
+        dbcSingleton.nameHashToDBCFile[dbcNameHash] = file;
 
         loadedDBCs++;
     }
@@ -56,8 +81,7 @@ bool DBCLoader::Load(entt::registry* registry)
 
 bool DBCLoader::ExtractFileData(FileReader& reader, DBC::File& file)
 {
-    file.buffer->size = reader.Length();
-    reader.Read(file.buffer.get(), file.buffer->size);
+    reader.Read(file.buffer, file.buffer->size);
 
     file.buffer->Get<DBC::DBCHeader>(file.header);
 

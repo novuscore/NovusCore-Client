@@ -46,7 +46,6 @@ public:
         RegisterCommand("ping"_h, &PingCommand);
         RegisterCommand("reload"_h, &ReloadCommand);
         RegisterCommand("loadmap"_h, &LoadMapCommand);
-        RegisterCommand("test"_h, &GetChunkIds);
     }
 
     void HandleCommand(EngineLoop& engineLoop, std::string& command)

@@ -24,7 +24,7 @@
 #pragma once
 #include <NovusTypes.h>
 #include <Utils/FileReader.h>
-#include <entt.hpp>
+#include <entity/fwd.hpp>
 #include <vector>
 
 class StringTable;
@@ -48,6 +48,6 @@ public:
     static bool LoadMap(entt::registry* registry, u32 mapInternalNameHash);
 
 private:
-    static bool ExtractMapDBC(DBC::File& file, std::vector<DBC::Map>& maps, StringTable& stringTable);
+    static bool ExtractMapDBC(DBC::File& file, std::vector<DBC::Map>& maps);
     static bool ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk, StringTable& stringTable);
 };

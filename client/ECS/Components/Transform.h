@@ -10,6 +10,7 @@ enum class MovementFlags : u32
     BACKWARD = 1 << 2,
     LEFT = 1 << 3,
     RIGHT = 1 << 4,
+    GROUNDED = 1 << 5, // Special Flag to check if we are grounded
 
     VERTICAL = FORWARD | BACKWARD,
     HORIZONTAL = LEFT | RIGHT,
@@ -64,28 +65,46 @@ inline MovementFlags& operator ^=(MovementFlags& lhs, MovementFlags rhs)
     return lhs;
 }
 
-struct Transform
+struct MovementData
 {
-    vec3 position;
-    vec3 rotation;
-    vec3 scale = vec3(1, 1, 1);
+    MovementFlags flags;
+    f32 speed = 7.1111f;
 
-    MovementFlags moveFlags;
     inline void AddMoveFlag(MovementFlags flag)
     {
-        moveFlags |= flag;
+        flags |= flag;
     }
     inline void RemoveMoveFlag(MovementFlags flag)
     {
-        moveFlags &= ~flag;
+        flags &= ~flag;
     }
     inline bool HasMoveFlag(MovementFlags flag)
     {
-        return (moveFlags & flag) == flag;
+        return (flags & flag) == flag;
     }
+};
 
-    bool isDirty = true;
+struct Transform
+{
+    vec3 position = vec3(0, 0, 0);
+    vec3 velocityDirection = vec3(0, 0, 0);
+    vec3 velocity = vec3(0, 0, 0);
+    vec3 scale = vec3(1, 1, 1);
     
+    // Rotation
+    mat4x4 rotationMatrix;
+    f32 yaw;
+    f32 pitch;
+
+    // Direction vectors
+    vec3 front = vec3(0, 0, 0);
+    vec3 up = vec3(0, 0, 0);
+    vec3 left = vec3(0, 0, 0);
+
+    MovementData movementData;
+    bool isDirty = true;
+
+    vec3 GetRotation() const { return vec3(0, yaw, pitch); }
     mat4x4 GetMatrix()
     {
         // When we pass 1 into the constructor, it will construct an identity matrix
@@ -95,11 +114,16 @@ struct Transform
         // Gamedev.net suggest (Rotate, Scale and Translate) this could be wrong
         // Experience tells me (Translate and then scale or rotate in either order)
         matrix = glm::translate(matrix, position);
-        matrix = glm::rotate(matrix, Math::DegToRad(rotation.x), vec3(1, 0, 0));
-        matrix = glm::rotate(matrix, Math::DegToRad(rotation.y), vec3(0, 1, 0));
-        matrix = glm::rotate(matrix, Math::DegToRad(rotation.z), vec3(0, 0, 1));
+        matrix *= rotationMatrix;
         matrix = glm::scale(matrix, scale);
 
         return matrix;
+    }
+
+    void UpdateVectors()
+    {
+        left = rotationMatrix[0];
+        up = rotationMatrix[1];
+        front = -rotationMatrix[2];
     }
 };

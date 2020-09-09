@@ -4,7 +4,7 @@
 #include <array>
 
 #include <Utils/StringUtils.h>
-#include "../Utils/MapUtils.h"
+#include <Math/Geometry.h>
 #include <Renderer/Descriptors/ImageDesc.h>
 #include <Renderer/Descriptors/DepthImageDesc.h>
 #include <Renderer/Descriptors/TextureDesc.h>
@@ -37,34 +37,60 @@ class Camera;
 class DebugRenderer;
 class MapObjectRenderer;
 
-
-
 class TerrainRenderer
 {
-public:
-    TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer);
-    ~TerrainRenderer();
-
-    void Update(f32 deltaTime, const Camera& camera);
-
-    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, const Camera& camera);
-
-    bool LoadMap(u32 mapInternalNameHash);
-private:
-    void CreatePermanentResources();
-
-    void LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY);
-    void LoadChunksAround(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance);
-    void CPUCulling(const Camera& camera);
-
-    void DebugRenderCellTriangles(const Camera& camera);
-private:
-    Renderer::Renderer* _renderer;
+    struct ChunkToBeLoaded
+    {
+        Terrain::Map* map = nullptr;
+        Terrain::Chunk* chunk = nullptr;
+        u16 chunkPosX;
+        u16 chunkPosY;
+        u16 chunkID;
+    };
 
     struct CullingConstants
     {
         vec4 frustumPlanes[6];
     };
+
+    struct CellInstance
+    {
+        u32 packedChunkCellID;
+        u32 instanceID;
+    };
+
+#pragma pack(push, 1)
+    struct TerrainVertex
+    {
+        u8 normal[3];
+        u8 color[3];
+        f16 height;
+    };
+#pragma pack(pop)
+
+public:
+    TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer);
+    ~TerrainRenderer();
+
+    void Update(f32 deltaTime);
+
+    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
+
+    bool LoadMap(u32 mapInternalNameHash);
+private:
+    void CreatePermanentResources();
+
+    void RegisterChunksToBeLoaded(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance);
+    void RegisterChunkToBeLoaded(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY);
+    void ExecuteLoad();
+
+    void LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded);
+    //void LoadChunksAround(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance);
+    void CPUCulling(const Camera* camera);
+
+    void DebugRenderCellTriangles(const Camera* camera);
+private:
+    Renderer::Renderer* _renderer;
 
     Renderer::Buffer<CullingConstants>* _cullingConstantBuffer;
 
@@ -75,6 +101,7 @@ private:
 
     Renderer::BufferID _chunkBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _cellBuffer = Renderer::BufferID::Invalid();
+
     Renderer::BufferID _vertexBuffer = Renderer::BufferID::Invalid();
 
     Renderer::BufferID _cellIndexBuffer = Renderer::BufferID::Invalid();
@@ -91,9 +118,11 @@ private:
     Renderer::DescriptorSet _cullingPassDescriptorSet;
 
     std::vector<u16> _loadedChunks;
-    std::vector<Terrain::MapUtils::AABoundingBox> _cellBoundingBoxes;
+    std::vector<Geometry::AABoundingBox> _cellBoundingBoxes;
 
-    std::vector<u32> _culledInstances;
+    std::vector<CellInstance> _culledInstances;
+
+    std::vector<ChunkToBeLoaded> _chunksToBeLoaded;
     
     // Subrenderers
     MapObjectRenderer* _mapObjectRenderer = nullptr;

@@ -1,17 +1,11 @@
-
-struct ViewData
-{
-    matrix viewMatrix;
-    matrix projMatrix;
-};
+#include "globalData.inc.hlsl"
 
 struct ModelData
 {
     float4 colorMultiplier;
-    matrix modelMatrix;
+    float4x4 modelMatrix;
 };
 
-[[vk::binding(0, PER_PASS)]] ConstantBuffer<ViewData> _viewData;
 [[vk::binding(0, PER_DRAW)]] ConstantBuffer<ModelData> _modelData;
 
 struct VertexInput
@@ -30,7 +24,7 @@ struct VertexOutput
 VertexOutput main(VertexInput input)
 {
     VertexOutput output;
-    output.position = mul(_viewData.projMatrix, mul(_viewData.viewMatrix, mul(_modelData.modelMatrix, input.position)));
+    output.position = mul(_viewData.viewProjectionMatrix, mul(_modelData.modelMatrix, input.position));
     output.uv = input.uv;
     return output;
 }

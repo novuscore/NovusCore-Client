@@ -24,11 +24,12 @@
 #pragma once
 #include <NovusTypes.h>
 #include <robin_hood.h>
-#include "../../../Gameplay/DBC/DBC.h"
+#include "../../../Loaders/DBC/DBC.h"
 
 struct DBCSingleton
 {
 	DBCSingleton() {}
 
-    robin_hood::unordered_map<u32, DBC::File> dbcs;
+    robin_hood::unordered_map<u32, DBC::File> nameHashToDBCFile;
+	StringTable stringTable;
 };

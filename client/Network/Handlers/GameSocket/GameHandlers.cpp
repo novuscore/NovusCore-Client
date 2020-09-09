@@ -36,7 +36,7 @@ namespace GameSocket
         Transform& transform = registry->emplace<Transform>(entity);
 
         packet->payload->Get(transform.position);
-        packet->payload->Get(transform.rotation);
+        packet->payload->Get(transform.GetRotation());
         packet->payload->Get(transform.scale);
         transform.isDirty = true;
 
@@ -65,7 +65,7 @@ namespace GameSocket
         Transform& transform = registry->emplace<Transform>(entity);
 
         packet->payload->Get(transform.position);
-        packet->payload->Get(transform.rotation);
+        packet->payload->Get(transform.GetRotation());
         packet->payload->Get(transform.scale);
         transform.isDirty = true;
 
@@ -86,7 +86,7 @@ namespace GameSocket
 
         Transform& transform = registry->get<Transform>(entityId);
         packet->payload->Get(transform.position);
-        packet->payload->Get(transform.rotation);
+        packet->payload->Get(transform.GetRotation());
         packet->payload->Get(transform.scale);
         transform.isDirty = true;
 

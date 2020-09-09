@@ -1,4 +1,6 @@
 #include "ServiceLocator.h"
+#include "../Rendering/CameraFreeLook.h"
+#include "../Rendering/CameraOrbital.h"
 
 entt::registry* ServiceLocator::_gameRegistry = nullptr;
 entt::registry* ServiceLocator::_uiRegistry = nullptr;
@@ -7,7 +9,8 @@ MessageHandler* ServiceLocator::_gameSocketMessageHandler = nullptr;
 Window* ServiceLocator::_window = nullptr;
 InputManager* ServiceLocator::_inputManager = nullptr;
 ClientRenderer* ServiceLocator::_clientRenderer = nullptr;
-Camera* ServiceLocator::_camera = nullptr;
+CameraFreeLook* ServiceLocator::_cameraFreeLook = nullptr;
+CameraOrbital* ServiceLocator::_cameraOrbital = nullptr;
 Renderer::Renderer* ServiceLocator::_renderer = nullptr;
 SceneManager* ServiceLocator::_sceneManager = nullptr;
 
@@ -51,10 +54,21 @@ void ServiceLocator::SetClientRenderer(ClientRenderer* clientRenderer)
     _clientRenderer = clientRenderer;
 }
 
-void ServiceLocator::SetCamera(Camera* camera)
+Camera* ServiceLocator::GetCamera()
 {
-    assert(_camera == nullptr);
-    _camera = camera;
+    return _cameraFreeLook->IsActive() ? reinterpret_cast<Camera*>(_cameraFreeLook) : reinterpret_cast<Camera*>(_cameraOrbital);
+}
+
+void ServiceLocator::SetCameraFreeLook(CameraFreeLook* camera)
+{
+    assert(_cameraFreeLook == nullptr);
+    _cameraFreeLook = camera;
+}
+
+void ServiceLocator::SetCameraOrbital(CameraOrbital* camera)
+{
+    assert(_cameraOrbital == nullptr);
+    _cameraOrbital = camera;
 }
 
 void ServiceLocator::SetMainInputQueue(moodycamel::ConcurrentQueue<Message>* mainInputQueue)

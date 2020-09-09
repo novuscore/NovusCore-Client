@@ -27,7 +27,7 @@
 namespace Terrain
 {
     constexpr i32 MAP_OBJECT_TOKEN = 7236975; // UTF8 -> Binary -> Decimal for "nmo"
-    constexpr i32 MAP_OBJECT_VERSION = 1;
+    constexpr i32 MAP_OBJECT_VERSION = 2;
 
     struct TriangleData
     {
@@ -60,11 +60,56 @@ namespace Terrain
         u32 version = 0;
     };
 
+    struct MapObjectFlags
+    {
+        union
+        {
+            u32 flags;
+            struct
+            {
+                bool hasBspTree : 1;
+                bool hasLightMap : 1;
+                bool hasVertexColor : 1;
+                bool exterior : 1;
+                bool unknown0 : 1;
+                bool unknown1 : 1;
+                bool exteriorLit : 1;
+                bool unreachable : 1;
+                bool unknown2 : 1;
+                bool hasLight : 1;
+                bool unknown3 : 1;
+                bool hasDoodads : 1;
+                bool hasWater : 1;
+                bool indoor : 1;
+                bool unknown4 : 1;
+                bool unknown5 : 1;
+                bool alwaysDraw : 1;
+                bool hasMoriMorb : 1;
+                bool skybox : 1;
+                bool ocean : 1;
+                bool unknown6 : 1;
+                bool mountAllowed : 1;
+                bool unknown7 : 1;
+                bool unknown8 : 1;
+                bool useSecondVertexColor : 1;
+                bool hasTwoUVs : 1;
+                bool antiportal : 1;
+                bool unknown9 : 1;
+                bool unused : 4;
+            };
+        };
+    };
+
     struct RenderBatch
     {
         u32 startIndex;
         u16 indexCount;
         u8 materialID;
+    };
+
+    struct VertexColorSet
+    {
+        std::vector<u32> vertexColors;
     };
 
     struct UVSet
@@ -75,11 +120,13 @@ namespace Terrain
     struct MapObject
     {
         MapObjectHeader header;
+        MapObjectFlags flags;
 
         std::vector<u16> indices;
        
         std::vector<vec3> vertexPositions;
         std::vector<vec3> vertexNormals;
+        std::vector<VertexColorSet> vertexColorSets;
         std::vector<UVSet> uvSets;
 
         std::vector<TriangleData> triangleData;

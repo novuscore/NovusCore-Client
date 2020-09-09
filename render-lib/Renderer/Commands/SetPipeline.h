@@ -21,7 +21,14 @@ namespace Renderer
             GraphicsPipelineID pipeline = GraphicsPipelineID::Invalid();
         };
         
-        struct SetComputePipeline
+        struct BeginComputePipeline
+        {
+            static const BackendDispatchFunction DISPATCH_FUNCTION;
+
+            ComputePipelineID pipeline = ComputePipelineID::Invalid();
+        };
+
+        struct EndComputePipeline
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
 

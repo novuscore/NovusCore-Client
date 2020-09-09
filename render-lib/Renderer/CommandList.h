@@ -16,6 +16,8 @@
 #include "Descriptors/ComputePipelineDesc.h"
 #include "Descriptors/GPUSemaphoreDesc.h"
 
+#define COMMANDLIST_DEBUG_IMMEDIATE_MODE 0 // This makes it easier to debug the renderer by providing better callstacks if it asserts or crashes inside of render-lib
+
 #if TRACY_ENABLE
 #define GPU_SCOPED_PROFILER_ZONE(commandList, name) \
     TracySourceLocation(name, #name, tracy::Color::Yellow2); \
@@ -45,15 +47,7 @@ namespace Renderer
     class CommandList
     {
     public:
-        CommandList(Renderer* renderer, Memory::Allocator* allocator)
-            : _renderer(renderer)
-            , _allocator(allocator)
-            , _markerScope(0)
-            , _functions(allocator, 32)
-            , _data(allocator, 32)
-        {
-
-        }
+        CommandList(Renderer* renderer, Memory::Allocator* allocator);
 
         void MarkFrameStart(u32 frameIndex);
 
@@ -66,7 +60,8 @@ namespace Renderer
         void BeginPipeline(GraphicsPipelineID pipelineID);
         void EndPipeline(GraphicsPipelineID pipelineID);
 
-        void BindPipeline(ComputePipelineID pipelineID);
+        void BeginPipeline(ComputePipelineID pipelineID);
+        void EndPipeline(ComputePipelineID pipelineID);
 
         void BindDescriptorSet(DescriptorSetSlot slot, DescriptorSet* descriptorSet, u32 frameIndex);
 
@@ -143,6 +138,10 @@ namespace Renderer
         DynamicArray<void*> _data;
 
         bool _isTracing = false;
+
+#if COMMANDLIST_DEBUG_IMMEDIATE_MODE
+        CommandListID _immediateCommandList = CommandListID::Invalid();
+#endif
 
         friend class RenderGraph;
     };

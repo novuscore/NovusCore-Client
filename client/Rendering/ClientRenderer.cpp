@@ -1,8 +1,9 @@
 #include "ClientRenderer.h"
 #include "UIRenderer.h"
 #include "TerrainRenderer.h"
+#include "NM2Renderer.h"
 #include "DebugRenderer.h"
-#include "Camera.h"
+#include "CameraFreelook.h"
 #include "../Utils/ServiceLocator.h"
 
 #include <Renderer/Renderer.h>
@@ -17,8 +18,7 @@
 
 #include "imgui/imgui_impl_glfw.h"
 
-const int WIDTH = 1920;
-const int HEIGHT = 1080;
+
 const size_t FRAME_ALLOCATOR_SIZE = 8 * 1024 * 1024; // 8 MB
 u32 MAIN_RENDER_LAYER = "MainLayer"_h; // _h will compiletime hash the string into a u32
 u32 DEPTH_PREPASS_RENDER_LAYER = "DepthPrepass"_h; // _h will compiletime hash the string into a u32
@@ -47,6 +47,12 @@ void CursorPositionCallback(GLFWwindow* window, f64 x, f64 y)
     ServiceLocator::GetInputManager()->MousePositionHandler(userWindow, static_cast<f32>(x), static_cast<f32>(y));
 }
 
+void ScrollCallback(GLFWwindow* window, f64 x, f64 y)
+{
+    Window* userWindow = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
+    ServiceLocator::GetInputManager()->MouseScrollHandler(userWindow, static_cast<f32>(x), static_cast<f32>(y));
+}
+
 void WindowIconifyCallback(GLFWwindow* window, int iconified)
 {
     Window* userWindow = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
@@ -55,12 +61,6 @@ void WindowIconifyCallback(GLFWwindow* window, int iconified)
 
 ClientRenderer::ClientRenderer()
 {
-    _camera = new Camera(vec3(-8000.0f, 100.0f, 1600.0f)); // Goldshire
-    //_camera = new Camera(vec3(300.0f, 0.0f, -4700.0f)); // Razor Hill
-    //_camera = new Camera(vec3(3308.0f, 0.0f, 5316.0f)); // Borean Tundra
-
-    //_camera = new Camera(vec3(0.0f, 0.0f, 0.0f));
-
     _window = new Window();
     _window->Init(WIDTH, HEIGHT);
     ServiceLocator::SetWindow(_window);
@@ -68,13 +68,11 @@ ClientRenderer::ClientRenderer()
     _inputManager = new InputManager();
     ServiceLocator::SetInputManager(_inputManager);
 
-    // We have to call Init here as we use the InputManager
-    _camera->Init();
-
     glfwSetKeyCallback(_window->GetWindow(), KeyCallback);
     glfwSetCharCallback(_window->GetWindow(), CharCallback);
     glfwSetMouseButtonCallback(_window->GetWindow(), MouseCallback);
     glfwSetCursorPosCallback(_window->GetWindow(), CursorPositionCallback);
+    glfwSetScrollCallback(_window->GetWindow(), ScrollCallback);
     glfwSetWindowIconifyCallback(_window->GetWindow(), WindowIconifyCallback);
 
     Renderer::TextureDesc debugTexture;
@@ -92,6 +90,7 @@ ClientRenderer::ClientRenderer()
     _debugRenderer = new DebugRenderer(_renderer);
     _uiRenderer = new UIRenderer(_renderer);
     _terrainRenderer = new TerrainRenderer(_renderer, _debugRenderer);
+    _nm2Renderer = new NM2Renderer(_renderer, _debugRenderer);
 
     ServiceLocator::SetClientRenderer(this);
 }
@@ -106,10 +105,8 @@ void ClientRenderer::Update(f32 deltaTime)
     // Reset the memory in the frameAllocator
     _frameAllocator->Reset();
 
-    // Update the camera movement
-    _camera->Update(deltaTime, 75.0f, (float)WIDTH / (float)HEIGHT);
-
-    _terrainRenderer->Update(deltaTime, *_camera);
+    _terrainRenderer->Update(deltaTime);
+    _nm2Renderer->Update(deltaTime);
 
     _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(100.0f, 0.0f, 0.0f), 0xff0000ff);
     _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 100.0f, 0.0f), 0xff00ff00);
@@ -124,6 +121,8 @@ void ClientRenderer::Render()
     if (_window->IsMinimized())
         return;
 
+    Camera* camera = ServiceLocator::GetCamera();
+
     // Create rendergraph
     Renderer::RenderGraphDesc renderGraphDesc;
     renderGraphDesc.allocator = _frameAllocator; // We need to give our rendergraph an allocator to use
@@ -132,10 +131,16 @@ void ClientRenderer::Render()
     _renderer->FlipFrame(_frameIndex);
 
     // Update the view matrix to match the new camera position
-    _viewConstantBuffer->resource.viewProjectionMatrix = _camera->GetViewProjectionMatrix();
+    _viewConstantBuffer->resource.viewProjectionMatrix = camera->GetViewProjectionMatrix();
     _viewConstantBuffer->Apply(_frameIndex);
 
-    _passDescriptorSet.Bind("_viewData"_h, _viewConstantBuffer->GetBuffer(_frameIndex));
+    _lightConstantBuffer->resource.ambientColor = vec4(0.407f, 0.498f, 0.596f, 1.0f);
+    _lightConstantBuffer->resource.lightColor = vec4(1.0f, 0.525f, 0.0f, 1.0f);
+    _lightConstantBuffer->resource.lightDir = vec4(0.0f, -1.0f, -1.0f, 1.0f);
+    _lightConstantBuffer->Apply(_frameIndex);
+
+    _globalDescriptorSet.Bind("_viewData"_h, _viewConstantBuffer->GetBuffer(_frameIndex));
+    _globalDescriptorSet.Bind("_lightData"_h, _lightConstantBuffer->GetBuffer(_frameIndex));
 
     // Depth Prepass
     {
@@ -201,7 +206,7 @@ void ClientRenderer::Render()
             commandList.SetViewport(0, 0, static_cast<f32>(WIDTH), static_cast<f32>(HEIGHT), 0.0f, 1.0f);
             commandList.SetScissorRect(0, WIDTH, 0, HEIGHT);
 
-            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, _frameIndex);
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, &_globalDescriptorSet, _frameIndex);
 
             // Render depth prepass layer
             //Renderer::RenderLayer& layer = _renderer->GetRenderLayer(DEPTH_PREPASS_RENDER_LAYER);
@@ -297,6 +302,7 @@ void ClientRenderer::Render()
 
             _drawDescriptorSet.Bind("_texture", _cubeTexture); // TODO: Actually select textures etc per draw
 
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, &_globalDescriptorSet, _frameIndex);
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, _frameIndex);
 
             // Render main layer
@@ -320,9 +326,11 @@ void ClientRenderer::Render()
         });
     }
 
-    _terrainRenderer->AddTerrainPass(&renderGraph, _viewConstantBuffer, _mainColor, _mainDepth, _frameIndex, *_camera);
+    _terrainRenderer->AddTerrainPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
+
+    _nm2Renderer->AddNM2Pass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
     
-    _debugRenderer->Add3DPass(&renderGraph, _viewConstantBuffer->GetBuffer(_frameIndex), _mainColor, _mainDepth, _frameIndex);
+    _debugRenderer->Add3DPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
 
     _uiRenderer->AddUIPass(&renderGraph, _mainColor, _frameIndex);
 
@@ -408,7 +416,12 @@ void ClientRenderer::CreatePermanentResources()
     // View Constant Buffer (for camera data)
     _viewConstantBuffer = new Renderer::Buffer<ViewConstantBuffer>(_renderer, "ViewConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
+    // Light Constant Buffer
+    _lightConstantBuffer = new Renderer::Buffer<LightConstantBuffer>(_renderer, "LightConstantBufffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
+
     // Create descriptor sets
+    _globalDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
+
     _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
     _passDescriptorSet.Bind("_sampler"_h, _linearSampler);
 

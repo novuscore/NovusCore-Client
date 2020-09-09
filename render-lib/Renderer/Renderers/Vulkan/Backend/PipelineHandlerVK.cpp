@@ -31,11 +31,6 @@ namespace Renderer
 
         GraphicsPipelineID PipelineHandlerVK::CreatePipeline(const GraphicsPipelineDesc& desc)
         {
-            assert(desc.ResourceToImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
-            assert(desc.ResourceToDepthImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
-            assert(desc.MutableResourceToImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
-            assert(desc.MutableResourceToDepthImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
-
             // Check the cache
             size_t nextID;
             u64 cacheDescHash = CalculateCacheDescHash(desc);
@@ -61,6 +56,14 @@ namespace Renderer
 
                 pipeline.numRenderTargets++;
                 numAttachments++;
+            }
+
+            if (numAttachments > 0)
+            {
+                assert(desc.ResourceToImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
+                assert(desc.ResourceToDepthImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
+                assert(desc.MutableResourceToImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
+                assert(desc.MutableResourceToDepthImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
             }
 
             // -- Create Render Pass --
@@ -152,7 +155,44 @@ namespace Renderer
             if (desc.states.pixelShader != PixelShaderID::Invalid())
             {
                 const BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.states.pixelShader);
-                bindInfos.insert(bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
+
+                // Loop over all new databindings
+                for (const BindInfo& dataBinding : bindReflection.dataBindings)
+                {
+                    bool found = false;
+                    // Loop over our current databindings
+                    for (BindInfo& bindInfo : bindInfos)
+                    {
+                        // If they occupy the same descriptor space
+                        if (dataBinding.set == bindInfo.set &&
+                            dataBinding.binding == bindInfo.binding)
+                        {
+                            // If the name, descriptorType and count matches as well we assume it matches and is fine
+                            if (dataBinding.nameHash == bindInfo.nameHash &&
+                                dataBinding.descriptorType == bindInfo.descriptorType &&
+                                dataBinding.count == bindInfo.count)
+                            {
+                                // Just add our stageflags to it
+                                bindInfo.stageFlags |= dataBinding.stageFlags;
+                            }
+                            else
+                            {
+                                // Else somethings is really bad, lets fatal log
+                                NC_LOG_FATAL("Vertex Shader and Pixel Shader tries to use the same descriptor set and binding, but they don't seem to match");
+                            }
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    // If we  didn't find a match, add it to our bindInfos
+                    if (!found)
+                    {
+                        bindInfos.push_back(dataBinding);
+                    }
+                }
+
+                //bindInfos.insert(bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
                 bindInfoPushConstants.insert(bindInfoPushConstants.end(), bindReflection.pushConstants.begin(), bindReflection.pushConstants.end());
             }
 
@@ -648,8 +688,8 @@ namespace Renderer
             framebufferInfo.renderPass = pipeline.renderPass;
             framebufferInfo.attachmentCount = static_cast<u32>(attachmentViews.size());
             framebufferInfo.pAttachments = attachmentViews.data();
-            framebufferInfo.width = renderSize.x;
-            framebufferInfo.height = renderSize.y;
+            framebufferInfo.width = renderSize.x != 0 ? renderSize.x : 1;
+            framebufferInfo.height = renderSize.y != 0 ? renderSize.y : 1;
             framebufferInfo.layers = 1;
 
             if (vkCreateFramebuffer(_device->_device, &framebufferInfo, nullptr, &pipeline.framebuffer) != VK_SUCCESS)

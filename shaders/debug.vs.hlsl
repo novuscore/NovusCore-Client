@@ -1,7 +1,4 @@
-[[vk::binding(0, PER_PASS)]] cbuffer ViewData
-{
-	float4x4 viewProjectionMatrix : packoffset(c0);
-};
+#include "globalData.inc.hlsl"
 
 struct VSInput
 {
@@ -18,7 +15,7 @@ struct VSOutput
 VSOutput main(VSInput input)
 {
 	VSOutput output;
-	output.pos = mul(float4(input.position, 1.0f), viewProjectionMatrix);
+	output.pos = mul(float4(input.position, 1.0f), _viewData.viewProjectionMatrix);
 	output.color = input.color;
 	return output;
 }

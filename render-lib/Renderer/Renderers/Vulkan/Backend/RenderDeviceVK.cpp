@@ -424,6 +424,7 @@ namespace Renderer
             deviceFeatures.features.samplerAnisotropy = VK_TRUE;
             deviceFeatures.features.fragmentStoresAndAtomics = VK_TRUE;
             deviceFeatures.features.vertexPipelineStoresAndAtomics = VK_TRUE;
+            deviceFeatures.features.shaderInt16 = VK_TRUE;
             deviceFeatures.pNext = &descriptorIndexingFeatures;
 
 

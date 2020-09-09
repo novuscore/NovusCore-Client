@@ -148,11 +148,18 @@ namespace Renderer
         renderer->EndPipeline(commandList, actualData->pipeline);
     }
 
-    void BackendDispatch::SetComputePipeline(Renderer* renderer, CommandListID commandList, const void* data)
+    void BackendDispatch::BeginComputePipeline(Renderer* renderer, CommandListID commandList, const void* data)
     {
         ZoneScopedC(tracy::Color::Red3);
-        const Commands::SetComputePipeline* actualData = static_cast<const Commands::SetComputePipeline*>(data);
-        renderer->SetPipeline(commandList, actualData->pipeline);
+        const Commands::BeginComputePipeline* actualData = static_cast<const Commands::BeginComputePipeline*>(data);
+        renderer->BeginPipeline(commandList, actualData->pipeline);
+    }
+
+    void BackendDispatch::EndComputePipeline(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::EndComputePipeline* actualData = static_cast<const Commands::EndComputePipeline*>(data);
+        renderer->EndPipeline(commandList, actualData->pipeline);
     }
 
     void BackendDispatch::BindDescriptorSet(Renderer* renderer, CommandListID commandList, const void* data)

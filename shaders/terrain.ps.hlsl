@@ -1,18 +1,22 @@
+#include "globalData.inc.hlsl"
 #include "terrain.inc.hlsl"
 
-[[vk::binding(3, PER_PASS)]] ByteAddressBuffer _cellData;
-[[vk::binding(4, PER_PASS)]] ByteAddressBuffer _chunkData;
+[[vk::binding(2, PER_PASS)]] ByteAddressBuffer _cellData;
+[[vk::binding(3, PER_PASS)]] ByteAddressBuffer _chunkData;
 
-[[vk::binding(5, PER_PASS)]] SamplerState _alphaSampler;
-[[vk::binding(6, PER_PASS)]] SamplerState _colorSampler;
+[[vk::binding(4, PER_PASS)]] SamplerState _alphaSampler;
+[[vk::binding(5, PER_PASS)]] SamplerState _colorSampler;
 
-[[vk::binding(7, PER_PASS)]] Texture2D<float4> _terrainColorTextures[4096];
-[[vk::binding(8, PER_PASS)]] Texture2DArray<float4> _terrainAlphaTextures[NUM_CHUNKS_PER_MAP_SIDE * NUM_CHUNKS_PER_MAP_SIDE];
+[[vk::binding(6, PER_PASS)]] Texture2D<float4> _terrainColorTextures[4096];
+[[vk::binding(7, PER_PASS)]] Texture2DArray<float4> _terrainAlphaTextures[NUM_CHUNKS_PER_MAP_SIDE * NUM_CHUNKS_PER_MAP_SIDE];
 
 struct PSInput
 {
     uint packedChunkCellID : TEXCOORD0;
     float2 uv : TEXCOORD1;
+    float3 normal : TEXCOORD2;
+    float3 color : TEXCOORD3;
+    uint cellIndex : TEXCOORD4;
 };
 
 struct PSOutput
@@ -51,10 +55,10 @@ PSOutput main(PSInput input)
     // However the alpha needs to be between 0 and 1, so lets convert it
     float3 alphaUV = float3(uv / 8.0f, float(cellID));
 
-    const uint globalCellID = (chunkID * NUM_CELLS_PER_CHUNK) + cellID;
-    const CellData cellData = LoadCellData(globalCellID);
+    const CellData cellData = LoadCellData(input.cellIndex);
 
-    const ChunkData chunkData = _chunkData.Load<ChunkData>(chunkID * 4); // sizeof(ChunkData) = 4
+    const uint chunkIndex = input.cellIndex / NUM_CELLS_PER_CHUNK;
+    const ChunkData chunkData = _chunkData.Load<ChunkData>(chunkIndex * 4); // sizeof(ChunkData) = 4
 
     // We have 4 uints per chunk for our diffuseIDs, this gives us a size and alignment of 16 bytes which is exactly what GPUs want
     // However, we need a fifth uint for alphaID, so we decided to pack it into the LAST diffuseID, which gets split into two uint16s
@@ -78,6 +82,14 @@ PSOutput main(PSInput input)
     color = (diffuse1 * alpha.x) + (color * (1.0f - alpha.x));
     color = (diffuse2 * alpha.y) + (color * (1.0f - alpha.y));
     color = (diffuse3 * alpha.z) + (color * (1.0f - alpha.z));
+
+    // Apply lighting
+    float3 normal = normalize(input.normal);
+
+    float lightFactor = max(dot(normal, -normalize(_lightData.lightDir.xyz)), 0.0);
+    color.rgb *= input.color;
+    color = color * (saturate(_lightData.lightColor * lightFactor) + _lightData.ambientColor);
+
     output.color = color;
 
     return output;

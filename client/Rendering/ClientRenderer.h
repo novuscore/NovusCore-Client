@@ -12,6 +12,7 @@
 #include <Renderer/Buffer.h>
 
 #include "ViewConstantBuffer.h"
+#include "LightConstantBuffer.h"
 
 namespace Renderer
 {
@@ -24,9 +25,10 @@ namespace Memory
 }
 
 class Window;
-class Camera;
+class CameraFreeLook;
 class UIRenderer;
 class TerrainRenderer;
+class NM2Renderer;
 class InputManager;
 class DebugRenderer;
 
@@ -45,12 +47,14 @@ public:
     void InitImgui();
     TerrainRenderer* GetTerrainRenderer() { return _terrainRenderer; }
     DebugRenderer* GetDebugRenderer() { return _debugRenderer; }
+
+    const i32 WIDTH = 1920;
+    const i32 HEIGHT = 1080;
 private:
     void CreatePermanentResources();
 
 private:
     Window* _window;
-    Camera* _camera;
     InputManager* _inputManager;
     Renderer::Renderer* _renderer;
     Memory::StackAllocator* _frameAllocator;
@@ -70,7 +74,9 @@ private:
     FrameResource<Renderer::GPUSemaphoreID, 2> _frameSyncSemaphores; // This semaphore makes sure the GPU handles frames in order
 
     Renderer::Buffer<ViewConstantBuffer>* _viewConstantBuffer;
+    Renderer::Buffer<LightConstantBuffer>* _lightConstantBuffer;
 
+    Renderer::DescriptorSet _globalDescriptorSet;
     Renderer::DescriptorSet _passDescriptorSet;
     Renderer::DescriptorSet _drawDescriptorSet;
 
@@ -78,6 +84,7 @@ private:
     DebugRenderer* _debugRenderer;
     UIRenderer* _uiRenderer;
     TerrainRenderer* _terrainRenderer;
+    NM2Renderer* _nm2Renderer;
 
     bool _isMinimized = false;
 };

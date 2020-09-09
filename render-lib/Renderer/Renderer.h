@@ -94,7 +94,8 @@ namespace Renderer
         virtual void PushMarker(CommandListID commandListID, Color color, std::string name) = 0;
         virtual void BeginPipeline(CommandListID commandListID, GraphicsPipelineID pipeline) = 0;
         virtual void EndPipeline(CommandListID commandListID, GraphicsPipelineID pipeline) = 0;
-        virtual void SetPipeline(CommandListID commandListID, ComputePipelineID pipeline) = 0;
+        virtual void BeginPipeline(CommandListID commandListID, ComputePipelineID pipeline) = 0;
+        virtual void EndPipeline(CommandListID commandListID, ComputePipelineID pipeline) = 0;
         virtual void SetScissorRect(CommandListID commandListID, ScissorRect scissorRect) = 0;
         virtual void SetViewport(CommandListID commandListID, Viewport viewport) = 0;
         virtual void SetVertexBuffer(CommandListID commandListID, u32 slot, BufferID bufferID) = 0;

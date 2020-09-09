@@ -3,6 +3,7 @@
 #include <Utils/DebugHandler.h>
 #include <Utils/StringUtils.h>
 #include <filesystem>
+#include <entt.hpp>
 
 #include "../DBC/DBC.h"
 #include "../../ECS/Components/Singletons/MapSingleton.h"
@@ -28,14 +29,14 @@ bool MapLoader::Init(entt::registry* registry)
         return false;
     }
 
-    auto itr = dbcSingleton.dbcs.find("Maps"_h);
-    if (itr == dbcSingleton.dbcs.end())
+    auto itr = dbcSingleton.nameHashToDBCFile.find("Maps"_h);
+    if (itr == dbcSingleton.nameHashToDBCFile.end())
     {
         NC_LOG_ERROR("Maps.ndbc has not been loaded, please check your data folder.");
         return false;
     }
 
-    if (!ExtractMapDBC(itr->second, mapSingleton.mapDBCFiles, mapSingleton.mapsDBCStringTable))
+    if (!ExtractMapDBC(itr->second, mapSingleton.mapDBCFiles))
     {
         NC_LOG_ERROR("Failed to correctly load Maps.ndbc data");
         return false;
@@ -43,8 +44,8 @@ bool MapLoader::Init(entt::registry* registry)
 
     for (DBC::Map& map : mapSingleton.mapDBCFiles)
     {
-        u32 mapNameHash = mapSingleton.mapsDBCStringTable.GetStringHash(map.Name);
-        u32 mapInternalNameHash = mapSingleton.mapsDBCStringTable.GetStringHash(map.InternalName);
+        u32 mapNameHash = dbcSingleton.stringTable.GetStringHash(map.Name);
+        u32 mapInternalNameHash = dbcSingleton.stringTable.GetStringHash(map.InternalName);
 
         mapSingleton.mapIdToDBC[map.Id] = &map;
         mapSingleton.mapNameToDBC[mapNameHash] = &map;
@@ -73,7 +74,7 @@ bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
 
     const DBC::Map* map = mapSingleton.mapInternalNameToDBC[mapInternalNameHash];
 
-    const std::string& mapInternalName = mapSingleton.mapsDBCStringTable.GetString(map->InternalName);
+    const std::string& mapInternalName = dbcSingleton.stringTable.GetString(map->InternalName);
     fs::path absolutePath = std::filesystem::absolute("Data/extracted/maps/" + mapInternalName);
     if (!fs::is_directory(absolutePath))
     {
@@ -145,7 +146,7 @@ bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
     return true;
 }
 
-bool MapLoader::ExtractMapDBC(DBC::File& file, std::vector<DBC::Map>& maps, StringTable& stringTable)
+bool MapLoader::ExtractMapDBC(DBC::File& file, std::vector<DBC::Map>& maps)
 {
     u32 numMaps = 0;
     file.buffer->GetU32(numMaps);
@@ -156,9 +157,6 @@ bool MapLoader::ExtractMapDBC(DBC::File& file, std::vector<DBC::Map>& maps, Stri
     // Resize our vector and fill it with map data
     maps.resize(numMaps);
     file.buffer->GetBytes(reinterpret_cast<u8*>(&maps[0]), sizeof(DBC::Map) * numMaps);
-
-    stringTable.Deserialize(file.buffer.get());
-    assert(stringTable.GetNumStrings() > 0); // We always expect to have at least 2 strings per map in our stringtable, a path for the base texture
     return true;
 }
 
@@ -176,7 +174,14 @@ bool MapLoader::ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk, Stri
 
     if (chunk.chunkHeader.version != Terrain::MAP_CHUNK_VERSION)
     {
-        NC_LOG_FATAL("Loaded map chunk has version of %u instead of expected version of %u, try reextracting your data", chunk.chunkHeader.version, Terrain::MAP_CHUNK_VERSION);
+        if (chunk.chunkHeader.version < Terrain::MAP_CHUNK_VERSION)
+        {
+            NC_LOG_FATAL("Loaded map chunk with too old version %u instead of expected version of %u, rerun dataextractor", chunk.chunkHeader.version, Terrain::MAP_CHUNK_VERSION);
+        }
+        else
+        {
+            NC_LOG_FATAL("Loaded map chunk with too new version %u instead of expected version of %u, update your client", chunk.chunkHeader.version, Terrain::MAP_CHUNK_VERSION);
+        }
     }
 
     buffer.Get<Terrain::HeightHeader>(chunk.heightHeader);

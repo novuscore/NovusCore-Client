@@ -9,6 +9,8 @@ class Window;
 class InputManager;
 class ClientRenderer;
 class Camera;
+class CameraFreeLook;
+class CameraOrbital;
 class SceneManager;
 namespace Renderer
 {
@@ -59,12 +61,19 @@ public:
         return _clientRenderer;
     }
     static void SetClientRenderer(ClientRenderer* clientRenderer);
-    static Camera* GetCamera() 
+    static Camera* GetCamera();
+    static CameraFreeLook* GetCameraFreeLook()
     {
-        assert(_camera != nullptr);
-        return _camera; 
+        assert(_cameraFreeLook != nullptr);
+        return _cameraFreeLook;
     }
-    static void SetCamera(Camera* camera);
+    static void SetCameraFreeLook(CameraFreeLook* camera);
+    static CameraOrbital* GetCameraOrbital()
+    {
+        assert(_cameraOrbital != nullptr);
+        return _cameraOrbital;
+    }
+    static void SetCameraOrbital(CameraOrbital* camera);
     static moodycamel::ConcurrentQueue<Message>* GetMainInputQueue() 
     {
         assert(_mainInputQueue != nullptr);
@@ -93,7 +102,8 @@ private:
     static Window* _window;
     static InputManager* _inputManager;
     static ClientRenderer* _clientRenderer;
-    static Camera* _camera;
+    static CameraFreeLook* _cameraFreeLook;
+    static CameraOrbital* _cameraOrbital;
     static moodycamel::ConcurrentQueue<Message>* _mainInputQueue;
     static Renderer::Renderer* _renderer;
     static SceneManager* _sceneManager;

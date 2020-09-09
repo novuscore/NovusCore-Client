@@ -25,7 +25,7 @@
 #include <NovusTypes.h>
 #include <robin_hood.h>
 #include "../../../Gameplay/Map/Map.h"
-#include "../../../Gameplay/DBC/DBC.h"
+#include "../../../Loaders/DBC/DBC.h"
 
 struct MapSingleton
 {
@@ -38,6 +38,4 @@ struct MapSingleton
 	robin_hood::unordered_map<u32, DBC::Map*> mapNameToDBC;
 	robin_hood::unordered_map<u32, DBC::Map*> mapInternalNameToDBC;
 	std::vector<DBC::Map> mapDBCFiles;
-
-	StringTable mapsDBCStringTable;
 };

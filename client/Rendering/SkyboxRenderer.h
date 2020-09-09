@@ -24,7 +24,7 @@ namespace Renderer
     class DescriptorSet;
 }
 
-class Camera;
+class CameraFreeLook;
 class DebugRenderer;
 class MapObjectRenderer;
 
@@ -34,9 +34,9 @@ public:
     SkyboxRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer);
     ~SkyboxRenderer();
 
-    void Update(f32 deltaTime, const Camera& camera);
+    void Update(f32 deltaTime, const CameraFreeLook& camera);
 
-    void AddSkyboxPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, const Camera& camera);
+    void AddSkyboxPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, const CameraFreeLook& camera);
 
 private:
     void CreatePermanentResources();

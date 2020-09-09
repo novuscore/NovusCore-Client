@@ -6,6 +6,7 @@
 #include "../Utils/MapUtils.h"
 
 #include "../ECS/Components/Singletons/MapSingleton.h"
+#include "../ECS/Components/Singletons/TextureSingleton.h"
 
 #include <Renderer/Renderer.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -17,12 +18,12 @@
 #include <tracy/Tracy.hpp>
 
 #include "Camera.h"
-#include "../Gameplay/Map/MapLoader.h"
+#include "../Loaders/Map/MapLoader.h"
 
 #define USE_PACKED_HEIGHT_RANGE 1
 
 static bool s_cullingEnabled = true;
-static bool s_gpuCullingEnabled = false;
+static bool s_gpuCullingEnabled = true;
 static bool s_lockCullingFrustum = false;
 
 static vec3 s_debugPosition = vec3(0, 0, 0);
@@ -98,19 +99,21 @@ TerrainRenderer::~TerrainRenderer()
     delete _mapObjectRenderer;
 }
 
-void TerrainRenderer::Update(f32 deltaTime, const Camera& camera)
+void TerrainRenderer::Update(f32 deltaTime)
 {
     //for (const Terrain::MapUtils::AABoundingBox& boundingBox : _cellBoundingBoxes)
     //{
     //    _debugRenderer->DrawAABB3D(boundingBox.min, boundingBox.max, 0xff00ff00);
     //}
 
+    Camera* camera = ServiceLocator::GetCamera();
+
     if (!s_lockDebugPosition)
     {
-        s_debugPosition = camera.GetPosition();
+        s_debugPosition = camera->GetPosition();
         s_debugPosition.y = Terrain::MapUtils::GetHeightFromWorldPosition(s_debugPosition);
     }
-    
+
     f32 halfSize = s_debugPositionScale;
     vec3 min = s_debugPosition;
     min.x -= halfSize;
@@ -122,8 +125,8 @@ void TerrainRenderer::Update(f32 deltaTime, const Camera& camera)
 
     max.y += s_debugPositionScale;
 
-    _debugRenderer->DrawAABB3D(min, max, 0xff00ff00);    
-    
+    _debugRenderer->DrawAABB3D(min, max, 0xff00ff00);
+
     DebugRenderCellTriangles(camera);
 
     if (s_cullingEnabled && !s_gpuCullingEnabled)
@@ -135,10 +138,10 @@ void TerrainRenderer::Update(f32 deltaTime, const Camera& camera)
     //_mapObjectRenderer->Update(deltaTime);
 }
 
-__forceinline bool IsInsideFrustum(const vec4* planes, const Terrain::MapUtils::AABoundingBox& boundingBox)
+__forceinline bool IsInsideFrustum(const vec4* planes, const Geometry::AABoundingBox& boundingBox)
 {
     // this is why god abandoned us
-    for (int i = 0; i < 6; ++i) 
+    for (int i = 0; i < 6; ++i)
     {
         const vec4& plane = planes[i];
 
@@ -163,12 +166,12 @@ __forceinline bool IsInsideFrustum(const vec4* planes, const Terrain::MapUtils::
             vmax.y = boundingBox.min.y;
         }
         // Z axis 
-        if (plane.z > 0) 
+        if (plane.z > 0)
         {
             vmin.z = boundingBox.min.z;
             vmax.z = boundingBox.max.z;
         }
-        else 
+        else
         {
             vmin.z = boundingBox.max.z;
             vmax.z = boundingBox.min.z;
@@ -183,7 +186,7 @@ __forceinline bool IsInsideFrustum(const vec4* planes, const Terrain::MapUtils::
     return true;
 }
 
-void TerrainRenderer::CPUCulling(const Camera& camera)
+void TerrainRenderer::CPUCulling(const Camera* camera)
 {
     ZoneScoped;
 
@@ -192,8 +195,8 @@ void TerrainRenderer::CPUCulling(const Camera& camera)
 
     if (!s_lockCullingFrustum)
     {
-        memcpy(frustumPlanes, camera.GetFrustumPlanes(), sizeof(frustumPlanes));
-        lockedViewProjectionMatrix = camera.GetViewProjectionMatrix();
+        memcpy(frustumPlanes, camera->GetFrustumPlanes(), sizeof(frustumPlanes));
+        lockedViewProjectionMatrix = camera->GetViewProjectionMatrix();
     }
 
     _culledInstances.clear();
@@ -205,11 +208,16 @@ void TerrainRenderer::CPUCulling(const Camera& camera)
     {
         for (u16 cellId = 0; cellId < Terrain::MAP_CELLS_PER_CHUNK; ++cellId)
         {
-            const Terrain::MapUtils::AABoundingBox& boundingBox = _cellBoundingBoxes[boundingBoxIndex++];
+            u32 index = static_cast<u32>(boundingBoxIndex++);
+
+            const Geometry::AABoundingBox& boundingBox = _cellBoundingBoxes[index];
             if (IsInsideFrustum(frustumPlanes, boundingBox))
             {
                 const u16 chunkId = _loadedChunks[i];
-                _culledInstances.push_back((chunkId << 16) | cellId);
+
+                CellInstance& cellInstance = _culledInstances.emplace_back();
+                cellInstance.packedChunkCellID = (chunkId << 16) | cellId;
+                cellInstance.instanceID = index;
             }
         }
     }
@@ -217,20 +225,27 @@ void TerrainRenderer::CPUCulling(const Camera& camera)
     _debugRenderer->DrawFrustum(lockedViewProjectionMatrix, 0xff0000ff);
 }
 
-void TerrainRenderer::DebugRenderCellTriangles(const Camera& camera)
+void TerrainRenderer::DebugRenderCellTriangles(const Camera* camera)
 {
-    std::vector<Terrain::MapUtils::Triangle> triangles = Terrain::MapUtils::GetCellTrianglesFromWorldPosition(camera.GetPosition());
+    std::vector<Geometry::Triangle> triangles = Terrain::MapUtils::GetCellTrianglesFromWorldPosition(camera->GetPosition());
     {
         for (auto& triangle : triangles)
         {
-            _debugRenderer->DrawLine3D(triangle.vert1, triangle.vert2, 0xff00ff00);
-            _debugRenderer->DrawLine3D(triangle.vert2, triangle.vert3, 0xff00ff00);
-            _debugRenderer->DrawLine3D(triangle.vert3, triangle.vert1, 0xff00ff00);
+            f32 steepnessAngle = triangle.GetSteepnessAngle();
+            u32 color = steepnessAngle <= 50 ? 0xff00ff00 : 0xff0000ff;
+            // Offset Y slightly to not be directly drawn on top of the terrain
+            triangle.vert1.y += 0.05f;
+            triangle.vert2.y += 0.05f;
+            triangle.vert3.y += 0.05f;
+
+            _debugRenderer->DrawLine3D(triangle.vert1, triangle.vert2, color);
+            _debugRenderer->DrawLine3D(triangle.vert2, triangle.vert3, color);
+            _debugRenderer->DrawLine3D(triangle.vert3, triangle.vert1, color);
         }
     }
 }
 
-void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, const Camera& camera)
+void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
 {
     // Terrain Pass
     {
@@ -258,12 +273,12 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                 Renderer::BufferDesc uploadBufferDesc;
                 uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
                 uploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-                uploadBufferDesc.size = sizeof(u32) * _culledInstances.size();
+                uploadBufferDesc.size = sizeof(CellInstance) * _culledInstances.size();
                 uploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
 
                 Renderer::BufferID instanceUploadBuffer = _renderer->CreateBuffer(uploadBufferDesc);
                 _renderer->QueueDestroyBuffer(instanceUploadBuffer);
-                
+
                 void* instanceBufferMemory = _renderer->MapBuffer(instanceUploadBuffer);
                 memcpy(instanceBufferMemory, _culledInstances.data(), uploadBufferDesc.size);
                 _renderer->UnmapBuffer(instanceUploadBuffer);
@@ -283,11 +298,12 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                 pipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
 
                 Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(pipelineDesc);
-                commandList.BindPipeline(pipeline);
+                commandList.BeginPipeline(pipeline);
 
                 if (!s_lockCullingFrustum)
                 {
-                    memcpy(_cullingConstantBuffer->resource.frustumPlanes, camera.GetFrustumPlanes(), sizeof(vec4[6]));
+                    Camera* camera = ServiceLocator::GetCamera();
+                    memcpy(_cullingConstantBuffer->resource.frustumPlanes, camera->GetFrustumPlanes(), sizeof(vec4[6]));
                     _cullingConstantBuffer->Apply(frameIndex);
                 }
 
@@ -302,59 +318,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                 const u32 cellCount = (u32)_loadedChunks.size() * Terrain::MAP_CELLS_PER_CHUNK;
                 commandList.Dispatch((cellCount + 31) / 32, 1, 1);
 
-                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _culledInstanceBuffer);
-                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _argumentBuffer);
-            }
-
-            // Upload culled instances
-            if (s_cullingEnabled && !s_gpuCullingEnabled && !_culledInstances.empty())
-            {
-                Renderer::BufferDesc uploadBufferDesc;
-                uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
-                uploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-                uploadBufferDesc.size = sizeof(u32) * _culledInstances.size();
-                uploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
-
-                Renderer::BufferID instanceUploadBuffer = _renderer->CreateBuffer(uploadBufferDesc);
-                _renderer->QueueDestroyBuffer(instanceUploadBuffer);
-                
-                void* instanceBufferMemory = _renderer->MapBuffer(instanceUploadBuffer);
-                memcpy(instanceBufferMemory, _culledInstances.data(), uploadBufferDesc.size);
-                _renderer->UnmapBuffer(instanceUploadBuffer);
-                commandList.CopyBuffer(_culledInstanceBuffer, 0, instanceUploadBuffer, 0, uploadBufferDesc.size);
-
-                commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _culledInstanceBuffer);
-            }
-
-            // Cull instances on GPU
-            if (s_cullingEnabled && s_gpuCullingEnabled)
-            {
-                Renderer::ComputePipelineDesc pipelineDesc;
-                resources.InitializePipelineDesc(pipelineDesc);
-
-                Renderer::ComputeShaderDesc shaderDesc;
-                shaderDesc.path = "Data/shaders/terrainCulling.cs.hlsl.spv";
-                pipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
-
-                Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(pipelineDesc);
-                commandList.BindPipeline(pipeline);
-
-                if (!s_lockCullingFrustum)
-                {
-                    memcpy(_cullingConstantBuffer->resource.frustumPlanes, camera.GetFrustumPlanes(), sizeof(vec4[6]));
-                    _cullingConstantBuffer->Apply(frameIndex);
-                }
-
-                _cullingPassDescriptorSet.Bind("_instances", _instanceBuffer);
-                _cullingPassDescriptorSet.Bind("_heightRanges", _cellHeightRangeBuffer);
-                _cullingPassDescriptorSet.Bind("_culledInstances", _culledInstanceBuffer);
-                _cullingPassDescriptorSet.Bind("_argumentBuffer", _argumentBuffer);
-                _cullingPassDescriptorSet.Bind("_constants", _cullingConstantBuffer->GetBuffer(frameIndex));
-
-                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingPassDescriptorSet, frameIndex);
-
-                const u32 cellCount = (u32)_loadedChunks.size() * Terrain::MAP_CELLS_PER_CHUNK;
-                commandList.Dispatch((cellCount + 31) / 32, 1, 1);
+                commandList.EndPipeline(pipeline);
 
                 commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _culledInstanceBuffer);
                 commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _argumentBuffer);
@@ -374,9 +338,13 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
 
             // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
             pipelineDesc.states.inputLayouts[0].enabled = true;
-            pipelineDesc.states.inputLayouts[0].SetName("INSTANCEID");
+            pipelineDesc.states.inputLayouts[0].SetName("TEXCOORD0");
             pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::INPUT_FORMAT_R32_UINT;
             pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_INSTANCE;
+            pipelineDesc.states.inputLayouts[1].enabled = true;
+            pipelineDesc.states.inputLayouts[1].SetName("TEXCOORD1");
+            pipelineDesc.states.inputLayouts[1].format = Renderer::InputFormat::INPUT_FORMAT_R32_UINT;
+            pipelineDesc.states.inputLayouts[1].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_INSTANCE;
 
             // Depth state
             pipelineDesc.states.depthStencilState.depthEnable = true;
@@ -404,13 +372,13 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             commandList.SetIndexBuffer(_cellIndexBuffer, Renderer::IndexFormat::UInt16);
 
             // Bind viewbuffer
-            _passDescriptorSet.Bind("ViewData"_h, viewConstantBuffer->GetBuffer(frameIndex));
-            _passDescriptorSet.Bind("_vertexHeights"_h, _vertexBuffer);
+            _passDescriptorSet.Bind("_vertices"_h, _vertexBuffer);
             _passDescriptorSet.Bind("_cellData"_h, _cellBuffer);
             _passDescriptorSet.Bind("_cellDataVS"_h, _cellBuffer);
             _passDescriptorSet.Bind("_chunkData"_h, _chunkBuffer);
 
             // Bind descriptorset
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
             if (s_cullingEnabled)
             {
@@ -437,7 +405,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
     }
 
     // Subrenderers
-    //_mapObjectRenderer->AddMapObjectPass(renderGraph, viewConstantBuffer, renderTarget, depthTarget, frameIndex);
+    //_mapObjectRenderer->AddMapObjectPass(renderGraph, globalDescriptorSet, renderTarget, depthTarget, frameIndex);
 }
 
 void TerrainRenderer::CreatePermanentResources()
@@ -511,58 +479,10 @@ void TerrainRenderer::CreatePermanentResources()
 
     {
         Renderer::BufferDesc desc;
-        desc.name = "CulledTerrainInstanceBuffer";
-        desc.size = sizeof(u32) * Terrain::MAP_CELLS_PER_CHUNK * Terrain::MAP_CHUNKS_PER_MAP;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_VERTEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
-        _instanceBuffer = _renderer->CreateBuffer(desc);
-    }
-
-    {
-        Renderer::BufferDesc desc;
-        desc.name = "TerrainInstanceBuffer";
-        desc.size = sizeof(u32) * Terrain::MAP_CELLS_PER_CHUNK * Terrain::MAP_CHUNKS_PER_MAP;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_VERTEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
-        _culledInstanceBuffer = _renderer->CreateBuffer(desc);
-    }
-
-    {
-        Renderer::BufferDesc desc;
         desc.name = "TerrainArgumentBuffer";
         desc.size = sizeof(VkDrawIndexedIndirectCommand);
         desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER;
         _argumentBuffer = _renderer->CreateBuffer(desc);
-    }
-
-    {
-        Renderer::BufferDesc desc;
-        desc.name = "TerrainChunkBuffer";
-        desc.size = sizeof(TerrainChunkData) * Terrain::MAP_CHUNKS_PER_MAP;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
-        _chunkBuffer = _renderer->CreateBuffer(desc);
-    }
-
-    {
-        Renderer::BufferDesc desc;
-        desc.name = "TerrainCellBuffer";
-        desc.size = sizeof(TerrainCellData) * Terrain::MAP_CELLS_PER_CHUNK * Terrain::MAP_CHUNKS_PER_MAP;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
-        _cellBuffer = _renderer->CreateBuffer(desc);
-    }
-
-    {
-        Renderer::BufferDesc desc;
-        desc.name = "TerrainVertexBuffer";
-        desc.size = sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK * Terrain::MAP_CHUNKS_PER_MAP;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
-        _vertexBuffer = _renderer->CreateBuffer(desc);
-    }
-
-    {
-        Renderer::BufferDesc desc;
-        desc.name = "CellHeightRangeBuffer";
-        desc.size = sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK * Terrain::MAP_CHUNKS_PER_MAP;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
-        _cellHeightRangeBuffer = _renderer->CreateBuffer(desc);
     }
 
     // Upload cell index buffer
@@ -626,6 +546,137 @@ void TerrainRenderer::CreatePermanentResources()
     LoadMap("Azeroth"_h);
 }
 
+void TerrainRenderer::RegisterChunksToBeLoaded(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance)
+{
+    // Middle position has to be within map grid
+    assert(middleChunk.x >= 0);
+    assert(middleChunk.y >= 0);
+    assert(middleChunk.x < 64);
+    assert(middleChunk.y < 64);
+
+    assert(drawDistance > 0);
+    assert(drawDistance <= 64);
+
+    u16 radius = drawDistance - 1;
+
+    ivec2 startPos = ivec2(middleChunk.x - radius, middleChunk.y - radius);
+    startPos = glm::max(startPos, ivec2(0, 0));
+
+    ivec2 endPos = ivec2(middleChunk.x + radius, middleChunk.y + radius);
+    endPos = glm::min(endPos, ivec2(63, 63));
+
+    for (i32 y = startPos.y; y < endPos.y; y++)
+    {
+        for (i32 x = startPos.x; x < endPos.x; x++)
+        {
+            RegisterChunkToBeLoaded(map, x, y);
+        }
+    }
+}
+
+void TerrainRenderer::RegisterChunkToBeLoaded(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
+{
+    u16 chunkID;
+    map.GetChunkIdFromChunkPosition(chunkPosX, chunkPosY, chunkID);
+
+    const auto chunkIt = map.chunks.find(chunkID);
+    if (chunkIt == map.chunks.cend())
+    {
+        return;
+    }
+
+    ChunkToBeLoaded& chunkToBeLoaded = _chunksToBeLoaded.emplace_back();
+    chunkToBeLoaded.map = &map;
+    chunkToBeLoaded.chunk = &chunkIt->second;
+    chunkToBeLoaded.chunkPosX = chunkPosX;
+    chunkToBeLoaded.chunkPosY = chunkPosY;
+    chunkToBeLoaded.chunkID = chunkID;
+}
+
+void TerrainRenderer::ExecuteLoad()
+{
+    size_t numChunksToLoad = _chunksToBeLoaded.size();
+
+    if (_instanceBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_instanceBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CulledTerrainInstanceBuffer";
+        desc.size = sizeof(CellInstance) * Terrain::MAP_CELLS_PER_CHUNK * numChunksToLoad;
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_VERTEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _instanceBuffer = _renderer->CreateBuffer(desc);
+    }
+
+    if (_culledInstanceBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_culledInstanceBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "TerrainInstanceBuffer";
+        desc.size = sizeof(CellInstance) * Terrain::MAP_CELLS_PER_CHUNK * numChunksToLoad;
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_VERTEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _culledInstanceBuffer = _renderer->CreateBuffer(desc);
+    }
+
+    if (_chunkBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_chunkBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "TerrainChunkBuffer";
+        desc.size = sizeof(TerrainChunkData) * numChunksToLoad;
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _chunkBuffer = _renderer->CreateBuffer(desc);
+    }
+
+    if (_cellBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_cellBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "TerrainCellBuffer";
+        desc.size = sizeof(TerrainCellData) * Terrain::MAP_CELLS_PER_CHUNK * numChunksToLoad;
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _cellBuffer = _renderer->CreateBuffer(desc);
+    }
+
+    if (_vertexBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_vertexBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "TerrainVertexBuffer";
+        desc.size = sizeof(TerrainVertex) * Terrain::NUM_VERTICES_PER_CHUNK * numChunksToLoad;
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _vertexBuffer = _renderer->CreateBuffer(desc);
+    }
+
+
+    if (_cellHeightRangeBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_cellHeightRangeBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CellHeightRangeBuffer";
+        desc.size = sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK * numChunksToLoad;
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _cellHeightRangeBuffer = _renderer->CreateBuffer(desc);
+    }
+
+    for (const ChunkToBeLoaded& chunk : _chunksToBeLoaded)
+    {
+        LoadChunk(chunk);
+    }
+    _chunksToBeLoaded.clear();
+}
+
 bool TerrainRenderer::LoadMap(u32 mapInternalNameHash)
 {
     entt::registry* registry = ServiceLocator::GetGameRegistry();
@@ -639,12 +690,12 @@ bool TerrainRenderer::LoadMap(u32 mapInternalNameHash)
     _cellBoundingBoxes.clear();
     _mapObjectRenderer->Clear();
 
-    LoadChunksAround(mapSingleton.currentMap, ivec2(32, 32), 32); // Load everything
-    //LoadChunksAround(mapSingleton.currentMap, ivec2(32, 50), 4); // Goldshire
-    //LoadChunksAround(map, ivec2(40, 32), 8); // Razor Hill
-    //LoadChunksAround(map, ivec2(22, 25), 8); // Borean Tundra
+    RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(32, 32), 32); // Load everything
+    //RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(32, 50), 4); // Goldshire
+    //RegisterChunksToBeLoaded(map, ivec2(40, 32), 8); // Razor Hill
+    //RegisterChunksToBeLoaded(map, ivec2(22, 25), 8); // Borean Tundra
 
-    //LoadChunksAround(map, ivec2(0, 0), 8); // Goldshire
+    ExecuteLoad();
 
     // Upload instance data
     {
@@ -653,21 +704,22 @@ bool TerrainRenderer::LoadMap(u32 mapInternalNameHash)
         Renderer::BufferDesc uploadBufferDesc;
         uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
         uploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-        uploadBufferDesc.size = sizeof(u32) * cellCount;
+        uploadBufferDesc.size = sizeof(CellInstance) * cellCount;
         uploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
 
         Renderer::BufferID instanceUploadBuffer = _renderer->CreateBuffer(uploadBufferDesc);
         _renderer->QueueDestroyBuffer(instanceUploadBuffer);
 
         void* instanceBufferMemory = _renderer->MapBuffer(instanceUploadBuffer);
-        u32* instanceData = static_cast<u32*>(instanceBufferMemory);
+        CellInstance* instanceData = static_cast<CellInstance*>(instanceBufferMemory);
         u32 instanceDataIndex = 0;
 
         for (const u16 chunkID : _loadedChunks)
         {
             for (u32 cellID = 0; cellID < Terrain::MAP_CELLS_PER_CHUNK; ++cellID)
             {
-                instanceData[instanceDataIndex++] = (chunkID << 16) | (cellID & 0xffff);
+                instanceData[instanceDataIndex].packedChunkCellID = (chunkID << 16) | (cellID & 0xffff);
+                instanceData[instanceDataIndex++].instanceID = instanceDataIndex;
             }
         }
         assert(instanceDataIndex == cellCount);
@@ -678,19 +730,19 @@ bool TerrainRenderer::LoadMap(u32 mapInternalNameHash)
     return true;
 }
 
-void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
+void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
 {
-    u16 chunkId;
-    map.GetChunkIdFromChunkPosition(chunkPosX, chunkPosY, chunkId);
+    Terrain::Map& map = *chunkToBeLoaded.map;
+    u16 chunkPosX = chunkToBeLoaded.chunkPosX;
+    u16 chunkPosY = chunkToBeLoaded.chunkPosY;
+    u16 chunkID = chunkToBeLoaded.chunkID;
+    const Terrain::Chunk& chunk = *chunkToBeLoaded.chunk;
 
-    const auto chunkIt = map.chunks.find(chunkId);
-    if (chunkIt == map.chunks.cend())
-    {
-        return;
-    }
+    StringTable& stringTable = map.stringTables[chunkID];
+    entt::registry* registry = ServiceLocator::GetGameRegistry();     
+    TextureSingleton& textureSingleton = registry->ctx<TextureSingleton>();
 
-    const Terrain::Chunk& chunk = chunkIt->second;
-    StringTable& stringTable = map.stringTables[chunkId];
+    size_t currentChunkIndex = _loadedChunks.size();
 
     // Upload cell data.
     {
@@ -704,6 +756,8 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         _renderer->QueueDestroyBuffer(cellUploadBuffer);
 
         TerrainCellData* cellDatas = static_cast<TerrainCellData*>(_renderer->MapBuffer(cellUploadBuffer));
+
+        u32 chunkVertexOffset = static_cast<u32>(currentChunkIndex) * Terrain::NUM_VERTICES_PER_CHUNK;
 
         // Loop over all the cells in the chunk
         for (u32 i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i++)
@@ -720,8 +774,8 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
                 if (layer.textureId == Terrain::LayerData::TextureIdInvalid)
                     break;
 
-                const std::string& texturePath = stringTable.GetString(layer.textureId);
-                
+                const std::string& texturePath = textureSingleton.textureStringTable.GetString(layer.textureId);
+
                 Renderer::TextureDesc textureDesc;
                 textureDesc.path = "Data/extracted/Textures/" + texturePath;
 
@@ -734,7 +788,7 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         }
 
         _renderer->UnmapBuffer(cellUploadBuffer);
-        const u64 cellBufferOffset = (static_cast<u64>(chunkId) * Terrain::MAP_CELLS_PER_CHUNK) * sizeof(TerrainCellData);
+        const u64 cellBufferOffset = (currentChunkIndex * Terrain::MAP_CELLS_PER_CHUNK) * sizeof(TerrainCellData);
         _renderer->CopyBuffer(_cellBuffer, cellBufferOffset, cellUploadBuffer, 0, cellDataUploadBufferDesc.size);
     }
 
@@ -744,11 +798,11 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
     if (alphaMapStringID < stringTable.GetNumStrings())
     {
         Renderer::TextureDesc chunkAlphaMapDesc;
-        chunkAlphaMapDesc.path = stringTable.GetString(alphaMapStringID);
+        chunkAlphaMapDesc.path = "Data/extracted/" + stringTable.GetString(alphaMapStringID);
 
         _renderer->LoadTextureIntoArray(chunkAlphaMapDesc, _terrainAlphaTextureArray, alphaID);
     }
-    
+
     // Upload chunk data.
     {
         Renderer::BufferDesc chunkDataUploadBufferDesc;
@@ -764,7 +818,7 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
         chunkData->alphaMapID = alphaID;
 
         _renderer->UnmapBuffer(chunkUploadBuffer);
-        const u64 chunkBufferOffset = static_cast<u64>(chunkId) * sizeof(TerrainChunkData);
+        const u64 chunkBufferOffset = currentChunkIndex * sizeof(TerrainChunkData);
         _renderer->CopyBuffer(_chunkBuffer, chunkBufferOffset, chunkUploadBuffer, 0, chunkDataUploadBufferDesc.size);
     }
 
@@ -772,23 +826,43 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
     {
         Renderer::BufferDesc vertexUploadBufferDesc;
         vertexUploadBufferDesc.name = "TerrainVertexUploadBuffer";
-        vertexUploadBufferDesc.size = sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK;
+        vertexUploadBufferDesc.size = sizeof(TerrainVertex) * Terrain::NUM_VERTICES_PER_CHUNK;
         vertexUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
         vertexUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID vertexUploadBuffer = _renderer->CreateBuffer(vertexUploadBufferDesc);
         _renderer->QueueDestroyBuffer(vertexUploadBuffer);
 
-        void* vertexBufferMemory = _renderer->MapBuffer(vertexUploadBuffer);
-        for (size_t i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; ++i)
+        TerrainVertex* vertexBufferMemory = reinterpret_cast<TerrainVertex*>(_renderer->MapBuffer(vertexUploadBuffer));
+        for (size_t i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i++)
         {
-            void* dstVertices = static_cast<u8*>(vertexBufferMemory) + (i * Terrain::MAP_CELL_TOTAL_GRID_SIZE * sizeof(f32));
-            const void* srcVertices = chunk.cells[i].heightData;
-            memcpy(dstVertices, srcVertices, Terrain::MAP_CELL_TOTAL_GRID_SIZE * sizeof(f32));
+            size_t cellOffset = i * Terrain::MAP_CELL_TOTAL_GRID_SIZE;
+            for (size_t j = 0; j < Terrain::MAP_CELL_TOTAL_GRID_SIZE; j++)
+            {
+                size_t offset = cellOffset + j;
+
+                // Set height
+                f32 height = chunk.cells[i].heightData[j];
+                vertexBufferMemory[offset].height = height;
+
+                u8 x = chunk.cells[i].normalData[j][0];
+                u8 y = chunk.cells[i].normalData[j][1];
+                u8 z = chunk.cells[i].normalData[j][2];
+
+                // Set normal
+                vertexBufferMemory[offset].normal[0] = x;
+                vertexBufferMemory[offset].normal[1] = y;
+                vertexBufferMemory[offset].normal[2] = z;
+
+                // Set color
+                vertexBufferMemory[offset].color[0] = chunk.cells[i].colorData[j][0];
+                vertexBufferMemory[offset].color[1] = chunk.cells[i].colorData[j][1];
+                vertexBufferMemory[offset].color[2] = chunk.cells[i].colorData[j][2];
+            }
         }
 
         _renderer->UnmapBuffer(vertexUploadBuffer);
-        const u64 chunkVertexBufferOffset = chunkId * sizeof(f32) * Terrain::NUM_VERTICES_PER_CHUNK;
+        const u64 chunkVertexBufferOffset = currentChunkIndex * sizeof(TerrainVertex) * Terrain::NUM_VERTICES_PER_CHUNK;
         _renderer->CopyBuffer(_vertexBuffer, chunkVertexBufferOffset, vertexUploadBuffer, 0, vertexUploadBufferDesc.size);
     }
 
@@ -822,7 +896,7 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
             max.y = *minmax.second;
             max.z = chunkOrigin.y - ((cellX + 1) * Terrain::MAP_CELL_SIZE);
 
-            Terrain::MapUtils::AABoundingBox boundingBox;
+            Geometry::AABoundingBox boundingBox;
             boundingBox.min = glm::max(min, max);
             boundingBox.max = glm::min(min, max);
             _cellBoundingBoxes.push_back(boundingBox);
@@ -854,40 +928,11 @@ void TerrainRenderer::LoadChunk(Terrain::Map& map, u16 chunkPosX, u16 chunkPosY)
             memcpy(heightRangeBufferMemory, heightRanges.data(), heightRangeUploadBufferDesc.size);
             _renderer->UnmapBuffer(heightRangeUploadBuffer);
 
-            const u64 chunkInstanceIndex = _loadedChunks.size();
-            const u64 chunkVertexBufferOffset = chunkInstanceIndex * sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK;
+            const u64 chunkVertexBufferOffset = currentChunkIndex * sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK;
             _renderer->CopyBuffer(_cellHeightRangeBuffer, chunkVertexBufferOffset, heightRangeUploadBuffer, 0, heightRangeUploadBufferDesc.size);
         }
     }
 
     //_mapObjectRenderer->LoadMapObjects(chunk, stringTable);
-    _loadedChunks.push_back(chunkId);
-}
-
-void TerrainRenderer::LoadChunksAround(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance)
-{
-    // Middle position has to be within map grid
-    assert(middleChunk.x >= 0);
-    assert(middleChunk.y >= 0);
-    assert(middleChunk.x < 64);
-    assert(middleChunk.y < 64);
-
-    assert(drawDistance > 0);
-    assert(drawDistance <= 64);
-
-    u16 radius = drawDistance-1;
-
-    ivec2 startPos = ivec2(middleChunk.x - radius, middleChunk.y - radius);
-    startPos = glm::max(startPos, ivec2(0, 0));
-
-    ivec2 endPos = ivec2(middleChunk.x + radius, middleChunk.y + radius);
-    endPos = glm::min(endPos, ivec2(63, 63));
-
-    for(i32 y = startPos.y; y < endPos.y; y++)
-    {
-        for (i32 x = startPos.x; x < endPos.x; x++)
-        {
-            LoadChunk(map, x, y);
-        }
-    }
+    _loadedChunks.push_back(chunkID);
 }

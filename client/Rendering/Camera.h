@@ -19,15 +19,27 @@ struct CameraSaveData
     f32 movement;
 };
 
+constexpr vec3 worldUp = vec3(0, 1, 0);
+
 class Window;
-class InputBinding;
 class Camera
 {
 public:
-    Camera(const vec3& pos);
-    
-    void Init();
-    void Update(f32 deltaTime, float fovInDegrees, float aspectRatioWH);
+    Camera(bool isActive);
+
+    virtual void Init() = 0;
+    virtual void Enabled() = 0;
+    virtual void Disabled() = 0;
+    virtual void Update(f32 deltaTime, float fovInDegrees, float aspectRatioWH) = 0;
+
+    void SetActive(bool state) { _active = state; }
+    bool IsActive() { return _active; }
+
+    void SetNearClip(f32 value) { _nearClip = value; }
+    f32 GetNearClip() { return _nearClip; }
+
+    void SetFarClip(f32 value) { _farClip = value; }
+    f32 GetFarClip() { return _farClip; }
 
     bool LoadFromFile(std::string filename);
     bool SaveToFile(std::string filename);
@@ -42,40 +54,63 @@ public:
         _position = position;
     }
     vec3 GetPosition() const { return _position; }
+    
+    void SetPreviousMousePosition(vec2 position)
+    {
+        _prevMousePosition = position;
+    }
+    vec2 GetPreviousMousePosition() const { return _prevMousePosition; }
+
+    void SetYaw(f32 value) { _yaw = value; }
+    f32 GetYaw() { return _yaw; }
+    void SetPitch(f32 value) { _pitch = value; }
+    f32 GetPitch() { return _pitch; }
     vec3 GetRotation() const { return vec3(0, _yaw, _pitch); }
+
+    void SetMouseCaptured(bool state) { _captureMouse = state; }
     bool IsMouseCaptured() const { return _captureMouse; }
 
-private:
+    void SetCapturedMouseMoved(bool state) { _captureMouseHasMoved = state; }
+    bool GetCapturedMouseMoved() const { return _captureMouseHasMoved; }
+
+protected:
     void UpdateCameraVectors();
     void UpdateFrustumPlanes(const mat4x4& m);
 
-private:
-    Window* _window;
-    vec3 _position;
+protected:
+    Window* _window = nullptr;
 
-    // Rotation Matrix
-    mat4x4 _rotationMatrix;
-    mat4x4 _viewMatrix;
-    mat4x4 _projectionMatrix;
-    mat4x4 _viewProjectionMatrix;
+    bool _active;
+    f32 _nearClip = 1.0f;
+    f32 _farClip = 100000.0f;
 
-    // Direction vectors
-    vec3 _front;
-    vec3 _up;
-    vec3 _left;
-    vec3 _worldUp;
-
+    vec3 _position = vec3(0, 0, 0);
+    
     // Euler Angles
     f32 _yaw = 0.0f;
     f32 _pitch = 0.0f;
 
-    // Mouse position
-    vec2 _prevMousePosition;
-    bool _captureMouse = false;
+    // Rotation Matrix
+    mat4x4 _rotationMatrix = mat4x4();
+    mat4x4 _viewMatrix = mat4x4();
+    mat4x4 _projectionMatrix = mat4x4();
+    mat4x4 _viewProjectionMatrix = mat4x4();
 
+    // Direction vectors
+    vec3 _front = vec3(0, 0, 0);
+    vec3 _up = vec3(0, 0, 0);
+    vec3 _left = vec3(0, 0, 0);
+
+    // Mouse States
+    vec2 _prevMousePosition = vec2(0, 0);
+    bool _captureMouse = false;
+    bool _captureMouseHasMoved = false;
     f32 _movementSpeed = 50.0f;
     f32 _mouseSensitivity = 0.05f;
-    f32 _lastDeltaTime = 0.0f;
 
-    vec4 _frustumPlanes[6];
+    vec4 _frustumPlanes[6] = 
+    { 
+        vec4(0, 0, 0, 0), vec4(0, 0, 0, 0), vec4(0, 0, 0, 0),
+        vec4(0, 0, 0, 0), vec4(0, 0, 0, 0), vec4(0, 0, 0, 0) 
+    };
 };

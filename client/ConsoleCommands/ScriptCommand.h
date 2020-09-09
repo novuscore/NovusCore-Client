@@ -30,7 +30,7 @@
 #include "../Scripting/ScriptHandler.h"
 #include "../Rendering/ClientRenderer.h"
 #include "../Rendering/TerrainRenderer.h"
-#include "../Rendering/Camera.h"
+#include "../Rendering/CameraFreelook.h"
 #include <vector>
 
 void ReloadCommand(EngineLoop& engineLoop, std::vector<std::string> subCommands)
@@ -41,15 +41,6 @@ void ReloadCommand(EngineLoop& engineLoop, std::vector<std::string> subCommands)
     engineLoop.PassMessage(reloadMessage);
 }
 
-
-void GetChunkIds(EngineLoop& engineLoop, std::vector<std::string> subCommands)
-{
-    Camera* camera = ServiceLocator::GetCamera();
-
-    f32 height = Terrain::MapUtils::GetHeightFromWorldPosition(camera->GetPosition());
-
-    NC_LOG_MESSAGE("Height(%f), Camera Height(%f)", height, camera->GetPosition().y);
-}
 void LoadMapCommand(EngineLoop& engineLoop, std::vector<std::string> subCommands)
 {
     size_t argSize = subCommands.size();

@@ -36,11 +36,33 @@ namespace Terrain
         u32 version = 0;
     };
 
+    struct MapObjectMaterialFlags
+    {
+        union
+        {
+            u32 flags;
+            struct
+            {
+                bool unlit : 1;
+                bool unfogged : 1;
+                bool unculled : 1;
+                bool extLight : 1;
+                bool sidn : 1;
+                bool window : 1;
+                bool clampS : 1;
+                bool clampT : 1;
+                bool unknown : 1;
+            };
+        };
+    };
+    static_assert(sizeof(MapObjectMaterialFlags) == 4); // This should always be the size of one u32
+
     constexpr u32 INVALID_TEXTURE_ID = 9999;
     struct MapObjectMaterial
     {
         u16 materialType;
         u16 transparencyMode;
+        MapObjectMaterialFlags flags;
         u32 textureNameID[3] = { INVALID_TEXTURE_ID, INVALID_TEXTURE_ID, INVALID_TEXTURE_ID };
     };
 

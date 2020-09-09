@@ -4,6 +4,7 @@
 
 #define NUM_INDICES_PER_CELL (768)
 #define NUM_VERTICES_PER_CELL (145)
+#define NUM_VERTICES_PER_CELL_SIDE ()
 
 #define CHUNK_SIDE_SIZE (533.3333f)
 #define CELL_SIDE_SIZE (33.3333f)
@@ -26,6 +27,12 @@ struct CellData
 struct ChunkData
 {
     uint alphaID;
+};
+
+struct CellInstance
+{
+    uint packedChunkCellID;
+    uint instanceID;
 };
 
 struct AABB

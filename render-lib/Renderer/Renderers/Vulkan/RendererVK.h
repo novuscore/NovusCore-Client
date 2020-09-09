@@ -22,6 +22,7 @@ namespace Renderer
         struct BindInfo;
         class DescriptorSetBuilderVK;
         struct SwapChainVK;
+        class DescriptorSetBuilderVK;
     }
     
     class RendererVK : public Renderer
@@ -84,7 +85,8 @@ namespace Renderer
         void PushMarker(CommandListID commandListID, Color color, std::string name) override;
         void BeginPipeline(CommandListID commandListID, GraphicsPipelineID pipeline) override;
         void EndPipeline(CommandListID commandListID, GraphicsPipelineID pipeline) override;
-        void SetPipeline(CommandListID commandListID, ComputePipelineID pipeline) override;
+        void BeginPipeline(CommandListID commandListID, ComputePipelineID pipeline) override;
+        void EndPipeline(CommandListID commandListID, ComputePipelineID pipeline) override;
         void SetScissorRect(CommandListID commandListID, ScissorRect scissorRect) override;
         void SetViewport(CommandListID commandListID, Viewport viewport) override;
         void SetVertexBuffer(CommandListID commandListID, u32 slot, BufferID bufferID) override;
@@ -130,6 +132,8 @@ namespace Renderer
         Backend::SamplerHandlerVK* _samplerHandler = nullptr;
         Backend::SemaphoreHandlerVK* _semaphoreHandler = nullptr;
 
+        GraphicsPipelineID _globalDummyPipeline = GraphicsPipelineID::Invalid();
+        Backend::DescriptorSetBuilderVK* _descriptorSetBuilder = nullptr;
         ModelID _boundModelIndexBuffer = ModelID::Invalid(); // TODO: Move these into CommandListHandler I guess?
 
         i8 _renderPassOpenCount = 0; // TODO: Move these into CommandListHandler I guess?

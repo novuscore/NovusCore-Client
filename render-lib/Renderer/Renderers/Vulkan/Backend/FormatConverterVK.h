@@ -38,6 +38,13 @@ namespace Renderer
                 case IMAGE_FORMAT_R8G8B8A8_UINT:            return VK_FORMAT_R8G8B8A8_UINT;
                 case IMAGE_FORMAT_R8G8B8A8_SNORM:           return VK_FORMAT_R8G8B8A8_SNORM;
                 case IMAGE_FORMAT_R8G8B8A8_SINT:            return VK_FORMAT_R8G8B8A8_SINT;
+
+                case IMAGE_FORMAT_B8G8R8A8_UNORM:           return VK_FORMAT_B8G8R8A8_UNORM;
+                case IMAGE_FORMAT_B8G8R8A8_UNORM_SRGB:      return VK_FORMAT_B8G8R8A8_SRGB;
+                case IMAGE_FORMAT_B8G8R8A8_SNORM:           return VK_FORMAT_B8G8R8A8_SNORM;
+                case IMAGE_FORMAT_B8G8R8A8_UINT:            return VK_FORMAT_B8G8R8A8_UINT;
+                case IMAGE_FORMAT_B8G8R8A8_SINT:            return VK_FORMAT_B8G8R8A8_SINT;
+
                 case IMAGE_FORMAT_R16G16_FLOAT:             return VK_FORMAT_R16G16_SFLOAT; // RG16, 32 bits per pixel
                 case IMAGE_FORMAT_R16G16_UNORM:             return VK_FORMAT_R16G16_UNORM;
                 case IMAGE_FORMAT_R16G16_UINT:              return VK_FORMAT_R16G16_UINT;

@@ -1,11 +1,13 @@
+#include "globalData.inc.hlsl"
 
-[[vk::binding(2, PER_PASS)]] SamplerState _sampler;
-[[vk::binding(3, PER_PASS)]] ByteAddressBuffer _materialData;
-[[vk::binding(4, PER_PASS)]] Texture2D<float4> _textures[1024];
+[[vk::binding(1, PER_PASS)]] SamplerState _sampler;
+[[vk::binding(2, PER_PASS)]] ByteAddressBuffer _materialData;
+[[vk::binding(3, PER_PASS)]] Texture2D<float4> _textures[1024];
 
 struct MaterialParam
 {
     uint materialID;
+    uint exteriorLit;
 };
 
 [[vk::push_constant]] MaterialParam materialParam;
@@ -15,12 +17,15 @@ struct Material
     uint textureIDs[3];
     float alphaTestVal;
     uint materialType;
+    uint isUnlit;
 };
 
 struct PSInput
 {
-    float2 uv0 : TEXCOORD0;
-    float2 uv1 : TEXCOORD1;
+    float3 normal : TEXCOORD0;
+    float4 color0 : TEXCOORD1;
+    float4 color1 : TEXCOORD2;
+    float4 uv01 : TEXCOORD3;
 };
 
 struct PSOutput
@@ -32,14 +37,35 @@ Material LoadMaterial()
 {
     Material material;
 
-    material = _materialData.Load<Material>(materialParam.materialID * 20); // 20 = sizeof(Material)
+    material = _materialData.Load<Material>(materialParam.materialID * 24); // 24 = sizeof(Material)
 
     return material;
 }
 
-float3 Lighting(float3 color)
+float3 Lighting(float3 baseColor, float4 vertexColor, float3 normal, Material material)
 {
-    return float3(0, 0, 0);
+    float3 currColor;
+    float3 lDiffuse = float3(0, 0, 0);
+
+    if (materialParam.exteriorLit == 1)
+    {
+        float nDotL = dot(normal, -normalize(_lightData.lightDir.xyz));
+
+        float3 ambientColor = _lightData.ambientColor.rgb + vertexColor.rgb;
+
+        float3 skyColor = (ambientColor * 1.10000002);
+        float3 groundColor = (ambientColor * 0.699999988);
+
+        currColor = lerp(groundColor, skyColor, 0.5 + (0.5 * nDotL));
+        lDiffuse = _lightData.lightColor.rgb * saturate(nDotL);
+    }
+    else
+    {
+        currColor = _lightData.ambientColor.rgb + vertexColor.rgb;
+    }
+
+    float3 gammaDiffTerm = baseColor * (currColor + lDiffuse);
+    return gammaDiffTerm;
 }
 
 PSOutput main(PSInput input)
@@ -48,50 +74,56 @@ PSOutput main(PSInput input)
 
     Material material = LoadMaterial();
 
-    float4 color0 = _textures[material.textureIDs[0]].Sample(_sampler, input.uv0);
-    float4 color1 = _textures[material.textureIDs[1]].Sample(_sampler, input.uv1);
+    float4 tex0 = _textures[material.textureIDs[0]].Sample(_sampler, input.uv01.xy);
+    float4 tex1 = _textures[material.textureIDs[1]].Sample(_sampler, input.uv01.zw);
 
-    if (color0.a < material.alphaTestVal)
+    if (tex0.a < material.alphaTestVal)
     {
         discard;
     }
 
-    //output.color = color0;
+    float3 normal = normalize(input.normal);
 
-    if (material.materialType == 3) // Environment
+    if (material.materialType == 0) // Diffuse
     {
-        float3 color = color0.rgb * color1.rgb;
-        output.color = float4(Lighting(color0.rgb) + color, 1.0f);
+        float3 matDiffuse = tex0.rgb;
+        output.color = float4(Lighting(matDiffuse, input.color0, normal, material), input.color0.a);
+    }
+    else if (material.materialType == 1) // Specular
+    {
+        float3 matDiffuse = tex0.rgb;
+        output.color = float4(Lighting(matDiffuse, input.color0, normal, material), input.color0.a);
+    }
+    else if (material.materialType == 2) // Metal
+    {
+        float3 matDiffuse = tex0.rgb;
+        output.color = float4(Lighting(matDiffuse, input.color0, normal, material), input.color0.a);
+    }
+    else if (material.materialType == 3) // Environment
+    {
+        float3 matDiffuse = tex0.rgb;
+        float3 env = tex1.rgb * tex0.a;
+        output.color = float4(Lighting(matDiffuse, input.color0, normal, material) + env, input.color0.a);
+    }
+    else if (material.materialType == 4) // Opaque
+    {
+        float3 matDiffuse = tex0.rgb;
+        output.color = float4(Lighting(matDiffuse, input.color0, normal, material), input.color0.a);
     }
     else if (material.materialType == 5) // Environment metal
     {
-        float3 color = color0.rgb * color1.rgb * color0.a;
-        output.color = float4(Lighting(color0.rgb) + color, 1.0f);
+        float3 matDiffuse = tex0.rgb;
+        float3 env = (tex0.rgb * tex0.a) * tex1.rgb;
+        output.color = float4(Lighting(tex0.rgb, input.color0, normal, material) + env, input.color0.a);
     }
     else if (material.materialType == 6) // Two Layer Diffuse
     {
-        static const float4 vertexcolor = float4(0, 0, 0, 0); // TODO: Load vertex colors
+        float3 layer0 = tex0.rgb;
+        float3 layer1 = lerp(layer0, tex1.rgb, tex1.a);
+        float3 matDiffuse = (input.color0.rgb * 2.0) * lerp(layer1, layer0, input.color1.a);
 
-        float3 color = lerp(color0.rgb, color1.rgb, 1.0f);
-        output.color = float4(lerp(color, color0.rgb, vertexcolor.a), 1.0f); // TODO: Apply lighting
+        output.color = float4(Lighting(matDiffuse, input.color0, normal, material), 1.0f);
     }
-    else // Default blending, could be Diffuse, Specular, Metal or Opaque
-    {
-        output.color = float4(color0.rgb, 1.0f); // TODO: Apply lighting
-    }
-
-    /*if (material.materialType == 0)
-    {
-        output.color = float4(1, 0, 0, 1);
-    }
-    else if (material.materialType == 1)
-    {
-        output.color = float4(0, 1, 0, 1);
-    }
-    else
-    {
-        output.color = float4(0, 0, 1, 1);
-    }*/
 
     return output;
 }

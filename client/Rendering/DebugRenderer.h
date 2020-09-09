@@ -24,8 +24,8 @@ public:
 
 	void Flush(Renderer::CommandList* commandList);
 
-	void Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::BufferID viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
-	void Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::BufferID viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
+	void Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
+	void Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 
 	void DrawLine2D(const vec2& from, const vec2& to, uint32_t color);
 	void DrawLine3D(const vec3& from, const vec3& to, uint32_t color);
@@ -58,6 +58,4 @@ private:
 	uint32_t _debugVertexCount[DBG_VERTEX_BUFFER_COUNT];
 
 	Renderer::BufferID _debugVertexBuffer;
-
-	Renderer::DescriptorSet _passDescriptorSet;
 };

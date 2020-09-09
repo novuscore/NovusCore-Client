@@ -14,7 +14,7 @@
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
 
-#include "Camera.h"
+#include "CameraFreelook.h"
 
 SkyboxRenderer::SkyboxRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer)
     : _renderer(renderer)
@@ -28,12 +28,12 @@ SkyboxRenderer::~SkyboxRenderer()
 
 }
 
-void SkyboxRenderer::Update(f32 deltaTime, const Camera& camera)
+void SkyboxRenderer::Update(f32 deltaTime, const CameraFreeLook& camera)
 {
 
 }
 
-void SkyboxRenderer::AddSkyboxPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, const Camera& camera)
+void SkyboxRenderer::AddSkyboxPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, const CameraFreeLook& camera)
 {
     struct TerrainPassData
     {

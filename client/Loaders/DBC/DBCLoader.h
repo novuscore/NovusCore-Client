@@ -1,7 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
 #include <Utils/FileReader.h>
-#include <entt.hpp>
+#include <entity/fwd.hpp>
 
 class StringTable;
 namespace DBC

@@ -1,6 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
 #include <robin_hood.h>
+#include <filesystem>
 
 #include <Renderer/Buffer.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
@@ -21,6 +22,7 @@ namespace Renderer
 namespace Terrain
 {
     struct Chunk;
+    struct MapObject;
 }
 
 class StringTable;
@@ -32,9 +34,10 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
+    void AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 
     void LoadMapObjects(const Terrain::Chunk& chunk, StringTable& stringTable);
+    bool Load(const std::filesystem::path nmoPath, Terrain::MapObject& mapObject);
     void Clear();
 
 private:
@@ -46,6 +49,13 @@ private:
         u32 textureIDs[3];
         f32 alphaTestVal = -1.0f;//1.0f / 255.0f;//1.0f / 16.0f;//1.0f / 255.0f;
         u32 materialType = 0;
+        u32 unlit = 0;
+    };
+
+    struct PushConstantData
+    {
+        u32 materialID;
+        u32 exteriorLit;
     };
 
     struct Instance
@@ -58,11 +68,15 @@ private:
         // Per submesh data
         std::vector<u32> numIndices;
         std::vector<Renderer::BufferID> indexBuffers; 
-        std::vector<u32> materialIDs;
+
+        std::vector<PushConstantData> pushConstantDatas;
 
         // Per mesh data
         Renderer::BufferID vertexPositionsBuffer;
         Renderer::BufferID vertexNormalsBuffer;
+
+        u32 numVertexColorSets;
+        Renderer::TextureID vertexColorsTexture;
 
         u32 numUVSets;
         Renderer::BufferID vertexUVsBuffer;

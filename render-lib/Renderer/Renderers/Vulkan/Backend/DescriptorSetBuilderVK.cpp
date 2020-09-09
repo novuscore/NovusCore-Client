@@ -40,8 +40,43 @@ namespace Renderer
                 }
                 if (desc.states.pixelShader != PixelShaderID::Invalid())
                 {
-                    const Backend::BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.states.pixelShader);
-                    _bindInfos.insert(_bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
+                    const BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.states.pixelShader);
+
+                    // Loop over all new databindings
+                    for (const BindInfo& dataBinding : bindReflection.dataBindings)
+                    {
+                        bool found = false;
+                        // Loop over our current databindings
+                        for (BindInfo& bindInfo : _bindInfos)
+                        {
+                            // If they occupy the same descriptor space
+                            if (dataBinding.set == bindInfo.set &&
+                                dataBinding.binding == bindInfo.binding)
+                            {
+                                // If the name, descriptorType and count matches as well we assume it matches and is fine
+                                if (dataBinding.nameHash == bindInfo.nameHash &&
+                                    dataBinding.descriptorType == bindInfo.descriptorType &&
+                                    dataBinding.count == bindInfo.count)
+                                {
+                                    // Just add our stageflags to it
+                                    bindInfo.stageFlags |= dataBinding.stageFlags;
+                                }
+                                else
+                                {
+                                    // Else somethings is really bad, lets fatal log
+                                    NC_LOG_FATAL("Vertex Shader and Pixel Shader tries to use the same descriptor set and binding, but they don't seem to match");
+                                }
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        // If we  didn't find a match, add it to our bindInfos
+                        if (!found)
+                        {
+                            _bindInfos.push_back(dataBinding);
+                        }
+                    }
                 }
             }
             else
