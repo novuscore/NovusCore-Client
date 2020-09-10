@@ -160,6 +160,9 @@ namespace UIInput
         if (dataSingleton.focusedWidget == entt::null)
             return false;
 
+        if (action == GLFW_RELEASE)
+            return true;
+
         UIComponent::Transform& transform = registry->get<UIComponent::Transform>(dataSingleton.focusedWidget);
         UIComponent::TransformEvents& events = registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget);
 
