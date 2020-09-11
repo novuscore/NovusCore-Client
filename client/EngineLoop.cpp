@@ -54,6 +54,8 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/misc/cpp/imgui_stdlib.h"
 
+#include "CVar/CVarSystem.h"
+
 EngineLoop::EngineLoop() : _isRunning(false), _inputQueue(256), _outputQueue(256)
 {
     _network.asioService = std::make_shared<asio::io_service>(2);
@@ -515,6 +517,14 @@ void EngineLoop::DrawImguiMenuBar()
             if (ImGui::MenuItem("Cut", "CTRL+X")) {}
             if (ImGui::MenuItem("Copy", "CTRL+C")) {}
             if (ImGui::MenuItem("Paste", "CTRL+V")) {}
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Debug"))
+        {
+            if (ImGui::BeginMenu("CVAR")) {
+                CVarSystem::Get()->DrawImguiEditor();
+                ImGui::EndMenu();
+            }
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();

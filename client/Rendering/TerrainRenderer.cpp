@@ -19,16 +19,23 @@
 
 #include "Camera.h"
 #include "../Loaders/Map/MapLoader.h"
+#include "CVar/CVarSystem.h"
 
 #define USE_PACKED_HEIGHT_RANGE 1
 
-static bool s_cullingEnabled = true;
-static bool s_gpuCullingEnabled = true;
-static bool s_lockCullingFrustum = false;
 
 static vec3 s_debugPosition = vec3(0, 0, 0);
-static f32 s_debugPositionScale = 0.1f;
-static bool s_lockDebugPosition = false;
+
+
+AutoCVar_Int CVAR_CullingEnabled("terrain.cullEnable", "enable culling of terrain tiles", 1, CVarFlags::EditCheckbox);
+
+AutoCVar_Int CVAR_GPUCullingEnabled("terrain.gpuCullEnable", "enable gpu culling", 0, CVarFlags::EditCheckbox);
+
+AutoCVar_Int CVAR_LockCullingFrustum("terrain.lockCullingFrustum", "lock frustrum for terrain culling", 0, CVarFlags::EditCheckbox);
+
+AutoCVar_Int CVAR_LockDebugPosition("terrain.lockDebugPosition", "lock terrain debug position", 0, CVarFlags::EditCheckbox);
+
+AutoCVar_Float CVAR_DebugPositionScale("terrain.debugPositionScale", "size of the debug position marker", 0.1f);
 
 struct TerrainChunkData
 {
@@ -61,35 +68,35 @@ TerrainRenderer::TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* de
 
     ServiceLocator::GetInputManager()->RegisterKeybind("ToggleCulling", GLFW_KEY_F2, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
-        s_cullingEnabled = !s_cullingEnabled;
+        CVAR_CullingEnabled.Toggle();
         return true;
     });
 
     ServiceLocator::GetInputManager()->RegisterKeybind("ToggleGPUCulling", GLFW_KEY_F3, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
-        s_gpuCullingEnabled = !s_gpuCullingEnabled;
+        CVAR_GPUCullingEnabled.Toggle();
         return true;
     });
 
     ServiceLocator::GetInputManager()->RegisterKeybind("ToggleLockCullingFrustum", GLFW_KEY_F5, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
-        s_lockCullingFrustum = !s_lockCullingFrustum;
+        CVAR_LockCullingFrustum.Toggle();
         return true;
     });
 
     ServiceLocator::GetInputManager()->RegisterKeybind("ToggleLockDebugPosition", GLFW_KEY_F6, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
-        s_lockDebugPosition = !s_lockDebugPosition;
+        CVAR_LockDebugPosition.Toggle();
         return true;
     });
     ServiceLocator::GetInputManager()->RegisterKeybind("DecreaseDebugPositionScale", GLFW_KEY_F7, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
-        s_debugPositionScale -= 0.1f;
+        CVAR_DebugPositionScale.Set(CVAR_DebugPositionScale.Get() - 0.1f);
         return true;
     });
     ServiceLocator::GetInputManager()->RegisterKeybind("IncreaseDebugPositionScale", GLFW_KEY_F8, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
-        s_debugPositionScale += 0.1f;
+        CVAR_DebugPositionScale.Set(CVAR_DebugPositionScale.Get() + 0.1f);
         return true;
     });
 }
@@ -107,14 +114,16 @@ void TerrainRenderer::Update(f32 deltaTime)
     //}
 
     Camera* camera = ServiceLocator::GetCamera();
-
-    if (!s_lockDebugPosition)
+    constexpr auto hash = StringUtils::StringHash("terrain.lockDebugPosition");
+    i32* debugPos = CVarSystem::Get()->GetIntCVar(hash);
+    bool bDebugLock = *debugPos != 0;
+    if (!bDebugLock)
     {
         s_debugPosition = camera->GetPosition();
         s_debugPosition.y = Terrain::MapUtils::GetHeightFromWorldPosition(s_debugPosition);
     }
-
-    f32 halfSize = s_debugPositionScale;
+    
+    f32 halfSize = CVAR_DebugPositionScale.GetFloat();
     vec3 min = s_debugPosition;
     min.x -= halfSize;
     min.z -= halfSize;
@@ -123,13 +132,13 @@ void TerrainRenderer::Update(f32 deltaTime)
     max.x += halfSize;
     max.z += halfSize;
 
-    max.y += s_debugPositionScale;
+    max.y += halfSize;
 
     _debugRenderer->DrawAABB3D(min, max, 0xff00ff00);
-
+    
     DebugRenderCellTriangles(camera);
 
-    if (s_cullingEnabled && !s_gpuCullingEnabled)
+    if (CVAR_CullingEnabled.Get() && !CVAR_GPUCullingEnabled.Get())
     {
         CPUCulling(camera);
     }
@@ -193,7 +202,7 @@ void TerrainRenderer::CPUCulling(const Camera* camera)
     static vec4 frustumPlanes[6];
     static mat4x4 lockedViewProjectionMatrix;
 
-    if (!s_lockCullingFrustum)
+    if (!CVAR_LockCullingFrustum.Get())
     {
         memcpy(frustumPlanes, camera->GetFrustumPlanes(), sizeof(frustumPlanes));
         lockedViewProjectionMatrix = camera->GetViewProjectionMatrix();
@@ -255,6 +264,10 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             Renderer::RenderPassMutableResource mainDepth;
         };
 
+        const bool cullingEnabled = CVAR_CullingEnabled.Get();
+        const bool gpuCullEnabled = CVAR_GPUCullingEnabled.Get();
+        const bool lockFrustum = CVAR_LockCullingFrustum.Get();
+
         renderGraph->AddPass<TerrainPassData>("Terrain Pass",
             [=](TerrainPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
@@ -268,7 +281,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             GPU_SCOPED_PROFILER_ZONE(commandList, TerrainPass);
 
             // Upload culled instances
-            if (s_cullingEnabled && !s_gpuCullingEnabled && !_culledInstances.empty())
+            if (cullingEnabled && !gpuCullEnabled && !_culledInstances.empty())
             {
                 Renderer::BufferDesc uploadBufferDesc;
                 uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
@@ -288,7 +301,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             }
 
             // Cull instances on GPU
-            if (s_cullingEnabled && s_gpuCullingEnabled)
+            if (cullingEnabled && gpuCullEnabled)
             {
                 Renderer::ComputePipelineDesc pipelineDesc;
                 resources.InitializePipelineDesc(pipelineDesc);
@@ -300,7 +313,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                 Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(pipelineDesc);
                 commandList.BeginPipeline(pipeline);
 
-                if (!s_lockCullingFrustum)
+                if (!lockFrustum)
                 {
                     Camera* camera = ServiceLocator::GetCamera();
                     memcpy(_cullingConstantBuffer->resource.frustumPlanes, camera->GetFrustumPlanes(), sizeof(vec4[6]));
@@ -365,7 +378,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             commandList.BeginPipeline(pipeline);
 
             // Set instance buffer
-            const Renderer::BufferID instanceBuffer = s_cullingEnabled ? _culledInstanceBuffer : _instanceBuffer;
+            const Renderer::BufferID instanceBuffer = cullingEnabled ? _culledInstanceBuffer : _instanceBuffer;
             commandList.SetBuffer(0, instanceBuffer);
 
             // Set index buffer
@@ -380,9 +393,9 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             // Bind descriptorset
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
-            if (s_cullingEnabled)
+            if (cullingEnabled)
             {
-                if (s_gpuCullingEnabled)
+                if (gpuCullEnabled)
                 {
                     commandList.DrawIndexedIndirect(_argumentBuffer, 0, 1);
                 }
