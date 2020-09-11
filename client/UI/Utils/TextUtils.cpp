@@ -152,7 +152,6 @@ namespace UIUtils::Text
                     BreakLine(wordStart);
                     advance = wordWidth;
                 }
-
             }
 
             lineWidths.back() += advance;
@@ -169,34 +168,34 @@ namespace UIUtils::Text
         lineWidths.clear();
         lineWidths.push_back(0);
         lineBreakPoints.clear();
-
-        size_t lastWordStart = 0;
+        size_t wordStart = 0;
         f32 wordWidth = 0.f;
+        f32 advance = 0.f;
 
-        auto BreakLine = [&](f32 newLineWidth, size_t breakPoint)
+        const auto BreakWord = [&](size_t i)
         {
-            lineWidths.push_back(newLineWidth);
-            lineBreakPoints.push_back(breakPoint);
+            wordStart = i + 1;
+            wordWidth = 0.f;
+        };
+        const auto BreakLine = [&](size_t i)
+        {
+            lineWidths.push_back(0);
+            lineBreakPoints.push_back(i);
         };
 
         for (size_t i = 0; i < text->text.length(); i++)
         {
-            // Handle line break character.
             if (text->text[i] == '\n')
             {
-                BreakLine(0.f, i);
-                lastWordStart = i + 1;
-                wordWidth = 0.f;
-
+                BreakWord(i);
+                BreakLine(i);
                 continue;
             }
 
-            f32 advance = 0.f;
             if (std::isspace(text->text[i]))
             {
                 advance = text->style.fontSize * 0.15f;
-                lastWordStart = i + 1;
-                wordWidth = 0.f;
+                BreakWord(i);
             }
             else
             {
@@ -204,18 +203,15 @@ namespace UIUtils::Text
                 wordWidth += advance;
             }
 
-            // Check if adding this character would break the line
             if (lineWidths.back() + advance > maxWidth)
             {
-                // If the word takes up less than a line break before it else just break in the middle of it.
-                if (wordWidth < maxWidth)
-                {
-                    lineWidths.back() -= wordWidth;
-                    BreakLine(wordWidth, lastWordStart);
-                }
+
+                if (wordWidth > maxWidth)
+                    BreakLine(i);
                 else
                 {
-                    BreakLine(0, i);
+                    BreakLine(wordStart);
+                    advance = wordWidth;
                 }
             }
 
