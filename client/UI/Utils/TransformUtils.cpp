@@ -16,10 +16,10 @@ namespace UIUtils::Transform
             std::lock_guard l(dataSingleton->GetMutex(child.entId));
             UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
             childTransform->sortData.depth += modifier;
+            childTransform->sortData.depthLayer = parent->sortData.depthLayer;
 
             UpdateChildDepths(registry, childTransform, modifier);
         }
-
     }
     
     void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent)

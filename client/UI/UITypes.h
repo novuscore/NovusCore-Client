@@ -11,6 +11,7 @@ namespace UI
         UITYPE_BUTTON,
         UITYPE_CHECKBOX,
         UITYPE_SLIDER,
+        UITYPE_SLIDERHANDLE,
 
         UITYPE_LABEL,
         UITYPE_INPUTFIELD

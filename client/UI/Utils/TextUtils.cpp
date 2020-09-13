@@ -58,7 +58,7 @@ namespace UIUtils::Text
     }
     size_t CalculateMultilinePushback(const UIComponent::Text* text, const size_t writeHead, const f32 maxWidth, const f32 maxHeight)
     {
-        u32 maxLines = static_cast<u32>(maxHeight / (text->style.fontSize * text->style.lineHeightMultiplier));
+        const u32 maxLines = static_cast<u32>(maxHeight / (text->style.fontSize * text->style.lineHeightMultiplier));
         std::vector<f32> lineWidths;
         std::vector<size_t> lineBreakPoints;
         CalculateAllLineWidthsAndBreaks(text, maxWidth, lineWidths, lineBreakPoints);
@@ -71,8 +71,6 @@ namespace UIUtils::Text
         for (size_t i = lineBreakPoints.size()-1; i > 0; i--)
         {
             if (lineBreakPoints[i] > writeHead)
-                writeHeadLine = i - 1;
-            if (lineBreakPoints[i] > text->pushback)
                 writeHeadLine = i - 1;
         }
 
@@ -100,7 +98,7 @@ namespace UIUtils::Text
         lineWidths.push_back(0);
         lineBreakPoints.clear();
 
-        const u32 MaxLines = text->isMultiline ? (u32)(maxHeight / (text->style.fontSize * text->style.lineHeightMultiplier)) : 1;
+        const u32 MaxLines = static_cast<u32>(text->isMultiline ? maxHeight / (text->style.fontSize * text->style.lineHeightMultiplier) : 1);
         size_t wordStart = 0;
         f32 wordWidth = 0.f;
         f32 advance = 0.f;

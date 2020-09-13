@@ -204,6 +204,7 @@ namespace UIScripting
         // Update our and children's depth. Keeping the relative offsets for all children but adding onto it how much we moved in depth.
         u16 difference = parentTransform->sortData.depth - transform->sortData.depth + 1;
         transform->sortData.depth = parentTransform->sortData.depth + 1;
+        transform->sortData.depthLayer = parentTransform->sortData.depthLayer;
         UIUtils::Transform::UpdateChildDepths(registry, transform, difference);
         UIUtils::Transform::UpdateChildTransforms(registry, transform);
     }

@@ -121,8 +121,7 @@ namespace UIScripting
     }
     void Panel::SetTexture(const std::string& texture)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         image->style.texture = texture;
     }
 
@@ -134,8 +133,7 @@ namespace UIScripting
     }
     void Panel::SetColor(const Color& color)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         image->style.color = color;
     }
 
