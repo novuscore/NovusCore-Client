@@ -563,7 +563,8 @@ void EngineLoop::DrawImguiMenuBar()
         }
         if (ImGui::BeginMenu("Debug"))
         {
-            if (ImGui::BeginMenu("CVAR")) {
+            if (ImGui::BeginMenu("CVAR"))
+            {
                 CVarSystem::Get()->DrawImguiEditor();
                 ImGui::EndMenu();
             }
