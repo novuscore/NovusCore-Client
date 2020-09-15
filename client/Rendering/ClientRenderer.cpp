@@ -363,9 +363,9 @@ void ClientRenderer::Render()
 
 void ClientRenderer::InitImgui()
 {
-	ImGui::CreateContext();
+    ImGui::CreateContext();
     ImPlot::CreateContext();
-	ImGui_ImplGlfw_InitForVulkan(_window->GetWindow(),true);
+    ImGui_ImplGlfw_InitForVulkan(_window->GetWindow(),true);
 
     _renderer->InitImgui();
 }
