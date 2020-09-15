@@ -12,13 +12,11 @@ namespace UIScripting
     Panel::Panel() : BaseElement(UI::UIElementType::UITYPE_PANEL)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
         events->asObject = this;
 
         registry->emplace<UIComponent::Image>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
-
     }
 
     void Panel::RegisterType()

@@ -8,7 +8,7 @@
 
 namespace UIScripting
 {
-    Label::Label() : BaseElement(UI::UIElementType::UITYPE_LABEL)
+    Label::Label() : BaseElement(UI::UIElementType::UITYPE_LABEL, false)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Text>(_entityId);

@@ -15,7 +15,7 @@
 
 namespace UIScripting
 {
-    BaseElement::BaseElement(UI::UIElementType elementType) : _elementType(elementType)
+    BaseElement::BaseElement(UI::UIElementType elementType, bool collisionEnabled) : _elementType(elementType)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         _entityId = registry->ctx<UISingleton::UIEntityPoolSingleton>().GetId();
@@ -26,10 +26,12 @@ namespace UIScripting
         transform->sortData.entId = _entityId;
         transform->sortData.type = _elementType;
         transform->asObject = this;
+        transform->collision = collisionEnabled;
 
         registry->emplace<UIComponent::Visibility>(_entityId);
         registry->emplace<UIComponent::Visible>(_entityId);
-        registry->emplace<UIComponent::Collidable>(_entityId);
+        if(collisionEnabled)
+            registry->emplace<UIComponent::Collidable>(_entityId);
     }
 
     vec2 BaseElement::GetScreenPosition() const
@@ -167,7 +169,6 @@ namespace UIScripting
     void BaseElement::SetDepthLayer(const UI::DepthLayer layer)
     {
         auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
-
         transform->sortData.depthLayer = layer;
     }
 
@@ -179,7 +180,6 @@ namespace UIScripting
     void BaseElement::SetDepth(const u16 depth)
     {
         auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
-
         transform->sortData.depth = depth;
     }
 

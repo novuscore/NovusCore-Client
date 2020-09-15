@@ -16,7 +16,7 @@ namespace UIScripting
         friend struct ::UISingleton::UIDataSingleton;
 
     public:
-        BaseElement(UI::UIElementType elementType);
+        BaseElement(UI::UIElementType elementType, bool collisionEnabled = true);
 
         virtual ~BaseElement() { }
 
