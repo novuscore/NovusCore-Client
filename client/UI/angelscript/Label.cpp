@@ -8,28 +8,13 @@
 
 namespace UIScripting
 {
-    Label::Label() : BaseElement(UI::UIElementType::UITYPE_LABEL) 
-    { 
+    Label::Label() : BaseElement(UI::UIElementType::UITYPE_LABEL)
+    {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-
-        UISingleton::UILockSingleton& uiLockSingleton = registry->ctx<UISingleton::UILockSingleton>();
-        uiLockSingleton.mutex.lock();
-        {
-            UIComponent::Transform* transform = &registry->emplace<UIComponent::Transform>(_entityId);
-            transform->sortData.entId = _entityId;
-            transform->sortData.type = _elementType;
-            transform->asObject = this;
-
-            registry->emplace<UIComponent::Visible>(_entityId);
-            registry->emplace<UIComponent::Visibility>(_entityId);
-            registry->emplace<UIComponent::Text>(_entityId);
-            registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Text;
-
-            transform->collision = false;
-        }
-        uiLockSingleton.mutex.unlock();
+        registry->emplace<UIComponent::Text>(_entityId);
+        registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Text;
     }
-    
+
     void Label::RegisterType()
     {
         i32 r = ScriptEngine::RegisterScriptClass("Label", 0, asOBJ_REF | asOBJ_NOCOUNT);

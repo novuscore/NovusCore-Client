@@ -63,7 +63,7 @@ namespace UIUtils::Transform
     *   transform: Transform from which to start update.
     *   modifer: amount to modify depth by.
     */
-    void UpdateChildDepths(entt::registry* registry, UIComponent::Transform* parent, u32 modifier);
+    void UpdateChildDepths(entt::registry* registry, UIComponent::Transform* parent, i16 modifier);
     
     void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent);
 

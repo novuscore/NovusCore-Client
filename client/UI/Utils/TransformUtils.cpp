@@ -7,7 +7,7 @@
 
 namespace UIUtils::Transform
 {
-    void UpdateChildDepths(entt::registry* registry, UIComponent::Transform* parent, u32 modifier)
+    void UpdateChildDepths(entt::registry* registry, UIComponent::Transform* parent, i16 modifier)
     {
         ZoneScoped;
         auto dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();

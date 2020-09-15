@@ -16,32 +16,15 @@ namespace UIScripting
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
-        UISingleton::UILockSingleton& uiLockSingleton = registry->ctx<UISingleton::UILockSingleton>();
-        uiLockSingleton.mutex.lock();
-        {
-            UIComponent::Transform* transform = &registry->emplace<UIComponent::Transform>(_entityId);
-            transform->sortData.entId = _entityId;
-            transform->sortData.type = _elementType;
-            transform->asObject = this;
+        UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
+        events->asObject = this;
+        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
 
-            UIComponent::InputField* inputField = &registry->emplace<UIComponent::InputField>(_entityId);
-            inputField->asObject = this;
+        UIComponent::InputField* inputField = &registry->emplace<UIComponent::InputField>(_entityId);
+        inputField->asObject = this;
 
-            registry->emplace<UIComponent::Visible>(_entityId);
-            registry->emplace<UIComponent::Visibility>(_entityId);
-            registry->emplace<UIComponent::Text>(_entityId);
-            registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Text;
-
-            transform->collision = true;
-            registry->emplace<UIComponent::Collidable>(_entityId);
-
-            UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-            events->asObject = this;
-
-            events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
-        }
-        uiLockSingleton.mutex.unlock();
-
+        registry->emplace<UIComponent::Text>(_entityId);
+        registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Text;
     }
 
     void InputField::RegisterType()
@@ -168,7 +151,7 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::InputField* inputField = &registry->get<UIComponent::InputField>(_entityId);
         const UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        
+
         inputField->writeHeadIndex = Math::Min(position, text->text.length());
     }
 

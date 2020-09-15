@@ -16,38 +16,20 @@ namespace UIScripting
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
-        UISingleton::UILockSingleton& uiLockSingleton = registry->ctx<UISingleton::UILockSingleton>();
-        uiLockSingleton.mutex.lock();
-        {
-            UIComponent::Transform* transform = &registry->emplace<UIComponent::Transform>(_entityId);
-            transform->sortData.entId = _entityId;
-            transform->sortData.type = _elementType;
-            transform->asObject = this;
+        UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
+        events->asObject = this;
+        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
-            UIComponent::Checkbox* checkBox = &registry->emplace<UIComponent::Checkbox>(_entityId);
-            checkBox->asObject = this;
+        UIComponent::Checkbox* checkBox = &registry->emplace<UIComponent::Checkbox>(_entityId);
+        checkBox->asObject = this;
 
-            UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-            events->asObject = this;
-            events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
-
-            registry->emplace<UIComponent::Visible>(_entityId);
-            registry->emplace<UIComponent::Visibility>(_entityId);
-            registry->emplace<UIComponent::Image>(_entityId);
-            registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
-
-            transform->collision = true;
-            registry->emplace<UIComponent::Collidable>(_entityId);
-
-        }
-        uiLockSingleton.mutex.unlock();
+        registry->emplace<UIComponent::Image>(_entityId);
+        registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
 
         checkPanel = Panel::CreatePanel();
-        checkPanel->SetFillParentSize(true);
         checkPanel->SetCollisionEnabled(false);
+        checkPanel->SetFillParentSize(true);
         checkPanel->SetParent(this);
-        checkPanel->SetDepth(500);
-
     }
 
     void Checkbox::RegisterType()

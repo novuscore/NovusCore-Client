@@ -13,31 +13,15 @@
 namespace UIScripting
 {
     Slider::Slider() : BaseElement(UI::UIElementType::UITYPE_SLIDER)
-    { 
+    {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
-        UISingleton::UILockSingleton& uiLockSingleton = registry->ctx<UISingleton::UILockSingleton>();
-        uiLockSingleton.mutex.lock();
-        {
-            UIComponent::Transform* transform = &registry->emplace<UIComponent::Transform>(_entityId);
-            transform->sortData.entId = _entityId;
-            transform->sortData.type = _elementType;
-            transform->asObject = this;
+        UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
+        events->asObject = this;
 
-            UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-            events->asObject = this;
-
-            registry->emplace<UIComponent::Visible>(_entityId);
-            registry->emplace<UIComponent::Visibility>(_entityId);
-            registry->emplace<UIComponent::Image>(_entityId);
-            registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
-
-            transform->collision = true;
-            registry->emplace<UIComponent::Collidable>(_entityId);
-
-            registry->emplace<UIComponent::Slider>(_entityId);
-        }
-        uiLockSingleton.mutex.unlock();
+        registry->emplace<UIComponent::Slider>(_entityId);
+        registry->emplace<UIComponent::Image>(_entityId);
+        registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
 
         sliderHandle = SliderHandle::CreateSliderHandle(this);
     }
@@ -114,24 +98,30 @@ namespace UIScripting
 
     const std::string& Slider::GetHandleTexture() const
     {
-        // TODO: insert return statement here
+        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(sliderHandle->GetEntityId());
+        return image->style.texture;
     }
     void Slider::SetHandleTexture(const std::string& texture)
     {
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(sliderHandle->GetEntityId());
+        image->style.texture = texture;
     }
 
     const Color Slider::GetHandleColor() const
     {
-        return Color();
+        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(sliderHandle->GetEntityId());
+        return image->style.color;
     }
     void Slider::SetHandleColor(const Color& color)
     {
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(sliderHandle->GetEntityId());
+        image->style.color = color;
     }
 
     Slider* Slider::CreateSlider()
     {
         Slider* slider = new Slider();
-        
+
         return slider;
     }
 }

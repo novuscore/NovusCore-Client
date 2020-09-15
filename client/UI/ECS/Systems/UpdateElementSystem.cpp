@@ -92,6 +92,26 @@ namespace UISystem
             dataSingleton.destructionQueue.try_dequeue_bulk(deleteEntities.begin(), deleteEntityNum);
             for (entt::entity entId : deleteEntities)
             {
+                auto& transform = registry.get<UIComponent::Transform>(entId);
+
+                for (const UI::UIChild& uiChild : transform.children)
+                {
+                    auto& childTransform = registry.get<UIComponent::Transform>(uiChild.entId);
+                    childTransform.parent = entt::null;
+                    childTransform.position = childTransform.position + childTransform.localPosition;
+                    childTransform.localPosition = vec2(0, 0);
+                    childTransform.parent = entt::null;
+                }
+
+                if (transform.parent != entt::null)
+                {
+                    auto& parentTransform = registry.get<UIComponent::Transform>(transform.parent);
+                    
+                    auto itr = std::find_if(parentTransform.children.begin(), parentTransform.children.end(), [transform](UI::UIChild& uiChild) { return uiChild.entId == transform.sortData.entId; });
+                    if (itr != parentTransform.children.end())
+                        parentTransform.children.erase(itr);
+                }
+
                 delete dataSingleton.entityToElement[entId];
             }
 

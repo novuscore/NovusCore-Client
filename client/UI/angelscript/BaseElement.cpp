@@ -20,6 +20,16 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         _entityId = registry->ctx<UISingleton::UIEntityPoolSingleton>().GetId();
         registry->ctx<UISingleton::UIDataSingleton>().entityToElement[_entityId] = this;
+
+        // Set up base components.
+        UIComponent::Transform* transform = &registry->emplace<UIComponent::Transform>(_entityId);
+        transform->sortData.entId = _entityId;
+        transform->sortData.type = _elementType;
+        transform->asObject = this;
+
+        registry->emplace<UIComponent::Visibility>(_entityId);
+        registry->emplace<UIComponent::Visible>(_entityId);
+        registry->emplace<UIComponent::Collidable>(_entityId);
     }
 
     vec2 BaseElement::GetScreenPosition() const
@@ -202,7 +212,7 @@ namespace UIScripting
             transform->size = parentTransform->size;
 
         // Update our and children's depth. Keeping the relative offsets for all children but adding onto it how much we moved in depth.
-        u16 difference = parentTransform->sortData.depth - transform->sortData.depth + 1;
+        i16 difference = parentTransform->sortData.depth - transform->sortData.depth + 1;
         transform->sortData.depth = parentTransform->sortData.depth + 1;
         transform->sortData.depthLayer = parentTransform->sortData.depthLayer;
         UIUtils::Transform::UpdateChildDepths(registry, transform, difference);
