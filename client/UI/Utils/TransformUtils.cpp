@@ -101,13 +101,14 @@ namespace UIUtils::Transform
 
     void MarkChildrenDirty(entt::registry* registry, const UIComponent::Transform* transform)
     {
+        auto dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();
+
         for (const UI::UIChild& child : transform->children)
         {
             const auto childTransform = &registry->get<UIComponent::Transform>(child.entId);
             MarkChildrenDirty(registry, childTransform);
-
-            if (!registry->has<UIComponent::Dirty>(child.entId))
-                registry->emplace<UIComponent::Dirty>(child.entId);
+            
+            dataSingleton->dirtyQueue.enqueue(child.entId);
         }
     }
 }

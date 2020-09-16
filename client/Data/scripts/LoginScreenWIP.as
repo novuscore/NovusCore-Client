@@ -63,22 +63,27 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	Color TEXTCOLOR = Color(0,0,0.5);
 	string FONT = "Data/fonts/Ubuntu/Ubuntu-Regular.ttf";
 
-	// Phase 1: Create all elements.
-	Panel@ background = CreatePanel();
-	Label@ userNameLabel = CreateLabel();
-	Panel@ userNameFieldPanel = CreatePanel();
-	InputField@ usernameField = CreateInputField();
-	Label@ passwordLabel = CreateLabel();
-	Panel@ passwordFieldPanel = CreatePanel();
-	InputField@ passwordField = CreateInputField();
-	Button@ submitButton = CreateButton();
-	Checkbox@ checkBox = CreateCheckbox();
-	Label@ rememberAccountLabel = CreateLabel();
-
-	// Phase 2: Write lock registry.
-	LockToken@ uiLock = UI::GetLock(2);
+	// Phase 1: Write lock registry.
+	LockToken@ uiWriteLock = UI::GetLock(2);
 	{
-		// Phase 3: Lock each element individually and set properties.
+		// Phase 2: Create all elements.
+		Panel@ background = CreatePanel();
+		Label@ userNameLabel = CreateLabel();
+		Panel@ userNameFieldPanel = CreatePanel();
+		InputField@ usernameField = CreateInputField();
+		Label@ passwordLabel = CreateLabel();
+		Panel@ passwordFieldPanel = CreatePanel();
+		InputField@ passwordField = CreateInputField();
+		Button@ submitButton = CreateButton();
+		Checkbox@ checkBox = CreateCheckbox();
+		Label@ rememberAccountLabel = CreateLabel();
+	}
+	uiWriteLock.unlock();
+
+	// Phase 3: Read lock registry.
+	LockToken@ uiLock = UI::GetLock(1);
+	{
+		// Phase 4: Lock each element individually and set properties.
 		LockToken@ backgroundLock = background.GetLock(2);
 		{
 			background.SetSize(vec2(1920,1080));

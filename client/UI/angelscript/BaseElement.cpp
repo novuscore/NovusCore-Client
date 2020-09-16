@@ -299,8 +299,7 @@ namespace UIScripting
     void BaseElement::MarkDirty()
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        if (!registry->has<UIComponent::Dirty>(_entityId))
-            registry->emplace<UIComponent::Dirty>(_entityId);
+        registry->ctx<UISingleton::UIDataSingleton>().dirtyQueue.enqueue(_entityId);
 
         const auto transform = &registry->get<UIComponent::Transform>(_entityId);
         UIUtils::Transform::MarkChildrenDirty(registry, transform);

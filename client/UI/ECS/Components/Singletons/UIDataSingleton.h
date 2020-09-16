@@ -42,5 +42,8 @@ namespace UISingleton
         moodycamel::ConcurrentQueue<entt::entity> destructionQueue;
         moodycamel::ConcurrentQueue<entt::entity> visibilityToggleQueue;
         moodycamel::ConcurrentQueue<entt::entity> collisionToggleQueue;
+
+        moodycamel::ConcurrentQueue<entt::entity> dirtyQueue;
+        moodycamel::ConcurrentQueue<entt::entity> dirtyBoundsQueue;
     };
 }
