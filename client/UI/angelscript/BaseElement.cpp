@@ -308,14 +308,12 @@ namespace UIScripting
     void BaseElement::MarkSelfDirty()
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        if (!registry->has<UIComponent::Dirty>(_entityId))
-            registry->emplace<UIComponent::Dirty>(_entityId);
+        registry->ctx<UISingleton::UIDataSingleton>().dirtyQueue.enqueue(_entityId);
     }
 
     void BaseElement::MarkBoundsDirty()
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        if (!registry->has<UIComponent::BoundsDirty>(_entityId))
-            registry->emplace<UIComponent::BoundsDirty>(_entityId);
+        registry->ctx<UISingleton::UIDataSingleton>().dirtyBoundsQueue.enqueue(_entityId);
     }
 }
