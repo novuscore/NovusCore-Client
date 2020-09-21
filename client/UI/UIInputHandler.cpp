@@ -3,6 +3,7 @@
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
 #include <tracy/Tracy.hpp>
+#include <entt.hpp>
 
 #include "ECS/Components/Singletons/UIDataSingleton.h"
 #include "ECS/Components/TransformEvents.h"
@@ -42,9 +43,9 @@ namespace UIInput
         eventGroup.sort<UIComponent::SortKey>([](UIComponent::SortKey& first, UIComponent::SortKey& second) { return first.key > second.key; });
         for (auto entity : eventGroup)
         {
-            const UIComponent::Collision& collision = eventGroup.get<UIComponent::Collision>(entity);
-            const UIComponent::SortKey& sortKey = eventGroup.get<UIComponent::SortKey>(entity);
             UIComponent::TransformEvents& events = eventGroup.get<UIComponent::TransformEvents>(entity);
+            const UIComponent::SortKey& sortKey = eventGroup.get<UIComponent::SortKey>(entity);
+            const UIComponent::Collision& collision = eventGroup.get<UIComponent::Collision>(entity);
 
             // Check so mouse if within widget bounds.
             if (mouse.x < collision.minBound.x || mouse.x > collision.maxBound.x || mouse.y < collision.minBound.y || mouse.y > collision.maxBound.y)
@@ -59,7 +60,7 @@ namespace UIInput
             {
                 if (events.IsDraggable())
                 {
-                    const UIComponent::Transform& transform = eventGroup.get<UIComponent::Transform>(entity);
+                    const UIComponent::Transform& transform = registry->get<UIComponent::Transform>(entity);
                     dataSingleton.draggedWidget = entity;
                     dataSingleton.dragOffset = mouse - (transform.position + transform.localPosition);
                     events.OnDragStarted();
@@ -228,5 +229,8 @@ namespace UIInput
         inputManager->RegisterMousePositionCallback("UI Mouse Position Checker", std::bind(&OnMousePositionUpdate, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
         inputManager->RegisterKeyboardInputCallback("UI Keyboard Input Checker"_h, std::bind(&OnKeyboardInput, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
         inputManager->RegisterCharInputCallback("UI Char Input Checker"_h, std::bind(&OnCharInput, std::placeholders::_1, std::placeholders::_2));
+
+        // Create mouse group upfront. Reduces hitching from first mouse input.
+        auto eventGroup = ServiceLocator::GetUIRegistry()->group<UIComponent::TransformEvents>(entt::get<UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
     }
 }
