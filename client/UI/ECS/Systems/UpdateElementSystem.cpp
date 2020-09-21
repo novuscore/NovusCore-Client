@@ -59,6 +59,7 @@ namespace UISystem
 
     void UpdateElementSystem::Update(entt::registry& registry)
     {
+
         Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
         auto& dataSingleton = registry.ctx<UISingleton::UIDataSingleton>();
 
@@ -115,7 +116,7 @@ namespace UISystem
                 {
                     auto& parentTransform = registry.get<UIComponent::Transform>(transform.parent);
                     
-                    auto itr = std::find_if(parentTransform.children.begin(), parentTransform.children.end(), [transform](UI::UIChild& uiChild) { return uiChild.entId == transform.sortData.entId; });
+                    auto itr = std::find_if(parentTransform.children.begin(), parentTransform.children.end(), [entId](UI::UIChild& uiChild) { return uiChild.entId == entId; });
                     if (itr != parentTransform.children.end())
                         parentTransform.children.erase(itr);
                 }
@@ -127,9 +128,9 @@ namespace UISystem
         }
 
         auto boundsUpdateView = registry.view<UIComponent::Transform, UIComponent::BoundsDirty>();
-        boundsUpdateView.each([&](UIComponent::Transform& transform)
+        boundsUpdateView.each([&](entt::entity entityId, UIComponent::Transform& transform)
             {
-                UIUtils::Transform::UpdateBounds(ServiceLocator::GetUIRegistry(), &transform, true);
+                UIUtils::Transform::UpdateBounds(&registry, entityId, true);
             });
 
         auto inputFieldView = registry.view<UIComponent::Transform, UIComponent::InputField, UIComponent::Text, UIComponent::Dirty>();

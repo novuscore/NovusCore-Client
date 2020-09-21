@@ -15,6 +15,7 @@
 #include "../UI/ECS/Components/Singletons/UIEntityPoolSingleton.h"
 #include "../UI/ECS/Components/Transform.h"
 #include "../UI/ECS/Components/TransformEvents.h"
+#include "../UI/ECS/Components/SortKey.h"
 #include "../UI/ECS/Components/Renderable.h"
 #include "../UI/ECS/Components/Image.h"
 #include "../UI/ECS/Components/Text.h"
@@ -129,9 +130,9 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
             entt::registry* registry = ServiceLocator::GetUIRegistry();
-            auto renderGroup = registry->group<UIComponent::Transform>(entt::get<UIComponent::Renderable, UIComponent::Visible>);
-            renderGroup.sort<UIComponent::Transform>([](UIComponent::Transform& first, UIComponent::Transform& second) { return first.sortKey < second.sortKey; });
-            renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UIComponent::Transform& transform, UIComponent::Renderable& renderable)
+            auto renderGroup = registry->group<UIComponent::Transform>(entt::get<UIComponent::Renderable, UIComponent::SortKey, UIComponent::Visible>);
+            renderGroup.sort<UIComponent::SortKey>([](UIComponent::SortKey& first, UIComponent::SortKey& second) { return first.key < second.key; });
+            renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UIComponent::Transform& transform, UIComponent::Renderable& renderable, UIComponent::SortKey& sortKey)
             {
                 switch (renderable.renderType)
                 {

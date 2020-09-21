@@ -5,7 +5,7 @@
 
 namespace UI
 {
-    enum UITransformEventsFlags
+    enum UITransformEventsFlags : u8
     {
         UIEVENTS_FLAG_NONE = 1 << 0,
         UIEVENTS_FLAG_CLICKABLE = 1 << 1,

@@ -33,10 +33,10 @@ namespace UISingleton
         entt::entity focusedWidget = entt::null;
         entt::entity draggedWidget = entt::null;
         entt::entity hoveredWidget = entt::null;
-        vec2 dragOffset = vec2(0,0);
+        hvec2 dragOffset = hvec2(0.f,0.f);
 
         //Resolution
-        vec2 UIRESOLUTION = vec2(1920, 1080);
+        hvec2 UIRESOLUTION = hvec2(1920.f, 1080.f);
 
         // Queues
         moodycamel::ConcurrentQueue<entt::entity> destructionQueue;

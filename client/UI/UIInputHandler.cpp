@@ -5,8 +5,9 @@
 #include <tracy/Tracy.hpp>
 
 #include "ECS/Components/Singletons/UIDataSingleton.h"
-#include "ECS/Components/Transform.h"
 #include "ECS/Components/TransformEvents.h"
+#include "ECS/Components/SortKey.h"
+#include "ECS/Components/Collision.h"
 #include "ECS/Components/Collidable.h"
 #include "ECS/Components/Visible.h"
 #include "Utils/TransformUtils.h"
@@ -19,9 +20,9 @@ namespace UIInput
     bool OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
     {
         ZoneScoped;
+        const hvec2 mouse = ServiceLocator::GetInputManager()->GetMousePosition();
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
-        const vec2 mouse = ServiceLocator::GetInputManager()->GetMousePosition();
 
         //Unfocus last focused widget.
         entt::entity lastFocusedWidget = dataSingleton.focusedWidget;
@@ -37,15 +38,16 @@ namespace UIInput
             dataSingleton.draggedWidget = entt::null;
         }
 
-        auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::Transform, UIComponent::Collidable, UIComponent::Visible>);
-        eventGroup.sort<UIComponent::Transform>([](UIComponent::Transform& first, UIComponent::Transform& second) { return first.sortKey > second.sortKey; });
+        auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
+        eventGroup.sort<UIComponent::SortKey>([](UIComponent::SortKey& first, UIComponent::SortKey& second) { return first.key > second.key; });
         for (auto entity : eventGroup)
         {
-            const UIComponent::Transform& transform = eventGroup.get<UIComponent::Transform>(entity);
+            const UIComponent::Collision& collision = eventGroup.get<UIComponent::Collision>(entity);
+            const UIComponent::SortKey& sortKey = eventGroup.get<UIComponent::SortKey>(entity);
             UIComponent::TransformEvents& events = eventGroup.get<UIComponent::TransformEvents>(entity);
 
             // Check so mouse if within widget bounds.
-            if (mouse.x < transform.minBound.x || mouse.x > transform.maxBound.x || mouse.y < transform.minBound.y || mouse.y > transform.maxBound.y)
+            if (mouse.x < collision.minBound.x || mouse.x > collision.maxBound.x || mouse.y < collision.minBound.y || mouse.y > collision.maxBound.y)
                 continue;
 
             // Don't interact with the last focused widget directly. Reserving first click for unfocusing it but still block clicking through it.
@@ -57,6 +59,7 @@ namespace UIInput
             {
                 if (events.IsDraggable())
                 {
+                    const UIComponent::Transform& transform = eventGroup.get<UIComponent::Transform>(entity);
                     dataSingleton.draggedWidget = entity;
                     dataSingleton.dragOffset = mouse - (transform.position + transform.localPosition);
                     events.OnDragStarted();
@@ -72,9 +75,9 @@ namespace UIInput
 
                 if (events.IsClickable())
                 {
-                    if (transform.sortData.type == UI::UIElementType::UITYPE_CHECKBOX)
+                    if (sortKey.data.type == UI::UIElementType::UITYPE_CHECKBOX)
                     {
-                        UIScripting::Checkbox* checkBox = reinterpret_cast<UIScripting::Checkbox*>(transform.asObject);
+                        UIScripting::Checkbox* checkBox = reinterpret_cast<UIScripting::Checkbox*>(dataSingleton.entityToElement[dataSingleton.focusedWidget]);
                         checkBox->ToggleChecked();
                     }
                     events.OnClick();
@@ -99,7 +102,7 @@ namespace UIInput
 
             if (transform->parent != entt::null)
             {
-                vec2 newLocalPos = vec2(x, y) - transform->position - dataSingleton.dragOffset;
+                hvec2 newLocalPos = hvec2(x, y) - transform->position - dataSingleton.dragOffset;
                 if (events->dragLockX)
                     newLocalPos.x = transform->localPosition.x;
                 else if (events->dragLockY)
@@ -109,7 +112,7 @@ namespace UIInput
             }
             else
             {
-                vec2 newPos = vec2(x, y) - dataSingleton.dragOffset;
+                hvec2 newPos = hvec2(x, y) - dataSingleton.dragOffset;
                 if (events->dragLockX)
                     newPos.x = transform->position.x;
                 else if (events->dragLockY)
@@ -125,24 +128,23 @@ namespace UIInput
         }
 
         // Handle hover.
-        auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::Transform, UIComponent::Collidable, UIComponent::Visible>);
-        eventGroup.sort<UIComponent::Transform>([](UIComponent::Transform& first, UIComponent::Transform& second) { return first.sortKey > second.sortKey; });
+        auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
+        eventGroup.sort<UIComponent::SortKey>([](UIComponent::SortKey& first, UIComponent::SortKey& second) { return first.key > second.key; });
         for (auto entity : eventGroup)
         {
             if (dataSingleton.draggedWidget == entity)
                 continue;
 
-            const UIComponent::Transform& transform = eventGroup.get<UIComponent::Transform>(entity);
+            const UIComponent::Collision& collision = eventGroup.get<UIComponent::Collision>(entity);
             UIComponent::TransformEvents& events = eventGroup.get<UIComponent::TransformEvents>(entity);
 
             // Check so mouse if within widget bounds.
-            if (x < transform.minBound.x || x > transform.maxBound.x || y < transform.minBound.y || y > transform.maxBound.y)
+            if (x < collision.minBound.x || x > collision.maxBound.x || y < collision.minBound.y || y > collision.maxBound.y)
                 continue;
 
             // Hovered widget hasn't changed.
             if (dataSingleton.hoveredWidget == entity)
                 break;
-
             dataSingleton.hoveredWidget = entity;
 
             // TODO Update EventState.
@@ -163,7 +165,7 @@ namespace UIInput
         if (action == GLFW_RELEASE)
             return true;
 
-        UIComponent::Transform& transform = registry->get<UIComponent::Transform>(dataSingleton.focusedWidget);
+        const UIComponent::SortKey& sortKey = registry->get<UIComponent::SortKey>(dataSingleton.focusedWidget);
         UIComponent::TransformEvents& events = registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget);
 
         if (key == GLFW_KEY_ESCAPE)
@@ -174,17 +176,17 @@ namespace UIInput
             return true;
         }
 
-        switch (transform.sortData.type)
+        switch (sortKey.data.type)
         {
         case UI::UIElementType::UITYPE_INPUTFIELD:
         {
-            UIScripting::InputField* inputFieldAS = reinterpret_cast<UIScripting::InputField*>(transform.asObject);
+            UIScripting::InputField* inputFieldAS = reinterpret_cast<UIScripting::InputField*>(dataSingleton.entityToElement[dataSingleton.focusedWidget]);
             inputFieldAS->HandleKeyInput(key);
             break;
         }
         case UI::UIElementType::UITYPE_CHECKBOX:
         {
-            UIScripting::Checkbox* checkBoxAS = reinterpret_cast<UIScripting::Checkbox*>(transform.asObject);
+            UIScripting::Checkbox* checkBoxAS = reinterpret_cast<UIScripting::Checkbox*>(dataSingleton.entityToElement[dataSingleton.focusedWidget]);
             checkBoxAS->HandleKeyInput(key);
             break;
         }
@@ -208,10 +210,10 @@ namespace UIInput
         if (dataSingleton.focusedWidget == entt::null)
             return false;
 
-        UIComponent::Transform& transform = registry->get<UIComponent::Transform>(dataSingleton.focusedWidget);
-        if (transform.sortData.type == UI::UIElementType::UITYPE_INPUTFIELD)
+        const UIComponent::SortKey& sortKey = registry->get<UIComponent::SortKey>(dataSingleton.focusedWidget);
+        if (sortKey.data.type == UI::UIElementType::UITYPE_INPUTFIELD)
         {
-            UIScripting::InputField* inputField = reinterpret_cast<UIScripting::InputField*>(transform.asObject);
+            UIScripting::InputField* inputField = reinterpret_cast<UIScripting::InputField*>(dataSingleton.entityToElement[dataSingleton.focusedWidget]);
             inputField->HandleCharInput((char)unicodeKey);
             inputField->MarkSelfDirty();
         }

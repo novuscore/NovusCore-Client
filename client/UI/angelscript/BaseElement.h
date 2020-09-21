@@ -4,8 +4,7 @@
 #include <shared_mutex>
 
 #include "../../Scripting/ScriptEngine.h"
-#include "../ECS/Components/Transform.h"
-#include "../ECS/Components/Visibility.h"
+#include "../UITypes.h"
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
 #include "LockToken.h"
 

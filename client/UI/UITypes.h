@@ -16,4 +16,18 @@ namespace UI
         UITYPE_LABEL,
         UITYPE_INPUTFIELD
     };
+
+    enum class DepthLayer : u8
+    {
+        WORLD,
+        BACKGROUND,
+        LOW,
+        MEDIUM,
+        HIGH,
+        DIALOG,
+        FULLSCREEN,
+        FULLSCREEN_DIALOG,
+        TOOLTIP,
+        MAX
+    };
 }

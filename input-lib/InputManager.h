@@ -42,7 +42,7 @@ public:
     bool IsKeyPressedByTitle(std::string keybindTitle);
     bool IsKeyPressed(u32 keybindTitleHash);
 
-    vec2 GetMousePosition() { return vec2(_mousePositionX, _mousePositionY); }
+    hvec2 GetMousePosition() { return hvec2(_mousePositionX, _mousePositionY); }
     f32 GetMousePositionX() { return _mousePositionX; }
     f32 GetMousePositionY() { return _mousePositionY; }
     bool IsMousePressed() { return _mouseState; }

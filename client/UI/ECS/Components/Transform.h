@@ -12,18 +12,9 @@ namespace UI
         UI::UIElementType type;
     };
 
-    enum class DepthLayer : u8
+    enum TransformFlags : u8
     {
-        WORLD,
-        BACKGROUND,
-        LOW,
-        MEDIUM,
-        HIGH,
-        DIALOG,
-        FULLSCREEN,
-        FULLSCREEN_DIALOG,
-        TOOLTIP,
-        MAX
+        FILL_PARENTSIZE = 1 << 0
     };
 }
 
@@ -36,30 +27,18 @@ namespace UIComponent
             children.reserve(8);
         }
 
-        vec2 position = vec2(0, 0);
-        vec2 localPosition = vec2(0, 0);
-        vec2 anchor = vec2(0, 0);
-        vec2 localAnchor = vec2(0, 0);
-        vec2 size = vec2(0, 0);
-        bool fillParentSize = false;
-        union
-        {
-            struct
-            {
-                entt::entity entId;
-                UI::UIElementType type;
-                u16 depth;
-                UI::DepthLayer depthLayer;
-            } sortData{ entt::null, UI::UIElementType::UITYPE_NONE, 0, UI::DepthLayer::MEDIUM };
-            u64 sortKey;
-        };
+        hvec2 position = hvec2(0.f, 0.f);
+        hvec2 localPosition = hvec2(0.f, 0.f);
+        hvec2 anchor = hvec2(0.f, 0.f);
+        hvec2 localAnchor = hvec2(0.f, 0.f);
+        hvec2 size = hvec2(0.f, 0.f);
+        u8 flags = 0;
         entt::entity parent = entt::null;
         std::vector<UI::UIChild> children;
         void* asObject = nullptr;
 
-        bool collision = true;
-        vec2 minBound = vec2(0, 0);
-        vec2 maxBound = vec2(0, 0);
-        bool includeChildBounds = false;
+        inline void SetFlag(const UI::TransformFlags inFlags) { flags |= inFlags; }
+        inline void UnsetFlag(const UI::TransformFlags inFlags) { flags &= ~inFlags; }
+        inline bool HasFlag(const UI::TransformFlags inFlags) { return (flags & inFlags) == inFlags; }
     };
 }
