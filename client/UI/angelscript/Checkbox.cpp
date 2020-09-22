@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include "../ECS/Components/Singletons/UILockSingleton.h"
+#include "../ECS/Components/Transform.h"
 #include "../ECS/Components/Visible.h"
 #include "../ECS/Components/Renderable.h"
 #include "../ECS/Components/Collidable.h"
@@ -14,6 +15,7 @@ namespace UIScripting
 {
     Checkbox::Checkbox() : BaseElement(UI::UIElementType::UITYPE_CHECKBOX)
     {
+        ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
@@ -26,10 +28,11 @@ namespace UIScripting
         registry->emplace<UIComponent::Image>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
 
-        checkPanel = Panel::CreatePanel();
-        checkPanel->SetCollisionEnabled(false);
-        checkPanel->SetFillParentSize(true);
-        checkPanel->SetParent(this);
+        _checkPanel = Panel::CreatePanel(false);
+        auto checkPanelTransform = &registry->get<UIComponent::Transform>(_checkPanel->GetEntityId());
+        checkPanelTransform->parent = _entityId;
+        checkPanelTransform->SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
+        registry->get<UIComponent::Transform>(_entityId).children.push_back({ _checkPanel->GetEntityId(), _checkPanel->GetType() });
     }
 
     void Checkbox::RegisterType()
@@ -130,20 +133,20 @@ namespace UIScripting
 
     const std::string& Checkbox::GetCheckTexture() const
     {
-        return checkPanel->GetTexture();
+        return _checkPanel->GetTexture();
     }
     void Checkbox::SetCheckTexture(const std::string& texture)
     {
-        checkPanel->SetTexture(texture);
+        _checkPanel->SetTexture(texture);
     }
 
     const Color Checkbox::GetCheckColor() const
     {
-        return checkPanel->GetColor();
+        return _checkPanel->GetColor();
     }
     void Checkbox::SetCheckColor(const Color& color)
     {
-        checkPanel->SetColor(color);
+        _checkPanel->SetColor(color);
     }
 
     const bool Checkbox::IsChecked() const
@@ -156,7 +159,7 @@ namespace UIScripting
         UIComponent::Checkbox* checkBox = &ServiceLocator::GetUIRegistry()->get<UIComponent::Checkbox>(_entityId);
         checkBox->checked = checked;
 
-        checkPanel->SetVisible(checked);
+        _checkPanel->SetVisible(checked);
 
         if (checked)
             checkBox->OnChecked();

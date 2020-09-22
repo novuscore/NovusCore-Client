@@ -22,6 +22,7 @@ namespace UIScripting
 {
     BaseElement::BaseElement(UI::UIElementType elementType, bool collisionEnabled) : _elementType(elementType)
     {
+        ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         _entityId = registry->ctx<UISingleton::UIEntityPoolSingleton>().GetId();
         registry->ctx<UISingleton::UIDataSingleton>().entityToElement[_entityId] = this;
@@ -196,6 +197,17 @@ namespace UIScripting
     {
         auto sortKey = &ServiceLocator::GetUIRegistry()->get<UIComponent::SortKey>(_entityId);
         sortKey->data.depth = depth;
+    }
+
+    BaseElement* BaseElement::GetParent() const
+    {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        const auto transform = &registry->get<UIComponent::Transform>(_entityId);
+        const auto dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();
+        if (transform->parent != entt::null)
+            return dataSingleton->entityToElement[transform->parent];
+
+        return nullptr;
     }
 
     void BaseElement::SetParent(BaseElement* parent)

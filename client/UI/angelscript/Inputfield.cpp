@@ -14,6 +14,7 @@ namespace UIScripting
 {
     InputField::InputField() : BaseElement(UI::UIElementType::UITYPE_INPUTFIELD)
     {
+        ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);

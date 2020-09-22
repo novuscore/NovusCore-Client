@@ -21,9 +21,10 @@
 #include "../UI/ECS/Components/Text.h"
 #include "../UI/ECS/Components/Visible.h"
 #include "../UI/ECS/Components/Visibility.h"
+#include "../UI/ECS/Components/Collision.h"
+#include "../UI/ECS/Components/Collidable.h"
 #include "../UI/ECS/Components/Dirty.h"
 #include "../UI/ECS/Components/BoundsDirty.h"
-#include "../UI/ECS/Components/Collidable.h"
 #include "../UI/ECS/Components/InputField.h"
 #include "../UI/ECS/Components/Checkbox.h"
 
@@ -38,15 +39,19 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     registry->prepare<UIComponent::Transform>();
     registry->prepare<UIComponent::TransformEvents>();
+    registry->prepare<UIComponent::SortKey>();
+
     registry->prepare<UIComponent::Renderable>();
     registry->prepare<UIComponent::Image>();
     registry->prepare<UIComponent::Text>();
 
-    registry->prepare<UIComponent::Visible>();
+    registry->prepare<UIComponent::Collision>();
+    registry->prepare<UIComponent::Collidable>();
     registry->prepare<UIComponent::Visibility>();
+    registry->prepare<UIComponent::Visible>();
+
     registry->prepare<UIComponent::Dirty>();
     registry->prepare<UIComponent::BoundsDirty>();
-    registry->prepare<UIComponent::Collidable>();
 
     registry->prepare<UIComponent::InputField>();
     registry->prepare<UIComponent::Checkbox>();
@@ -61,8 +66,23 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
 
     //Reserve component space
     registry->reserve<UIComponent::Transform>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::TransformEvents>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::SortKey>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Renderable>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Text>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Image>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+
+    registry->reserve<UIComponent::Collision>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Collidable>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+
+    registry->reserve<UIComponent::Visibility>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Visible>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+
     registry->reserve<UIComponent::Dirty>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
     registry->reserve<UIComponent::BoundsDirty>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+
+    registry->reserve<UIComponent::InputField>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Checkbox>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
 
 }
 

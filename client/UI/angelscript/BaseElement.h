@@ -53,6 +53,7 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("uint16 GetDepth()", asMETHOD(T, GetDepth)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetDepth(uint16 depth)", asMETHOD(T, SetDepth)); assert(r >= 0);
 
+            r = ScriptEngine::RegisterScriptClassFunction("BaseElement@ GetParent()", asMETHOD(T, GetParent)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetParent(BaseElement@ parent)", asMETHOD(T, SetParent)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void UnsetParent()", asMETHOD(T, UnsetParent)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void Destroy(bool destroyChildren = true)", asMETHOD(T, Destroy)); assert(r >= 0);
@@ -99,6 +100,7 @@ namespace UIScripting
         u16 GetDepth() const;
         void SetDepth(const u16 depth);
 
+        BaseElement* GetParent() const;
         void SetParent(BaseElement* parent);
         void UnsetParent();
 

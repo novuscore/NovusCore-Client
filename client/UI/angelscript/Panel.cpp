@@ -9,8 +9,9 @@
 
 namespace UIScripting
 {
-    Panel::Panel() : BaseElement(UI::UIElementType::UITYPE_PANEL)
+    Panel::Panel(bool collisionEnabled) : BaseElement(UI::UIElementType::UITYPE_PANEL, collisionEnabled)
     {
+        ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
         events->asObject = this;
@@ -23,7 +24,7 @@ namespace UIScripting
     {
         i32 r = ScriptEngine::RegisterScriptClass("Panel", 0, asOBJ_REF | asOBJ_NOCOUNT);
         r = ScriptEngine::RegisterScriptInheritance<BaseElement, Panel>("BaseElement");
-        r = ScriptEngine::RegisterScriptFunction("Panel@ CreatePanel()", asFUNCTION(Panel::CreatePanel)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptFunction("Panel@ CreatePanel(bool collisionEnabled = true)", asFUNCTION(Panel::CreatePanel)); assert(r >= 0);
 
         // TransformEvents Functions
         r = ScriptEngine::RegisterScriptClassFunction("void SetEventFlag(int8 flags)", asMETHOD(Panel, SetEventFlag)); assert(r >= 0);
@@ -121,9 +122,9 @@ namespace UIScripting
         image->style.color = color;
     }
 
-    Panel* Panel::CreatePanel()
+    Panel* Panel::CreatePanel(bool collisionEnabled)
     {
-        Panel* panel = new Panel();
+        Panel* panel = new Panel(collisionEnabled);
 
         return panel;
     }

@@ -14,6 +14,7 @@ namespace UIScripting
 {
     Slider::Slider() : BaseElement(UI::UIElementType::UITYPE_SLIDER)
     {
+        ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);

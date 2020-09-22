@@ -10,6 +10,7 @@ namespace UIScripting
 {
     Label::Label() : BaseElement(UI::UIElementType::UITYPE_LABEL, false)
     {
+        ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Text>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Text;
@@ -94,14 +95,12 @@ namespace UIScripting
 
     void Label::SetHorizontalAlignment(UI::TextHorizontalAlignment alignment)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
+        UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         text->horizontalAlignment = alignment;
     }
     void Label::SetVerticalAlignment(UI::TextVerticalAlignment alignment)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
+        UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         text->verticalAlignment = alignment;
     }
 

@@ -49,6 +49,6 @@ namespace UIScripting
         static Checkbox* CreateCheckbox();
 
     private:
-        Panel* checkPanel;
+        Panel* _checkPanel;
     };
 }

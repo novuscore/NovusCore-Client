@@ -10,7 +10,7 @@ namespace UIScripting
     class Panel : public BaseElement
     {
     public:
-        Panel();
+        Panel(bool collisionEnabled = true);
 
         static void RegisterType();
 
@@ -32,6 +32,6 @@ namespace UIScripting
         const Color GetColor() const;
         void SetColor(const Color& color);
 
-        static Panel* CreatePanel();
+        static Panel* CreatePanel(bool collisionEnabled = true);
     };
 }

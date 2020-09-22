@@ -13,6 +13,7 @@ namespace UIScripting
 {
     Button::Button() : BaseElement(UI::UIElementType::UITYPE_BUTTON) 
     {
+        ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
@@ -21,12 +22,12 @@ namespace UIScripting
         registry->emplace<UIComponent::Image>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
         
-        // Not locking is fine here because no one else can reasonably modify this.
         _label = Label::CreateLabel();
-        _label->SetCollisionEnabled(false);
         _label->SetHorizontalAlignment(UI::TextHorizontalAlignment::CENTER);
-        _label->SetFillParentSize(true);
-        _label->SetParent(this);
+        auto labelTransform = &registry->get<UIComponent::Transform>(_label->GetEntityId());
+        labelTransform->parent = _entityId;
+        labelTransform->SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
+        registry->get<UIComponent::Transform>(_entityId).children.push_back({ _label->GetEntityId(), _label->GetType() });
     }
     
     void Button::RegisterType()

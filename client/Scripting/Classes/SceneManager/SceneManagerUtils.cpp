@@ -1,8 +1,8 @@
 #include "SceneManagerUtils.h"
+#include <tracy/Tracy.hpp>
 #include "../../ScriptEngine.h"
 #include "../../../Utils/ServiceLocator.h"
 #include "../scenemanager-lib/SceneManager.h"
-
 #include "../../../ECS/Components/Singletons/SceneManagerSingleton.h"
 
 namespace ASSceneManagerUtils
@@ -24,34 +24,33 @@ namespace ASSceneManagerUtils
 
     void OnSceneLoaded(u32 sceneLoaded)
     {
+        ZoneScoped;
+
         entt::registry* registry = ServiceLocator::GetGameRegistry();
         SceneManagerSingleton& scriptSceneSingleton = registry->ctx<SceneManagerSingleton>();
 
+        asIScriptContext* context = ScriptEngine::GetScriptContext();
         for (auto& sceneCallback : scriptSceneSingleton.sceneAnyLoadedCallback)
         {
-            asIScriptContext* context = ScriptEngine::GetScriptContext();
+            context->Prepare(sceneCallback.callback);
             {
-                context->Prepare(sceneCallback.callback);
-                {
-                    context->SetArgDWord(0, sceneLoaded);
-                }
-                context->Execute();
+                context->SetArgDWord(0, sceneLoaded);
             }
+            ZoneScopedN(sceneCallback.callback->GetName())
+            context->Execute();
         }
 
         for (auto& sceneCallback : scriptSceneSingleton.sceneLoadedCallback[sceneLoaded])
         {
-            asIScriptContext* context = ScriptEngine::GetScriptContext();
+            context->Prepare(sceneCallback.callback);
             {
-                context->Prepare(sceneCallback.callback);
-                {
-                    context->SetArgDWord(0, sceneLoaded);
-                }
-                context->Execute();
+                context->SetArgDWord(0, sceneLoaded);
             }
+            ZoneScopedN(sceneCallback.callback->GetName())
+            context->Execute();
         }
     }
-    
+
     void RegisterSceneLoadedCallback(std::string sceneName, std::string callbackName, asIScriptFunction* callback)
     {
         u32 sceneHash = StringUtils::fnv1a_32(sceneName.c_str(), sceneName.size());
@@ -71,7 +70,7 @@ namespace ASSceneManagerUtils
 
         scriptSceneSingleton.sceneLoadedCallback[sceneHash].push_back(asSceneCallback(callbackNameHash, callback));
     }
-    
+
     void UnregisterSceneLoadedCallback(std::string sceneName, std::string callbackName)
     {
         u32 sceneHash = StringUtils::fnv1a_32(sceneName.c_str(), sceneName.size());
