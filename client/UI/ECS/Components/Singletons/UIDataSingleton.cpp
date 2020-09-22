@@ -6,11 +6,6 @@
 
 namespace UISingleton
 {
-    std::shared_mutex& UIDataSingleton::GetMutex(const entt::entity entId)
-    {
-        return entityToElement[entId]->_mutex;
-    }
-
     void UIDataSingleton::ClearAllElements()
     {
         std::vector<entt::entity> entityIds;

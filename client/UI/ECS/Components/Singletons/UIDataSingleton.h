@@ -19,9 +19,7 @@ namespace UISingleton
     struct UIDataSingleton
     {
     public:
-        UIDataSingleton() : destructionQueue(1000), visibilityToggleQueue(1000), collisionToggleQueue(1000) { }
-
-        std::shared_mutex& GetMutex(entt::entity entId);
+        UIDataSingleton() : destructionQueue(1000) { }
 
         void ClearAllElements();
 
@@ -40,10 +38,5 @@ namespace UISingleton
 
         // Queues
         moodycamel::ConcurrentQueue<entt::entity> destructionQueue;
-        moodycamel::ConcurrentQueue<entt::entity> visibilityToggleQueue;
-        moodycamel::ConcurrentQueue<entt::entity> collisionToggleQueue;
-
-        moodycamel::ConcurrentQueue<entt::entity> dirtyQueue;
-        moodycamel::ConcurrentQueue<entt::entity> dirtyBoundsQueue;
     };
 }

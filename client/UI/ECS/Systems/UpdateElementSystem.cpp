@@ -60,40 +60,8 @@ namespace UISystem
 
     void UpdateElementSystem::Update(entt::registry& registry)
     {
-
         Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
         auto& dataSingleton = registry.ctx<UISingleton::UIDataSingleton>();
-
-        {
-            entt::entity entId;
-            while (dataSingleton.dirtyQueue.try_dequeue_non_interleaved(entId))
-            {
-                if (!registry.has<UIComponent::Dirty>(entId))
-                    registry.emplace<UIComponent::Dirty>(entId);
-            }
-            while (dataSingleton.dirtyBoundsQueue.try_dequeue_non_interleaved(entId))
-            {
-                if (!registry.has<UIComponent::BoundsDirty>(entId))
-                    registry.emplace<UIComponent::BoundsDirty>(entId);
-            }
-
-            // Toggle visibility of elements
-            while (dataSingleton.visibilityToggleQueue.try_dequeue_non_interleaved(entId))
-            {
-                if (registry.has<UIComponent::Visible>(entId))
-                    registry.remove<UIComponent::Visible>(entId);
-                else
-                    registry.emplace<UIComponent::Visible>(entId);
-            }
-            // Toggle collision of elements
-            while (dataSingleton.collisionToggleQueue.try_dequeue_non_interleaved(entId))
-            {
-                if (registry.has<UIComponent::Collidable>(entId))
-                    registry.remove<UIComponent::Collidable>(entId);
-                else
-                    registry.emplace<UIComponent::Collidable>(entId);
-            }
-        }
         
         // Destroy elements queued for destruction.
         if(size_t deleteEntityNum = dataSingleton.destructionQueue.size_approx()) {

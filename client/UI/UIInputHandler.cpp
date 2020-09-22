@@ -128,8 +128,8 @@ namespace UIInput
 
             UIUtils::Transform::UpdateChildTransforms(registry, transform);
             UIUtils::Transform::MarkDirty(registry, dataSingleton.draggedWidget);
+            UIUtils::Transform::MarkChildrenDirty(registry, dataSingleton.draggedWidget);
             UIUtils::Collision::MarkBoundsDirty(registry, dataSingleton.draggedWidget);
-            UIUtils::Transform::MarkChildrenDirty(registry, transform);
         }
 
         // Handle hover.
@@ -141,7 +141,6 @@ namespace UIInput
                 continue;
 
             const UIComponent::Collision& collision = eventGroup.get<UIComponent::Collision>(entity);
-            UIComponent::TransformEvents& events = eventGroup.get<UIComponent::TransformEvents>(entity);
             // Check so mouse if within widget bounds.
             if (x < collision.minBound.x || x > collision.maxBound.x || y < collision.minBound.y || y > collision.maxBound.y)
                 continue;
@@ -169,9 +168,7 @@ namespace UIInput
         if (action == GLFW_RELEASE)
             return true;
 
-        const UIComponent::SortKey& sortKey = registry->get<UIComponent::SortKey>(dataSingleton.focusedWidget);
         UIComponent::TransformEvents& events = registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget);
-
         if (key == GLFW_KEY_ESCAPE)
         {
             events.OnUnfocused();
@@ -180,6 +177,7 @@ namespace UIInput
             return true;
         }
 
+        const UIComponent::SortKey& sortKey = registry->get<UIComponent::SortKey>(dataSingleton.focusedWidget);
         switch (sortKey.data.type)
         {
         case UI::UIElementType::UITYPE_INPUTFIELD:

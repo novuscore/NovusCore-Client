@@ -49,7 +49,7 @@ namespace UIUtils::Transform
 
     void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent);
 
-    void MarkChildrenDirty(entt::registry* registry, const UIComponent::Transform* transform);
+    void MarkChildrenDirty(entt::registry* registry, const entt::entity entityId);
 
     inline static void MarkDirty(entt::registry* registry, entt::entity entId)
     {

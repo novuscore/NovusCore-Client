@@ -1,12 +1,9 @@
 #pragma once
 #include <NovusTypes.h>
 #include <entity/entity.hpp>
-#include <shared_mutex>
-
 #include "../../Scripting/ScriptEngine.h"
 #include "../UITypes.h"
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
-#include "LockToken.h"
 
 namespace UIScripting
 {
@@ -64,7 +61,6 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("bool IsLocallyVisible()", asMETHOD(T, IsLocallyVisible)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("bool IsParentVisible()", asMETHOD(T, IsParentVisible)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetVisible(bool visible)", asMETHOD(T, SetVisible)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("LockToken@ GetLock(uint8 lockState)", asMETHOD(T, GetLock)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("void MarkDirty()", asMETHOD(T, MarkDirty)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void MarkSelfDirty()", asMETHOD(T, MarkSelfDirty)); assert(r >= 0);
@@ -120,14 +116,8 @@ namespace UIScripting
         void MarkSelfDirty();
         void MarkBoundsDirty();
 
-        inline LockToken* GetLock(LockState state)
-        {
-            return new LockToken(_mutex, state);
-        }
     protected:
         entt::entity _entityId;
         UI::UIElementType _elementType;
-
-        std::shared_mutex _mutex;
     };
 }

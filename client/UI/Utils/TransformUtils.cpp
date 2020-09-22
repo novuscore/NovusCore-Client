@@ -10,10 +10,8 @@ namespace UIUtils::Transform
     void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent)
     {
         ZoneScoped;
-        //auto dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();
         for (const UI::UIChild& child : parent->children)
         {
-            //std::lock_guard l(dataSingleton->GetMutex(child.entId));
             UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
 
             childTransform->position = UIUtils::Transform::GetAnchorPosition(parent, childTransform->anchor);
@@ -24,18 +22,15 @@ namespace UIUtils::Transform
         }
     }
 
-    void MarkChildrenDirty(entt::registry* registry, const UIComponent::Transform* transform)
+    void MarkChildrenDirty(entt::registry* registry, const entt::entity entityId)
     {
-        auto dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();
-
+        const auto transform = &registry->get<UIComponent::Transform>(entityId);
         for (const UI::UIChild& child : transform->children)
         {
-            //std::shared_lock l(dataSingleton->GetMutex(child.entId));
+            MarkChildrenDirty(registry, child.entId);
 
-            const auto childTransform = &registry->get<UIComponent::Transform>(child.entId);
-            MarkChildrenDirty(registry, childTransform);
-            
-            dataSingleton->dirtyQueue.enqueue(child.entId);
+            if (!registry->has<UIComponent::Dirty>(entityId))
+                registry->emplace<UIComponent::Dirty>(entityId);
         }
     }
 }

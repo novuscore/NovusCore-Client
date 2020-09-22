@@ -89,7 +89,8 @@ namespace UIScripting
             return;
         transform->size = size;
 
-        UIUtils::Transform::UpdateChildTransforms(registry, transform);
+        if (transform->children.size())
+            UIUtils::Transform::UpdateChildTransforms(registry, transform);
     }
 
     void BaseElement::SetTransform(const vec2& position, const vec2& size)
@@ -105,7 +106,8 @@ namespace UIScripting
         if (!transform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
             transform->size = size;
 
-        UIUtils::Transform::UpdateChildTransforms(registry, transform);
+        if (transform->children.size())
+            UIUtils::Transform::UpdateChildTransforms(registry, transform);
     }
 
     vec2 BaseElement::GetAnchor() const
@@ -124,13 +126,11 @@ namespace UIScripting
 
         if (transform->parent != entt::null)
         {
-            auto dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();
-            std::shared_lock pl(dataSingleton->GetMutex(transform->parent));
-
             transform->position = UIUtils::Transform::GetAnchorPosition(&registry->get<UIComponent::Transform>(transform->parent), anchor);
         }
 
-        UIUtils::Transform::UpdateChildTransforms(registry, transform);
+        if (transform->children.size())
+            UIUtils::Transform::UpdateChildTransforms(registry, transform);
     }
 
     vec2 BaseElement::GetLocalAnchor() const
@@ -147,7 +147,8 @@ namespace UIScripting
             return;
         transform->localAnchor = localAnchor;
 
-        UIUtils::Transform::UpdateChildTransforms(registry, transform);
+        if (transform->children.size())
+            UIUtils::Transform::UpdateChildTransforms(registry, transform);
     }
 
     bool BaseElement::GetFillParentSize() const
@@ -174,7 +175,8 @@ namespace UIScripting
         auto parentTransform = &registry->get<UIComponent::Transform>(transform->parent);
         transform->size = parentTransform->size;
 
-        UIUtils::Transform::UpdateChildTransforms(registry, transform);
+        if (transform->children.size())
+            UIUtils::Transform::UpdateChildTransforms(registry, transform);
     }
 
     UI::DepthLayer BaseElement::GetDepthLayer() const
@@ -221,11 +223,11 @@ namespace UIScripting
         if (transform->parent != entt::null)
         {
             NC_LOG_ERROR("Tried calling SetParent() on Element(ID: %d, Type: %d) with a parent. You must call UnsetParent() first.", entt::to_integral(_entityId), _elementType)
-            return;
+                return;
         }
 
         transform->parent = parent->GetEntityId();
-        
+
         auto parentTransform = &registry->get<UIComponent::Transform>(transform->parent);
         // Add us as parent's child.
         parentTransform->children.push_back({ _entityId, _elementType });
@@ -240,15 +242,18 @@ namespace UIScripting
             transform->size = parentTransform->size;
 
         // Update our and children's depth. Keeping the relative offsets for all children but adding onto it how much we moved in depth.
-        auto sortKey = &registry->get<UIComponent::SortKey>(_entityId);
-        auto parentSortKey = &registry->get<UIComponent::SortKey>(transform->parent);
+        if (transform->children.size())
+        {
+            auto sortKey = &registry->get<UIComponent::SortKey>(_entityId);
+            auto parentSortKey = &registry->get<UIComponent::SortKey>(transform->parent);
 
-        i16 difference = parentSortKey->data.depth - sortKey->data.depth + 1;
-        sortKey->data.depth = parentSortKey->data.depth + 1;
-        sortKey->data.depthLayer = parentSortKey->data.depthLayer;
+            i16 difference = parentSortKey->data.depth - sortKey->data.depth + 1;
+            sortKey->data.depth = parentSortKey->data.depth + 1;
+            sortKey->data.depthLayer = parentSortKey->data.depthLayer;
 
-        UIUtils::Sort::UpdateChildDepths(registry, _entityId, difference);
-        UIUtils::Transform::UpdateChildTransforms(registry, transform);
+            UIUtils::Sort::UpdateChildDepths(registry, _entityId, difference);
+            UIUtils::Transform::UpdateChildTransforms(registry, transform);
+        }
     }
     void BaseElement::UnsetParent()
     {
@@ -303,29 +308,36 @@ namespace UIScripting
             return;
         const bool visibilityChanged = (visibility->parentVisible && visibility->visible) != (visibility->parentVisible && visible);
         visibility->visible = visible;
-        
+
         if (!visibilityChanged)
             return;
 
         const bool newVisibility = UIUtils::Visibility::IsVisible(visibility);
         UIUtils::Visibility::UpdateChildVisibility(registry, _entityId, newVisibility);
 
-        registry->ctx<UISingleton::UIDataSingleton>().visibilityToggleQueue.enqueue(_entityId);
+        if (newVisibility)
+            registry->emplace<UIComponent::Visible>(_entityId);
+        else
+            registry->remove<UIComponent::Visible>(_entityId);
     }
 
     void BaseElement::SetCollisionEnabled(bool enabled)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        auto collision = &ServiceLocator::GetUIRegistry()->get<UIComponent::Collision>(_entityId);
+        auto collision = &registry->get<UIComponent::Collision>(_entityId);
         if (collision->HasFlag(UI::CollisionFlags::COLLISION) == enabled)
             return;
 
         if (enabled)
+        {
             collision->SetFlag(UI::CollisionFlags::COLLISION);
+            registry->emplace<UIComponent::Collision>(_entityId);
+        }
         else
+        {
             collision->UnsetFlag(UI::CollisionFlags::COLLISION);
-
-        registry->ctx<UISingleton::UIDataSingleton>().collisionToggleQueue.enqueue(_entityId);
+            registry->remove<UIComponent::Collision>(_entityId);
+        }
     }
 
     void BaseElement::Destroy(bool destroyChildren)
@@ -336,21 +348,23 @@ namespace UIScripting
     void BaseElement::MarkDirty()
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        registry->ctx<UISingleton::UIDataSingleton>().dirtyQueue.enqueue(_entityId);
+        if (!registry->has<UIComponent::Dirty>(_entityId))
+            registry->emplace<UIComponent::Dirty>(_entityId);
 
-        const auto transform = &registry->get<UIComponent::Transform>(_entityId);
-        UIUtils::Transform::MarkChildrenDirty(registry, transform);
+        UIUtils::Transform::MarkChildrenDirty(registry, _entityId);
     }
 
     void BaseElement::MarkSelfDirty()
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        registry->ctx<UISingleton::UIDataSingleton>().dirtyQueue.enqueue(_entityId);
+        if (!registry->has<UIComponent::Dirty>(_entityId))
+            registry->emplace<UIComponent::Dirty>(_entityId);
     }
 
     void BaseElement::MarkBoundsDirty()
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        registry->ctx<UISingleton::UIDataSingleton>().dirtyBoundsQueue.enqueue(_entityId);
+        if (!registry->has<UIComponent::BoundsDirty>(_entityId))
+            registry->emplace<UIComponent::BoundsDirty>(_entityId);
     }
 }
