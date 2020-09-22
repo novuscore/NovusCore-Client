@@ -17,31 +17,15 @@ void LogIn()
 	string username;
 	string password;
 
-	LockToken@ uiLock = UI::GetLock(1);
-	{
-		InputField@ usernameField = cast<InputField>(UI::GetElement(usernameFieldId));
-		LockToken@ usernameFieldLock = usernameField.GetLock(1);
-		{
-			username = usernameField.GetText();
-		}
-		usernameFieldLock.Unlock();
+	InputField@ usernameField = cast<InputField>(UI::GetElement(usernameFieldId));
+	username = usernameField.GetText();
 
-		InputField@ passwordField = cast<InputField>(UI::GetElement(passwordFieldId));
-		LockToken@ passwordFieldLock = passwordField.GetLock(1);
-		{
-			password = passwordField.GetText();
-		}
-		passwordFieldLock.Unlock();
+	InputField@ passwordField = cast<InputField>(UI::GetElement(passwordFieldId));
+	password = passwordField.GetText();
 		
-		Panel@ background = cast<Panel>(UI::GetElement(backgroundId));
-		LockToken@ backgroundLock = background.GetLock(2);
-		{
-			background.SetVisible(false);
-		}
-		backgroundLock.Unlock();
-	}
-	uiLock.Unlock();
-
+	Panel@ background = cast<Panel>(UI::GetElement(backgroundId));
+	background.SetVisible(false);
+	
 	// TODO Log in.
 }
 
