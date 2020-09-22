@@ -1,17 +1,21 @@
 #include "UIInputHandler.h"
-#include "../Utils/ServiceLocator.h"
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
 #include <tracy/Tracy.hpp>
-#include <entt.hpp>
+#include <entity/entity.hpp>
+#include <entity/registry.hpp>
+
+#include "../Utils/ServiceLocator.h"
 
 #include "ECS/Components/Singletons/UIDataSingleton.h"
+#include "ECS/Components/Transform.h"
 #include "ECS/Components/TransformEvents.h"
 #include "ECS/Components/SortKey.h"
 #include "ECS/Components/Collision.h"
 #include "ECS/Components/Collidable.h"
 #include "ECS/Components/Visible.h"
 #include "Utils/TransformUtils.h"
+#include "Utils/ColllisionUtils.h"
 
 #include "angelscript/Inputfield.h"
 #include "angelscript/Checkbox.h"
@@ -78,7 +82,7 @@ namespace UIInput
                 {
                     if (sortKey.data.type == UI::UIElementType::UITYPE_CHECKBOX)
                     {
-                        UIScripting::Checkbox* checkBox = reinterpret_cast<UIScripting::Checkbox*>(dataSingleton.entityToElement[dataSingleton.focusedWidget]);
+                        UIScripting::Checkbox* checkBox = reinterpret_cast<UIScripting::Checkbox*>(events.asObject);
                         checkBox->ToggleChecked();
                     }
                     events.OnClick();
@@ -124,7 +128,7 @@ namespace UIInput
 
             UIUtils::Transform::UpdateChildTransforms(registry, transform);
             UIUtils::Transform::MarkDirty(registry, dataSingleton.draggedWidget);
-            UIUtils::Transform::MarkBoundsDirty(registry, dataSingleton.draggedWidget);
+            UIUtils::Collision::MarkBoundsDirty(registry, dataSingleton.draggedWidget);
             UIUtils::Transform::MarkChildrenDirty(registry, transform);
         }
 
@@ -138,7 +142,6 @@ namespace UIInput
 
             const UIComponent::Collision& collision = eventGroup.get<UIComponent::Collision>(entity);
             UIComponent::TransformEvents& events = eventGroup.get<UIComponent::TransformEvents>(entity);
-
             // Check so mouse if within widget bounds.
             if (x < collision.minBound.x || x > collision.maxBound.x || y < collision.minBound.y || y > collision.maxBound.y)
                 continue;
@@ -181,13 +184,13 @@ namespace UIInput
         {
         case UI::UIElementType::UITYPE_INPUTFIELD:
         {
-            UIScripting::InputField* inputFieldAS = reinterpret_cast<UIScripting::InputField*>(dataSingleton.entityToElement[dataSingleton.focusedWidget]);
+            UIScripting::InputField* inputFieldAS = reinterpret_cast<UIScripting::InputField*>(events.asObject);
             inputFieldAS->HandleKeyInput(key);
             break;
         }
         case UI::UIElementType::UITYPE_CHECKBOX:
         {
-            UIScripting::Checkbox* checkBoxAS = reinterpret_cast<UIScripting::Checkbox*>(dataSingleton.entityToElement[dataSingleton.focusedWidget]);
+            UIScripting::Checkbox* checkBoxAS = reinterpret_cast<UIScripting::Checkbox*>(events.asObject);
             checkBoxAS->HandleKeyInput(key);
             break;
         }
@@ -212,9 +215,10 @@ namespace UIInput
             return false;
 
         const UIComponent::SortKey& sortKey = registry->get<UIComponent::SortKey>(dataSingleton.focusedWidget);
+        const UIComponent::TransformEvents& events = registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget);
         if (sortKey.data.type == UI::UIElementType::UITYPE_INPUTFIELD)
         {
-            UIScripting::InputField* inputField = reinterpret_cast<UIScripting::InputField*>(dataSingleton.entityToElement[dataSingleton.focusedWidget]);
+            UIScripting::InputField* inputField = reinterpret_cast<UIScripting::InputField*>(events.asObject);
             inputField->HandleCharInput((char)unicodeKey);
             inputField->MarkSelfDirty();
         }

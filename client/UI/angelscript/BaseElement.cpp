@@ -15,6 +15,7 @@
 #include "../ECS/Components/Dirty.h"
 #include "../ECS/Components/BoundsDirty.h"
 #include "../Utils/TransformUtils.h"
+#include "../Utils/SortUtils.h"
 #include "../Utils/VisibilityUtils.h"
 
 namespace UIScripting
@@ -234,7 +235,7 @@ namespace UIScripting
         sortKey->data.depth = parentSortKey->data.depth + 1;
         sortKey->data.depthLayer = parentSortKey->data.depthLayer;
 
-        UIUtils::Transform::UpdateChildDepths(registry, _entityId, difference);
+        UIUtils::Sort::UpdateChildDepths(registry, _entityId, difference);
         UIUtils::Transform::UpdateChildTransforms(registry, transform);
     }
     void BaseElement::UnsetParent()
@@ -317,8 +318,7 @@ namespace UIScripting
 
     void BaseElement::Destroy(bool destroyChildren)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        registry->ctx<UISingleton::UIDataSingleton>().DestroyWidget(_entityId, destroyChildren);
+        ServiceLocator::GetUIRegistry()->ctx<UISingleton::UIDataSingleton>().DestroyElement(_entityId, destroyChildren);
     }
 
     void BaseElement::MarkDirty()

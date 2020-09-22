@@ -23,9 +23,9 @@ namespace UISingleton
 
         std::shared_mutex& GetMutex(entt::entity entId);
 
-        void ClearWidgets();
+        void ClearAllElements();
 
-        void DestroyWidget(entt::entity entId, bool destroyChildren);
+        void DestroyElement(entt::entity entId, bool destroyChildren);
 
     public:
         robin_hood::unordered_map<entt::entity, UIScripting::BaseElement*> entityToElement;

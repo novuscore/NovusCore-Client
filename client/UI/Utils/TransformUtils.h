@@ -47,42 +47,14 @@ namespace UIUtils::Transform
         childTransform->parent = entt::null;
     }
 
+    void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent);
+
+    void MarkChildrenDirty(entt::registry* registry, const UIComponent::Transform* transform);
+
     inline static void MarkDirty(entt::registry* registry, entt::entity entId)
     {
         if (!registry->has<UIComponent::Dirty>(entId))
             registry->emplace<UIComponent::Dirty>(entId);
     }
-
-    inline static void MarkBoundsDirty(entt::registry* registry, entt::entity entId)
-    {
-        if (!registry->has<UIComponent::BoundsDirty>(entId))
-            registry->emplace<UIComponent::BoundsDirty>(entId);
-    }
-
-    /*
-    *   Recursively updates depths of children changing it by modifier.
-    *   registry: Pointer to UI Registry.
-    *   transform: Transform from which to start update.
-    *   modifer: amount to modify depth by.
-    */
-    void UpdateChildDepths(entt::registry* registry, entt::entity parent, i16 modifier);
-    
-    void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent);
-
-    /*
-    *   Recursively updates bounds of children and self.
-    *   registry: Pointer to UI Registry.
-    *   entityId: entity to start update from.
-    *   updateParent: Whether or not to shallow update parents after updating our own bounds.
-    */
-    void UpdateBounds(entt::registry* registry, entt::entity entityId, bool updateParent = true);
-    /*
-    *   Shallow update bounds by non-recursively iterating over children. I.e we only go one level deep.
-    *   registry: Pointer to UI Registry.
-    *   entityId: entity to update bounds of.
-    */
-    void ShallowUpdateBounds(entt::registry* registry, entt::entity entityId);
-
-    void MarkChildrenDirty(entt::registry* registry, const UIComponent::Transform* transform);
 
 };

@@ -296,7 +296,7 @@ bool EngineLoop::Update(f32 deltaTime)
         else if (message.code == MSG_IN_RELOAD)
         {
             entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-            uiRegistry->ctx<UISingleton::UIDataSingleton>().ClearWidgets();
+            uiRegistry->ctx<UISingleton::UIDataSingleton>().ClearAllElements();
 
             ScriptHandler::ReloadScripts();
         }

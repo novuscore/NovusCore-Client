@@ -34,5 +34,8 @@ namespace UIUtils::Visibility
         return visibility->parentVisible && visibility->visible;
     }
 
+    /*
+    *   THREAD-SAFE.
+    */
     void UpdateChildVisibility(entt::registry* registry, const entt::entity parent, bool parentVisibility);
 };

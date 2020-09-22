@@ -1,4 +1,5 @@
 #include "VisibilityUtils.h"
+#include <shared_mutex>
 #include <tracy/Tracy.hpp>
 #include <entity/registry.hpp>
 #include "../ECS/Components/Transform.h"
@@ -12,8 +13,9 @@ void UIUtils::Visibility::UpdateChildVisibility(entt::registry* registry, const 
     const UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(parent);
     for (const UI::UIChild& child : parentTransform->children)
     {
-        UIComponent::Visibility* childVisibility = &registry->get<UIComponent::Visibility>(child.entId);
+        std::lock_guard l(dataSingleton->GetMutex(child.entId));
 
+        UIComponent::Visibility* childVisibility = &registry->get<UIComponent::Visibility>(child.entId);
         if (!UpdateParentVisibility(childVisibility, parentVisibility))
             continue;
 

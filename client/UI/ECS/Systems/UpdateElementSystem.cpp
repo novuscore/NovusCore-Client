@@ -15,6 +15,7 @@
 #include "../Components/Collidable.h"
 #include "../Components/Singletons/UIDataSingleton.h"
 #include "../../Utils/TransformUtils.h"
+#include "../../Utils/ColllisionUtils.h"
 #include "../../Utils/TextUtils.h"
 #include "../../angelscript/BaseElement.h"
 
@@ -130,7 +131,7 @@ namespace UISystem
         auto boundsUpdateView = registry.view<UIComponent::Transform, UIComponent::BoundsDirty>();
         boundsUpdateView.each([&](entt::entity entityId, UIComponent::Transform& transform)
             {
-                UIUtils::Transform::UpdateBounds(&registry, entityId, true);
+                UIUtils::Collision::UpdateBounds(&registry, entityId, true);
             });
 
         auto inputFieldView = registry.view<UIComponent::Transform, UIComponent::InputField, UIComponent::Text, UIComponent::Dirty>();
