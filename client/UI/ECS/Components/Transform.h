@@ -37,8 +37,9 @@ namespace UIComponent
         std::vector<UI::UIChild> children;
         void* asObject = nullptr;
 
+        inline void ToggleFlag(const UI::TransformFlags inFlags) { flags ^= inFlags; }
         inline void SetFlag(const UI::TransformFlags inFlags) { flags |= inFlags; }
         inline void UnsetFlag(const UI::TransformFlags inFlags) { flags &= ~inFlags; }
-        inline bool HasFlag(const UI::TransformFlags inFlags) { return (flags & inFlags) == inFlags; }
+        inline bool HasFlag(const UI::TransformFlags inFlags) const { return (flags & inFlags) == inFlags; }
     };
 }

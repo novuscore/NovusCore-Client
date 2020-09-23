@@ -3,9 +3,6 @@
 
 #include "BaseElement.h"
 
-#include "../ECS/Components/Transform.h"
-#include "../ECS/Components/TransformEvents.h"
-
 namespace UIScripting
 {
     class Label;

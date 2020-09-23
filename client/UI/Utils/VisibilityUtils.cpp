@@ -16,7 +16,7 @@ void UIUtils::Visibility::UpdateChildVisibility(entt::registry* registry, const 
         if (!UpdateParentVisibility(childVisibility, parentVisibility))
             continue;
 
-        const bool newVisibility = childVisibility->parentVisible && childVisibility->visible;
+        const bool newVisibility = childVisibility->visibilityFlags == UI::VisibilityFlags::FULL_VISIBLE;
         UpdateChildVisibility(registry, child.entId, newVisibility);
 
         if (newVisibility)

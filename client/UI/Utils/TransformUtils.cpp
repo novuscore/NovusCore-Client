@@ -1,9 +1,7 @@
 #include "TransformUtils.h"
 #include <tracy/Tracy.hpp>
-#include <shared_mutex>
 #include "entity/registry.hpp"
 #include "../ECS/Components/Dirty.h"
-#include "../ECS/Components/Singletons/UIDataSingleton.h"
 
 namespace UIUtils::Transform
 {   
@@ -24,13 +22,14 @@ namespace UIUtils::Transform
 
     void MarkChildrenDirty(entt::registry* registry, const entt::entity entityId)
     {
+        ZoneScoped;
         const auto transform = &registry->get<UIComponent::Transform>(entityId);
         for (const UI::UIChild& child : transform->children)
         {
-            MarkChildrenDirty(registry, child.entId);
+            if (!registry->has<UIComponent::Dirty>(child.entId))
+                registry->emplace<UIComponent::Dirty>(child.entId);
 
-            if (!registry->has<UIComponent::Dirty>(entityId))
-                registry->emplace<UIComponent::Dirty>(entityId);
+            MarkChildrenDirty(registry, child.entId);
         }
     }
 }

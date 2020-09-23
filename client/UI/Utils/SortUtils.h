@@ -1,6 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
 #include <entity/fwd.hpp>
+#include "../UITypes.h"
 
 namespace UIUtils::Sort
 {
@@ -11,5 +12,5 @@ namespace UIUtils::Sort
     *   modifer: amount to modify depth by.
     *   THREAD-SAFE
     */
-    void UpdateChildDepths(entt::registry* registry, entt::entity parent, i16 modifier);
+    void UpdateChildDepths(entt::registry* registry, entt::entity parent, UI::DepthLayer depthLayer, i16 modifier);
 };

@@ -5,11 +5,13 @@
 
 #include <GLFW/glfw3.h>
 
-#include "../ECS/Components/Singletons/UILockSingleton.h"
 #include "../ECS/Components/Transform.h"
 #include "../ECS/Components/Visible.h"
-#include "../ECS/Components/Renderable.h"
 #include "../ECS/Components/Collidable.h"
+#include "../ECS/Components/Renderable.h"
+#include "../ECS/Components/Image.h"
+#include "../ECS/Components/SortKey.h"
+#include "../ECS/Components/Checkbox.h"
 
 namespace UIScripting
 {
@@ -32,6 +34,7 @@ namespace UIScripting
         auto checkPanelTransform = &registry->get<UIComponent::Transform>(_checkPanel->GetEntityId());
         checkPanelTransform->parent = _entityId;
         checkPanelTransform->SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
+        registry->get<UIComponent::SortKey>(_checkPanel->GetEntityId()).data.depth++;
         registry->get<UIComponent::Transform>(_entityId).children.push_back({ _checkPanel->GetEntityId(), _checkPanel->GetType() });
     }
 

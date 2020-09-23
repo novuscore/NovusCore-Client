@@ -8,30 +8,32 @@ namespace UIUtils::Visibility
     // Returns true if visibility changed.
     static inline bool UpdateVisibility(UIComponent::Visibility* visibility, bool visible)
     {
-        if (visibility->visible == visible)
+        if (visibility->HasFlag(UI::VisibilityFlags::VISIBLE) == visible)
             return false;
+        
+        const bool originalVisible = visibility->visibilityFlags == UI::VisibilityFlags::FULL_VISIBLE;
+        visibility->ToggleFlag(UI::VisibilityFlags::VISIBLE);
+        const bool newVisible = visibility->visibilityFlags == UI::VisibilityFlags::FULL_VISIBLE;
 
-        const bool visibilityChanged = visibility->parentVisible && visibility->visible != visibility->parentVisible && visible;
-        visibility->visible = visible;
-
-        return visibilityChanged;
+        return originalVisible != newVisible;
     }
 
     // Returns true if visibility changed.
     static inline bool UpdateParentVisibility(UIComponent::Visibility* visibility, bool parentVisible)
     {
-        if (visibility->parentVisible == parentVisible)
+        if (visibility->HasFlag(UI::VisibilityFlags::PARENTVISIBLE) == parentVisible)
             return false;
 
-        const bool visibilityChanged = visibility->parentVisible && visibility->visible != parentVisible && visibility->visible;
-        visibility->parentVisible = parentVisible;
+        const bool originalVisible = visibility->visibilityFlags == UI::VisibilityFlags::FULL_VISIBLE;
+        visibility->ToggleFlag(UI::VisibilityFlags::PARENTVISIBLE);
+        const bool newVisible = visibility->visibilityFlags == UI::VisibilityFlags::FULL_VISIBLE;
 
-        return visibilityChanged;
+        return originalVisible != newVisible;
     }
 
     static inline bool IsVisible(const UIComponent::Visibility* visibility)
     {
-        return visibility->parentVisible && visibility->visible;
+        return visibility->visibilityFlags == UI::VisibilityFlags::FULL_VISIBLE;
     }
 
     /*

@@ -164,10 +164,7 @@ namespace UIScripting
         if (transform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE) == fillParent)
             return;
 
-        if (fillParent)
-            transform->SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
-        else
-            transform->UnsetFlag(UI::TransformFlags::FILL_PARENTSIZE);
+        transform->ToggleFlag(UI::TransformFlags::FILL_PARENTSIZE);
 
         if (transform->parent == entt::null)
             return;
@@ -186,8 +183,11 @@ namespace UIScripting
     }
     void BaseElement::SetDepthLayer(const UI::DepthLayer layer)
     {
-        auto sortKey = &ServiceLocator::GetUIRegistry()->get<UIComponent::SortKey>(_entityId);
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        auto sortKey = &registry->get<UIComponent::SortKey>(_entityId);
         sortKey->data.depthLayer = layer;
+        
+        UIUtils::Sort::UpdateChildDepths(registry, _entityId, layer, 0);
     }
 
     u16 BaseElement::GetDepth() const
@@ -197,8 +197,13 @@ namespace UIScripting
     }
     void BaseElement::SetDepth(const u16 depth)
     {
-        auto sortKey = &ServiceLocator::GetUIRegistry()->get<UIComponent::SortKey>(_entityId);
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        auto sortKey = &registry->get<UIComponent::SortKey>(_entityId);
+
+        i16 difference = depth - sortKey->data.depth;
+        
         sortKey->data.depth = depth;
+        UIUtils::Sort::UpdateChildDepths(registry, _entityId, sortKey->data.depthLayer, difference);
     }
 
     BaseElement* BaseElement::GetParent() const
@@ -242,16 +247,16 @@ namespace UIScripting
             transform->size = parentTransform->size;
 
         // Update our and children's depth. Keeping the relative offsets for all children but adding onto it how much we moved in depth.
+        auto sortKey = &registry->get<UIComponent::SortKey>(_entityId);
+        auto parentSortKey = &registry->get<UIComponent::SortKey>(transform->parent);
+
+        i16 difference = parentSortKey->data.depth - sortKey->data.depth + 1;
+        sortKey->data.depth = parentSortKey->data.depth + 1;
+        sortKey->data.depthLayer = parentSortKey->data.depthLayer;
+
         if (transform->children.size())
         {
-            auto sortKey = &registry->get<UIComponent::SortKey>(_entityId);
-            auto parentSortKey = &registry->get<UIComponent::SortKey>(transform->parent);
-
-            i16 difference = parentSortKey->data.depth - sortKey->data.depth + 1;
-            sortKey->data.depth = parentSortKey->data.depth + 1;
-            sortKey->data.depthLayer = parentSortKey->data.depthLayer;
-
-            UIUtils::Sort::UpdateChildDepths(registry, _entityId, difference);
+            UIUtils::Sort::UpdateChildDepths(registry, _entityId, sortKey->data.depthLayer, difference);
             UIUtils::Transform::UpdateChildTransforms(registry, transform);
         }
     }
@@ -278,38 +283,30 @@ namespace UIScripting
         if (collision->HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS) == expand)
             return;
 
-        if (expand)
-            collision->SetFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS);
-        else
-            collision->UnsetFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS);
+        collision->ToggleFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS);
     }
 
     bool BaseElement::IsVisible() const
     {
         const UIComponent::Visibility* visibility = &ServiceLocator::GetUIRegistry()->get<UIComponent::Visibility>(_entityId);
-        return UIUtils::Visibility::IsVisible(visibility);
+        return visibility->visibilityFlags == UI::VisibilityFlags::FULL_VISIBLE;
     }
     bool BaseElement::IsLocallyVisible() const
     {
         const UIComponent::Visibility* visibility = &ServiceLocator::GetUIRegistry()->get<UIComponent::Visibility>(_entityId);
-        return visibility->visible;
+        return visibility->HasFlag(UI::VisibilityFlags::VISIBLE);
     }
     bool BaseElement::IsParentVisible() const
     {
         const UIComponent::Visibility* visibility = &ServiceLocator::GetUIRegistry()->get<UIComponent::Visibility>(_entityId);
-        return visibility->parentVisible;
+        return visibility->HasFlag(UI::VisibilityFlags::PARENTVISIBLE);
     }
     void BaseElement::SetVisible(bool visible)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto visibility = &registry->get<UIComponent::Visibility>(_entityId);
 
-        if (visibility->visible == visible)
-            return;
-        const bool visibilityChanged = (visibility->parentVisible && visibility->visible) != (visibility->parentVisible && visible);
-        visibility->visible = visible;
-
-        if (!visibilityChanged)
+        if (!UIUtils::Visibility::UpdateVisibility(visibility, visible))
             return;
 
         const bool newVisibility = UIUtils::Visibility::IsVisible(visibility);
@@ -328,16 +325,12 @@ namespace UIScripting
         if (collision->HasFlag(UI::CollisionFlags::COLLISION) == enabled)
             return;
 
+        collision->ToggleFlag(UI::CollisionFlags::COLLISION);
+
         if (enabled)
-        {
-            collision->SetFlag(UI::CollisionFlags::COLLISION);
             registry->emplace<UIComponent::Collision>(_entityId);
-        }
         else
-        {
-            collision->UnsetFlag(UI::CollisionFlags::COLLISION);
             registry->remove<UIComponent::Collision>(_entityId);
-        }
     }
 
     void BaseElement::Destroy(bool destroyChildren)

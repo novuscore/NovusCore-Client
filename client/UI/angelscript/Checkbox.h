@@ -1,9 +1,7 @@
 #pragma once
 
-#include "../ECS/Components/TransformEvents.h"
-#include "../ECS/Components/Image.h"
-#include "../ECS/Components/Checkbox.h"
 #include "BaseElement.h"
+#include "../ECS/Components/TransformEvents.h"
 
 namespace UIScripting
 {
