@@ -184,7 +184,23 @@ namespace Renderer
         return _shaderHandler->LoadShader(desc);
     }
 
-    void RendererVK::FlipFrame(u32 /*frameIndex*/)
+    void RendererVK::UnloadTexture(TextureID textureID)
+    {
+        _device->FlushGPU(); // Make sure we have finished rendering
+
+        _textureHandler->UnloadTexture(textureID);
+    }
+
+    void RendererVK::UnloadTexturesInArray(TextureArrayID textureArrayID, u32 unloadStartIndex)
+    {
+        _device->FlushGPU(); // Make sure we have finished rendering
+
+        _textureHandler->UnloadTexturesInArray(textureArrayID, unloadStartIndex);
+    }
+
+    static VmaBudget sBudgets[16] = { 0 };
+
+    void RendererVK::FlipFrame(u32 frameIndex)
     {
         ZoneScopedC(tracy::Color::Red3);
 
@@ -209,6 +225,9 @@ namespace Renderer
         }
 
         _commandListHandler->ResetCommandBuffers();
+
+        vmaSetCurrentFrameIndex(_device->_allocator, frameIndex);
+        vmaGetBudget(_device->_allocator, sBudgets);
     }
 
     CommandListID RendererVK::BeginCommandList()
@@ -1060,6 +1079,20 @@ namespace Renderer
     void RendererVK::UnmapBuffer(BufferID buffer)
     {
         vmaUnmapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(buffer));
+    }
+
+    size_t RendererVK::GetVRAMUsage()
+    {
+        size_t usage = sBudgets[0].usage;
+
+        return usage;
+    }
+
+    size_t RendererVK::GetVRAMBudget()
+    {
+        size_t budget = sBudgets[0].budget;
+
+        return budget;
     }
 
     void RendererVK::InitImgui()

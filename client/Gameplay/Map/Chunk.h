@@ -37,7 +37,7 @@
 namespace Terrain
 {
     constexpr i32 MAP_CHUNK_TOKEN = 1313685840;
-    constexpr i32 MAP_CHUNK_VERSION = 3;
+    constexpr i32 MAP_CHUNK_VERSION = 4;
     constexpr u16 MAP_CHUNK_ID_INVALID = std::numeric_limits<u16>().max();
 
     constexpr u32 MAP_CHUNKS_PER_MAP_STRIDE = 64;
@@ -80,6 +80,76 @@ namespace Terrain
         u16 scale;
     };
 
+    struct CellLiquidHeader
+    {
+        // Packed Format
+        // Bit 1-7 (numInstances)
+        // Bit 8 (hasAttributes)
+        u8 packedData = 0;
+
+        u8 cellID = 0;
+    };
+
+    struct CellLiquidInstance
+    {
+        u8 liquidType = 0;
+
+        // Packed Format
+        // Bit 1-6 (liquidVertexFormat)
+        // Bit 7 (hasBitMaskForPatches)
+        // Bit 8 (hasVertexData)
+        u8 packedData = 0;
+
+        hvec2 heightLevel = hvec2(0.f, 0.f); // Min, Max
+        u8 packedOffset = 0; // X, Y
+        u8 packedSize = 0; // Width, Height
+    };
+
+    struct CellLiquidAttributes
+    {
+        u64 fishable = 0; // seems to be usable as visibility information.
+        u64 deep = 0; // Might be related to fatigue area if bit set.
+
+        // Note that these are bitmasks.
+    };
+
+    // The following 4 Structs only exists for the purpose of being able to sizeof() inside for Mh2o::Read
+    // This makes it easier to read the code (The actual) structs in memory are arrays one after another
+    struct LiquidVertexFormat_Height_Depth
+    {
+        f32 heightMap;
+        u8 depthMap;
+    };
+
+    struct LiquidVertexFormat_Height_UV
+    {
+        f32 heightMap;
+
+        u16 uvX;
+        u16 uvY;
+    };
+
+    struct LiquidVertexFormat_Depth
+    {
+        u8 depthMap;
+    };
+
+    struct LiquidVertexFormat_Height_UV_Depth
+    {
+        f32 heightMap;
+
+        u16 uvX;
+        u16 uvY;
+
+        u8 depthMap;
+    };
+
+    struct LiquidUVMapEntry
+    {
+        u16 x;
+        u16 y;
+    };
+
     struct Chunk
     {
         ChunkHeader chunkHeader;
@@ -91,6 +161,12 @@ namespace Terrain
         u32 alphaMapStringID;
 
         std::vector<MapObjectPlacement> mapObjectPlacements;
+
+        std::vector<CellLiquidHeader> liquidHeaders;
+        std::vector<CellLiquidInstance> liquidInstances;
+        std::vector<CellLiquidAttributes> liquidAttributes;
+        std::vector<u8> liquidBitMaskForPatchesData;
+        std::vector<u8> liquidvertexData;
     };
 #pragma pack(pop)
 }

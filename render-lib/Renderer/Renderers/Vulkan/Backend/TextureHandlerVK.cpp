@@ -31,6 +31,8 @@ namespace Renderer
             dataTextureDesc.data = new u8[1 * 1 * 256 * 4]{ 1 };
 
             _debugOnionTexture = CreateDataTexture(dataTextureDesc);
+
+            delete[] dataTextureDesc.data;
         }
 
         void TextureHandlerVK::LoadDebugTexture(const TextureDesc& desc)
@@ -40,64 +42,80 @@ namespace Renderer
 
         TextureID TextureHandlerVK::LoadTexture(const TextureDesc& desc)
         {
-            using type = type_safe::underlying_type<TextureID>;
-
             // Check the cache, we only want to do this for LOADED textures though, never CREATED data textures
             size_t nextID;
             u64 cacheDescHash = CalculateDescHash(desc);
             if (TryFindExistingTexture(cacheDescHash, nextID))
             {
-                return TextureID(static_cast<type>(nextID)); // We already loaded this texture
+                TextureID::type id = static_cast<TextureID::type>(nextID);
+                Texture& texture = _textures[id];
+                if (texture.loaded)
+                {
+                    return TextureID(id); // We already loaded this texture
+                }
             }
+
+            // TODO: Check the clearlist before allocating a new one
 
             size_t nextHandle = _textures.size();
 
             // Make sure we haven't exceeded the limit of the ImageID type, if this hits you need to change type of ImageID to something bigger
-            assert(nextHandle < TextureID::MaxValue());
+            if (nextHandle >= TextureID::MaxValue())
+            {
+                NC_LOG_FATAL("We exceeded the limit of the TextureID type!");
+            }
             
             Texture texture;
             texture.hash = cacheDescHash;
             texture.debugName = desc.path;
 
+            texture.textureIndex = static_cast<TextureID::type>(nextHandle);
+
             u8* pixels;
             pixels = ReadFile(desc.path, texture.width, texture.height, texture.layers, texture.mipLevels, texture.format, texture.fileSize);
             if (!pixels)
             {
-                NC_LOG_FATAL("Failed to load texture!");
+                NC_LOG_FATAL("Failed to load texture! (%s)", desc.path.c_str());
             }
 
             CreateTexture(texture, pixels);
 
             _textures.push_back(texture);
-            return TextureID(static_cast<type>(nextHandle));
+            return TextureID(static_cast<TextureID::type>(nextHandle));
         }
 
         TextureID TextureHandlerVK::LoadTextureIntoArray(const TextureDesc& desc, TextureArrayID textureArrayID, u32& arrayIndex)
         {
-            using type = type_safe::underlying_type<TextureID>;
-
             TextureID textureID;
 
             // Check the cache, we only want to do this for LOADED textures though, never CREATED data textures
             size_t nextID;
             u64 descHash = CalculateDescHash(desc);
-            assert(descHash != 0); // What are the odds? All data textures has a 0 hash so we don't wanna go ahead with this, figure out why this happens.
+
+            if (descHash == 0) // What are the odds? All data textures has a 0 hash so we don't wanna go ahead with this, figure out why this happens.
+            {
+                NC_LOG_FATAL("Calculated texture descriptor hash was 0, this is a big issue! (%s)", desc.path.c_str());
+            }
+
             if (TryFindExistingTextureInArray(textureArrayID, descHash, nextID, textureID))
             {
                 arrayIndex = static_cast<u32>(nextID);
                 return textureID; // This texture already exists in this array
             }
 
+            TextureArrayID::type id = static_cast<TextureArrayID::type>(textureArrayID);
+
             // Otherwise load it
-            using textureArrayType = type_safe::underlying_type<TextureArrayID>;
-            assert(static_cast<textureArrayType>(textureArrayID) < _textureArrays.size());
+            if (id >= _textureArrays.size())
+            {
+                NC_LOG_FATAL("Tried to load into a TextureArrayID which doesn't exist! (%u)", id);
+            }
 
             textureID = LoadTexture(desc);
 
-            using textureType = type_safe::underlying_type<TextureID>;
-            Texture& texture = _textures[static_cast<textureType>(textureID)];
+            Texture& texture = _textures[static_cast<TextureID::type>(textureID)];
 
-            TextureArray& textureArray = _textureArrays[static_cast<textureArrayType>(textureArrayID)];
+            TextureArray& textureArray = _textureArrays[static_cast<TextureArrayID::type>(textureArrayID)];
             arrayIndex = static_cast<u32>(textureArray.textures.size());
             textureArray.textures.push_back(textureID);
             textureArray.textureHashes.push_back(descHash);
@@ -105,36 +123,79 @@ namespace Renderer
             return textureID;
         }
 
+        void TextureHandlerVK::UnloadTexture(const TextureID textureID)
+        {
+            Texture& texture = _textures[static_cast<TextureID::type>(textureID)];
+
+            if (!texture.loaded)
+            {
+                return;
+            }
+
+            texture.loaded = false;
+            texture.hash = 0;
+
+            vmaFreeMemory(_device->_allocator, texture.allocation);
+            vkDestroyImage(_device->_device, texture.image, nullptr);
+            vkDestroyImageView(_device->_device, texture.imageView, nullptr);
+
+            _freeTextureQueue.push(&texture);
+        }
+
+        void TextureHandlerVK::UnloadTexturesInArray(const TextureArrayID textureArrayID, u32 unloadStartIndex)
+        {
+            TextureArray& textureArray = _textureArrays[static_cast<TextureArrayID::type>(textureArrayID)];
+
+            for (u32 i = unloadStartIndex; i < textureArray.textures.size(); i++)
+            {
+                UnloadTexture(textureArray.textures[i]);
+            }
+
+            textureArray.textureHashes.resize(unloadStartIndex);
+            textureArray.textures.resize(unloadStartIndex);
+        }
+
         TextureArrayID TextureHandlerVK::CreateTextureArray(const TextureArrayDesc& desc)
         {
-            assert(desc.size > 0);
+            if (desc.size == 0)
+            {
+                NC_LOG_FATAL("Tried to create a texture array with a size of zero!");
+            }
 
             size_t nextHandle = _textureArrays.size();
 
             // Make sure we haven't exceeded the limit of the TextureArrayID type, if this hits you need to change type of TextureArrayID to something bigger
-            assert(nextHandle < TextureArrayID::MaxValue());
-            using type = type_safe::underlying_type<TextureArrayID>;
+            if (nextHandle >= TextureArrayID::MaxValue())
+            {
+                NC_LOG_FATAL("We exceeded the limit of the TextureArrayID type!");
+            }
 
             TextureArray textureArray;
             textureArray.textures.reserve(desc.size);
             textureArray.size = desc.size;
 
             _textureArrays.push_back(textureArray);
-            return TextureArrayID(static_cast<type>(nextHandle));
+            return TextureArrayID(static_cast<TextureArrayID::type>(nextHandle));
         }
 
         TextureID TextureHandlerVK::CreateDataTexture(const DataTextureDesc& desc)
         {
-            assert(desc.width > 0);
-            assert(desc.height > 0);
-            assert(desc.layers > 0);
-            assert(desc.data != nullptr);
+            if (desc.width == 0 || desc.height == 0 || desc.layers == 0)
+            {
+                NC_LOG_FATAL("Invalid DataTexture dimensions! (width %u, height %u, layers %u) (%s)", desc.width, desc.height, desc.layers, desc.debugName.c_str());
+            }
+
+            if (desc.data == nullptr)
+            {
+                NC_LOG_FATAL("Tried to create a DataTexture with the data being a nullptr! (%s)", desc.debugName.c_str());
+            }
 
             size_t nextHandle = _textures.size();
 
-            // Make sure we haven't exceeded the limit of the TextureID type, if this hits you need to change type of ImageID to something bigger
-            assert(nextHandle < TextureID::MaxValue());
-            using type = type_safe::underlying_type<TextureID>;
+            if (nextHandle >= TextureID::MaxValue())
+            {
+                NC_LOG_FATAL("We exceeded the limit of the TextureID type!");
+            }
 
             Texture texture;
             texture.debugName = desc.debugName;
@@ -149,20 +210,21 @@ namespace Renderer
             CreateTexture(texture, desc.data);
 
             _textures.push_back(texture);
-            return TextureID(static_cast<type>(nextHandle));
+            return TextureID(static_cast<TextureID::type>(nextHandle));
         }
 
         TextureID TextureHandlerVK::CreateDataTextureIntoArray(const DataTextureDesc& desc, TextureArrayID textureArrayID, u32& arrayIndex)
         {
-            using textureArrayType = type_safe::underlying_type<TextureArrayID>;
-            assert(static_cast<textureArrayType>(textureArrayID) < _textureArrays.size());
+            if (static_cast<TextureArrayID::type>(textureArrayID) >= _textureArrays.size())
+            {
+                NC_LOG_FATAL("Tried to create DataTexture (%s) into invalid array", desc.debugName.c_str());
+            }
 
             TextureID textureID = CreateDataTexture(desc);
 
-            using textureType = type_safe::underlying_type<TextureID>;
-            Texture& texture = _textures[static_cast<textureType>(textureID)];
+            Texture& texture = _textures[static_cast<TextureID::type>(textureID)];
 
-            TextureArray& textureArray = _textureArrays[static_cast<textureArrayType>(textureArrayID)];
+            TextureArray& textureArray = _textureArrays[static_cast<TextureArrayID::type>(textureArrayID)];
             arrayIndex = static_cast<u32>(textureArray.textures.size());
             textureArray.textures.push_back(textureID);
             textureArray.textureHashes.push_back(0);
@@ -170,31 +232,43 @@ namespace Renderer
             return textureID;
         }
 
-        const std::vector<TextureID>& TextureHandlerVK::GetTextureIDsInArray(const TextureArrayID id)
+        const std::vector<TextureID>& TextureHandlerVK::GetTextureIDsInArray(const TextureArrayID textureArrayID)
         {
-            using type = type_safe::underlying_type<TextureArrayID>;
+            TextureArrayID::type id = static_cast<TextureArrayID::type>(textureArrayID);
 
             // Lets make sure this id exists
-            assert(_textureArrays.size() > static_cast<type>(id));
-            return _textureArrays[static_cast<type>(id)].textures;
+            if (_textureArrays.size() <= id)
+            {
+                NC_LOG_FATAL("Tried to access invalid TextureArrayID: %u", id);
+            }
+
+            return _textureArrays[static_cast<TextureArrayID::type>(textureArrayID)].textures;
         }
 
-        bool TextureHandlerVK::IsOnionTexture(const TextureID id)
+        bool TextureHandlerVK::IsOnionTexture(const TextureID textureID)
         {
-            using type = type_safe::underlying_type<TextureID>;
+            TextureID::type id = static_cast<TextureID::type>(textureID);
 
             // Lets make sure this id exists
-            assert(_textures.size() > static_cast<type>(id));
-            return _textures[static_cast<type>(id)].layers != 1;
+            if (_textures.size() <= id)
+            {
+                NC_LOG_FATAL("Tried to access invalid TextureID: %u", id);
+            }
+
+            return _textures[static_cast<TextureID::type>(textureID)].layers != 1;
         }
 
-        VkImageView TextureHandlerVK::GetImageView(const TextureID id)
+        VkImageView TextureHandlerVK::GetImageView(const TextureID textureID)
         {
-            using type = type_safe::underlying_type<TextureID>;
+            TextureID::type id = static_cast<TextureID::type>(textureID);
 
             // Lets make sure this id exists
-            assert(_textures.size() > static_cast<type>(id));
-            return _textures[static_cast<type>(id)].imageView;
+            if (_textures.size() <= id)
+            {
+                NC_LOG_FATAL("Tried to access invalid TextureID: %u", id);
+            }
+
+            return _textures[static_cast<TextureID::type>(textureID)].imageView;
         }
 
         VkImageView TextureHandlerVK::GetDebugTextureImageView()
@@ -207,13 +281,17 @@ namespace Renderer
             return GetImageView(_debugOnionTexture);
         }
 
-        u32 TextureHandlerVK::GetTextureArraySize(const TextureArrayID id)
+        u32 TextureHandlerVK::GetTextureArraySize(const TextureArrayID textureArrayID)
         {
-            using type = type_safe::underlying_type<TextureArrayID>;
+            TextureArrayID::type id = static_cast<TextureArrayID::type>(textureArrayID);
 
             // Lets make sure this id exists
-            assert(_textureArrays.size() > static_cast<type>(id));
-            return _textureArrays[static_cast<type>(id)].size;
+            if (_textureArrays.size() <= id)
+            {
+                NC_LOG_FATAL("Tried to access invalid TextureArrayID: %u", id);
+            }
+
+            return _textureArrays[static_cast<TextureArrayID::type>(textureArrayID)].size;
         }
 
         u64 TextureHandlerVK::CalculateDescHash(const TextureDesc& desc)
@@ -238,20 +316,21 @@ namespace Renderer
             return false;
         }
 
-        bool TextureHandlerVK::TryFindExistingTextureInArray(TextureArrayID textureArrayID, u64 descHash, size_t& arrayIndex, TextureID& textureId)
+        bool TextureHandlerVK::TryFindExistingTextureInArray(TextureArrayID textureArrayID, u64 descHash, size_t& arrayIndex, TextureID& textureID)
         {
-            using textureArrayType = type_safe::underlying_type<TextureArrayID>;
+            TextureArrayID::type id = static_cast<TextureArrayID::type>(textureArrayID);
+            if (_textureArrays.size() <= id)
+            {
+                NC_LOG_FATAL("Tried to access invalid TextureArrayID: %u", id);
+            }
 
-            textureArrayType arrayID = static_cast<textureArrayType>(textureArrayID);
-            assert(arrayID < _textureArrays.size());
-
-            TextureArray& array = _textureArrays[arrayID];
+            TextureArray& array = _textureArrays[id];
 
             for (arrayIndex = 0; arrayIndex < array.textureHashes.size(); arrayIndex++)
             {
                 if (descHash == array.textureHashes[arrayIndex])
                 {
-                    textureId = array.textures[arrayIndex];
+                    textureID = array.textures[arrayIndex];
                     return true;
                 }
             }
@@ -271,7 +350,10 @@ namespace Renderer
             if (!pixels)
             {
                 gli::texture texture = gli::load(filename);
-                assert(!texture.empty());
+                if (texture.empty())
+                {
+                    NC_LOG_FATAL("Failed to load texture (%s)", filename.c_str());
+                }
 
                 gli::gl gl(gli::gl::PROFILE_GL33);
                 gli::gl::format const gliFormat = gl.translate(texture.format(), texture.swizzles());
@@ -312,8 +394,6 @@ namespace Renderer
             vmaMapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(stagingBuffer), &data);
             memcpy(data, pixels, texture.fileSize);
             vmaUnmapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(stagingBuffer));
-
-            delete[] pixels;
 
             // Create image
             VkImageCreateInfo imageInfo = {};

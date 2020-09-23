@@ -22,8 +22,6 @@
 
 #include "imgui/imgui_impl_vulkan.h"
 
-
-
 #define NOVUSCORE_RENDERER_DEBUG_OVERRIDE 0
 #define NOVUSCORE_RENDERER_GPU_VALIDATION 0
 
@@ -100,7 +98,7 @@ namespace Renderer
 
         void RenderDeviceVK::FlushGPU()
         {
-
+            vkDeviceWaitIdle(_device); // Wait for any in progress rendering to finish
         }
 
         static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
@@ -425,8 +423,9 @@ namespace Renderer
             deviceFeatures.features.fragmentStoresAndAtomics = VK_TRUE;
             deviceFeatures.features.vertexPipelineStoresAndAtomics = VK_TRUE;
             deviceFeatures.features.shaderInt16 = VK_TRUE;
+            deviceFeatures.features.multiDrawIndirect = VK_TRUE;
+            deviceFeatures.features.drawIndirectFirstInstance = VK_TRUE;
             deviceFeatures.pNext = &descriptorIndexingFeatures;
-
 
             VkDeviceCreateInfo createInfo = {};
             createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

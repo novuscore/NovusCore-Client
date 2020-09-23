@@ -48,6 +48,9 @@ public:
     TerrainRenderer* GetTerrainRenderer() { return _terrainRenderer; }
     DebugRenderer* GetDebugRenderer() { return _debugRenderer; }
 
+    size_t GetVRAMUsage();
+    size_t GetVRAMBudget();
+
     const i32 WIDTH = 1920;
     const i32 HEIGHT = 1080;
 private:

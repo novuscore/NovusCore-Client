@@ -27,7 +27,7 @@
 namespace Terrain
 {
     constexpr i32 MAP_OBJECT_TOKEN = 7236975; // UTF8 -> Binary -> Decimal for "nmo"
-    constexpr i32 MAP_OBJECT_VERSION = 2;
+    constexpr i32 MAP_OBJECT_VERSION = 3;
 
     struct TriangleData
     {
@@ -112,10 +112,12 @@ namespace Terrain
         std::vector<u32> vertexColors;
     };
 
-    struct UVSet
+    struct MapObjectVertex
     {
-        std::vector<vec2> vertexUVs;
-    };
+        hvec3 position = hvec3(static_cast<f16>(0.0f));
+        u8 octNormal[2] = { 0, 0 };
+        hvec4 uv = hvec4(static_cast<f16>(0.0f));
+    }; // 16 bytes
 
     struct MapObject
     {
@@ -123,11 +125,8 @@ namespace Terrain
         MapObjectFlags flags;
 
         std::vector<u16> indices;
-       
-        std::vector<vec3> vertexPositions;
-        std::vector<vec3> vertexNormals;
+
         std::vector<VertexColorSet> vertexColorSets;
-        std::vector<UVSet> uvSets;
 
         std::vector<TriangleData> triangleData;
         std::vector<RenderBatch> renderBatches;

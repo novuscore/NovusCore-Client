@@ -57,7 +57,7 @@ namespace Terrain
     };
     static_assert(sizeof(MapObjectMaterialFlags) == 4); // This should always be the size of one u32
 
-    constexpr u32 INVALID_TEXTURE_ID = 9999;
+    constexpr u32 INVALID_TEXTURE_ID = std::numeric_limits<u32>().max();
     struct MapObjectMaterial
     {
         u16 materialType;

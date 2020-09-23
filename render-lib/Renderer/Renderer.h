@@ -75,7 +75,9 @@ namespace Renderer
         virtual PixelShaderID LoadShader(PixelShaderDesc& desc) = 0;
         virtual ComputeShaderID LoadShader(ComputeShaderDesc& desc) = 0;
 
-        virtual void FlipFrame(u32 frameIndex) = 0;
+        // Unloading
+        virtual void UnloadTexture(TextureID textureID) = 0;
+        virtual void UnloadTexturesInArray(TextureArrayID textureArrayID, u32 unloadStartIndex) = 0;
 
         // Command List Functions
         virtual CommandListID BeginCommandList() = 0;
@@ -116,9 +118,14 @@ namespace Renderer
         virtual void Present(Window* window, DepthImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) = 0;
 
         // Utils
+        virtual void FlipFrame(u32 frameIndex) = 0;
+
         virtual void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
         virtual void* MapBuffer(BufferID buffer) = 0;
         virtual void UnmapBuffer(BufferID buffer) = 0;
+
+        virtual size_t GetVRAMUsage() = 0;
+        virtual size_t GetVRAMBudget() = 0;
 
         virtual void InitImgui() = 0;
         virtual void DrawImgui(CommandListID commandListID) = 0;

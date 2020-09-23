@@ -51,23 +51,9 @@ namespace Terrain
     constexpr f32 MAP_PATCH_HALF_SIZE = MAP_PATCH_SIZE / 2.0f; // yards
 
 #pragma pack(push, 1)
-    struct LiquidData
-    {
-        u8 hasMultipleLiquidTypes = 0;
-        u8 offsetX = 0;
-        u8 offsetY = 0;
-        u8 width = 0;
-        u8 height = 0;
-        u8 liquidFlags = 0;
-        u16 liquidEntry = 0;
-        f32 level = 0;
-        u32 layers;
-        f32 liquidHeight = 0;
-    };
-    
     struct LayerData
     {
-        static const u32 TextureIdInvalid = 9999;
+        static const u32 TextureIdInvalid = std::numeric_limits<u32>().max();
 
         u32 textureId = TextureIdInvalid;
     };
@@ -79,8 +65,6 @@ namespace Terrain
         f32 heightData[MAP_CELL_TOTAL_GRID_SIZE] = { 0 };
         u8 normalData[MAP_CELL_TOTAL_GRID_SIZE][3] = { {127}, {255}, {127} }; // This is ugly but lets us pack this data into 25% of the original size
         u8 colorData[MAP_CELL_TOTAL_GRID_SIZE][3] = { {127}, {127}, {127} }; // This is ugly but lets us pack this data into 25% of the original size
-
-        LiquidData liquidData;
 
         u16 hole = 0;
 

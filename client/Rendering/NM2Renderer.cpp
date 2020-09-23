@@ -153,6 +153,11 @@ void NM2Renderer::CreatePermanentResources()
         return true;
     });
 
+    Renderer::TextureArrayDesc textureArrayDesc;
+    textureArrayDesc.size = 4096;
+
+    _m2Textures = _renderer->CreateTextureArray(textureArrayDesc);
+
     Renderer::SamplerDesc samplerDesc;
     samplerDesc.enabled = true;
     samplerDesc.filter = Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_MIP_LINEAR;//Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_LINEAR_MIP_POINT;

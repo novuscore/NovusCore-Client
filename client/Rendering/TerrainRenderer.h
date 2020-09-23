@@ -36,6 +36,7 @@ namespace Renderer
 class Camera;
 class DebugRenderer;
 class MapObjectRenderer;
+class WaterRenderer;
 
 class TerrainRenderer
 {
@@ -126,5 +127,6 @@ private:
     
     // Subrenderers
     MapObjectRenderer* _mapObjectRenderer = nullptr;
+    WaterRenderer* _waterRenderer = nullptr;
     DebugRenderer* _debugRenderer = nullptr;
 };

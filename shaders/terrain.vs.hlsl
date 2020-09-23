@@ -120,10 +120,10 @@ CellData LoadCellData(uint globalCellID)
     CellData cellData;
 
     // Unpack diffuse IDs
-    cellData.diffuseIDs.x = (rawCellData.packedDiffuseIDs1 >> 0) & 0xffff;
-    cellData.diffuseIDs.y = (rawCellData.packedDiffuseIDs1 >> 16) & 0xffff;
-    cellData.diffuseIDs.z = (rawCellData.packedDiffuseIDs2 >> 0) & 0xffff;
-    cellData.diffuseIDs.w = (rawCellData.packedDiffuseIDs2 >> 16) & 0xffff;
+    cellData.diffuseIDs.x = rawCellData.packedDiffuseIDs1 & 0xffff;
+    cellData.diffuseIDs.y = rawCellData.packedDiffuseIDs1 >> 16;
+    cellData.diffuseIDs.z = rawCellData.packedDiffuseIDs2 & 0xffff;
+    cellData.diffuseIDs.w = rawCellData.packedDiffuseIDs2 >> 16;
 
     // Unpack holes
     cellData.holes = rawCellData.packedHoles & 0xffff;

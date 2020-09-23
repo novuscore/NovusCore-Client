@@ -7,6 +7,7 @@
 #include <Networking/InputQueue.h>
 #include <Networking/MessageHandler.h>
 #include <Renderer/Renderer.h>
+#include <Memory/MemoryTracker.h>
 #include "Rendering/ClientRenderer.h"
 #include "Rendering/TerrainRenderer.h"
 #include "Rendering/CameraFreelook.h"
@@ -53,6 +54,10 @@
 #include "imgui/imgui_impl_vulkan.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/misc/cpp/imgui_stdlib.h"
+
+#include "imgui/implot.h"
+
+#include "CVar/CVarSystem.h"
 
 EngineLoop::EngineLoop() : _isRunning(false), _inputQueue(256), _outputQueue(256)
 {
@@ -224,6 +229,7 @@ void EngineLoop::Run()
             break;
         
         DrawEngineStats(&statsSingleton);
+        DrawMemoryStats();
         DrawImguiMenuBar();
 
         timings.simulationFrameTime = updateTimer.GetLifeTime();
@@ -476,13 +482,60 @@ void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
             renderTimes.push_back(stats->frameStats[i].renderFrameTime * 1000);
         }
 
-        ImGui::PlotHistogram("Update Times", updateTimes.data(), (int)updateTimes.size());
-        ImGui::PlotHistogram("Render Times", renderTimes.data(), (int)renderTimes.size());
+        ImPlot::SetNextPlotLimits(0.0, 120.0, 0, 33.0);
+
+        //lock minimum Y to 0 (cant have negative ms)
+        //lock X completely as its fixed 120 frames
+        ImPlot::BeginPlot("Timing","frame","ms",ImVec2(400,300),0,ImPlotAxisFlags_Lock,ImPlotAxisFlags_LockMin);
+
+        ImPlot::PlotLine("Update Time", updateTimes.data(), (int)updateTimes.size());
+        ImPlot::PlotLine("Render Time", renderTimes.data(), (int)renderTimes.size());
+        ImPlot::EndPlot();
     }
 
     ImGui::End();
 }
 
+void EngineLoop::DrawMemoryStats()
+{
+    ImGui::Begin("Memory Info");
+
+    // RAM
+    size_t ramUsage = Memory::MemoryTracker::GetMemoryUsage() / 1000000;
+    size_t ramBudget = Memory::MemoryTracker::GetMemoryBudget() / 1000000;
+    f32 ramPercent = (static_cast<f32>(ramUsage) / static_cast<f32>(ramBudget)) * 100;
+
+    ImGui::Text("RAM Usage: %luMB / %luMB (%.2f%%)", ramUsage, ramBudget, ramPercent);
+
+    size_t ramMinBudget = 3500;
+    f32 ramMinPercent = (static_cast<f32>(ramUsage) / static_cast<f32>(ramMinBudget)) * 100;
+    ImGui::Text("RAM Usage (Min specs): %luMB / %luMB (%.2f%%)", ramUsage, ramMinBudget, ramMinPercent);
+
+    size_t ramUsagePeak = Memory::MemoryTracker::GetMemoryUsagePeak() / 1000000;
+    f32 ramPeakPercent = (static_cast<f32>(ramUsagePeak) / static_cast<f32>(ramBudget)) * 100;
+
+    ImGui::Text("RAM Usage (Peak): %luMB / %luMB (%.2f%%)", ramUsagePeak, ramBudget, ramPeakPercent);
+
+    f32 ramMinPeakPercent = (static_cast<f32>(ramUsagePeak) / static_cast<f32>(ramMinBudget)) * 100;
+    ImGui::Text("RAM Usage (Peak, Min specs): %luMB / %luMB (%.2f%%)", ramUsagePeak, ramMinBudget, ramMinPeakPercent);
+
+    // VRAM
+    ImGui::Spacing();
+
+    size_t vramUsage = _clientRenderer->GetVRAMUsage() / 1000000;
+    
+    size_t vramBudget = _clientRenderer->GetVRAMBudget() / 1000000;
+    f32 vramPercent = (static_cast<f32>(vramUsage) / static_cast<f32>(vramBudget)) * 100;
+
+    ImGui::Text("VRAM Usage: %luMB / %luMB (%.2f%%)", vramUsage, vramBudget, vramPercent);
+
+    size_t vramMinBudget = 1500;
+    f32 vramMinPercent = (static_cast<f32>(vramUsage) / static_cast<f32>(vramMinBudget)) * 100;
+
+    ImGui::Text("VRAM Usage (Min specs): %luMB / %luMB (%.2f%%)", vramUsage, vramMinBudget, vramMinPercent);
+
+    ImGui::End();
+}
 
 void EngineLoop::DrawImguiMenuBar()
 {
@@ -515,6 +568,15 @@ void EngineLoop::DrawImguiMenuBar()
             if (ImGui::MenuItem("Cut", "CTRL+X")) {}
             if (ImGui::MenuItem("Copy", "CTRL+C")) {}
             if (ImGui::MenuItem("Paste", "CTRL+V")) {}
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Debug"))
+        {
+            if (ImGui::BeginMenu("CVAR"))
+            {
+                CVarSystem::Get()->DrawImguiEditor();
+                ImGui::EndMenu();
+            }
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();

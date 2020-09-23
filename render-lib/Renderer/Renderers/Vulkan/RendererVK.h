@@ -66,7 +66,9 @@ namespace Renderer
         PixelShaderID LoadShader(PixelShaderDesc& desc) override;
         ComputeShaderID LoadShader(ComputeShaderDesc& desc) override;
 
-        void FlipFrame(u32 frameIndex) override;
+        // Unloading
+        void UnloadTexture(TextureID textureID) override;
+        void UnloadTexturesInArray(TextureArrayID textureArrayID, u32 unloadStartIndex) override;
 
         // Command List Functions
         CommandListID BeginCommandList() override;
@@ -107,9 +109,14 @@ namespace Renderer
         void Present(Window* window, DepthImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;
 
         // Utils
+        void FlipFrame(u32 frameIndex) override;
+
         void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
         void* MapBuffer(BufferID buffer) override;
         void UnmapBuffer(BufferID buffer) override;
+
+        size_t GetVRAMUsage() override;
+        size_t GetVRAMBudget() override;
 
         void InitImgui() override;
         void DrawImgui(CommandListID commandListID) override;

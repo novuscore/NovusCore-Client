@@ -199,6 +199,66 @@ bool MapLoader::ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk, Stri
         chunk.mapObjectPlacements.resize(numMapObjectPlacements);
         buffer.GetBytes(reinterpret_cast<u8*>(&chunk.mapObjectPlacements[0]), sizeof(Terrain::MapObjectPlacement) * numMapObjectPlacements);
     }
+
+    // Read Liquid Headers
+    {
+        u16 numLiquidHeaders;
+        buffer.Get<u16>(numLiquidHeaders);
+
+        if (numLiquidHeaders > 0)
+        {
+            chunk.liquidHeaders.resize(numLiquidHeaders);
+            buffer.GetBytes(reinterpret_cast<u8*>(&chunk.liquidHeaders[0]), sizeof(Terrain::CellLiquidHeader) * numLiquidHeaders);
+        }
+    }
+
+    // Read Liquid Instances
+    {
+        u16 numLiquidInstances;
+        buffer.Get<u16>(numLiquidInstances);
+
+        if (numLiquidInstances > 0)
+        {
+            chunk.liquidInstances.resize(numLiquidInstances);
+            buffer.GetBytes(reinterpret_cast<u8*>(&chunk.liquidInstances[0]), sizeof(Terrain::CellLiquidInstance) * numLiquidInstances);
+        }
+    }
+
+    // Read Liquid Attributes
+    {
+        u8 numLiquidAttributes;
+        buffer.Get<u8>(numLiquidAttributes);
+
+        if (numLiquidAttributes > 0)
+        {
+            chunk.liquidAttributes.resize(numLiquidAttributes);
+            buffer.GetBytes(reinterpret_cast<u8*>(&chunk.liquidAttributes[0]), sizeof(Terrain::CellLiquidAttributes) * numLiquidAttributes);
+        }
+    }
+
+    // Read Liquid BitMask Data
+    {
+        u16 numLiquidBitMaskBytes;
+        buffer.Get<u16>(numLiquidBitMaskBytes);
+
+        if (numLiquidBitMaskBytes > 0)
+        {
+            chunk.liquidBitMaskForPatchesData.resize(numLiquidBitMaskBytes);
+            buffer.GetBytes(reinterpret_cast<u8*>(&chunk.liquidBitMaskForPatchesData[0]), sizeof(u8) * numLiquidBitMaskBytes);
+        }
+    }
+
+    // Read Liquid Vertex Data
+    {
+        u32 numLiquidVertexDataBytes;
+        buffer.Get<u32>(numLiquidVertexDataBytes);
+
+        if (numLiquidVertexDataBytes > 0)
+        {
+            chunk.liquidvertexData.resize(numLiquidVertexDataBytes);
+            buffer.GetBytes(reinterpret_cast<u8*>(&chunk.liquidvertexData[0]), sizeof(u8) * numLiquidVertexDataBytes);
+        }
+    }
     
     stringTable.Deserialize(&buffer);
     assert(stringTable.GetNumStrings() > 0); // We always expect to have at least 1 string in our stringtable, a path for the base texture

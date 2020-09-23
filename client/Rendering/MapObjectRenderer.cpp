@@ -13,6 +13,8 @@
 #include "../Gameplay/Map/MapObject.h"
 #include "../Utils/ServiceLocator.h"
 
+namespace fs = std::filesystem;
+
 MapObjectRenderer::MapObjectRenderer(Renderer::Renderer* renderer)
     : _renderer(renderer)
 {
@@ -59,10 +61,10 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
             // Blend state
-            /*pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;
-            pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BLEND_MODE_DEST_ALPHA;
-            pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BLEND_MODE_INV_DEST_ALPHA;
-            pipelineDesc.states.blendState.renderTargets[0].blendOp = Renderer::BLEND_OP_ADD;*/
+            //pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;
+            //pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BLEND_MODE_DEST_ALPHA;
+            //pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BLEND_MODE_INV_DEST_ALPHA;
+            //pipelineDesc.states.blendState.renderTargets[0].blendOp = Renderer::BLEND_OP_ADD;
 
             // Depth state
             pipelineDesc.states.depthStencilState.depthEnable = true;
@@ -83,209 +85,96 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
             commandList.BeginPipeline(pipeline);
 
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
-            for (LoadedMapObject& loadedMapObject : _loadedMapObjects)
-            {
-                commandList.PushMarker("MapObject", Color::White);
+            commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
 
-                _passDescriptorSet.Bind("_instanceData", loadedMapObject.instanceBuffer);
-                _passDescriptorSet.Bind("_materialData", loadedMapObject.materialsBuffer);
-                _passDescriptorSet.Bind("_textures", _mapObjectTextures);
-                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
-
-                for (Mesh& mesh : loadedMapObject.meshes)
-                {
-                    _meshDescriptorSet.Bind("_vertexPositions", mesh.vertexPositionsBuffer);
-                    _meshDescriptorSet.Bind("_vertexNormals", mesh.vertexNormalsBuffer);
-                    _meshDescriptorSet.Bind("_vertexColorsTexture", mesh.vertexColorsTexture);
-                    _meshDescriptorSet.Bind("_vertexUVs", mesh.vertexUVsBuffer);
-
-                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_meshDescriptorSet, frameIndex);
-
-                    for (u32 i = 0; i < mesh.indexBuffers.size(); i++)
-                    {
-                        commandList.PushConstant(&mesh.pushConstantDatas[i], 0, sizeof(PushConstantData));
-
-                        commandList.SetIndexBuffer(mesh.indexBuffers[i], Renderer::IndexFormat::UInt16);
-                        commandList.DrawIndexed(mesh.numIndices[i], loadedMapObject.numInstances, 0, 0, 0);
-                    }
-                }
-
-                commandList.PopMarker();
-            }
+            u32 drawCount = static_cast<u32>(_drawParameters.size());
+            commandList.DrawIndexedIndirect(_indirectArgumentBuffer, 0, drawCount);
 
             commandList.EndPipeline(pipeline);
         });
     }
 }
 
-void MapObjectRenderer::LoadMapObjects(const Terrain::Chunk& chunk, StringTable& stringTable)
+void MapObjectRenderer::RegisterMapObjectsToBeLoaded(const Terrain::Chunk& chunk, StringTable& stringTable)
 {
     for (const Terrain::MapObjectPlacement& mapObjectPlacement : chunk.mapObjectPlacements)
     {
-        u32 mapObjectID;
-        if (LoadMapObject(mapObjectPlacement.nameID, stringTable, mapObjectID))
-        {
-            LoadedMapObject& mapObject = _loadedMapObjects[mapObjectID];
-
-            // Create staging buffer
-            const u32 bufferSize = sizeof(Instance);
-            Renderer::BufferDesc desc;
-            desc.name = "InstanceStaging";
-            desc.size = bufferSize;
-            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-            Instance* dst = reinterpret_cast<Instance*>(_renderer->MapBuffer(stagingBuffer));
-
-            vec3 pos = mapObjectPlacement.position;
-            pos = vec3(Terrain::MAP_HALF_SIZE - pos.x, pos.y, Terrain::MAP_HALF_SIZE - pos.z); // Go from [0 .. MAP_SIZE] to [-MAP_HALF_SIZE .. MAP_HALF_SIZE]
-            pos = vec3(pos.z, pos.y, pos.x); // Swizzle and invert x and z
-
-            vec3 rot = mapObjectPlacement.rotation;
-            mat4x4 rotationMatrix = glm::eulerAngleXYZ(glm::radians(rot.z), glm::radians(-rot.y), glm::radians(rot.x));
-
-            dst->instanceMatrix = glm::translate(mat4x4(1.0f), pos) * rotationMatrix;
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            u32 dstOffset = sizeof(Instance) * mapObject.numInstances++;
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(mapObject.instanceBuffer, dstOffset, stagingBuffer, 0, bufferSize);
-        }
+        MapObjectToBeLoaded& mapObjectToBeLoaded = _mapObjectsToBeLoaded.emplace_back();
+        mapObjectToBeLoaded.placement = &mapObjectPlacement;
+        mapObjectToBeLoaded.nmorName = &stringTable.GetString(mapObjectPlacement.nameID);
+        mapObjectToBeLoaded.nmorNameHash = stringTable.GetStringHash(mapObjectPlacement.nameID);
     }
 }
 
-namespace fs = std::filesystem;
-bool MapObjectRenderer::Load(const fs::path nmoPath, Terrain::MapObject& mapObject)
+void MapObjectRenderer::ExecuteLoad()
 {
-    FileReader nmoFile(nmoPath.string(), nmoPath.filename().string());
-    if (!nmoFile.Open())
+    size_t numMapObjectsToLoad = _mapObjectsToBeLoaded.size();
+
+    for (MapObjectToBeLoaded& mapObjectToBeLoaded : _mapObjectsToBeLoaded)
     {
-        NC_LOG_FATAL("Failed to load Map Object file: %s", nmoPath.string());
-    }
+        // Placements reference a path to a MapObject, several placements can reference the same object
+        // Because of this we want only the first load to actually load the object, subsequent loads should just return the id to the already loaded version
+        u32 mapObjectID;
 
-    Bytebuffer nmoBuffer(nullptr, nmoFile.Length());
-    nmoFile.Read(&nmoBuffer, nmoBuffer.size);
-    nmoFile.Close();
-
-    // Read header
-    nmoBuffer.Get<Terrain::MapObjectHeader>(mapObject.header);
-
-    if (mapObject.header.token != Terrain::MAP_OBJECT_TOKEN)
-    {
-        NC_LOG_FATAL("We opened MapObject file (%s) with invalid token %u instead of expected token %u", nmoPath.string().c_str(), mapObject.header.token, Terrain::MAP_OBJECT_TOKEN);
-    }
-
-    if (mapObject.header.version != Terrain::MAP_OBJECT_VERSION)
-    {
-        if (mapObject.header.version < Terrain::MAP_OBJECT_VERSION)
+        auto it = _nameHashToIndexMap.find(mapObjectToBeLoaded.nmorNameHash);
+        if (it == _nameHashToIndexMap.end())
         {
-            NC_LOG_FATAL("We opened MapObject file (%s) with too old version %u instead of expected version %u, rerun dataextractor", nmoPath.string().c_str(), mapObject.header.version, Terrain::MAP_OBJECT_VERSION);
+            mapObjectID = static_cast<u32>(_loadedMapObjects.size());
+            LoadedMapObject& mapObject = _loadedMapObjects.emplace_back();
+            LoadMapObject(mapObjectToBeLoaded, mapObject);
+
+            _nameHashToIndexMap[mapObjectToBeLoaded.nmorNameHash] = mapObjectID;
         }
         else
         {
-            NC_LOG_FATAL("We opened MapObject file (%s) with too new version %u instead of expected version %u, update your client", nmoPath.string().c_str(), mapObject.header.version, Terrain::MAP_OBJECT_VERSION);
+            mapObjectID = it->second;
         }
+        
+        // Add placement as an instance here
+        AddInstance(_loadedMapObjects[mapObjectID], mapObjectToBeLoaded.placement);
     }
 
-    // Read flags
-    nmoBuffer.Get<Terrain::MapObjectFlags>(mapObject.flags);
-
-    // Read number of indices
-    u32 numIndices;
-    nmoBuffer.Get<u32>(numIndices);
-
-    mapObject.indices.resize(numIndices);
-
-    // Read indices
-    nmoBuffer.GetBytes(reinterpret_cast<u8*>(mapObject.indices.data()), numIndices * sizeof(u16));
-
-    // Read number of vertices
-    u32 numVertices;
-    nmoBuffer.Get<u32>(numVertices);
-
-    mapObject.vertexPositions.resize(numVertices);
-    mapObject.vertexNormals.resize(numVertices);
-
-    // Read vertices
-    nmoBuffer.GetBytes(reinterpret_cast<u8*>(mapObject.vertexPositions.data()), numVertices * sizeof(vec3));
-    nmoBuffer.GetBytes(reinterpret_cast<u8*>(mapObject.vertexNormals.data()), numVertices * sizeof(vec3));
-
-    // Read number of vertex color sets
-    u32 numVertexColorSets;
-    nmoBuffer.Get<u32>(numVertexColorSets);
-
-    for (u32 j = 0; j < numVertexColorSets; j++)
-    {
-        // Read number of vertex colors
-        u32 numVertexColors;
-        nmoBuffer.Get<u32>(numVertexColors);
-
-        Terrain::VertexColorSet& vertexColorSet = mapObject.vertexColorSets.emplace_back();
-
-        if (numVertexColors > 0)
-        {
-            vertexColorSet.vertexColors.resize(numVertexColors);
-            nmoBuffer.GetBytes(reinterpret_cast<u8*>(vertexColorSet.vertexColors.data()), numVertexColors * sizeof(u32));
-        }
-    }
-
-    // Read number of UV sets
-    u32 numUVSets;
-    nmoBuffer.Get<u32>(numUVSets);
-
-    mapObject.uvSets.reserve(numUVSets);
-    for (u32 j = 0; j < numUVSets; j++)
-    {
-        Terrain::UVSet& uvSet = mapObject.uvSets.emplace_back();
-        uvSet.vertexUVs.resize(numVertices);
-
-        nmoBuffer.GetBytes(reinterpret_cast<u8*>(uvSet.vertexUVs.data()), numVertices * sizeof(vec2));
-    }
-
-    // Read number of triangle data
-    u32 numTriangleData;
-    nmoBuffer.Get<u32>(numTriangleData);
-    mapObject.triangleData.resize(numTriangleData);
-
-    // Read triangle data
-    nmoBuffer.GetBytes(reinterpret_cast<u8*>(mapObject.triangleData.data()), numTriangleData * sizeof(Terrain::TriangleData));
-
-    // Read number of RenderBatches
-    u32 numRenderBatches;
-    nmoBuffer.Get<u32>(numRenderBatches);
-
-    if (numRenderBatches == 0)
-    {
-        return false; // This object has nothing to render so we don't really care about continuing to load it
-    }
-
-    mapObject.renderBatches.resize(numRenderBatches);
-
-    // Read RenderBatches
-    nmoBuffer.GetBytes(reinterpret_cast<u8*>(mapObject.renderBatches.data()), numRenderBatches * sizeof(Terrain::RenderBatch));
-
-    return true;
+    CreateBuffers();
+    _mapObjectsToBeLoaded.clear();
 }
 
 void MapObjectRenderer::Clear()
 {
     _loadedMapObjects.clear();
     _nameHashToIndexMap.clear();
+    _indices.clear();
+    _vertices.clear();
+    _drawParameters.clear();
+    _instances.clear();
+    _instanceLookupData.clear();
+    _materials.clear();
+    _materialParameters.clear();
+
+    // Unload everything but the first texture in our array
+    _renderer->UnloadTexturesInArray(_mapObjectTextures, 1);
 }
 
 void MapObjectRenderer::CreatePermanentResources()
 {
     Renderer::TextureArrayDesc textureArrayDesc;
-    textureArrayDesc.size = 1024;
+    textureArrayDesc.size = 4096;
 
     _mapObjectTextures = _renderer->CreateTextureArray(textureArrayDesc);
+    _passDescriptorSet.Bind("_textures", _mapObjectTextures);
+
+    // Create a 1x1 pixel black texture
+    Renderer::DataTextureDesc dataTextureDesc;
+    dataTextureDesc.width = 1;
+    dataTextureDesc.height = 1;
+    dataTextureDesc.format = Renderer::ImageFormat::IMAGE_FORMAT_B8G8R8A8_UNORM;
+    dataTextureDesc.data = new u8[4]{ 0, 0, 0, 0 };
+
+    u32 textureID;
+    _renderer->CreateDataTextureIntoArray(dataTextureDesc, _mapObjectTextures, textureID);
+
+    delete[] dataTextureDesc.data;
 
     Renderer::SamplerDesc samplerDesc;
     samplerDesc.enabled = true;
@@ -301,159 +190,27 @@ void MapObjectRenderer::CreatePermanentResources()
     _passDescriptorSet.Bind("_sampler", _sampler);
 }
 
-bool MapObjectRenderer::LoadMapObject(u32 nameID, StringTable& stringTable, u32& objectID)
+bool MapObjectRenderer::LoadMapObject(MapObjectToBeLoaded& mapObjectToBeLoaded, LoadedMapObject& mapObject)
 {
-    // Placements reference a path to a MapObject, several placements can reference the same object
-    // Because of this we want only the first load to actually load the object, subsequent loads should just return the id to the already loaded version
-    u32 nameHash = stringTable.GetStringHash(nameID);
-
-    auto it = _nameHashToIndexMap.find(nameHash);
-    if (it != _nameHashToIndexMap.end())
-    {
-        objectID = it->second;
-        return false;
-    }
-
-    static u32 objectCount = 0;
-    NC_LOG_MESSAGE("Loading object %u", objectCount);
-    objectCount++;
-
-    u32 nextID = static_cast<u32>(_loadedMapObjects.size());
-    LoadedMapObject& loadedMapObject = _loadedMapObjects.emplace_back();
-    loadedMapObject.debugName = stringTable.GetString(nameID);
-
-    // -- Read MapObjectRoot --
-    const std::string& nmorName = stringTable.GetString(nameID);
-    if (!StringUtils::EndsWith(nmorName, ".nmor"))
+    // Load root
+    if (!StringUtils::EndsWith(*mapObjectToBeLoaded.nmorName, ".nmor"))
     {
         NC_LOG_FATAL("For some reason, a Chunk had a MapObjectPlacement with a reference to a file that didn't end with .nmor");
     }
 
-    fs::path nmorPath = "Data/extracted/MapObjects/" + nmorName;
+    fs::path nmorPath = "Data/extracted/MapObjects/" + *mapObjectToBeLoaded.nmorName;
     nmorPath.make_preferred();
     nmorPath = fs::absolute(nmorPath);
 
-    FileReader nmorFile(nmorPath.string(), nmorPath.filename().string());
-    if (!nmorFile.Open())
-    {
-        NC_LOG_FATAL("Failed to load Map Object Root file: %s", nmorPath.string());
-    }
+    LoadRoot(nmorPath, mapObjectToBeLoaded.meshRoot, mapObject);
 
-    Bytebuffer nmorBuffer(nullptr, nmorFile.Length());
-    nmorFile.Read(&nmorBuffer, nmorBuffer.size);
-    nmorFile.Close();
-
-    Terrain::MapObjectRoot mapObjectRoot;
-
-    // Read header
-    nmorBuffer.Get<Terrain::MapObjectRootHeader>(mapObjectRoot.header);
-
-    if (mapObjectRoot.header.token != Terrain::MAP_OBJECT_ROOT_TOKEN)
-    {
-        NC_LOG_FATAL("We opened MapObjectRoot file (%s) with invalid token %u instead of expected token %u", nmorPath.string(), mapObjectRoot.header.token, Terrain::MAP_OBJECT_ROOT_TOKEN);
-    }
-
-    if (mapObjectRoot.header.version != Terrain::MAP_OBJECT_ROOT_VERSION)
-    {
-        NC_LOG_FATAL("We opened MapObjectRoot file (%s) with invalid version %u instead of expected version %u, rerun dataextractor", nmorPath.string(), mapObjectRoot.header.version, Terrain::MAP_OBJECT_ROOT_VERSION);
-    }
-
-    // Read number of materials
-    u32 numMaterials;
-    nmorBuffer.Get<u32>(numMaterials);
-
-    // Read materials
-    mapObjectRoot.materials.resize(numMaterials);
-    nmorBuffer.GetBytes(reinterpret_cast<u8*>(mapObjectRoot.materials.data()), numMaterials * sizeof(Terrain::MapObjectMaterial));
-
-    // Read number of groups
-    nmorBuffer.Get<u32>(mapObjectRoot.numMapObjects);
-
-    entt::registry* registry = ServiceLocator::GetGameRegistry();     
-    TextureSingleton& textureSingleton = registry->ctx<TextureSingleton>();
-
-    // -- Create Materials Buffer
-    {
-        constexpr size_t numTexturePerMaterial = 3;
-
-        const size_t oneBufferSize = sizeof(Material);
-        const size_t totalBufferSize = numMaterials * oneBufferSize;
-
-        // Create buffer
-        Renderer::BufferDesc desc;
-        desc.name = "Materials";
-        desc.size = totalBufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        loadedMapObject.materialsBuffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "MaterialsStaging";
-        desc.size = totalBufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-
-        for (u32 i = 0; i < numMaterials; i++)
-        {
-            Material renderMaterial;
-
-            Terrain::MapObjectMaterial& material = mapObjectRoot.materials[i];
-            renderMaterial.materialType = material.materialType;
-            renderMaterial.unlit = material.flags.unlit;
-
-            // TransparencyMode 1 means that it checks the alpha of the texture to decide if it should discard the pixel or not
-            if (material.transparencyMode == 1)
-            {
-                renderMaterial.alphaTestVal = 128.0f / 255.0f;
-            }
-
-            for (u32 j = 0; j < numTexturePerMaterial; j++)
-            {
-                if (material.textureNameID[j] < std::numeric_limits<u32>().max())
-                {
-                    Renderer::TextureDesc textureDesc;
-                    textureDesc.path = "Data/extracted/Textures/" + textureSingleton.textureStringTable.GetString(material.textureNameID[j]);
-
-                    _renderer->LoadTextureIntoArray(textureDesc, _mapObjectTextures, renderMaterial.textureIDs[j]);
-                }
-            }
-
-            size_t offset = i * oneBufferSize;
-            memcpy(static_cast<u8*>(dst) + offset, &renderMaterial, oneBufferSize);
-        }
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(loadedMapObject.materialsBuffer, 0, stagingBuffer, 0, totalBufferSize);
-    }
-
-    // -- Create Instance Buffer
-    {
-        const size_t bufferSize = MAX_INSTANCES * sizeof(Instance);
-
-        // Create buffer
-        Renderer::BufferDesc desc;
-        desc.name = "Instance";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        loadedMapObject.instanceBuffer = _renderer->CreateBuffer(desc);
-    }
-
-    // -- Read MapObjects --
-    std::string nmorNameWithoutExtension = nmorName.substr(0, nmorName.length() - 5); // Remove .nmor
+    // Load meshes
+    std::string nmorNameWithoutExtension = mapObjectToBeLoaded.nmorName->substr(0, mapObjectToBeLoaded.nmorName->length() - 5); // Remove .nmor
     std::stringstream ss;
 
-    for (u32 i = 0; i < mapObjectRoot.numMapObjects; i++)
+    mapObject.baseVertexOffset = static_cast<u32>(_vertices.size());
+
+    for (u32 i = 0; i < mapObjectToBeLoaded.meshRoot.numMeshes; i++)
     {
         ss.clear();
         ss.str("");
@@ -465,221 +222,513 @@ bool MapObjectRenderer::LoadMapObject(u32 nameID, StringTable& stringTable, u32&
         nmoPath.make_preferred();
         nmoPath = fs::absolute(nmoPath);
 
-        Terrain::MapObject mapObject;
-        if (!Load(nmoPath, mapObject))
+        Mesh& mesh = mapObjectToBeLoaded.meshes.emplace_back();
+        LoadMesh(nmoPath, mesh, mapObject);
+    }
+
+    static u32 vertexColorTextureCount = 0;
+
+    // Create vertex color texture
+    for (u32 i = 0; i < 2; i++)
+    {
+        u32 vertexColorCount = static_cast<u32>(mapObject.vertexColors[i].size());
+        if (vertexColorCount > 0)
         {
-            continue; // This object has nothing to render so we don't really care about continuing to load it
+            Renderer::DataTextureDesc vertexColorTextureDesc;
+            vertexColorTextureDesc.debugName = "VertexColorTexture";
+            vertexColorTextureDesc.width = vertexColorCount;
+            vertexColorTextureDesc.height = 1;
+            vertexColorTextureDesc.format = Renderer::ImageFormat::IMAGE_FORMAT_B8G8R8A8_UNORM;
+            vertexColorTextureDesc.data = reinterpret_cast<u8*>(mapObject.vertexColors[i].data());
+
+            _renderer->CreateDataTextureIntoArray(vertexColorTextureDesc, _mapObjectTextures, mapObject.vertexColorTextureIDs[i]);
+            vertexColorTextureCount++;
+        }
+    }
+
+    return true;
+}
+
+void MapObjectRenderer::LoadRoot(const std::filesystem::path nmorPath, MeshRoot& meshRoot, LoadedMapObject& mapObject)
+{
+    FileReader nmorFile(nmorPath.string(), nmorPath.filename().string());
+    if (!nmorFile.Open())
+    {
+        NC_LOG_FATAL("Failed to load Map Object Root file: %s", nmorPath.string());
+    }
+
+    Bytebuffer buffer(nullptr, nmorFile.Length());
+    nmorFile.Read(&buffer, buffer.size);
+    nmorFile.Close();
+
+    Terrain::MapObjectRootHeader header;
+
+    // Read header
+    buffer.Get<Terrain::MapObjectRootHeader>(header);
+
+    if (header.token != Terrain::MAP_OBJECT_ROOT_TOKEN)
+    {
+        NC_LOG_FATAL("We opened MapObjectRoot file (%s) with invalid token %u instead of expected token %u", nmorPath.string(), header.token, Terrain::MAP_OBJECT_ROOT_TOKEN);
+    }
+
+    if (header.version != Terrain::MAP_OBJECT_ROOT_VERSION)
+    {
+        NC_LOG_FATAL("We opened MapObjectRoot file (%s) with invalid version %u instead of expected version %u, rerun dataextractor", nmorPath.string(), header.version, Terrain::MAP_OBJECT_ROOT_VERSION);
+    }
+
+    // Read number of materials
+    buffer.Get<u32>(meshRoot.numMaterials);
+
+    // Read materials
+    entt::registry* registry = ServiceLocator::GetGameRegistry();
+    TextureSingleton& textureSingleton = registry->ctx<TextureSingleton>();
+    mapObject.baseMaterialOffset = static_cast<u32>(_materials.size());
+
+    for (u32 i = 0; i < meshRoot.numMaterials; i++)
+    {
+        Terrain::MapObjectMaterial mapObjectMaterial;
+        buffer.GetBytes(reinterpret_cast<u8*>(&mapObjectMaterial), sizeof(Terrain::MapObjectMaterial));
+
+        Material& material = _materials.emplace_back();
+        material.materialType = mapObjectMaterial.materialType;
+        material.unlit = mapObjectMaterial.flags.unlit;
+
+        // TransparencyMode 1 means that it checks the alpha of the texture if it should discard the pixel or not
+        if (mapObjectMaterial.transparencyMode == 1)
+        {
+            material.alphaTestVal = 128.0f / 255.0f;
         }
 
-        // Create mesh, each MapObject becomes one Mesh in loadedMapObject
-        Mesh& mesh = loadedMapObject.meshes.emplace_back();
-        mesh.numUVSets = static_cast<u32>(mapObject.uvSets.size());
-        mesh.numVertexColorSets = static_cast<u32>(mapObject.vertexColorSets.size());
-
-        std::vector<u32> materialIndexStarts;
-        std::vector<u32> materialIndexEnds;
-
-        for (Terrain::RenderBatch& renderBatch : mapObject.renderBatches)
+        constexpr u32 maxTexturesPerMaterial = 3;
+        for (u32 j = 0; j < maxTexturesPerMaterial; j++)
         {
-            PushConstantData& pushConstantData = mesh.pushConstantDatas.emplace_back();
-            pushConstantData.materialID = renderBatch.materialID;
-            pushConstantData.exteriorLit = static_cast<u32>(mapObject.flags.exteriorLit || mapObject.flags.exterior);
-
-            materialIndexStarts.push_back(renderBatch.startIndex);
-            u32 indexEnd = renderBatch.startIndex + renderBatch.indexCount;
-            materialIndexEnds.push_back(indexEnd);
-        }
-
-        u32 numUsedMaterials = static_cast<u32>(materialIndexStarts.size());
-        if (numUsedMaterials > 0)
-        {
-            // -- Create Index Buffers --
-            // We want one index buffer per usedMaterialID
-            for (u32 i = 0; i < numUsedMaterials; i++)
+            if (mapObjectMaterial.textureNameID[j] < std::numeric_limits<u32>().max())
             {
-                Renderer::BufferID& indexBufferID = mesh.indexBuffers.emplace_back();
-                u32& numIndices = mesh.numIndices.emplace_back();
+                Renderer::TextureDesc textureDesc;
+                textureDesc.path = "Data/extracted/Textures/" + textureSingleton.textureStringTable.GetString(mapObjectMaterial.textureNameID[j]);
 
-                u32 startIndex = materialIndexStarts[i];
-                u32 endIndex = materialIndexEnds[i];
-                numIndices = endIndex - startIndex;
-
-                const size_t bufferSize = numIndices * sizeof(u16);
-
-                Renderer::BufferDesc desc;
-                desc.name = "IndexBuffer";
-                desc.size = bufferSize;
-                desc.usage = Renderer::BufferUsage::BUFFER_USAGE_INDEX_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-                desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-                indexBufferID = _renderer->CreateBuffer(desc);
-
-                // Create staging buffer
-                desc.name = "IndexBufferStaging";
-                desc.size = bufferSize;
-                desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-                desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-                Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-                // Upload to staging buffer
-                void* src = &mapObject.indices.data()[startIndex];
-                void* dst = _renderer->MapBuffer(stagingBuffer);
-                memcpy(dst, src, bufferSize);
-                _renderer->UnmapBuffer(stagingBuffer);
-
-                // Queue destroy staging buffer
-                _renderer->QueueDestroyBuffer(stagingBuffer);
-                // Copy from staging buffer to buffer
-                _renderer->CopyBuffer(indexBufferID, 0, stagingBuffer, 0, bufferSize);
-            }
-
-            // -- Create Vertex Position Buffer --
-            {
-                const size_t bufferSize = mapObject.vertexPositions.size() * sizeof(vec3);
-
-                // Create buffer
-                Renderer::BufferDesc desc;
-                desc.name = "VertexPositions";
-                desc.size = bufferSize;
-                desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-                desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-                mesh.vertexPositionsBuffer = _renderer->CreateBuffer(desc);
-
-                // Create staging buffer
-                desc.name = "VertexPositionsStaging";
-                desc.size = bufferSize;
-                desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-                desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-                Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-                // Upload to staging buffer
-                void* dst = _renderer->MapBuffer(stagingBuffer);
-                memcpy(dst, mapObject.vertexPositions.data(), bufferSize);
-                _renderer->UnmapBuffer(stagingBuffer);
-
-                // Queue destroy staging buffer
-                _renderer->QueueDestroyBuffer(stagingBuffer);
-                // Copy from staging buffer to buffer
-                _renderer->CopyBuffer(mesh.vertexPositionsBuffer, 0, stagingBuffer, 0, bufferSize);
-            }
-
-            // -- Create Vertex Normals Buffer --
-            {
-                const size_t bufferSize = mapObject.vertexNormals.size() * sizeof(vec3);
-
-                // Create buffer
-                Renderer::BufferDesc desc;
-                desc.name = "VertexNormals";
-                desc.size = bufferSize;
-                desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-                desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-                mesh.vertexNormalsBuffer = _renderer->CreateBuffer(desc);
-
-                // Create staging buffer
-                desc.name = "VertexNormalsStaging";
-                desc.size = bufferSize;
-                desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-                desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-                Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-                // Upload to staging buffer
-                void* dst = _renderer->MapBuffer(stagingBuffer);
-                memcpy(dst, mapObject.vertexNormals.data(), bufferSize);
-                _renderer->UnmapBuffer(stagingBuffer);
-
-                // Queue destroy staging buffer
-                _renderer->QueueDestroyBuffer(stagingBuffer);
-                // Copy from staging buffer to buffer
-                _renderer->CopyBuffer(mesh.vertexNormalsBuffer, 0, stagingBuffer, 0, bufferSize);
-            }
-
-            // -- Create Vertex Colors Texture --
-            {
-                constexpr size_t maxNumVertexColorsSets = 2;
-                const size_t pixelCount = static_cast<u32>(mapObject.vertexPositions.size()) * maxNumVertexColorsSets;
-                const size_t pixelSize = sizeof(u8) * 4;
-                const size_t textureSizeInBytes = pixelCount * pixelSize;
-                const size_t textureSizeInInts = textureSizeInBytes / 4;
-
-                // Create TexturepixelCount
-                Renderer::DataTextureDesc textureDesc;
-                textureDesc.debugName = "VertexColors";
-                textureDesc.width = static_cast<i32>(pixelCount);
-                textureDesc.height = 1;
-                textureDesc.layers = 1;
-                textureDesc.format = Renderer::ImageFormat::IMAGE_FORMAT_B8G8R8A8_UNORM;
-
-                u32* pixels = new u32[textureSizeInInts]{ 0 };
-
-                memset(pixels, 0, textureSizeInBytes);
-
-                for (u32 vertexColorSet = 0; vertexColorSet < mesh.numVertexColorSets; vertexColorSet++)
-                {
-                    size_t offset = vertexColorSet;
-                    for (u32 vertexID = 0; vertexID < mapObject.vertexPositions.size(); vertexID++)
-                    {
-                        pixels[offset] = mapObject.vertexColorSets[vertexColorSet].vertexColors[vertexID];
-                        offset += maxNumVertexColorsSets;
-                    }
-                }
-
-                textureDesc.data = reinterpret_cast<u8*>(pixels);
-                mesh.vertexColorsTexture = _renderer->CreateDataTexture(textureDesc);
-            }
-
-            // -- Create Vertex UV Buffer --
-            {
-                constexpr size_t maxNumUVSets = 2;
-                const size_t bufferSize = mapObject.vertexPositions.size() * maxNumUVSets * sizeof(vec2);
-
-                // Create buffer
-                Renderer::BufferDesc desc;
-                desc.name = "VertexUVs";
-                desc.size = bufferSize;
-                desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-                desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-                mesh.vertexUVsBuffer = _renderer->CreateBuffer(desc);
-
-                // Create staging buffer
-                desc.name = "VertexPositionsStaging";
-                desc.size = bufferSize;
-                desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-                desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-                Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-                // Upload to staging buffer
-                vec2* dst = static_cast<vec2*>(_renderer->MapBuffer(stagingBuffer));
-
-                memset(dst, 0, bufferSize);
-
-                for (u32 uvSet = 0; uvSet < mesh.numUVSets; uvSet++)
-                {
-                    size_t offset = uvSet;
-                    for (u32 vertexID = 0; vertexID < mapObject.vertexPositions.size(); vertexID++)
-                    {
-                        dst[offset] = mapObject.uvSets[uvSet].vertexUVs[vertexID];
-                        offset += maxNumUVSets;
-                    }
-                }
-
-                //memcpy(dst, mapObject.vertexUVs.data(), bufferSize);
-                _renderer->UnmapBuffer(stagingBuffer);
-
-                // Queue destroy staging buffer
-                _renderer->QueueDestroyBuffer(stagingBuffer);
-                // Copy from staging buffer to buffer
-                _renderer->CopyBuffer(mesh.vertexUVsBuffer, 0, stagingBuffer, 0, bufferSize);
+                _renderer->LoadTextureIntoArray(textureDesc, _mapObjectTextures, material.textureIDs[j]);
             }
         }
     }
 
-    objectID = nextID;
-    return true;
+    // Read number of meshes
+    buffer.Get<u32>(meshRoot.numMeshes);
+}
+
+void MapObjectRenderer::LoadMesh(const std::filesystem::path nmoPath, Mesh& mesh, LoadedMapObject& mapObject)
+{
+    FileReader nmoFile(nmoPath.string(), nmoPath.filename().string());
+    if (!nmoFile.Open())
+    {
+        NC_LOG_FATAL("Failed to load Map Object file: %s", nmoPath.string());
+    }
+
+    Bytebuffer nmoBuffer(nullptr, nmoFile.Length());
+    nmoFile.Read(&nmoBuffer, nmoBuffer.size);
+    nmoFile.Close();
+
+    // Read header
+    Terrain::MapObjectHeader header;
+    nmoBuffer.Get<Terrain::MapObjectHeader>(header);
+
+    if (header.token != Terrain::MAP_OBJECT_TOKEN)
+    {
+        NC_LOG_FATAL("We opened MapObject file (%s) with invalid token %u instead of expected token %u", nmoPath.string().c_str(), header.token, Terrain::MAP_OBJECT_TOKEN);
+    }
+
+    if (header.version != Terrain::MAP_OBJECT_VERSION)
+    {
+        if (header.version < Terrain::MAP_OBJECT_VERSION)
+        {
+            NC_LOG_FATAL("We opened MapObject file (%s) with too old version %u instead of expected version %u, rerun dataextractor", nmoPath.string().c_str(), header.version, Terrain::MAP_OBJECT_VERSION);
+        }
+        else
+        {
+            NC_LOG_FATAL("We opened MapObject file (%s) with too new version %u instead of expected version %u, update your client", nmoPath.string().c_str(), header.version, Terrain::MAP_OBJECT_VERSION);
+        }
+    }
+
+    // Read flags
+    nmoBuffer.Get<Terrain::MapObjectFlags>(mesh.renderFlags);
+
+    // Read indices and vertices
+    LoadIndicesAndVertices(nmoBuffer, mesh, mapObject);
+
+    // Read renderbatches
+    LoadRenderBatches(nmoBuffer, mesh, mapObject);
+}
+
+void MapObjectRenderer::LoadIndicesAndVertices(Bytebuffer& buffer, Mesh& mesh, LoadedMapObject& mapObject)
+{
+    mesh.baseIndexOffset = static_cast<u32>(_indices.size());
+    mesh.baseVertexOffset = static_cast<u32>(_vertices.size());
+
+    // Read number of indices
+    u32 indexCount;
+    buffer.Get<u32>(indexCount);
+
+    _indices.resize(mesh.baseIndexOffset + indexCount);
+
+    // Read indices
+    buffer.GetBytes(reinterpret_cast<u8*>(_indices.data() + mesh.baseIndexOffset), indexCount * sizeof(u16));
+    
+    // Read number of vertices
+    u32 vertexCount;
+    buffer.Get<u32>(vertexCount);
+    _vertices.resize(mesh.baseVertexOffset + vertexCount);
+    
+    // Read vertices
+    buffer.GetBytes(reinterpret_cast<u8*>(&_vertices.data()[mesh.baseVertexOffset]), vertexCount * sizeof(Terrain::MapObjectVertex));
+
+    vec3 position = _vertices[0].position;
+
+    // Read number of vertex color sets
+    u32 numVertexColorSets;
+    buffer.Get<u32>(numVertexColorSets);
+
+    // Vertex colors
+    for (u32 i = 0; i < numVertexColorSets; i++)
+    {
+        // Read number of vertex colors
+        u32 numVertexColors;
+        buffer.Get<u32>(numVertexColors);
+
+        u32 vertexColorSize = numVertexColors * sizeof(u32);
+        
+        u32 beforeSize = static_cast<u32>(mapObject.vertexColors[i].size());
+        mapObject.vertexColors[i].resize(beforeSize + numVertexColors);
+
+        buffer.GetBytes(reinterpret_cast<u8*>(&mapObject.vertexColors[i][beforeSize]), vertexColorSize);
+    }
+}
+
+static std::vector<Terrain::RenderBatch> renderBatches;
+void MapObjectRenderer::LoadRenderBatches(Bytebuffer& buffer, const Mesh& mesh, LoadedMapObject& mapObject)
+{
+    // Read number of triangle data
+    u32 numTriangleData;
+    buffer.Get<u32>(numTriangleData);
+
+    // Skip triangle data for now
+    buffer.SkipRead(numTriangleData * sizeof(Terrain::TriangleData));
+
+    // Read number of RenderBatches
+    u32 numRenderBatches;
+    buffer.Get<u32>(numRenderBatches);
+
+    renderBatches.resize(numRenderBatches);
+
+    // Read RenderBatches
+    buffer.GetBytes(reinterpret_cast<u8*>(renderBatches.data()), numRenderBatches * sizeof(Terrain::RenderBatch));
+
+    for (u32 i = 0; i < numRenderBatches; i++)
+    {
+        u32 drawParameterID = static_cast<u32>(_drawParameters.size());
+
+        const Terrain::RenderBatch& renderBatch = renderBatches[i];
+        DrawParameters* drawParameters = &_drawParameters.emplace_back();
+
+        mapObject.drawParameterIDs.push_back(drawParameterID);
+
+        drawParameters->vertexOffset = mesh.baseVertexOffset;
+        drawParameters->firstIndex = mesh.baseIndexOffset + renderBatch.startIndex;
+        drawParameters->indexCount = renderBatch.indexCount;
+        drawParameters->firstInstance = 0; // To be set later
+        drawParameters->instanceCount = 0;
+
+        // MaterialParameters
+        u32 materialParameterID = static_cast<u32>(_materialParameters.size());
+
+        mapObject.materialParameterIDs.push_back(materialParameterID);
+
+        MaterialParameters& materialParameters = _materialParameters.emplace_back();
+        materialParameters.materialID = mapObject.baseMaterialOffset + renderBatch.materialID;
+        materialParameters.exteriorLit = static_cast<u32>(mesh.renderFlags.exteriorLit || mesh.renderFlags.exterior);
+    }
+}
+
+void MapObjectRenderer::AddInstance(LoadedMapObject& mapObject, const Terrain::MapObjectPlacement* placement)
+{
+    u32 instanceID = static_cast<u32>(_instances.size());
+    mapObject.instanceIDs.push_back(instanceID);
+    
+    InstanceData& instance = _instances.emplace_back();
+
+    vec3 pos = placement->position;
+    pos = vec3(Terrain::MAP_HALF_SIZE - pos.x, pos.y, Terrain::MAP_HALF_SIZE - pos.z); // Go from [0 .. MAP_SIZE] to [-MAP_HALF_SIZE .. MAP_HALF_SIZE]
+    pos = vec3(pos.z, pos.y, pos.x); // Swizzle and invert x and z
+
+    vec3 rot = placement->rotation;
+    mat4x4 rotationMatrix = glm::eulerAngleXYZ(glm::radians(rot.z), glm::radians(-rot.y), glm::radians(rot.x));
+
+    instance.instanceMatrix = glm::translate(mat4x4(1.0f), pos) * rotationMatrix;
+
+    for (u32 i = 0; i < mapObject.drawParameterIDs.size(); i++)
+    {
+        u32 drawParameterID = mapObject.drawParameterIDs[i];
+        DrawParameters& drawParameters = _drawParameters[drawParameterID];
+        drawParameters.instanceCount++;
+    }
+
+    mapObject.instanceCount++;
+}
+
+void MapObjectRenderer::CreateBuffers()
+{
+    // Fix DrawParameters to be cumulative
+    {
+        u32 instanceIndex = 0;
+        u32 instanceIDLookupIndex = 0;
+
+        // Loop over all LoadedMapObjects
+        for (LoadedMapObject& loadedMapObject : _loadedMapObjects)
+        {
+            // Loop over their DrawParameters
+            for(u32 i = 0; i < loadedMapObject.drawParameterIDs.size(); i++)
+            {
+                u32 drawParameterID = loadedMapObject.drawParameterIDs[i];
+
+                DrawParameters& drawParameters = _drawParameters[drawParameterID];
+                drawParameters.firstInstance = instanceIndex; // Fix its firstInstance to be cumulative
+
+                u32 instanceCount = loadedMapObject.instanceCount;
+                instanceIndex += instanceCount;
+
+                u16 materialParameterID = loadedMapObject.materialParameterIDs[i];
+
+                for (u32 j = 0; j < instanceCount; j++)
+                {
+                    u16 instanceID = loadedMapObject.instanceIDs[j];
+
+                    InstanceLookupData& instanceLookupData = _instanceLookupData.emplace_back();
+                    instanceLookupData.instanceID = instanceID;
+                    instanceLookupData.materialParamID = materialParameterID;
+                    instanceLookupData.vertexColorTextureID0 = static_cast<u16>(loadedMapObject.vertexColorTextureIDs[0]);
+                    instanceLookupData.vertexColorTextureID1 = static_cast<u16>(loadedMapObject.vertexColorTextureIDs[1]);
+                    instanceLookupData.vertexOffset = drawParameters.vertexOffset;
+                }
+            }
+        }
+    }
+
+    // Create Instance Lookup Buffer
+    if (_instanceLookupBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_instanceLookupBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "InstanceLookupDataBuffer";
+        desc.size = sizeof(InstanceLookupData) * _instanceLookupData.size();
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _instanceLookupBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "InstanceLookupDataStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _instanceLookupData.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_instanceLookupBuffer, 0, stagingBuffer, 0, desc.size);
+
+        _passDescriptorSet.Bind("_instanceLookup", _instanceLookupBuffer);
+    }
+    
+    // Create Indirect Argument buffer
+    if (_indirectArgumentBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_indirectArgumentBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "MapObjectIndirectArgs";
+        desc.size = sizeof(DrawParameters) * _drawParameters.size();
+        desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _indirectArgumentBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "MapObjectIndirectStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _drawParameters.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_indirectArgumentBuffer, 0, stagingBuffer, 0, desc.size);
+    }
+
+    // Create Vertex buffer
+    if (_vertexBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_vertexBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "MapObjectVertexBuffer";
+        desc.size = sizeof(Terrain::MapObjectVertex) * _vertices.size();
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _vertexBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "MapObjectVertexStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _vertices.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_vertexBuffer, 0, stagingBuffer, 0, desc.size);
+
+        _passDescriptorSet.Bind("_vertices", _vertexBuffer);
+    }
+
+    // Create Index buffer
+    if (_indexBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_indexBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "MapObjectIndexBuffer";
+        desc.size = sizeof(u16) * _indices.size();
+        desc.usage = Renderer::BUFFER_USAGE_INDEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _indexBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "MapObjectIndexStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _indices.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_indexBuffer, 0, stagingBuffer, 0, desc.size);
+    }
+
+    // Create Instance buffer
+    if (_instanceBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_instanceBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "MapObjectInstanceBuffer";
+        desc.size = sizeof(InstanceData) * _instances.size();
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _instanceBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "MapObjectInstanceStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _instances.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_instanceBuffer, 0, stagingBuffer, 0, desc.size);
+
+        _passDescriptorSet.Bind("_instanceData", _instanceBuffer);
+    }
+
+    // Create Material buffer
+    if (_materialBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_materialBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "MapObjectMaterialBuffer";
+        desc.size = sizeof(Material) * _materials.size();
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _materialBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "MapObjectMaterialStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _materials.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_materialBuffer, 0, stagingBuffer, 0, desc.size);
+
+        _passDescriptorSet.Bind("_materialData", _materialBuffer);
+    }
+
+    // Create MaterialParam buffer
+    if (_materialParametersBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_materialParametersBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "MapObjectMaterialParamBuffer";
+        desc.size = sizeof(MaterialParameters) * _materialParameters.size();
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _materialParametersBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "MapObjectMaterialParamStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _materialParameters.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_materialParametersBuffer, 0, stagingBuffer, 0, desc.size);
+
+        _passDescriptorSet.Bind("_materialParams", _materialParametersBuffer);
+    }
 }

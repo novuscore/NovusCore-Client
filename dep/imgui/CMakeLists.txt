@@ -12,6 +12,10 @@ set(imgui_sources
 	"${imgui_folder}/imgui_impl_vulkan.cpp"
 	"${imgui_folder}/imgui_impl_glfw.cpp"
 	"${imgui_folder}/misc/cpp/imgui_stdlib.cpp"
+	
+	"${imgui_folder}/implot.cpp"
+	"${imgui_folder}/implot_demo.cpp"
+	"${imgui_folder}/implot_items.cpp"
 	)
 
 add_library(${PROJECT_NAME} STATIC ${imgui_sources})

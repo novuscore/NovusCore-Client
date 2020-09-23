@@ -95,6 +95,7 @@ private:
 
     void ImguiNewFrame();
     void DrawEngineStats(struct EngineStatsSingleton* stats);
+    void DrawMemoryStats();
     void DrawImguiMenuBar();
 
 private:

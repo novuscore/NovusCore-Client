@@ -38,7 +38,7 @@ InstanceData LoadInstanceData(uint instanceID)
 {
     InstanceData instanceData;
 
-    instanceData = _instanceData.Load<InstanceData>(instanceID * 24); // 24 = sizeof(InstanceData)
+    instanceData = _instanceData.Load<InstanceData>(instanceID * 64); // 64 = sizeof(InstanceData)
 
     return instanceData;
 }

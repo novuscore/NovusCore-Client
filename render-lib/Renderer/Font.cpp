@@ -97,6 +97,8 @@ namespace Renderer
 
         _renderer->CreateDataTextureIntoArray(textureDesc, _textureArray, fontChar.textureIndex);
 
+        delete[] textureDesc.data;
+
         return true;
     }
 

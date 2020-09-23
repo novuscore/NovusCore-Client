@@ -2,7 +2,7 @@
 
 [[vk::binding(1, PER_PASS)]] SamplerState _sampler;
 [[vk::binding(2, PER_PASS)]] ByteAddressBuffer _materialData;
-[[vk::binding(3, PER_PASS)]] Texture2D<float4> _textures[1024];
+[[vk::binding(3, PER_PASS)]] Texture2D<float4> _textures[4096];
 
 struct MaterialParam
 {
