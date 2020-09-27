@@ -8,6 +8,7 @@
 #include "../Utils/ServiceLocator.h"
 
 #include "ECS/Components/Singletons/UIDataSingleton.h"
+#include "ECS/Components/ElementInfo.h"
 #include "ECS/Components/Transform.h"
 #include "ECS/Components/TransformEvents.h"
 #include "ECS/Components/SortKey.h"
@@ -43,12 +44,12 @@ namespace UIInput
             dataSingleton.draggedWidget = entt::null;
         }
 
-        auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
+        auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::ElementInfo, UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
         eventGroup.sort<UIComponent::SortKey>([](UIComponent::SortKey& first, UIComponent::SortKey& second) { return first.key > second.key; });
         for (auto entity : eventGroup)
         {
             UIComponent::TransformEvents& events = eventGroup.get<UIComponent::TransformEvents>(entity);
-            const UIComponent::SortKey& sortKey = eventGroup.get<UIComponent::SortKey>(entity);
+            const UIComponent::ElementInfo& elementInfo = eventGroup.get<UIComponent::ElementInfo>(entity);
             const UIComponent::Collision& collision = eventGroup.get<UIComponent::Collision>(entity);
 
             // Check so mouse if within widget bounds.
@@ -80,7 +81,7 @@ namespace UIInput
 
                 if (events.IsClickable())
                 {
-                    if (sortKey.data.type == UI::UIElementType::UITYPE_CHECKBOX)
+                    if (elementInfo.type == UI::UIElementType::UITYPE_CHECKBOX)
                     {
                         UIScripting::Checkbox* checkBox = reinterpret_cast<UIScripting::Checkbox*>(events.asObject);
                         checkBox->ToggleChecked();
@@ -133,7 +134,7 @@ namespace UIInput
         }
 
         // Handle hover.
-        auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
+        auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::ElementInfo, UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
         eventGroup.sort<UIComponent::SortKey>([](UIComponent::SortKey& first, UIComponent::SortKey& second) { return first.key > second.key; });
         for (auto entity : eventGroup)
         {
@@ -177,8 +178,8 @@ namespace UIInput
             return true;
         }
 
-        const UIComponent::SortKey& sortKey = registry->get<UIComponent::SortKey>(dataSingleton.focusedWidget);
-        switch (sortKey.data.type)
+        const UIComponent::ElementInfo& elementInfo = registry->get<UIComponent::ElementInfo>(dataSingleton.focusedWidget);
+        switch (elementInfo.type)
         {
         case UI::UIElementType::UITYPE_INPUTFIELD:
         {
@@ -212,9 +213,9 @@ namespace UIInput
         if (dataSingleton.focusedWidget == entt::null)
             return false;
 
-        const UIComponent::SortKey& sortKey = registry->get<UIComponent::SortKey>(dataSingleton.focusedWidget);
+        const UIComponent::ElementInfo& elementInfo = registry->get<UIComponent::ElementInfo>(dataSingleton.focusedWidget);
         const UIComponent::TransformEvents& events = registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget);
-        if (sortKey.data.type == UI::UIElementType::UITYPE_INPUTFIELD)
+        if (elementInfo.type == UI::UIElementType::UITYPE_INPUTFIELD)
         {
             UIScripting::InputField* inputField = reinterpret_cast<UIScripting::InputField*>(events.asObject);
             inputField->HandleCharInput((char)unicodeKey);

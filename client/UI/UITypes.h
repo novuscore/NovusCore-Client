@@ -17,7 +17,7 @@ namespace UI
         UITYPE_INPUTFIELD
     };
 
-    enum class DepthLayer : u8
+    enum class DepthLayer : u16
     {
         WORLD,
         BACKGROUND,

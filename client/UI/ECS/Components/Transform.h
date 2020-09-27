@@ -35,7 +35,6 @@ namespace UIComponent
         u8 flags = 0;
         entt::entity parent = entt::null;
         std::vector<UI::UIChild> children;
-        void* asObject = nullptr;
 
         inline void ToggleFlag(const UI::TransformFlags inFlags) { flags ^= inFlags; }
         inline void SetFlag(const UI::TransformFlags inFlags) { flags |= inFlags; }

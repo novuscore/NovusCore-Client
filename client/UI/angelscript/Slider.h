@@ -36,9 +36,11 @@ namespace UIScripting
         const Color GetHandleColor() const;
         void SetHandleColor(const Color& color);
 
+        void SetHandleSize(const vec2& size);
+
         static Slider* CreateSlider();
 
     private:
-        SliderHandle* sliderHandle = nullptr;
+        SliderHandle* _handle = nullptr;
     };
 }

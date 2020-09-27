@@ -6,6 +6,7 @@
 #include "../ECS/Components/Singletons/UIEntityPoolSingleton.h"
 #include "../ECS/Components/Singletons/UILockSingleton.h"
 
+#include "../ECS/Components/ElementInfo.h"
 #include "../ECS/Components/Transform.h"
 #include "../ECS/Components/SortKey.h"
 #include "../ECS/Components/Visibility.h"
@@ -28,13 +29,14 @@ namespace UIScripting
         registry->ctx<UISingleton::UIDataSingleton>().entityToElement[_entityId] = this;
 
         // Set up base components.
-        UIComponent::Transform* transform = &registry->emplace<UIComponent::Transform>(_entityId);
-        transform->asObject = this;
+        UIComponent::ElementInfo* elementInfo = &registry->emplace<UIComponent::ElementInfo>(_entityId);
+        elementInfo->type = elementType;
+
+        registry->emplace<UIComponent::Transform>(_entityId);
 
         UIComponent::SortKey* sortKey = &registry->emplace<UIComponent::SortKey>(_entityId);
         sortKey->data.entId = _entityId;
-        sortKey->data.type = _elementType;
-
+        
         registry->emplace<UIComponent::Visibility>(_entityId);
         registry->emplace<UIComponent::Visible>(_entityId);
 

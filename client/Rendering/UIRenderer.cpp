@@ -13,6 +13,7 @@
 #include "../UI/ECS/Components/Singletons/UIDataSingleton.h"
 #include "../UI/ECS/Components/Singletons/UILockSingleton.h"
 #include "../UI/ECS/Components/Singletons/UIEntityPoolSingleton.h"
+#include "../UI/ECS/Components/ElementInfo.h"
 #include "../UI/ECS/Components/Transform.h"
 #include "../UI/ECS/Components/TransformEvents.h"
 #include "../UI/ECS/Components/SortKey.h"
@@ -37,6 +38,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
     UIInput::RegisterCallbacks();
 
     entt::registry* registry = ServiceLocator::GetUIRegistry();
+    registry->prepare<UIComponent::ElementInfo>();
     registry->prepare<UIComponent::Transform>();
     registry->prepare<UIComponent::TransformEvents>();
     registry->prepare<UIComponent::SortKey>();
@@ -150,9 +152,9 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
             entt::registry* registry = ServiceLocator::GetUIRegistry();
-            auto renderGroup = registry->group<UIComponent::Transform>(entt::get<UIComponent::Renderable, UIComponent::SortKey, UIComponent::Visible>);
+            auto renderGroup = registry->group<UIComponent::SortKey>(entt::get<UIComponent::Renderable, UIComponent::Visible>);
             renderGroup.sort<UIComponent::SortKey>([](UIComponent::SortKey& first, UIComponent::SortKey& second) { return first.key < second.key; });
-            renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UIComponent::Transform& transform, UIComponent::Renderable& renderable, UIComponent::SortKey& sortKey)
+            renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UIComponent::SortKey& sortKey, UIComponent::Renderable& renderable)
             {
                 switch (renderable.renderType)
                 {
