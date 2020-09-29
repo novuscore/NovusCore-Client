@@ -33,8 +33,8 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineWidth(float width)", asMETHOD(Label, SetOutlineWidth)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("float GetOutlineWidth()", asMETHOD(Label, GetOutlineWidth)); assert(r >= 0);
 
-        r = ScriptEngine::RegisterScriptClassFunction("void SetHorizontalAlignment(uint8 alignment)", asMETHOD(Label, SetOutlineWidth)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetVerticalAlignment(uint8 alignment)", asMETHOD(Label, SetOutlineWidth)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetHorizontalAlignment(uint8 alignment)", asMETHOD(Label, SetHorizontalAlignment)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetVerticalAlignment(uint8 alignment)", asMETHOD(Label, SetVerticalAlignment)); assert(r >= 0);
     }
 
     const std::string Label::GetText() const
