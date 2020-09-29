@@ -1,7 +1,5 @@
 #include "UIDataSingleton.h"
-#include <shared_mutex>
 #include "../../../../Utils/ServiceLocator.h"
-#include "../../../Utils/TransformUtils.h"
 #include "../../../angelscript/BaseElement.h"
 
 namespace UISingleton
@@ -11,10 +9,10 @@ namespace UISingleton
         std::vector<entt::entity> entityIds;
         entityIds.reserve(entityToElement.size());
 
-        for (auto asObject : entityToElement)
+        for (auto pair : entityToElement)
         {
-            entityIds.push_back(asObject.first);
-            delete asObject.second;
+            entityIds.push_back(pair.first);
+            delete pair.second;
         }
         entityToElement.clear();
 
@@ -22,19 +20,5 @@ namespace UISingleton
         ServiceLocator::GetUIRegistry()->destroy(entityIds.begin(), entityIds.end());
 
         focusedWidget = entt::null;
-    }
-
-    void UIDataSingleton::DestroyElement(entt::entity entId, bool destroyChildren)
-    {
-        destructionQueue.enqueue(entId);
-
-        if (destroyChildren)
-        {
-            UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(entId);
-            for (UI::UIChild child : transform->children)
-            {
-                DestroyElement(child.entId, true);
-            }
-        }
     }
 }

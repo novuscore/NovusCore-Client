@@ -11,6 +11,7 @@
 #include "../Components/InputField.h"
 #include "../Components/Dirty.h"
 #include "../Components/BoundsDirty.h"
+#include "../Components/Destroy.h"
 #include "../Components/Visible.h"
 #include "../Components/Collidable.h"
 #include "../Components/Singletons/UIDataSingleton.h"
@@ -64,37 +65,12 @@ namespace UISystem
         auto& dataSingleton = registry.ctx<UISingleton::UIDataSingleton>();
         
         // Destroy elements queued for destruction.
-        if(size_t deleteEntityNum = dataSingleton.destructionQueue.size_approx()) {
-            std::vector<entt::entity> deleteEntities(deleteEntityNum);
-
-            dataSingleton.destructionQueue.try_dequeue_bulk(deleteEntities.begin(), deleteEntityNum);
-            for (entt::entity entId : deleteEntities)
-            {
-                auto& transform = registry.get<UIComponent::Transform>(entId);
-
-                for (const UI::UIChild& uiChild : transform.children)
-                {
-                    auto& childTransform = registry.get<UIComponent::Transform>(uiChild.entId);
-                    childTransform.parent = entt::null;
-                    childTransform.position = childTransform.position + childTransform.localPosition;
-                    childTransform.localPosition = vec2(0, 0);
-                    childTransform.parent = entt::null;
-                }
-
-                if (transform.parent != entt::null)
-                {
-                    auto& parentTransform = registry.get<UIComponent::Transform>(transform.parent);
-                    
-                    auto itr = std::find_if(parentTransform.children.begin(), parentTransform.children.end(), [entId](UI::UIChild& uiChild) { return uiChild.entId == entId; });
-                    if (itr != parentTransform.children.end())
-                        parentTransform.children.erase(itr);
-                }
-
-                delete dataSingleton.entityToElement[entId];
-            }
-
-            registry.destroy(deleteEntities.begin(), deleteEntities.end());
-        }
+        auto deleteView = registry.view<UIComponent::Destroy>();
+        deleteView.each([&](entt::entity entityId) {
+                delete dataSingleton.entityToElement[entityId];
+                dataSingleton.entityToElement.erase(entityId);
+            });
+        registry.destroy(deleteView.begin(), deleteView.end());
 
         auto boundsUpdateView = registry.view<UIComponent::Transform, UIComponent::BoundsDirty>();
         boundsUpdateView.each([&](entt::entity entityId, UIComponent::Transform& transform)

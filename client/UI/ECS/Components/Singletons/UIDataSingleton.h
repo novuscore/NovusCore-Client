@@ -2,7 +2,6 @@
 #include "NovusTypes.h"
 #include <entity/fwd.hpp>
 #include <robin_hood.h>
-#include <Utils/ConcurrentQueue.h>
 
 namespace UIScripting
 {
@@ -19,12 +18,9 @@ namespace UISingleton
     struct UIDataSingleton
     {
     public:
-        UIDataSingleton() : destructionQueue(1000) { }
+        UIDataSingleton() { }
 
         void ClearAllElements();
-
-        void DestroyElement(entt::entity entId, bool destroyChildren);
-
     public:
         robin_hood::unordered_map<entt::entity, UIScripting::BaseElement*> entityToElement;
 
@@ -35,8 +31,5 @@ namespace UISingleton
 
         //Resolution
         hvec2 UIRESOLUTION = hvec2(1920.f, 1080.f);
-
-        // Queues
-        moodycamel::ConcurrentQueue<entt::entity> destructionQueue;
     };
 }

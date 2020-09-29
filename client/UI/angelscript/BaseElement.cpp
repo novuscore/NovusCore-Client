@@ -4,7 +4,6 @@
 
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
 #include "../ECS/Components/Singletons/UIEntityPoolSingleton.h"
-#include "../ECS/Components/Singletons/UILockSingleton.h"
 
 #include "../ECS/Components/ElementInfo.h"
 #include "../ECS/Components/Transform.h"
@@ -15,6 +14,8 @@
 #include "../ECS/Components/Collidable.h"
 #include "../ECS/Components/Dirty.h"
 #include "../ECS/Components/BoundsDirty.h"
+#include "../ECS/Components/Destroy.h"
+#include "../Utils/ElementUtils.h"
 #include "../Utils/TransformUtils.h"
 #include "../Utils/SortUtils.h"
 #include "../Utils/VisibilityUtils.h"
@@ -337,7 +338,12 @@ namespace UIScripting
 
     void BaseElement::Destroy(bool destroyChildren)
     {
-        ServiceLocator::GetUIRegistry()->ctx<UISingleton::UIDataSingleton>().DestroyElement(_entityId, destroyChildren);
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        if(!registry->has<UIComponent::Destroy>(_entityId))
+            registry->emplace<UIComponent::Destroy>(_entityId);
+
+        if (destroyChildren)
+            UIUtils::MarkChildrenForDestruction(registry, _entityId);
     }
 
     void BaseElement::MarkDirty()
