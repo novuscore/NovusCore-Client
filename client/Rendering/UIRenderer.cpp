@@ -11,8 +11,6 @@
 #include "../Utils/ServiceLocator.h"
 
 #include "../UI/ECS/Components/Singletons/UIDataSingleton.h"
-#include "../UI/ECS/Components/Singletons/UILockSingleton.h"
-#include "../UI/ECS/Components/Singletons/UIEntityPoolSingleton.h"
 #include "../UI/ECS/Components/ElementInfo.h"
 #include "../UI/ECS/Components/Transform.h"
 #include "../UI/ECS/Components/TransformEvents.h"
@@ -60,31 +58,29 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer) : _renderer(renderer)
 
     // Register UI singletons.
     registry->set<UISingleton::UIDataSingleton>();
-    registry->set<UISingleton::UILockSingleton>();
-
-    // Register entity pool.
-    auto entityPoolSingleton = &registry->set<UISingleton::UIEntityPoolSingleton>();
-    entityPoolSingleton->AllocatePool();
 
     //Reserve component space
-    registry->reserve<UIComponent::Transform>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::TransformEvents>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::SortKey>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Renderable>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Text>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Image>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    const int ENTITIES_TO_PREALLOCATE = 10000;
+    registry->reserve(ENTITIES_TO_PREALLOCATE);
 
-    registry->reserve<UIComponent::Collision>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Collidable>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Transform>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::TransformEvents>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::SortKey>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Renderable>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Text>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Image>(ENTITIES_TO_PREALLOCATE);
 
-    registry->reserve<UIComponent::Visibility>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Visible>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Collision>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Collidable>(ENTITIES_TO_PREALLOCATE);
 
-    registry->reserve<UIComponent::Dirty>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::BoundsDirty>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Visibility>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Visible>(ENTITIES_TO_PREALLOCATE);
 
-    registry->reserve<UIComponent::InputField>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Checkbox>(entityPoolSingleton->ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Dirty>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::BoundsDirty>(ENTITIES_TO_PREALLOCATE);
+
+    registry->reserve<UIComponent::InputField>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Checkbox>(ENTITIES_TO_PREALLOCATE);
 
 }
 

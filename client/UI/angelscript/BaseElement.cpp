@@ -3,8 +3,6 @@
 #include "../../Utils/ServiceLocator.h"
 
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
-#include "../ECS/Components/Singletons/UIEntityPoolSingleton.h"
-
 #include "../ECS/Components/ElementInfo.h"
 #include "../ECS/Components/Transform.h"
 #include "../ECS/Components/SortKey.h"
@@ -15,6 +13,7 @@
 #include "../ECS/Components/Dirty.h"
 #include "../ECS/Components/BoundsDirty.h"
 #include "../ECS/Components/Destroy.h"
+
 #include "../Utils/ElementUtils.h"
 #include "../Utils/TransformUtils.h"
 #include "../Utils/SortUtils.h"
@@ -26,7 +25,7 @@ namespace UIScripting
     {
         ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        _entityId = registry->ctx<UISingleton::UIEntityPoolSingleton>().GetId();
+        _entityId = registry->create();
         registry->ctx<UISingleton::UIDataSingleton>().entityToElement[_entityId] = this;
 
         // Set up base components.
@@ -88,7 +87,7 @@ namespace UIScripting
         auto transform = &registry->get<UIComponent::Transform>(_entityId);
 
         // Early out if we are just filling parent size.
-        if (transform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
+        if (transform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE) && transform->parent != entt::null)
             return;
         transform->size = size;
 
