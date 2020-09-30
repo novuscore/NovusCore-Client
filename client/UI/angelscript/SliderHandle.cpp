@@ -1,10 +1,9 @@
 #include "SliderHandle.h"
 #include "../../Utils/ServiceLocator.h"
 
-#include "../ECS/Components/Singletons/UILockSingleton.h"
-#include "../ECS/Components/Visible.h"
+#include "../ECS/Components/TransformEvents.h"
+#include "../ECS/Components/Image.h"
 #include "../ECS/Components/Renderable.h"
-#include "../ECS/Components/Collidable.h"
 
 namespace UIScripting
 {
@@ -23,8 +22,8 @@ namespace UIScripting
     
     void SliderHandle::OnDragged()
     {
-        // TODO Notify slider.
         // TODO Limit position to inside slider.
+        // TODO Notify slider.
     }
 
     SliderHandle* SliderHandle::CreateSliderHandle(Slider* owningSlider)

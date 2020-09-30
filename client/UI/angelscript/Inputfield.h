@@ -3,10 +3,6 @@
 
 #include "BaseElement.h"
 
-#include "../ECS/Components/TransformEvents.h"
-#include "../ECS/Components/InputField.h"
-#include "../ECS/Components/Text.h"
-
 namespace UIScripting
 {
     class Label;

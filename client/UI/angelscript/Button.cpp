@@ -1,12 +1,12 @@
 #include "Button.h"
 #include "Label.h"
-#include "Panel.h"
+#include <tracy/Tracy.hpp>
 #include "../../Scripting/ScriptEngine.h"
 #include "../../Utils/ServiceLocator.h"
 
 #include "../ECS/Components/Transform.h"
-#include "../ECS/Components/Visible.h"
-#include "../ECS/Components/Collidable.h"
+#include "../ECS/Components/Transformevents.h"
+#include "../ECS/Components/Image.h"
 #include "../ECS/Components/Renderable.h"
 #include "../ECS/Components/SortKey.h"
 

@@ -2,7 +2,6 @@
 #include <NovusTypes.h>
 
 #include "../ECS/Components/TransformEvents.h"
-#include "../ECS/Components/Image.h"
 #include "BaseElement.h"
 
 namespace UIScripting

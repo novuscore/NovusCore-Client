@@ -1,9 +1,8 @@
 #include "Label.h"
+#include <tracy/Tracy.hpp>
 #include "../../Scripting/ScriptEngine.h"
 #include "../../Utils/ServiceLocator.h"
 
-#include "../ECS/Components/Singletons/UILockSingleton.h"
-#include "../ECS/Components/Visible.h"
 #include "../ECS/Components/Renderable.h"
 
 namespace UIScripting

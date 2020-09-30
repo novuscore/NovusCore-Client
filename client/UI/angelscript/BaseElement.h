@@ -3,14 +3,11 @@
 #include <entity/entity.hpp>
 #include "../../Scripting/ScriptEngine.h"
 #include "../UITypes.h"
-#include "../ECS/Components/Singletons/UIDataSingleton.h"
 
 namespace UIScripting
 {
     class BaseElement
     {
-        friend struct ::UISingleton::UIDataSingleton;
-
     public:
         BaseElement(UI::ElementType elementType, bool collisionEnabled = true);
 

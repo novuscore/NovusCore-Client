@@ -3,10 +3,10 @@
 #include "../../Utils/ServiceLocator.h"
 
 #include "../ECS/Components/Transform.h"
+#include "../ECS/Components/TransformEvents.h"
+#include "../ECS/Components/Image.h"
 #include "../ECS/Components/SortKey.h"
-#include "../ECS/Components/Visible.h"
 #include "../ECS/Components/Renderable.h"
-#include "../ECS/Components/Collidable.h"
 #include "../ECS/Components/Slider.h"
 
 #include "SliderHandle.h"
