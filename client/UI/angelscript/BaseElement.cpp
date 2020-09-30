@@ -22,7 +22,7 @@
 
 namespace UIScripting
 {
-    BaseElement::BaseElement(UI::UIElementType elementType, bool collisionEnabled) : _elementType(elementType)
+    BaseElement::BaseElement(UI::ElementType elementType, bool collisionEnabled) : _elementType(elementType)
     {
         ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();

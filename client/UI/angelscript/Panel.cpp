@@ -9,7 +9,7 @@
 
 namespace UIScripting
 {
-    Panel::Panel(bool collisionEnabled) : BaseElement(UI::UIElementType::UITYPE_PANEL, collisionEnabled)
+    Panel::Panel(bool collisionEnabled) : BaseElement(UI::ElementType::UITYPE_PANEL, collisionEnabled)
     {
         ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();

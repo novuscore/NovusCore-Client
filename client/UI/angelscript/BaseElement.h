@@ -12,7 +12,7 @@ namespace UIScripting
         friend struct ::UISingleton::UIDataSingleton;
 
     public:
-        BaseElement(UI::UIElementType elementType, bool collisionEnabled = true);
+        BaseElement(UI::ElementType elementType, bool collisionEnabled = true);
 
         virtual ~BaseElement() { }
 
@@ -68,7 +68,7 @@ namespace UIScripting
         }
 
         const entt::entity GetEntityId() const { return _entityId; }
-        const UI::UIElementType GetType() const { return _elementType; }
+        const UI::ElementType GetType() const { return _elementType; }
 
         // Transform Functions
         vec2 GetScreenPosition() const;
@@ -118,6 +118,6 @@ namespace UIScripting
 
     protected:
         entt::entity _entityId;
-        UI::UIElementType _elementType;
+        UI::ElementType _elementType;
     };
 }

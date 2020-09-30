@@ -12,7 +12,7 @@
 
 namespace UIScripting
 {
-    Button::Button() : BaseElement(UI::UIElementType::UITYPE_BUTTON) 
+    Button::Button() : BaseElement(UI::ElementType::UITYPE_BUTTON) 
     {
         ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();

@@ -9,7 +9,7 @@ namespace UI
     struct UIChild
     {
         entt::entity entId;
-        UI::UIElementType type;
+        UI::ElementType type;
     };
 
     enum TransformFlags : u8

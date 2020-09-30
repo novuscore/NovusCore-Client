@@ -15,7 +15,7 @@
 
 namespace UIScripting
 {
-    Checkbox::Checkbox() : BaseElement(UI::UIElementType::UITYPE_CHECKBOX)
+    Checkbox::Checkbox() : BaseElement(UI::ElementType::UITYPE_CHECKBOX)
     {
         ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();

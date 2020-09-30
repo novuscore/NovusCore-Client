@@ -20,6 +20,8 @@
 
 #include "angelscript/Inputfield.h"
 #include "angelscript/Checkbox.h"
+#include "angelscript/Slider.h"
+#include "angelscript/SliderHandle.h"
 
 namespace UIInput
 {
@@ -45,7 +47,7 @@ namespace UIInput
         }
 
         auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::ElementInfo, UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
-        eventGroup.sort<UIComponent::SortKey>([](UIComponent::SortKey& first, UIComponent::SortKey& second) { return first.key > second.key; });
+        eventGroup.sort<UIComponent::SortKey>([](const UIComponent::SortKey& first, const UIComponent::SortKey& second) { return first.key > second.key; });
         for (auto entity : eventGroup)
         {
             UIComponent::TransformEvents& events = eventGroup.get<UIComponent::TransformEvents>(entity);
@@ -81,10 +83,15 @@ namespace UIInput
 
                 if (events.IsClickable())
                 {
-                    if (elementInfo.type == UI::UIElementType::UITYPE_CHECKBOX)
+                    if (elementInfo.type == UI::ElementType::UITYPE_CHECKBOX)
                     {
                         UIScripting::Checkbox* checkBox = reinterpret_cast<UIScripting::Checkbox*>(events.asObject);
                         checkBox->ToggleChecked();
+                    } 
+                    else if(elementInfo.type == UI::ElementType::UITYPE_SLIDER)
+                    {
+                        UIScripting::Slider* slider = reinterpret_cast<UIScripting::Slider*>(events.asObject);
+                        slider->OnClicked(mouse);
                     }
                     events.OnClick();
                 }
@@ -103,6 +110,7 @@ namespace UIInput
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
         if (dataSingleton.draggedWidget != entt::null)
         {
+            const UIComponent::ElementInfo* elementInfo = &registry->get<UIComponent::ElementInfo>(dataSingleton.draggedWidget);
             auto transform = &registry->get<UIComponent::Transform>(dataSingleton.draggedWidget);
             auto events = &registry->get<UIComponent::TransformEvents>(dataSingleton.draggedWidget);
 
@@ -127,6 +135,13 @@ namespace UIInput
                 transform->position = newPos;
             }
 
+            // Handle OnDrag(s)
+            if (elementInfo->type == UI::ElementType::UITYPE_SLIDERHANDLE)
+            {
+                UIScripting::SliderHandle* sliderHandle = reinterpret_cast<UIScripting::SliderHandle*>(events->asObject);
+                sliderHandle->OnDragged();
+            }
+
             UIUtils::Transform::UpdateChildTransforms(registry, transform);
             UIUtils::Transform::MarkDirty(registry, dataSingleton.draggedWidget);
             UIUtils::Transform::MarkChildrenDirty(registry, dataSingleton.draggedWidget);
@@ -134,8 +149,8 @@ namespace UIInput
         }
 
         // Handle hover.
-        auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::ElementInfo, UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
-        eventGroup.sort<UIComponent::SortKey>([](UIComponent::SortKey& first, UIComponent::SortKey& second) { return first.key > second.key; });
+        auto eventGroup = registry->group<>(entt::get<UIComponent::TransformEvents, UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
+        eventGroup.sort<UIComponent::SortKey>([](const UIComponent::SortKey& first, const UIComponent::SortKey& second) { return first.key > second.key; });
         for (auto entity : eventGroup)
         {
             if (dataSingleton.draggedWidget == entity)
@@ -181,13 +196,13 @@ namespace UIInput
         const UIComponent::ElementInfo& elementInfo = registry->get<UIComponent::ElementInfo>(dataSingleton.focusedWidget);
         switch (elementInfo.type)
         {
-        case UI::UIElementType::UITYPE_INPUTFIELD:
+        case UI::ElementType::UITYPE_INPUTFIELD:
         {
             UIScripting::InputField* inputFieldAS = reinterpret_cast<UIScripting::InputField*>(events.asObject);
             inputFieldAS->HandleKeyInput(key);
             break;
         }
-        case UI::UIElementType::UITYPE_CHECKBOX:
+        case UI::ElementType::UITYPE_CHECKBOX:
         {
             UIScripting::Checkbox* checkBoxAS = reinterpret_cast<UIScripting::Checkbox*>(events.asObject);
             checkBoxAS->HandleKeyInput(key);
@@ -215,7 +230,7 @@ namespace UIInput
 
         const UIComponent::ElementInfo& elementInfo = registry->get<UIComponent::ElementInfo>(dataSingleton.focusedWidget);
         const UIComponent::TransformEvents& events = registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget);
-        if (elementInfo.type == UI::UIElementType::UITYPE_INPUTFIELD)
+        if (elementInfo.type == UI::ElementType::UITYPE_INPUTFIELD)
         {
             UIScripting::InputField* inputField = reinterpret_cast<UIScripting::InputField*>(events.asObject);
             inputField->HandleCharInput((char)unicodeKey);

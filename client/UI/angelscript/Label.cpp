@@ -8,7 +8,7 @@
 
 namespace UIScripting
 {
-    Label::Label() : BaseElement(UI::UIElementType::UITYPE_LABEL, false)
+    Label::Label() : BaseElement(UI::ElementType::UITYPE_LABEL, false)
     {
         ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();

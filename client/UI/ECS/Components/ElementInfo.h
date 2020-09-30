@@ -5,6 +5,6 @@ namespace UIComponent
 {
     struct ElementInfo
     {
-        UI::UIElementType type;
+        UI::ElementType type;
     };
 }

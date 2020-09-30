@@ -12,7 +12,7 @@
 
 namespace UIScripting
 {
-    InputField::InputField() : BaseElement(UI::UIElementType::UITYPE_INPUTFIELD)
+    InputField::InputField() : BaseElement(UI::ElementType::UITYPE_INPUTFIELD)
     {
         ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();

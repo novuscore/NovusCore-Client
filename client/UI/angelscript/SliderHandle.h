@@ -13,11 +13,14 @@ namespace UIScripting
     {
         friend Slider;
 
-    private:
         SliderHandle(Slider* owningSlider);
+
+    public:
+        void OnDragged();
 
         static SliderHandle* CreateSliderHandle(Slider* owningSlider);
 
+    private:
         Slider* _slider;
     };
 }

@@ -3,7 +3,7 @@
 
 namespace UI
 {
-    enum class UIElementType : u8
+    enum class ElementType : u8
     {
         UITYPE_NONE,
 

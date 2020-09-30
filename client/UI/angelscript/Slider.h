@@ -38,6 +38,8 @@ namespace UIScripting
 
         void SetHandleSize(const vec2& size);
 
+        void OnClicked(hvec2 mousePosition);
+
         static Slider* CreateSlider();
 
     private:

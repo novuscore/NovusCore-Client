@@ -13,13 +13,14 @@
 
 namespace UIScripting
 {
-    Slider::Slider() : BaseElement(UI::UIElementType::UITYPE_SLIDER)
+    Slider::Slider() : BaseElement(UI::ElementType::UITYPE_SLIDER)
     {
         ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
         events->asObject = this;
+        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
         registry->emplace<UIComponent::Slider>(_entityId);
         registry->emplace<UIComponent::Image>(_entityId);
@@ -131,6 +132,15 @@ namespace UIScripting
     void Slider::SetHandleSize(const vec2& size)
     {
         _handle->SetSize(size);
+    }
+
+    void Slider::OnClicked(hvec2 mousePosition)
+    {
+        // TODO Calculate local position of click.
+        // TODO Make use of local position to determine how far along the slider the click was.
+        // TODO Update currentValue using above.
+        // TODO Update slider position.
+        // TODO Execute events.
     }
 
     Slider* Slider::CreateSlider()
