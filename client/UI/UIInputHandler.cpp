@@ -44,9 +44,11 @@ namespace UIInput
         {
             registry->get<UIComponent::TransformEvents>(dataSingleton.draggedWidget).OnDragEnded();
             dataSingleton.draggedWidget = entt::null;
+
+            return true;
         }
 
-        auto eventGroup = registry->group<UIComponent::TransformEvents>(entt::get<UIComponent::ElementInfo, UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
+        auto eventGroup = registry->group<>(entt::get<UIComponent::TransformEvents, UIComponent::ElementInfo, UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
         eventGroup.sort<UIComponent::SortKey>([](const UIComponent::SortKey& first, const UIComponent::SortKey& second) { return first.key > second.key; });
         for (auto entity : eventGroup)
         {
@@ -249,6 +251,6 @@ namespace UIInput
         inputManager->RegisterCharInputCallback("UI Char Input Checker"_h, std::bind(&OnCharInput, std::placeholders::_1, std::placeholders::_2));
 
         // Create mouse group upfront. Reduces hitching from first mouse input.
-        auto eventGroup = ServiceLocator::GetUIRegistry()->group<UIComponent::TransformEvents>(entt::get<UIComponent::ElementInfo, UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
+        auto eventGroup = ServiceLocator::GetUIRegistry()->group<>(entt::get<UIComponent::TransformEvents, UIComponent::ElementInfo, UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>);
     }
 }

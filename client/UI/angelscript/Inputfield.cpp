@@ -68,11 +68,11 @@ namespace UIScripting
         case GLFW_KEY_DELETE:
             RemoveNextCharacter();
             break;
-        case GLFW_KEY_LEFT:
-            MovePointerLeft();
-            break;
         case GLFW_KEY_RIGHT:
             MovePointerRight();
+            break;
+        case GLFW_KEY_LEFT:
+            MovePointerLeft();
             break;
         case GLFW_KEY_ENTER:
         {
@@ -99,14 +99,14 @@ namespace UIScripting
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        const UIComponent::InputField* inputField = &registry->get<UIComponent::InputField>(_entityId);
+        UIComponent::InputField* inputField = &registry->get<UIComponent::InputField>(_entityId);
 
         if (text->text.length() == inputField->writeHeadIndex)
             text->text += input;
         else
             text->text.insert(inputField->writeHeadIndex, 1, input);
 
-        MovePointerRight();
+        inputField->writeHeadIndex++;
     }
 
     void InputField::RemovePreviousCharacter()
@@ -216,8 +216,7 @@ namespace UIScripting
     }
     void InputField::SetTextColor(const Color& color)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
+        UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         text->style.color = color;
     }
 
@@ -228,8 +227,7 @@ namespace UIScripting
     }
     void InputField::SetTextOutlineColor(const Color& outlineColor)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
+        UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         text->style.outlineColor = outlineColor;
     }
 
@@ -247,8 +245,7 @@ namespace UIScripting
 
     void InputField::SetTextFont(const std::string& fontPath, f32 fontSize)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
+        UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         text->style.fontPath = fontPath;
         text->style.fontSize = fontSize;
     }
