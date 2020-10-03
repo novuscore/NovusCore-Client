@@ -27,7 +27,6 @@
 #include "ECS/Components/Network/AuthenticationSingleton.h"
 #include "ECS/Components/LocalplayerSingleton.h"
 
-#include "UI/ECS/Components/Singletons/UIDataSingleton.h"
 
 // Components
 #include "ECS/Components/Transform.h"
@@ -40,6 +39,9 @@
 #include "ECS/Systems/Rendering/RenderModelSystem.h"
 #include "ECS/Systems/Physics/SimulateDebugCubeSystem.h"
 #include "ECS/Systems/MovementSystem.h"
+
+// Utils
+#include "UI/Utils/ElementUtils.h"
 
 // Handlers
 #include "Network/Handlers/AuthSocket/AuthHandlers.h"
@@ -301,8 +303,7 @@ bool EngineLoop::Update(f32 deltaTime)
         }
         else if (message.code == MSG_IN_RELOAD)
         {
-            entt::registry* uiRegistry = ServiceLocator::GetUIRegistry();
-            uiRegistry->ctx<UISingleton::UIDataSingleton>().ClearAllElements();
+            UIUtils::ClearAllElements();
 
             ScriptHandler::ReloadScripts();
         }

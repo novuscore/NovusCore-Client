@@ -8,11 +8,6 @@ namespace UIScripting
     class BaseElement;
 }
 
-namespace std
-{
-    class shared_mutex;
-}
-
 namespace UISingleton
 {
     struct UIDataSingleton
@@ -20,8 +15,6 @@ namespace UISingleton
     public:
         UIDataSingleton() { }
 
-        void ClearAllElements();
-    public:
         robin_hood::unordered_map<entt::entity, UIScripting::BaseElement*> entityToElement;
 
         entt::entity focusedWidget = entt::null;
