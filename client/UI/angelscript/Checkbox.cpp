@@ -20,7 +20,7 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
         registry->emplace<UIComponent::Checkbox>(_entityId);
         registry->emplace<UIComponent::Image>(_entityId);
@@ -82,12 +82,12 @@ namespace UIScripting
         return events->IsFocusable();
     }
 
-    void Checkbox::SetEventFlag(const UI::UITransformEventsFlags flags)
+    void Checkbox::SetEventFlag(const UI::TransformEventsFlags flags)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->SetFlag(flags);
     }
-    void Checkbox::UnsetEventFlag(const UI::UITransformEventsFlags flags)
+    void Checkbox::UnsetEventFlag(const UI::TransformEventsFlags flags)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->UnsetFlag(flags);
@@ -97,13 +97,13 @@ namespace UIScripting
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onClickCallback = callback;
-        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }
     void Checkbox::SetOnFocusCallback(asIScriptFunction* callback)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onFocusedCallback = callback;
-        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
     }
 
     const std::string& Checkbox::GetBackgroundTexture() const

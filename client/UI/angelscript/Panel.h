@@ -17,8 +17,8 @@ namespace UIScripting
         const bool IsClickable() const;
         const bool IsDraggable() const;
         const bool IsFocusable() const;
-        void SetEventFlag(const UI::UITransformEventsFlags flags);
-        void UnsetEventFlag(const UI::UITransformEventsFlags flags);
+        void SetEventFlag(const UI::TransformEventsFlags flags);
+        void UnsetEventFlag(const UI::TransformEventsFlags flags);
         void SetOnClickCallback(asIScriptFunction* callback);
         void SetOnDragStartedCallback(asIScriptFunction* callback);
         void SetOnDragEndedCallback(asIScriptFunction* callback);

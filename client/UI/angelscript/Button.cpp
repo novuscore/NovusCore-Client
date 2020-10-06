@@ -69,7 +69,7 @@ namespace UIScripting
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onClickCallback = callback;
-        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }
 
     void Button::SetText(const std::string& text)

@@ -20,7 +20,7 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
         registry->emplace<UIComponent::Slider>(_entityId);
         registry->emplace<UIComponent::Image>(_entityId);

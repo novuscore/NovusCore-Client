@@ -124,9 +124,9 @@ namespace UIInput
             if (transform->parent != entt::null)
             {
                 hvec2 newLocalPos = hvec2(x, y) - transform->position - dataSingleton.dragOffset;
-                if (events->dragLockX)
+                if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_X))
                     newLocalPos.x = transform->localPosition.x;
-                else if (events->dragLockY)
+                else if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_Y))
                     newLocalPos.y = transform->localPosition.y;
 
                 transform->localPosition = newLocalPos;
@@ -134,9 +134,9 @@ namespace UIInput
             else
             {
                 hvec2 newPos = hvec2(x, y) - dataSingleton.dragOffset;
-                if (events->dragLockX)
+                if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_X))
                     newPos.x = transform->position.x;
-                else if (events->dragLockY)
+                else if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_Y))
                     newPos.y = transform->position.y;
 
                 transform->position = newPos;

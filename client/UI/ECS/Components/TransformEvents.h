@@ -5,12 +5,15 @@ class asIScriptFunction;
 
 namespace UI
 {
-    enum UITransformEventsFlags : u8
+    enum TransformEventsFlags : u8
     {
         UIEVENTS_FLAG_NONE = 1 << 0,
         UIEVENTS_FLAG_CLICKABLE = 1 << 1,
         UIEVENTS_FLAG_DRAGGABLE = 1 << 2,
-        UIEVENTS_FLAG_FOCUSABLE = 1 << 3
+        UIEVENTS_FLAG_FOCUSABLE = 1 << 3,
+
+        UIEVENTS_FLAG_DRAGLOCK_X = 1 << 4,
+        UIEVENTS_FLAG_DRAGLOCK_Y = 1 << 5
     };
 }
 
@@ -34,13 +37,11 @@ namespace UIComponent
         asIScriptFunction* onHoveredCallback = nullptr;
         asIScriptFunction* onUnhoveredCallback = nullptr;
 
-        bool dragLockX = false;
-        bool dragLockY = false;
-
-        inline void SetFlag(const UI::UITransformEventsFlags inFlags) { flags |= inFlags; }
-        inline void UnsetFlag(const UI::UITransformEventsFlags inFlags) { flags &= ~inFlags; }
-        inline const bool IsClickable() const { return (flags & UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE) == UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE; }
-        inline const bool IsDraggable() const { return (flags & UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE) == UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE; }
-        inline const bool IsFocusable() const { return (flags & UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE) == UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE; }
+        inline void SetFlag(const UI::TransformEventsFlags inFlags) { flags |= inFlags; }
+        inline void UnsetFlag(const UI::TransformEventsFlags inFlags) { flags &= ~inFlags; }
+        inline bool HasFlag(const UI::TransformEventsFlags inFlags) const { return (flags & inFlags) == inFlags; }
+        inline const bool IsClickable() const { return (flags & UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE) == UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE; }
+        inline const bool IsDraggable() const { return (flags & UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE) == UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE; }
+        inline const bool IsFocusable() const { return (flags & UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE) == UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE; }
     };
 }

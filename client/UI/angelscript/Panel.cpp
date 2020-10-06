@@ -57,12 +57,12 @@ namespace UIScripting
         return events->IsFocusable();
     }
 
-    void Panel::SetEventFlag(const UI::UITransformEventsFlags flags)
+    void Panel::SetEventFlag(const UI::TransformEventsFlags flags)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->SetFlag(flags);
     }
-    void Panel::UnsetEventFlag(const UI::UITransformEventsFlags flags)
+    void Panel::UnsetEventFlag(const UI::TransformEventsFlags flags)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->UnsetFlag(flags);
@@ -72,27 +72,27 @@ namespace UIScripting
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onClickCallback = callback;
-        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }
 
     void Panel::SetOnDragStartedCallback(asIScriptFunction* callback)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onDragStartedCallback = callback;
-        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
+        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
     }
     void Panel::SetOnDragEndedCallback(asIScriptFunction* callback)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onDragEndedCallback = callback;
-        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
+        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
     }
 
     void Panel::SetOnFocusCallback(asIScriptFunction* callback)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onFocusedCallback = callback;
-        events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
     }
 
     const std::string& Panel::GetTexture() const
