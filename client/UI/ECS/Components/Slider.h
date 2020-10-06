@@ -1,7 +1,5 @@
 #pragma once
 #include <NovusTypes.h>
-#include <angelscript.h>
-#include "../../../Scripting/ScriptEngine.h"
 
 namespace UIComponent
 {

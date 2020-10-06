@@ -1,6 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
-#include <angelscript.h>
+
+class asIScriptFunction;
 
 namespace UIComponent
 {

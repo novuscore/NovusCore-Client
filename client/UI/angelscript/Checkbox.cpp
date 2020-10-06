@@ -6,12 +6,11 @@
 #include <GLFW/glfw3.h>
 
 #include "../ECS/Components/Transform.h"
-#include "../ECS/Components/Visible.h"
-#include "../ECS/Components/Collidable.h"
 #include "../ECS/Components/Renderable.h"
 #include "../ECS/Components/Image.h"
 #include "../ECS/Components/SortKey.h"
 #include "../ECS/Components/Checkbox.h"
+#include "../Utils/EventUtils.h"
 
 namespace UIScripting
 {
@@ -23,9 +22,7 @@ namespace UIScripting
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
         events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
-        UIComponent::Checkbox* checkBox = &registry->emplace<UIComponent::Checkbox>(_entityId);
-        checkBox->asObject = this;
-
+        registry->emplace<UIComponent::Checkbox>(_entityId);
         registry->emplace<UIComponent::Image>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
 
@@ -164,9 +161,9 @@ namespace UIScripting
         _checkPanel->SetVisible(checked);
 
         if (checked)
-            checkBox->OnChecked();
+            UIUtils::ExecuteEvent(this, checkBox->onChecked);
         else
-            checkBox->OnUnchecked();
+            UIUtils::ExecuteEvent(this, checkBox->onUnchecked);
     }
     void Checkbox::ToggleChecked()
     {
