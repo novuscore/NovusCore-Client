@@ -17,6 +17,7 @@
 #include "ECS/Components/Visible.h"
 #include "Utils/TransformUtils.h"
 #include "Utils/ColllisionUtils.h"
+#include "Utils/EventUtils.h"
 
 #include "angelscript/Inputfield.h"
 #include "angelscript/Checkbox.h"
@@ -36,13 +37,15 @@ namespace UIInput
         entt::entity lastFocusedWidget = dataSingleton.focusedWidget;
         if (dataSingleton.focusedWidget != entt::null)
         {
-            registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget).OnUnfocused();
+            auto [elementInfo, events] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.focusedWidget);
+            UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onUnfocusedCallback);
             dataSingleton.focusedWidget = entt::null;
         }
 
         if (dataSingleton.draggedWidget != entt::null && keybind->state == GLFW_RELEASE)
         {
-            registry->get<UIComponent::TransformEvents>(dataSingleton.draggedWidget).OnDragEnded();
+            auto [elementInfo, events] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.draggedWidget);
+            UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onDragEndedCallback);
             dataSingleton.draggedWidget = entt::null;
 
             return true;
@@ -72,7 +75,8 @@ namespace UIInput
                     const UIComponent::Transform& transform = registry->get<UIComponent::Transform>(entity);
                     dataSingleton.draggedWidget = entity;
                     dataSingleton.dragOffset = mouse - (transform.position + transform.localPosition);
-                    events.OnDragStarted();
+                    
+                    UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onDragStartedCallback);
                 }
             }
             else if (keybind->state == GLFW_RELEASE)
@@ -80,22 +84,23 @@ namespace UIInput
                 if (events.IsFocusable())
                 {
                     dataSingleton.focusedWidget = entity;
-                    events.OnFocused();
+
+                    UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusedCallback);
                 }
 
                 if (events.IsClickable())
                 {
                     if (elementInfo.type == UI::ElementType::UITYPE_CHECKBOX)
                     {
-                        UIScripting::Checkbox* checkBox = reinterpret_cast<UIScripting::Checkbox*>(events.asObject);
+                        UIScripting::Checkbox* checkBox = reinterpret_cast<UIScripting::Checkbox*>(elementInfo.scriptingObject);
                         checkBox->ToggleChecked();
                     } 
                     else if(elementInfo.type == UI::ElementType::UITYPE_SLIDER)
                     {
-                        UIScripting::Slider* slider = reinterpret_cast<UIScripting::Slider*>(events.asObject);
+                        UIScripting::Slider* slider = reinterpret_cast<UIScripting::Slider*>(elementInfo.scriptingObject);
                         slider->OnClicked(mouse);
                     }
-                    events.OnClick();
+                    UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onClickCallback);
                 }
             }
 
@@ -140,7 +145,7 @@ namespace UIInput
             // Handle OnDrag(s)
             if (elementInfo->type == UI::ElementType::UITYPE_SLIDERHANDLE)
             {
-                UIScripting::SliderHandle* sliderHandle = reinterpret_cast<UIScripting::SliderHandle*>(events->asObject);
+                UIScripting::SliderHandle* sliderHandle = reinterpret_cast<UIScripting::SliderHandle*>(elementInfo->scriptingObject);
                 sliderHandle->OnDragged();
             }
 
@@ -186,34 +191,34 @@ namespace UIInput
         if (action == GLFW_RELEASE)
             return true;
 
+        const UIComponent::ElementInfo& elementInfo = registry->get<UIComponent::ElementInfo>(dataSingleton.focusedWidget);
         UIComponent::TransformEvents& events = registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget);
         if (key == GLFW_KEY_ESCAPE)
         {
-            events.OnUnfocused();
+            UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onUnfocusedCallback);
             dataSingleton.focusedWidget = entt::null;
 
             return true;
         }
 
-        const UIComponent::ElementInfo& elementInfo = registry->get<UIComponent::ElementInfo>(dataSingleton.focusedWidget);
         switch (elementInfo.type)
         {
         case UI::ElementType::UITYPE_INPUTFIELD:
         {
-            UIScripting::InputField* inputFieldAS = reinterpret_cast<UIScripting::InputField*>(events.asObject);
+            UIScripting::InputField* inputFieldAS = reinterpret_cast<UIScripting::InputField*>(elementInfo.scriptingObject);
             inputFieldAS->HandleKeyInput(key);
             break;
         }
         case UI::ElementType::UITYPE_CHECKBOX:
         {
-            UIScripting::Checkbox* checkBoxAS = reinterpret_cast<UIScripting::Checkbox*>(events.asObject);
+            UIScripting::Checkbox* checkBoxAS = reinterpret_cast<UIScripting::Checkbox*>(elementInfo.scriptingObject);
             checkBoxAS->HandleKeyInput(key);
             break;
         }
         default:
             if (key == GLFW_KEY_ENTER && events.IsClickable())
             {
-                events.OnClick();
+                UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onClickCallback);
             }
             break;
         }
@@ -234,7 +239,7 @@ namespace UIInput
         const UIComponent::TransformEvents& events = registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget);
         if (elementInfo.type == UI::ElementType::UITYPE_INPUTFIELD)
         {
-            UIScripting::InputField* inputField = reinterpret_cast<UIScripting::InputField*>(events.asObject);
+            UIScripting::InputField* inputField = reinterpret_cast<UIScripting::InputField*>(elementInfo.scriptingObject);
             inputField->HandleCharInput((char)unicodeKey);
             inputField->MarkSelfDirty();
         }

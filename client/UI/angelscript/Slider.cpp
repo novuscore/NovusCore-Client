@@ -8,6 +8,7 @@
 #include "../ECS/Components/SortKey.h"
 #include "../ECS/Components/Renderable.h"
 #include "../ECS/Components/Slider.h"
+#include "../Utils/TransformUtils.h"
 
 #include "SliderHandle.h"
 
@@ -19,7 +20,6 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-        events->asObject = this;
         events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
         registry->emplace<UIComponent::Slider>(_entityId);
@@ -136,10 +136,21 @@ namespace UIScripting
 
     void Slider::OnClicked(hvec2 mousePosition)
     {
-        // TODO Calculate local position of click.
-        // TODO Make use of local position to determine how far along the slider the click was.
-        // TODO Update currentValue using above.
-        // TODO Update slider position.
+        const UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
+
+        hvec2 minBounds = UIUtils::Transform::GetMinBounds(transform);
+        hvec2 maxBounds = UIUtils::Transform::GetMaxBounds(transform);
+        hvec2 localPosition = hvec2((mousePosition.x - minBounds.x) / (maxBounds.x - minBounds.x), (mousePosition.y - minBounds.y) / (maxBounds.y / minBounds.y));
+        
+        f16 percent = localPosition.x;
+        f32 newValue = (percent * slider->maximumValue) + slider->minimumValue;
+
+        slider->currentValue = newValue;
+
+        UpdateHandlePosition();
+        
+
         // TODO Execute events.
     }
 
@@ -148,5 +159,13 @@ namespace UIScripting
         Slider* slider = new Slider();
 
         return slider;
+    }
+
+    void Slider::UpdateHandlePosition()
+    {
+        const UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
+        f32 fillPercent = (slider->currentValue - slider->minimumValue) / (slider->maximumValue - slider->minimumValue);
+
+        _handle->SetAnchor(vec2(0.5f, fillPercent));
     }
 }

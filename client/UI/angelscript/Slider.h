@@ -41,6 +41,8 @@ namespace UIScripting
         static Slider* CreateSlider();
 
     private:
+        void UpdateHandlePosition();
+
         SliderHandle* _handle = nullptr;
     };
 }

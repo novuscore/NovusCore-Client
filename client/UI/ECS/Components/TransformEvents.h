@@ -34,59 +34,8 @@ namespace UIComponent
         asIScriptFunction* onHoveredCallback = nullptr;
         asIScriptFunction* onUnhoveredCallback = nullptr;
 
-        void* asObject = nullptr;
-
         bool dragLockX = false;
         bool dragLockY = false;
-
-        // Usually Components do not store logic, however this is an exception
-    private:
-        inline void _OnEvent(asIScriptFunction* callback)
-        {
-            if (!callback)
-                return;
-
-            asIScriptContext* context = ScriptEngine::GetScriptContext();
-            {
-                context->Prepare(callback);
-                {
-                    context->SetArgObject(0, asObject);
-                }
-                context->Execute();
-            }
-        }
-    public:
-        void OnClick()
-        {
-            _OnEvent(onClickCallback);
-        }
-
-        void OnDragStarted()
-        {
-            _OnEvent(onDragStartedCallback);
-        }
-        void OnDragEnded()
-        {
-            _OnEvent(onDragEndedCallback);
-        }
-        
-        void OnFocused()
-        {
-            _OnEvent(onFocusedCallback);
-        }
-        void OnUnfocused()
-        {
-            _OnEvent(onUnfocusedCallback);
-        }
-
-        void OnHovered()
-        {
-            _OnEvent(onHoveredCallback);
-        }
-        void OnUnhovered()
-        {
-            _OnEvent(onUnhoveredCallback);
-        }
 
         inline void SetFlag(const UI::UITransformEventsFlags inFlags) { flags |= inFlags; }
         inline void UnsetFlag(const UI::UITransformEventsFlags inFlags) { flags &= ~inFlags; }

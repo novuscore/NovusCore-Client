@@ -21,7 +21,6 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-        events->asObject = this;
         events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
         UIComponent::Checkbox* checkBox = &registry->emplace<UIComponent::Checkbox>(_entityId);

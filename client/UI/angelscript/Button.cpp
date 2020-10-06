@@ -17,9 +17,7 @@ namespace UIScripting
         ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
-        UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-        events->asObject = this;
-
+        registry->emplace<UIComponent::TransformEvents>(_entityId);
         registry->emplace<UIComponent::Image>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
         

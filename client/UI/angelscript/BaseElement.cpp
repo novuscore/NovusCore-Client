@@ -31,6 +31,7 @@ namespace UIScripting
         // Set up base components.
         UIComponent::ElementInfo* elementInfo = &registry->emplace<UIComponent::ElementInfo>(_entityId);
         elementInfo->type = elementType;
+        elementInfo->scriptingObject = this;
 
         registry->emplace<UIComponent::Transform>(_entityId);
 

@@ -1,13 +1,15 @@
 #include "Inputfield.h"
 #include "../../Scripting/ScriptEngine.h"
 #include "../../Utils/ServiceLocator.h"
-#include "../Utils/TextUtils.h"
 
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
+#include "../ECS/Components/ElementInfo.h"
 #include "../ECS/Components/TransformEvents.h"
 #include "../ECS/Components/InputField.h"
 #include "../ECS/Components/Text.h"
 #include "../ECS/Components/Renderable.h"
+#include "../Utils/TextUtils.h"
+#include "../Utils/EventUtils.h"
 
 #include <GLFW/glfw3.h>
 
@@ -19,12 +21,9 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-        events->asObject = this;
         events->SetFlag(UI::UITransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
 
-        UIComponent::InputField* inputField = &registry->emplace<UIComponent::InputField>(_entityId);
-        inputField->asObject = this;
-
+        registry->emplace<UIComponent::InputField>(_entityId);
         registry->emplace<UIComponent::Text>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Text;
     }
@@ -84,8 +83,10 @@ namespace UIScripting
                 break;
             }
 
-            registry->get<UIComponent::InputField>(_entityId).OnSubmit();
-            registry->get<UIComponent::TransformEvents>(_entityId).OnUnfocused();
+            auto [elementInfo, inputField, events] = registry->get<UIComponent::ElementInfo, UIComponent::InputField, UIComponent::TransformEvents>(_entityId);
+            UIUtils::ExecuteEvent(elementInfo.scriptingObject, inputField.onSubmitCallback);
+            UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onUnfocusedCallback);
+
             registry->ctx<UISingleton::UIDataSingleton>().focusedWidget = entt::null;
             break;
         }
@@ -106,6 +107,7 @@ namespace UIScripting
         else
             text->text.insert(inputField->writeHeadIndex, 1, input);
 
+        // Move pointer one step to the right.
         inputField->writeHeadIndex++;
     }
 
