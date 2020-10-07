@@ -1,6 +1,8 @@
 #include "SliderHandle.h"
+#include "Slider.h"
 #include "../../Utils/ServiceLocator.h"
 
+#include "../ECS/Components/Transform.h"
 #include "../ECS/Components/TransformEvents.h"
 #include "../ECS/Components/Image.h"
 #include "../ECS/Components/Renderable.h"
@@ -20,8 +22,8 @@ namespace UIScripting
     
     void SliderHandle::OnDragged()
     {
-        // TODO Limit position to inside slider.
-        // TODO Notify slider.
+        const UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        _slider->OnClicked(transform->position + transform->localPosition);
     }
 
     SliderHandle* SliderHandle::CreateSliderHandle(Slider* owningSlider)

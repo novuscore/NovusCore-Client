@@ -1,4 +1,5 @@
 #include "Slider.h"
+#include "SliderHandle.h"
 #include "../../Scripting/ScriptEngine.h"
 #include "../../Utils/ServiceLocator.h"
 
@@ -9,8 +10,9 @@
 #include "../ECS/Components/Renderable.h"
 #include "../ECS/Components/Slider.h"
 #include "../Utils/TransformUtils.h"
+#include "../Utils/SliderUtils.h"
+#include "../Utils/EventUtils.h"
 
-#include "SliderHandle.h"
 
 namespace UIScripting
 {
@@ -29,6 +31,7 @@ namespace UIScripting
         _handle = SliderHandle::CreateSliderHandle(this);
         UIComponent::Transform* handleTransform = &registry->get<UIComponent::Transform>(_handle->GetEntityId());
         handleTransform->parent = _entityId;
+        handleTransform->localAnchor = vec2(0.5f, 0.5f);
         registry->get<UIComponent::SortKey>(_handle->GetEntityId()).data.depth++;
         registry->get<UIComponent::Transform>(_entityId).children.push_back({ _handle->GetEntityId(), _handle->GetType() });
     }
@@ -44,45 +47,70 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void SetHandleTexture(string texture)", asMETHOD(Slider, SetHandleTexture)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetHandleColor(Color color)", asMETHOD(Slider, SetHandleColor)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetHandleSize(vec2 size)", asMETHOD(Slider, SetHandleSize)); assert(r >= 0);
+
+        r = ScriptEngine::RegisterScriptClassFunction("void GetCurrentValue()", asMETHOD(Slider, GetCurrentValue)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetCurrentValue(float current)", asMETHOD(Slider, SetCurrentValue)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void GetMinValue()", asMETHOD(Slider, GetMinValue)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetMinValue(float min)", asMETHOD(Slider, SetMinValue)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void GetMaxValue()", asMETHOD(Slider, GetMaxValue)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetMaxValue(float max)", asMETHOD(Slider, SetMaxValue)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void GetPercentValue()", asMETHOD(Slider, SetMaxValue)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetPercentValue(float percent)", asMETHOD(Slider, SetMaxValue)); assert(r >= 0);
+
+        r = ScriptEngine::RegisterScriptFunctionDef("void SliderEventCallback(Slider@ slider)"); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void OnValueChange(SliderEventCallback@ cb)", asMETHOD(Slider, SetOnValueChangedCallback)); assert(r >= 0);
     }
 
-    float Slider::GetMinValue()
+    f32 Slider::GetMinValue() const
     {
         const UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
         return slider->minimumValue;
     }
-    void Slider::SetMinValue(float min)
+    void Slider::SetMinValue(f32 min)
     {
         UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
         slider->minimumValue = min;
         slider->currentValue = Math::Max(slider->currentValue, slider->minimumValue);
-        //TODO Update handle position.
+    
+        UpdateHandlePosition();
     }
 
-    float Slider::GetMaxValue()
+    f32 Slider::GetMaxValue() const
     {
         const UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
         return slider->maximumValue;
     }
-    void Slider::SetMaxValue(float max)
+    void Slider::SetMaxValue(f32 max)
     {
         UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
         slider->maximumValue = max;
         slider->currentValue = Math::Min(slider->currentValue, slider->maximumValue);
-        //TODO Update handle position.
+
+        UpdateHandlePosition();
     }
 
-    float Slider::GetCurrentValue()
+    f32 Slider::GetCurrentValue() const
     {
         const UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
         return slider->currentValue;
     }
-    void Slider::SetCurrentValue(float current)
+    void Slider::SetCurrentValue(f32 current)
     {
         UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
         slider->currentValue = Math::Clamp(current, slider->minimumValue, slider->maximumValue);
 
-        //TODO Update handle position.
+        UpdateHandlePosition();
+    }
+
+    f32 Slider::GetPercentValue() const
+    {
+        const UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
+        return UIUtils::Slider::GetPercent(slider);
+    }
+    void Slider::SetPercentValue(f32 value)
+    {
+        UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
+        slider->currentValue = UIUtils::Slider::GetValueFromPercent(slider, value);
     }
 
     const std::string& Slider::GetTexture() const
@@ -136,22 +164,43 @@ namespace UIScripting
 
     void Slider::OnClicked(hvec2 mousePosition)
     {
-        const UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
-        UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        const UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
+        UIComponent::Slider* slider = &registry->get<UIComponent::Slider>(_entityId);
+        UIComponent::Transform* handleTransform = &registry->get<UIComponent::Transform>(_handle->GetEntityId());
 
-        hvec2 minBounds = UIUtils::Transform::GetMinBounds(transform);
-        hvec2 maxBounds = UIUtils::Transform::GetMaxBounds(transform);
-        hvec2 localPosition = hvec2((mousePosition.x - minBounds.x) / (maxBounds.x - minBounds.x), (mousePosition.y - minBounds.y) / (maxBounds.y / minBounds.y));
+        vec2 minBounds = UIUtils::Transform::GetMinBounds(transform);
+        vec2 maxBounds = UIUtils::Transform::GetMaxBounds(transform);
         
-        f16 percent = localPosition.x;
-        f32 newValue = (percent * slider->maximumValue) + slider->minimumValue;
-
+        f32 percent = Math::Clamp((mousePosition.x - minBounds.x) / (maxBounds.x - minBounds.x), 0.f, 1.f);
+        f32 newValue = UIUtils::Slider::GetValueFromPercent(slider, percent);
         slider->currentValue = newValue;
 
-        UpdateHandlePosition();
+        // Update slider position.
+        handleTransform->localPosition = vec2(0.0f, 0.0f);
+        _handle->SetAnchor(vec2(percent, 0.5f));
+        _handle->MarkBoundsDirty();
+        _handle->MarkDirty();
         
+        UIUtils::ExecuteEvent(this, slider->onValueChanged);
+    }
 
-        // TODO Execute events.
+    void Slider::SetOnValueChangedCallback(asIScriptFunction* callback)
+    {
+        UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
+        slider->onValueChanged = callback;
+    }
+
+    void Slider::UpdateHandlePosition()
+    {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        const UIComponent::Slider* slider = &registry->get<UIComponent::Slider>(_entityId);
+        UIComponent::Transform* handleTransform = &registry->get<UIComponent::Transform>(_handle->GetEntityId());
+
+        handleTransform->localPosition = vec2(0.0f, 0.0f);
+        _handle->SetAnchor(vec2(UIUtils::Slider::GetPercent(slider), 0.5f));
+        _handle->MarkBoundsDirty();
+        _handle->MarkDirty();
     }
 
     Slider* Slider::CreateSlider()
@@ -159,13 +208,5 @@ namespace UIScripting
         Slider* slider = new Slider();
 
         return slider;
-    }
-
-    void Slider::UpdateHandlePosition()
-    {
-        const UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
-        f32 fillPercent = (slider->currentValue - slider->minimumValue) / (slider->maximumValue - slider->minimumValue);
-
-        _handle->SetAnchor(vec2(0.5f, fillPercent));
     }
 }

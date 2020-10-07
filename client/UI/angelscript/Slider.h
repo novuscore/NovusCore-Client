@@ -14,12 +14,14 @@ namespace UIScripting
 
         static void RegisterType();
 
-        float GetMinValue();
-        void SetMinValue(float min);
-        float GetMaxValue();
-        void SetMaxValue(float max);
-        float GetCurrentValue();
-        void SetCurrentValue(float current);
+        f32 GetMinValue() const;
+        void SetMinValue(f32 min);
+        f32 GetMaxValue() const;
+        void SetMaxValue(f32 max);
+        f32 GetCurrentValue() const;
+        void SetCurrentValue(f32 current);
+        f32 GetPercentValue() const;
+        void SetPercentValue(f32 value);
 
         const std::string& GetTexture() const;
         void SetTexture(const std::string& texture);
@@ -38,11 +40,13 @@ namespace UIScripting
 
         void OnClicked(hvec2 mousePosition);
 
+        void SetOnValueChangedCallback(asIScriptFunction* callback);
+
+        void UpdateHandlePosition();
+
         static Slider* CreateSlider();
 
     private:
-        void UpdateHandlePosition();
-
         SliderHandle* _handle = nullptr;
     };
 }
