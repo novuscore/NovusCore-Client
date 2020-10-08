@@ -48,14 +48,17 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void SetHandleColor(Color color)", asMETHOD(Slider, SetHandleColor)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetHandleSize(vec2 size)", asMETHOD(Slider, SetHandleSize)); assert(r >= 0);
 
-        r = ScriptEngine::RegisterScriptClassFunction("void GetCurrentValue()", asMETHOD(Slider, GetCurrentValue)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("float GetCurrentValue()", asMETHOD(Slider, GetCurrentValue)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetCurrentValue(float current)", asMETHOD(Slider, SetCurrentValue)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void GetMinValue()", asMETHOD(Slider, GetMinValue)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("float GetMinValue()", asMETHOD(Slider, GetMinValue)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetMinValue(float min)", asMETHOD(Slider, SetMinValue)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void GetMaxValue()", asMETHOD(Slider, GetMaxValue)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("float GetMaxValue()", asMETHOD(Slider, GetMaxValue)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetMaxValue(float max)", asMETHOD(Slider, SetMaxValue)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void GetPercentValue()", asMETHOD(Slider, SetMaxValue)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("float GetPercentValue()", asMETHOD(Slider, SetMaxValue)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetPercentValue(float percent)", asMETHOD(Slider, SetMaxValue)); assert(r >= 0);
+
+        r = ScriptEngine::RegisterScriptClassFunction("float GetStepSize()", asMETHOD(Slider, GetStepSize)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetStepSize(float stepSize)", asMETHOD(Slider, SetStepSize)); assert(r >= 0);
 
         r = ScriptEngine::RegisterScriptFunctionDef("void SliderEventCallback(Slider@ slider)"); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void OnValueChange(SliderEventCallback@ cb)", asMETHOD(Slider, SetOnValueChangedCallback)); assert(r >= 0);
@@ -111,6 +114,17 @@ namespace UIScripting
     {
         UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
         slider->currentValue = UIUtils::Slider::GetValueFromPercent(slider, value);
+    }
+
+    f32 Slider::GetStepSize() const
+    {
+        const UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
+        return slider->stepSize;
+    }
+    void Slider::SetStepSize(f32 stepSize)
+    {
+        UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
+        slider->stepSize = stepSize;
     }
 
     const std::string& Slider::GetTexture() const
@@ -174,6 +188,13 @@ namespace UIScripting
         
         f32 percent = Math::Clamp((mousePosition.x - minBounds.x) / (maxBounds.x - minBounds.x), 0.f, 1.f);
         f32 newValue = UIUtils::Slider::GetValueFromPercent(slider, percent);
+
+        if (slider->stepSize != 0.f)
+        {
+            newValue = (int)(newValue / slider->stepSize) * slider->stepSize;
+            percent = (newValue - slider->minimumValue) / (slider->maximumValue - slider->minimumValue);
+        }
+
         slider->currentValue = newValue;
 
         // Update slider position.

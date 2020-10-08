@@ -11,6 +11,6 @@ namespace UIUtils::Slider
 
     inline static f32 GetValueFromPercent(const UIComponent::Slider* slider, f32 percent)
     {
-        return (percent * slider->maximumValue) + slider->minimumValue;
+        return (Math::Clamp(percent, 0.f, 1.f) * (slider->maximumValue - slider->minimumValue)) + slider->minimumValue;
     }
 };

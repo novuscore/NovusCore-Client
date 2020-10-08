@@ -23,6 +23,9 @@ namespace UIScripting
         f32 GetPercentValue() const;
         void SetPercentValue(f32 value);
 
+        f32 GetStepSize() const;
+        void SetStepSize(f32 stepSize);
+
         const std::string& GetTexture() const;
         void SetTexture(const std::string& texture);
 
