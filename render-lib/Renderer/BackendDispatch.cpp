@@ -26,6 +26,7 @@
 #include "Commands/AddSignalSemaphore.h"
 #include "Commands/AddWaitSemaphore.h"
 #include "Commands/CopyBuffer.h"
+#include "Commands/FillBuffer.h"
 #include "Commands/PipelineBarrier.h"
 #include "Commands/DrawImgui.h"
 #include "Commands/PushConstant.h"
@@ -223,6 +224,13 @@ namespace Renderer
         ZoneScopedC(tracy::Color::Red3);
         const Commands::CopyBuffer* actualData = static_cast<const Commands::CopyBuffer*>(data);
         renderer->CopyBuffer(commandList, actualData->dstBuffer, actualData->dstBufferOffset, actualData->srcBuffer, actualData->srcBufferOffset, actualData->region);
+    }
+
+    void BackendDispatch::FillBuffer(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::FillBuffer* actualData = static_cast<const Commands::FillBuffer*>(data);
+        renderer->FillBuffer(commandList, actualData->dstBuffer, actualData->dstBufferOffset, actualData->size, actualData->data);
     }
 
     void BackendDispatch::PipelineBarrier(Renderer* renderer, CommandListID commandList, const void* data)

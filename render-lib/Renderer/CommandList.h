@@ -89,6 +89,7 @@ namespace Renderer
         void AddWaitSemaphore(GPUSemaphoreID semaphoreID);
 
         void CopyBuffer(BufferID dstBuffer, u64 dstBufferOffset, BufferID srcBuffer, u64 srcBufferOffset, u64 region);
+        void FillBuffer(BufferID dstBuffer, u64 dstBufferOffset, u64 size, u32 data);
 
         void PipelineBarrier(PipelineBarrierType type, BufferID buffer);
 

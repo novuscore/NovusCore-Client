@@ -48,6 +48,7 @@ namespace Renderer
         static void AddWaitSemaphore(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void CopyBuffer(Renderer* renderer, CommandListID commandList, const void* data);
+        static void FillBuffer(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void PipelineBarrier(Renderer* renderer, CommandListID commandList, const void* data);
 

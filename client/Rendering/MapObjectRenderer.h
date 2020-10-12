@@ -29,6 +29,7 @@ namespace Terrain
 }
 
 class StringTable;
+class DebugRenderer;
 
 class MapObjectRenderer
 {
@@ -50,6 +51,7 @@ class MapObjectRenderer
 
         u32 baseIndexOffset;
         u32 baseVertexOffset;
+        u32 baseMaterialOffset;
     };
 
     struct MapObjectToBeLoaded
@@ -73,8 +75,14 @@ class MapObjectRenderer
 
     struct MaterialParameters
     {
-        u32 materialID;
-        u32 exteriorLit;
+        u16 materialID;
+        u16 exteriorLit;
+    };
+
+    struct RenderBatchOffsets
+    {
+        u32 baseVertexOffset;
+        u32 baseIndexOffset;
     };
 
     struct LoadedMapObject
@@ -92,10 +100,18 @@ class MapObjectRenderer
 
         u32 baseVertexOffset = 0;
         u32 baseMaterialOffset = 0;
+        u32 baseCullingDataOffset = 0;
+
+        // Renderbatches
+        std::vector<Terrain::RenderBatch> renderBatches;
+        std::vector<RenderBatchOffsets> renderBatchOffsets;
+
+        // Culling data
+        std::vector<Terrain::CullingData> cullingData;
     };
 
 public:
-    MapObjectRenderer(Renderer::Renderer* renderer);
+    MapObjectRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer);
 
     void Update(f32 deltaTime);
 
@@ -116,7 +132,7 @@ private:
 
     void LoadIndicesAndVertices(Bytebuffer& buffer, Mesh& mesh, LoadedMapObject& mapObject);
 
-    void LoadRenderBatches(Bytebuffer& buffer, const Mesh& mesh, LoadedMapObject& mapObject);
+    void LoadRenderBatches(Bytebuffer& buffer, Mesh& mesh, LoadedMapObject& mapObject);
 
     void AddInstance(LoadedMapObject& mapObject, const Terrain::MapObjectPlacement* placement);
 
@@ -124,20 +140,21 @@ private:
 
     struct Material
     {
-        u32 textureIDs[3] = { 0,0,0 };
-        f32 alphaTestVal = -1.0f;//1.0f / 255.0f;//1.0f / 16.0f;//1.0f / 255.0f;
-        u32 materialType = 0;
-        u32 unlit = 0;
+        u16 textureIDs[3] = { 0,0,0 };
+        f16 alphaTestVal = f16(-1.0f);//1.0f / 255.0f;//1.0f / 16.0f;//1.0f / 255.0f;
+        u16 materialType = 0;
+        u16 unlit = 0;
     };
 
     struct InstanceLookupData
     {
         u16 instanceID;
         u16 materialParamID;
+        u16 cullingDataID;
         u16 vertexColorTextureID0 = 0;
         u16 vertexColorTextureID1 = 0;
+        u16 padding1;
         u32 vertexOffset;
-        u32 padding1;
     };
 
     struct InstanceData
@@ -153,10 +170,19 @@ private:
         u32 vertexUVIndex;
     };
 
+    struct CullingConstants
+    {
+        vec4 frustumPlanes[6];
+        vec3 cameraPos;
+        u32 maxDrawCount;
+    };
+
 private:
     Renderer::Renderer* _renderer;
+    DebugRenderer* _debugRenderer;
 
     Renderer::SamplerID _sampler;
+    Renderer::DescriptorSet _cullingDescriptorSet;
     Renderer::DescriptorSet _passDescriptorSet;
     Renderer::DescriptorSet _meshDescriptorSet;
 
@@ -168,16 +194,25 @@ private:
     std::vector<Terrain::MapObjectVertex> _vertices;
     std::vector<InstanceData> _instances;
     std::vector<InstanceLookupData> _instanceLookupData;
+    std::vector<u32> _instanceLookupIDs;
     std::vector<Material> _materials;
     std::vector<MaterialParameters> _materialParameters;
+    std::vector<Terrain::CullingData> _cullingData;
 
-    Renderer::BufferID _indirectArgumentBuffer = Renderer::BufferID::Invalid();
+    Renderer::Buffer<CullingConstants>* _cullingConstantBuffer;
+
+    Renderer::BufferID _argumentBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _culledArgumentBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _drawCountBuffer = Renderer::BufferID::Invalid();
+
     Renderer::BufferID _vertexBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _indexBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _instanceBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _instanceLookupBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _instanceLookupIDBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _materialBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _materialParametersBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _cullingDataBuffer = Renderer::BufferID::Invalid();
 
     Renderer::TextureArrayID _mapObjectTextures;
 

@@ -30,7 +30,7 @@ static vec3 s_debugPosition = vec3(0, 0, 0);
 
 AutoCVar_Int CVAR_CullingEnabled("terrain.cullEnable", "enable culling of terrain tiles", 1, CVarFlags::EditCheckbox);
 
-AutoCVar_Int CVAR_GPUCullingEnabled("terrain.gpuCullEnable", "enable gpu culling", 0, CVarFlags::EditCheckbox);
+AutoCVar_Int CVAR_GPUCullingEnabled("terrain.gpuCullEnable", "enable gpu culling", 1, CVarFlags::EditCheckbox);
 
 AutoCVar_Int CVAR_LockCullingFrustum("terrain.lockCullingFrustum", "lock frustrum for terrain culling", 0, CVarFlags::EditCheckbox);
 
@@ -45,7 +45,7 @@ struct TerrainChunkData
 
 struct TerrainCellData
 {
-    u16 diffuseIDs[4];
+    u16 diffuseIDs[4] = { 0, 0, 0, 0 };
     u16 hole;
     u16 _padding;
 };
@@ -64,7 +64,7 @@ TerrainRenderer::TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* de
     : _renderer(renderer)
     , _debugRenderer(debugRenderer)
 {
-    _mapObjectRenderer = new MapObjectRenderer(renderer); // Needs to be created before CreatePermanentResources
+    _mapObjectRenderer = new MapObjectRenderer(renderer, debugRenderer); // Needs to be created before CreatePermanentResources
     _waterRenderer = new WaterRenderer(renderer); // Needs to be created before CreatePermanentResources
     CreatePermanentResources();
 
@@ -336,7 +336,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
 
                 commandList.EndPipeline(pipeline);
 
-                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _culledInstanceBuffer);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToVertexBuffer, _culledInstanceBuffer);
                 commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _argumentBuffer);
             }
 
@@ -716,7 +716,7 @@ bool TerrainRenderer::LoadMap(u32 mapInternalNameHash)
     _renderer->UnloadTexturesInArray(_terrainAlphaTextureArray, 0);
 
     RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(32, 32), 32); // Load everything
-    //RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(31, 52), 1); // Goldshire
+    //RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(32, 52), 2); // Goldshire
     //RegisterChunksToBeLoaded(map, ivec2(40, 32), 8); // Razor Hill
     //RegisterChunksToBeLoaded(map, ivec2(22, 25), 8); // Borean Tundra
 
@@ -787,6 +787,8 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
 
         TerrainCellData* cellDatas = static_cast<TerrainCellData*>(_renderer->MapBuffer(cellUploadBuffer));
 
+        memset(cellDatas, 0, cellDataUploadBufferDesc.size);
+
         u32 chunkVertexOffset = static_cast<u32>(currentChunkIndex) * Terrain::NUM_VERTICES_PER_CHUNK;
 
         // Loop over all the cells in the chunk
@@ -802,8 +804,10 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
             for (auto layer : cell.layers)
             {
                 if (layer.textureId == Terrain::LayerData::TextureIdInvalid)
+                {
                     break;
-
+                }
+                    
                 const std::string& texturePath = textureSingleton.textureStringTable.GetString(layer.textureId);
 
                 Renderer::TextureDesc textureDesc;
@@ -811,7 +815,10 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
 
                 u32 diffuseID = 0;
                 _renderer->LoadTextureIntoArray(textureDesc, _terrainColorTextureArray, diffuseID);
-                assert(diffuseID < 65536);
+                if (diffuseID > 4096)
+                {
+                    NC_LOG_FATAL("This is bad!");
+                }
 
                 cellData.diffuseIDs[layerCount++] = diffuseID;
             }

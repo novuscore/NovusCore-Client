@@ -1,22 +1,22 @@
 #include "globalData.inc.hlsl"
 
-[[vk::binding(4, PER_PASS)]] SamplerState _sampler;
-[[vk::binding(5, PER_PASS)]] ByteAddressBuffer _materialParams;
-[[vk::binding(6, PER_PASS)]] ByteAddressBuffer _materialData;
-[[vk::binding(7, PER_PASS)]] Texture2D<float4> _textures[4096];
+[[vk::binding(3, PER_PASS)]] SamplerState _sampler;
+[[vk::binding(4, PER_PASS)]] ByteAddressBuffer _materialParams;
+[[vk::binding(5, PER_PASS)]] ByteAddressBuffer _materialData;
+[[vk::binding(6, PER_PASS)]] Texture2D<float4> _textures[4096];
 
 struct MaterialParam
 {
-    uint materialID;
-    uint exteriorLit;
+    uint16_t materialID;
+    uint16_t exteriorLit;
 };
 
 struct Material
 {
-    uint textureIDs[3];
-    float alphaTestVal;
-    uint materialType;
-    uint isUnlit;
+    uint16_t textureIDs[3];
+    uint16_t alphaTestVal;
+    uint16_t materialType;
+    uint16_t isUnlit;
 };
 
 struct PSInput
@@ -37,7 +37,7 @@ MaterialParam LoadMaterialParam(uint materialParamID)
 {
     MaterialParam materialParam;
     
-    materialParam = _materialParams.Load<MaterialParam>(materialParamID * 8); // 8 = sizeof(MaterialParam)
+    materialParam = _materialParams.Load<MaterialParam>(materialParamID * 4); // 4 = sizeof(MaterialParam)
     
     return materialParam;
 }
@@ -46,7 +46,7 @@ Material LoadMaterial(uint materialID)
 {
     Material material;
 
-    material = _materialData.Load<Material>(materialID * 24); // 24 = sizeof(Material)
+    material = _materialData.Load<Material>(materialID * 12); // 12 = sizeof(Material)
 
     return material;
 }
@@ -87,7 +87,8 @@ PSOutput main(PSInput input)
     float4 tex0 = _textures[material.textureIDs[0]].Sample(_sampler, input.uv01.xy);
     float4 tex1 = _textures[material.textureIDs[1]].Sample(_sampler, input.uv01.zw);
     
-    if (tex0.a < material.alphaTestVal)
+    float alphaTestVal = f16tof32(material.alphaTestVal);
+    if (tex0.a < alphaTestVal)
     {
         discard;
     }

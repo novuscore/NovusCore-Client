@@ -28,6 +28,7 @@
 #include "Commands/AddSignalSemaphore.h"
 #include "Commands/AddWaitSemaphore.h"
 #include "Commands/CopyBuffer.h"
+#include "Commands/FillBuffer.h"
 #include "Commands/PipelineBarrier.h"
 #include "Commands/DrawImgui.h"
 #include "Commands/PushConstant.h"
@@ -422,6 +423,20 @@ namespace Renderer
 
 #if COMMANDLIST_DEBUG_IMMEDIATE_MODE
         Commands::CopyBuffer::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
+#endif
+    }
+
+    void CommandList::FillBuffer(BufferID dstBuffer, u64 dstBufferOffset, u64 size, u32 data)
+    {
+        assert(dstBuffer != BufferID::Invalid());
+        Commands::FillBuffer* command = AddCommand<Commands::FillBuffer>();
+        command->dstBuffer = dstBuffer;
+        command->dstBufferOffset = dstBufferOffset;
+        command->size = size;
+        command->data = data;
+
+#if COMMANDLIST_DEBUG_IMMEDIATE_MODE
+        Commands::FillBuffer::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
 #endif
     }
 

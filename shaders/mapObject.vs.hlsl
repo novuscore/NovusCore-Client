@@ -3,7 +3,8 @@
 [[vk::binding(0, PER_PASS)]] ByteAddressBuffer _vertices;
 [[vk::binding(1, PER_PASS)]] ByteAddressBuffer _instanceData;
 [[vk::binding(2, PER_PASS)]] ByteAddressBuffer _instanceLookup;
-[[vk::binding(7, PER_PASS)]] Texture2D<float4> _textures[4096]; // This binding needs to stay up to date with the one in mapObject.ps.hlsl or we're gonna have a baaaad time
+//[[vk::binding(3, PER_PASS)]] ByteAddressBuffer _instanceLookupIDs;
+[[vk::binding(6, PER_PASS)]] Texture2D<float4> _textures[4096]; // This binding needs to stay up to date with the one in mapObject.ps.hlsl or we're gonna have a baaaad time
 
 struct InstanceLookupData
 {
@@ -36,6 +37,7 @@ struct Vertex
     float4 color1;
     float4 uv;
 };
+
 
 struct VSInput
 {
@@ -139,8 +141,8 @@ Vertex LoadVertex(uint vertexID, uint16_t vertexColorTextureID0, uint16_t vertex
 
     uint offsetVertexID = vertexID - vertexOffset;
     
-    vertex.color0 = _textures[vertexColorTextureID0].Load(int3(offsetVertexID, 0, 0));
-    vertex.color1 = _textures[vertexColorTextureID1].Load(int3(offsetVertexID, 0, 0));
+    vertex.color0 = float4(0,0,0, 1);//_textures[vertexColorTextureID0].Load(int3(offsetVertexID, 0, 0));
+    vertex.color1 = float4(0,0,0, 1);//_textures[vertexColorTextureID1].Load(int3(offsetVertexID, 0, 0));
 
     return vertex;
 }
@@ -148,6 +150,8 @@ Vertex LoadVertex(uint vertexID, uint16_t vertexColorTextureID0, uint16_t vertex
 VSOutput main(VSInput input)
 {
     VSOutput output;
+    
+    //uint lookupDataID = _instanceLookupIDs.Load(input.instanceID * 4); // 4 = sizeof(uint)
 
     InstanceLookupData lookupData = _instanceLookup.Load<InstanceLookupData>(input.instanceID * 16); // 16 = sizeof(InstanceLookupData)
     

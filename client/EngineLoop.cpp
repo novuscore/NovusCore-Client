@@ -245,11 +245,11 @@ void EngineLoop::Run()
         statsSingleton.AddTimings(timings.deltaTime, timings.simulationFrameTime, timings.renderFrameTime);
 
         // Wait for tick rate, this might be an overkill implementation but it has the most even tickrate I've seen - MPursche
-        for (deltaTime = timer.GetDeltaTime(); deltaTime < targetDelta - 0.0025f; deltaTime = timer.GetDeltaTime())
+        /*for (deltaTime = timer.GetDeltaTime(); deltaTime < targetDelta - 0.0025f; deltaTime = timer.GetDeltaTime())
         {
             ZoneScopedNC("WaitForTickRate::Sleep", tracy::Color::AntiqueWhite1)
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
+        }*/
 
         for (deltaTime = timer.GetDeltaTime(); deltaTime < targetDelta; deltaTime = timer.GetDeltaTime())
         {
@@ -487,11 +487,12 @@ void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
 
         //lock minimum Y to 0 (cant have negative ms)
         //lock X completely as its fixed 120 frames
-        ImPlot::BeginPlot("Timing","frame","ms",ImVec2(400,300),0,ImPlotAxisFlags_Lock,ImPlotAxisFlags_LockMin);
-
-        ImPlot::PlotLine("Update Time", updateTimes.data(), (int)updateTimes.size());
-        ImPlot::PlotLine("Render Time", renderTimes.data(), (int)renderTimes.size());
-        ImPlot::EndPlot();
+        if (ImPlot::BeginPlot("Timing", "frame", "ms", ImVec2(400, 300), 0, ImPlotAxisFlags_Lock, ImPlotAxisFlags_LockMin))
+        {
+            ImPlot::PlotLine("Update Time", updateTimes.data(), (int)updateTimes.size());
+            ImPlot::PlotLine("Render Time", renderTimes.data(), (int)renderTimes.size());
+            ImPlot::EndPlot();
+        }
     }
 
     ImGui::End();

@@ -103,6 +103,7 @@ namespace Renderer
         void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
         void PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer) override;
         void PushConstant(CommandListID commandListID, void* data, u32 offset, u32 size) override;
+        void FillBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, u32 data) override;
 
         // Non-commandlist based present functions
         void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;
@@ -112,6 +113,7 @@ namespace Renderer
         void FlipFrame(u32 frameIndex) override;
 
         void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
+
         void* MapBuffer(BufferID buffer) override;
         void UnmapBuffer(BufferID buffer) override;
 

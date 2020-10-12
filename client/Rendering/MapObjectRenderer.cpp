@@ -1,29 +1,80 @@
 #include "MapObjectRenderer.h"
+#include "DebugRenderer.h"
 #include <filesystem>
 #include <Renderer/Renderer.h>
 #include <Utils/FileReader.h>
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/euler_angles.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 
 #include "../ECS/Components/Singletons/TextureSingleton.h"
 
+#include "Camera.h"
 #include "../Gameplay/Map/Map.h"
 #include "../Gameplay/Map/Chunk.h"
 #include "../Gameplay/Map/MapObjectRoot.h"
 #include "../Gameplay/Map/MapObject.h"
 #include "../Utils/ServiceLocator.h"
+#include "CVar/CVarSystem.h"
 
 namespace fs = std::filesystem;
 
-MapObjectRenderer::MapObjectRenderer(Renderer::Renderer* renderer)
+AutoCVar_Int CVAR_MapObjectCullingEnabled("mapObjects.cullEnable", "enable culling of map objects", 1, CVarFlags::EditCheckbox);
+AutoCVar_Int CVAR_MapObjectLockCullingFrustum("mapObjects.lockCullingFrustum", "lock frustrum for map object culling", 0, CVarFlags::EditCheckbox);
+AutoCVar_Int CVAR_MapObjectDrawBoundingBoxes("mapObjects.drawBoundingBoxes", "draw bounding boxes for mapobjects", 0, CVarFlags::EditCheckbox);
+
+MapObjectRenderer::MapObjectRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer)
     : _renderer(renderer)
+    , _debugRenderer(debugRenderer)
 {
     CreatePermanentResources();
 }
 
+void GetFrustumPlanes(const mat4x4& m, vec4* planes)
+{
+    planes[0] = (m[3] + m[0]);
+    planes[1] = (m[3] - m[0]);
+    planes[2] = (m[3] + m[1]);
+    planes[3] = (m[3] - m[1]);
+    planes[4] = (m[3] + m[2]);
+    planes[5] = (m[3] - m[2]);
+}
+
 void MapObjectRenderer::Update(f32 deltaTime)
 {
+    bool drawBoundingBoxes = CVAR_MapObjectDrawBoundingBoxes.Get() == 1;
+    if (drawBoundingBoxes)
+    {
+        // Draw bounding boxes
+        for (u32 i = 0; i < _drawParameters.size(); i++)
+        {
+            DrawParameters& drawParameters = _drawParameters[i];
+            u32 instanceID = drawParameters.firstInstance;
 
+            InstanceLookupData& instanceLookupData = _instanceLookupData[instanceID];
+
+            InstanceData& instanceData = _instances[instanceLookupData.instanceID];
+
+            Terrain::CullingData& cullingData = _cullingData[instanceLookupData.cullingDataID];
+
+            vec3 center = (cullingData.minBoundingBox + cullingData.maxBoundingBox) * f16(0.5f);
+            vec3 extents = vec3(cullingData.maxBoundingBox) - center;
+
+            // transform center
+            mat4x4& m = instanceData.instanceMatrix;
+            vec3 transformedCenter = vec3(m * vec4(center, 1.0f));
+
+            // Transform extents (take maximum)
+            glm::mat3x3 absMatrix = glm::mat3x3(glm::abs(vec3(m[0])), glm::abs(vec3(m[1])), glm::abs(vec3(m[2])));
+            vec3 transformedExtents = absMatrix * extents;
+
+            // Transform to min/max box representation
+            vec3 transformedMin = transformedCenter - transformedExtents;
+            vec3 transformedMax = transformedCenter + transformedExtents;
+
+            _debugRenderer->DrawAABB3D(transformedMin, transformedMax, 0xff00ffff);
+        }
+    }
 }
 
 void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
@@ -35,6 +86,9 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
             Renderer::RenderPassMutableResource mainColor;
             Renderer::RenderPassMutableResource mainDepth;
         };
+
+        const bool cullingEnabled = CVAR_MapObjectCullingEnabled.Get();
+        const bool lockFrustum = CVAR_MapObjectLockCullingFrustum.Get();
 
         renderGraph->AddPass<MapObjectPassData>("MapObject Pass",
             [=](MapObjectPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
@@ -48,6 +102,58 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
         {
             GPU_SCOPED_PROFILER_ZONE(commandList, MapObjectPass);
 
+            u32 drawCount = static_cast<u32>(_drawParameters.size());
+
+            // -- Cull MapObjects --
+            if (cullingEnabled)
+            {
+                // Reset the counter
+                commandList.FillBuffer(_drawCountBuffer, 0, 4, 0);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _drawCountBuffer);
+
+                // Do culling
+                Renderer::ComputePipelineDesc pipelineDesc;
+                resources.InitializePipelineDesc(pipelineDesc);
+
+                Renderer::ComputeShaderDesc shaderDesc;
+                shaderDesc.path = "Data/shaders/mapObjectCulling.cs.hlsl.spv";
+                pipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
+
+                Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(pipelineDesc);
+                commandList.BeginPipeline(pipeline);
+
+                const u32 drawCount = static_cast<u32>(_drawParameters.size());
+                if (!lockFrustum)
+                {
+                    Camera* camera = ServiceLocator::GetCamera();
+                    memcpy(_cullingConstantBuffer->resource.frustumPlanes, camera->GetFrustumPlanes(), sizeof(vec4[6]));
+                    _cullingConstantBuffer->resource.cameraPos = camera->GetPosition();
+                    _cullingConstantBuffer->resource.maxDrawCount = drawCount;
+                    _cullingConstantBuffer->Apply(frameIndex);
+                }
+
+                _cullingDescriptorSet.Bind("_constants", _cullingConstantBuffer->GetBuffer(frameIndex));
+                _cullingDescriptorSet.Bind("_argumentBuffer", _argumentBuffer);
+                _cullingDescriptorSet.Bind("_culledArgumentBuffer", _culledArgumentBuffer);
+                _cullingDescriptorSet.Bind("_drawCountBuffer", _drawCountBuffer);
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingDescriptorSet, frameIndex);
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+
+                commandList.Dispatch((drawCount + 31) / 32, 1, 1);
+
+                commandList.EndPipeline(pipeline);
+
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _culledArgumentBuffer);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _drawCountBuffer);
+            }
+            else
+            {
+                // Reset the counter
+                commandList.FillBuffer(_drawCountBuffer, 0, 4, drawCount);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _drawCountBuffer);
+            }
+            
+            // -- Render MapObjects --
             Renderer::GraphicsPipelineDesc pipelineDesc;
             resources.InitializePipelineDesc(pipelineDesc);
 
@@ -89,8 +195,8 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
 
             commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
 
-            u32 drawCount = static_cast<u32>(_drawParameters.size());
-            commandList.DrawIndexedIndirect(_indirectArgumentBuffer, 0, drawCount);
+            Renderer::BufferID argumentBuffer = (cullingEnabled) ? _culledArgumentBuffer : _argumentBuffer;
+            commandList.DrawIndexedIndirectCount(argumentBuffer, 0, _drawCountBuffer, 0, drawCount);
 
             commandList.EndPipeline(pipeline);
         });
@@ -149,8 +255,10 @@ void MapObjectRenderer::Clear()
     _drawParameters.clear();
     _instances.clear();
     _instanceLookupData.clear();
+    _instanceLookupIDs.clear();
     _materials.clear();
     _materialParameters.clear();
+    _cullingData.clear();
 
     // Unload everything but the first texture in our array
     _renderer->UnloadTexturesInArray(_mapObjectTextures, 1);
@@ -188,6 +296,9 @@ void MapObjectRenderer::CreatePermanentResources()
 
     _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
     _passDescriptorSet.Bind("_sampler", _sampler);
+
+    _cullingDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
+    _cullingConstantBuffer = new Renderer::Buffer<CullingConstants>(_renderer, "CullingConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 }
 
 bool MapObjectRenderer::LoadMapObject(MapObjectToBeLoaded& mapObjectToBeLoaded, LoadedMapObject& mapObject)
@@ -209,6 +320,7 @@ bool MapObjectRenderer::LoadMapObject(MapObjectToBeLoaded& mapObjectToBeLoaded, 
     std::stringstream ss;
 
     mapObject.baseVertexOffset = static_cast<u32>(_vertices.size());
+    mapObject.baseCullingDataOffset = static_cast<u32>(_cullingData.size());
 
     for (u32 i = 0; i < mapObjectToBeLoaded.meshRoot.numMeshes; i++)
     {
@@ -245,6 +357,29 @@ bool MapObjectRenderer::LoadMapObject(MapObjectToBeLoaded& mapObjectToBeLoaded, 
             vertexColorTextureCount++;
         }
     }
+
+    // Create per-MapObject culling data
+    Terrain::CullingData& mapObjectCullingData = _cullingData.emplace_back();
+
+    for (Terrain::CullingData& cullingData : mapObject.cullingData)
+    {
+        for (u32 i = 0; i < 3; i++)
+        {
+            if (cullingData.minBoundingBox[i] < mapObjectCullingData.minBoundingBox[i])
+            {
+                mapObjectCullingData.minBoundingBox[i] = cullingData.minBoundingBox[i];
+            }
+            if (cullingData.maxBoundingBox[i] > mapObjectCullingData.maxBoundingBox[i])
+            {
+                mapObjectCullingData.maxBoundingBox[i] = cullingData.maxBoundingBox[i];
+            }
+        }
+    }
+
+    vec3 minPos = mapObjectCullingData.minBoundingBox;
+    vec3 maxPos = mapObjectCullingData.maxBoundingBox;
+
+    mapObjectCullingData.boundingSphereRadius = glm::distance(minPos, maxPos) / 2.0f;
 
     return true;
 }
@@ -307,7 +442,10 @@ void MapObjectRenderer::LoadRoot(const std::filesystem::path nmorPath, MeshRoot&
                 Renderer::TextureDesc textureDesc;
                 textureDesc.path = "Data/extracted/Textures/" + textureSingleton.textureStringTable.GetString(mapObjectMaterial.textureNameID[j]);
 
-                _renderer->LoadTextureIntoArray(textureDesc, _mapObjectTextures, material.textureIDs[j]);
+                u32 textureID;
+                _renderer->LoadTextureIntoArray(textureDesc, _mapObjectTextures, textureID);
+
+                material.textureIDs[j] = static_cast<u16>(textureID);
             }
         }
     }
@@ -403,8 +541,7 @@ void MapObjectRenderer::LoadIndicesAndVertices(Bytebuffer& buffer, Mesh& mesh, L
     }
 }
 
-static std::vector<Terrain::RenderBatch> renderBatches;
-void MapObjectRenderer::LoadRenderBatches(Bytebuffer& buffer, const Mesh& mesh, LoadedMapObject& mapObject)
+void MapObjectRenderer::LoadRenderBatches(Bytebuffer& buffer, Mesh& mesh, LoadedMapObject& mapObject)
 {
     // Read number of triangle data
     u32 numTriangleData;
@@ -417,26 +554,21 @@ void MapObjectRenderer::LoadRenderBatches(Bytebuffer& buffer, const Mesh& mesh, 
     u32 numRenderBatches;
     buffer.Get<u32>(numRenderBatches);
 
-    renderBatches.resize(numRenderBatches);
+    u32 renderBatchesSize = static_cast<u32>(mapObject.renderBatches.size());
+    mapObject.renderBatches.resize(renderBatchesSize + numRenderBatches);
 
     // Read RenderBatches
-    buffer.GetBytes(reinterpret_cast<u8*>(renderBatches.data()), numRenderBatches * sizeof(Terrain::RenderBatch));
+    buffer.GetBytes(reinterpret_cast<u8*>(&mapObject.renderBatches.data()[renderBatchesSize]), numRenderBatches * sizeof(Terrain::RenderBatch));
 
+    mapObject.renderBatchOffsets.reserve(renderBatchesSize + numRenderBatches);
     for (u32 i = 0; i < numRenderBatches; i++)
     {
-        u32 drawParameterID = static_cast<u32>(_drawParameters.size());
+        RenderBatchOffsets& renderBatchOffsets = mapObject.renderBatchOffsets.emplace_back();
+        renderBatchOffsets.baseVertexOffset = mesh.baseVertexOffset;
+        renderBatchOffsets.baseIndexOffset = mesh.baseIndexOffset;
 
-        const Terrain::RenderBatch& renderBatch = renderBatches[i];
-        DrawParameters* drawParameters = &_drawParameters.emplace_back();
-
-        mapObject.drawParameterIDs.push_back(drawParameterID);
-
-        drawParameters->vertexOffset = mesh.baseVertexOffset;
-        drawParameters->firstIndex = mesh.baseIndexOffset + renderBatch.startIndex;
-        drawParameters->indexCount = renderBatch.indexCount;
-        drawParameters->firstInstance = 0; // To be set later
-        drawParameters->instanceCount = 0;
-
+        u32 renderBatchIndex = renderBatchesSize + i;
+        Terrain::RenderBatch& renderBatch = mapObject.renderBatches[renderBatchIndex];
         // MaterialParameters
         u32 materialParameterID = static_cast<u32>(_materialParameters.size());
 
@@ -445,6 +577,24 @@ void MapObjectRenderer::LoadRenderBatches(Bytebuffer& buffer, const Mesh& mesh, 
         MaterialParameters& materialParameters = _materialParameters.emplace_back();
         materialParameters.materialID = mapObject.baseMaterialOffset + renderBatch.materialID;
         materialParameters.exteriorLit = static_cast<u32>(mesh.renderFlags.exteriorLit || mesh.renderFlags.exterior);
+    }
+
+    // Read culling data
+    u32 cullingDataSize = static_cast<u32>(mapObject.cullingData.size());
+
+    mapObject.cullingData.resize(cullingDataSize + numRenderBatches);
+
+    buffer.GetBytes(reinterpret_cast<u8*>(&mapObject.cullingData.data()[cullingDataSize]), numRenderBatches * sizeof(Terrain::CullingData));
+
+    static f32 smallestRadius = 100000.0f;
+    for (u32 i = cullingDataSize; i < cullingDataSize + numRenderBatches; i++)
+    {
+        Terrain::CullingData& cullingData = mapObject.cullingData[i];
+        if (cullingData.boundingSphereRadius < smallestRadius)
+        {
+            smallestRadius = cullingData.boundingSphereRadius;
+            NC_LOG_MESSAGE("Smallest radius: %f", smallestRadius);
+        }
     }
 }
 
@@ -464,11 +614,30 @@ void MapObjectRenderer::AddInstance(LoadedMapObject& mapObject, const Terrain::M
 
     instance.instanceMatrix = glm::translate(mat4x4(1.0f), pos) * rotationMatrix;
 
-    for (u32 i = 0; i < mapObject.drawParameterIDs.size(); i++)
+    for (u32 i = 0; i < mapObject.renderBatches.size(); i++)
     {
-        u32 drawParameterID = mapObject.drawParameterIDs[i];
-        DrawParameters& drawParameters = _drawParameters[drawParameterID];
-        drawParameters.instanceCount++;
+        Terrain::RenderBatch& renderBatch = mapObject.renderBatches[i];
+        RenderBatchOffsets& renderBatchOffsets = mapObject.renderBatchOffsets[i];
+
+        u32 drawParameterID = static_cast<u32>(_drawParameters.size());
+        DrawParameters& drawParameters = _drawParameters.emplace_back();
+
+        mapObject.drawParameterIDs.push_back(drawParameterID);
+
+        drawParameters.vertexOffset = renderBatchOffsets.baseVertexOffset;
+        drawParameters.firstIndex = renderBatchOffsets.baseIndexOffset + renderBatch.startIndex;
+        drawParameters.indexCount = renderBatch.indexCount;
+        drawParameters.firstInstance = drawParameterID;
+        drawParameters.instanceCount = 1;
+
+        InstanceLookupData& instanceLookupData = _instanceLookupData.emplace_back();
+        instanceLookupData.instanceID = instanceID;
+        instanceLookupData.materialParamID = mapObject.materialParameterIDs[i];
+        instanceLookupData.cullingDataID = mapObject.baseCullingDataOffset;
+
+        instanceLookupData.vertexColorTextureID0 = static_cast<u16>(mapObject.vertexColorTextureIDs[0]);
+        instanceLookupData.vertexColorTextureID1 = static_cast<u16>(mapObject.vertexColorTextureIDs[1]);
+        instanceLookupData.vertexOffset = renderBatchOffsets.baseVertexOffset;
     }
 
     mapObject.instanceCount++;
@@ -476,42 +645,6 @@ void MapObjectRenderer::AddInstance(LoadedMapObject& mapObject, const Terrain::M
 
 void MapObjectRenderer::CreateBuffers()
 {
-    // Fix DrawParameters to be cumulative
-    {
-        u32 instanceIndex = 0;
-        u32 instanceIDLookupIndex = 0;
-
-        // Loop over all LoadedMapObjects
-        for (LoadedMapObject& loadedMapObject : _loadedMapObjects)
-        {
-            // Loop over their DrawParameters
-            for(u32 i = 0; i < loadedMapObject.drawParameterIDs.size(); i++)
-            {
-                u32 drawParameterID = loadedMapObject.drawParameterIDs[i];
-
-                DrawParameters& drawParameters = _drawParameters[drawParameterID];
-                drawParameters.firstInstance = instanceIndex; // Fix its firstInstance to be cumulative
-
-                u32 instanceCount = loadedMapObject.instanceCount;
-                instanceIndex += instanceCount;
-
-                u16 materialParameterID = loadedMapObject.materialParameterIDs[i];
-
-                for (u32 j = 0; j < instanceCount; j++)
-                {
-                    u16 instanceID = loadedMapObject.instanceIDs[j];
-
-                    InstanceLookupData& instanceLookupData = _instanceLookupData.emplace_back();
-                    instanceLookupData.instanceID = instanceID;
-                    instanceLookupData.materialParamID = materialParameterID;
-                    instanceLookupData.vertexColorTextureID0 = static_cast<u16>(loadedMapObject.vertexColorTextureIDs[0]);
-                    instanceLookupData.vertexColorTextureID1 = static_cast<u16>(loadedMapObject.vertexColorTextureIDs[1]);
-                    instanceLookupData.vertexOffset = drawParameters.vertexOffset;
-                }
-            }
-        }
-    }
-
     // Create Instance Lookup Buffer
     if (_instanceLookupBuffer != Renderer::BufferID::Invalid())
     {
@@ -542,19 +675,20 @@ void MapObjectRenderer::CreateBuffers()
         _renderer->CopyBuffer(_instanceLookupBuffer, 0, stagingBuffer, 0, desc.size);
 
         _passDescriptorSet.Bind("_instanceLookup", _instanceLookupBuffer);
+        _cullingDescriptorSet.Bind("_instanceLookup", _instanceLookupBuffer);
     }
     
     // Create Indirect Argument buffer
-    if (_indirectArgumentBuffer != Renderer::BufferID::Invalid())
+    if (_argumentBuffer != Renderer::BufferID::Invalid())
     {
-        _renderer->QueueDestroyBuffer(_indirectArgumentBuffer);
+        _renderer->QueueDestroyBuffer(_argumentBuffer);
     }
     {
         Renderer::BufferDesc desc;
         desc.name = "MapObjectIndirectArgs";
         desc.size = sizeof(DrawParameters) * _drawParameters.size();
-        desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
-        _indirectArgumentBuffer = _renderer->CreateBuffer(desc);
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION | Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER;
+        _argumentBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "MapObjectIndirectStaging";
@@ -570,8 +704,70 @@ void MapObjectRenderer::CreateBuffers()
 
         // Queue destroy staging buffer
         _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to first buffer
+        _renderer->CopyBuffer(_argumentBuffer, 0, stagingBuffer, 0, desc.size);
+    }
+
+    // Create Culled Indirect Argument buffer
+    if (_culledArgumentBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_culledArgumentBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "MapObjectCulledIndirectArgs";
+        desc.size = sizeof(DrawParameters) * _drawParameters.size();
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION | Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER;
+        _culledArgumentBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "MapObjectIndirectStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _drawParameters.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to second buffer
+        _renderer->CopyBuffer(_culledArgumentBuffer, 0, stagingBuffer, 0, desc.size);
+    }
+
+    // Create draw count buffer
+    if (_drawCountBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_drawCountBuffer);
+    }
+    if (_drawCountBuffer == Renderer::BufferID::Invalid())
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "MapObjectCullingCounter";
+        desc.size = sizeof(u32);
+        desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _drawCountBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "MapObjectCullingCounterStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        u32 drawCount = static_cast<u32>(_drawParameters.size());
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memset(dst, drawCount, desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
         // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(_indirectArgumentBuffer, 0, stagingBuffer, 0, desc.size);
+        _renderer->CopyBuffer(_drawCountBuffer, 0, stagingBuffer, 0, desc.size);
     }
 
     // Create Vertex buffer
@@ -666,6 +862,7 @@ void MapObjectRenderer::CreateBuffers()
         _renderer->CopyBuffer(_instanceBuffer, 0, stagingBuffer, 0, desc.size);
 
         _passDescriptorSet.Bind("_instanceData", _instanceBuffer);
+        _cullingDescriptorSet.Bind("_instanceData", _instanceBuffer);
     }
 
     // Create Material buffer
@@ -730,5 +927,37 @@ void MapObjectRenderer::CreateBuffers()
         _renderer->CopyBuffer(_materialParametersBuffer, 0, stagingBuffer, 0, desc.size);
 
         _passDescriptorSet.Bind("_materialParams", _materialParametersBuffer);
+    }
+
+    // Create CullingData buffer
+    if (_cullingDataBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_cullingDataBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "MapObjectCullingDataBuffer";
+        desc.size = sizeof(Terrain::CullingData) * _cullingData.size();
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _cullingDataBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "MapObjectCullingDataStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _cullingData.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_cullingDataBuffer, 0, stagingBuffer, 0, desc.size);
+
+        _cullingDescriptorSet.Bind("_cullingData", _cullingDataBuffer);
     }
 }

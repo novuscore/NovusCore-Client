@@ -63,6 +63,8 @@ void DebugRenderer::Flush(Renderer::CommandList* commandList)
 	_renderer->UnmapBuffer(stagingBuffer);
 	commandList->CopyBuffer(_debugVertexBuffer, 0, stagingBuffer, 0, totalBufferSize);
 
+	commandList->PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToVertexBuffer, _debugVertexBuffer);
+
 	for (auto&& vertices : _debugVertices)
 	{
 		vertices.clear();

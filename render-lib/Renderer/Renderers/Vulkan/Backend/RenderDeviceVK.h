@@ -87,6 +87,8 @@ namespace Renderer
             void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout, u32 numLayers, u32 numMipLevels);
 
             uvec2 GetMainWindowSize() { return _mainWindowSize; }
+
+            static PFN_vkCmdDrawIndexedIndirectCountKHR fnVkCmdDrawIndexedIndirectCountKHR;
         private:
             uvec2 _mainWindowSize;
 

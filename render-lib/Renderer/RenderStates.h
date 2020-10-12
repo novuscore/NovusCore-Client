@@ -497,11 +497,14 @@ namespace Renderer
     enum class PipelineBarrierType : u8
     {
         TransferDestToIndirectArguments,
+        TransferDestToComputeShaderRW,
+        TransferDestToVertexBuffer,
         ComputeWriteToIndirectArguments,
         ComputeWriteToVertexBuffer,
         ComputeWriteToVertexShaderRead,
         ComputeWriteToPixelShaderRead,
         ComputeWriteToComputeShaderRead,
+        AllCommands,
     };
 
     inline ImageComponentType ToImageComponentType(ImageFormat imageFormat)

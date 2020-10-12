@@ -393,7 +393,7 @@ namespace Renderer
         VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
         VkBuffer vkDrawCountBuffer = _bufferHandler->GetBuffer(drawCountBuffer);
 
-        vkCmdDrawIndexedIndirectCount(commandBuffer, vkArgumentBuffer, argumentBufferOffset, vkDrawCountBuffer, drawCountBufferOffset, maxDrawCount, sizeof(VkDrawIndexedIndirectCommand));
+        Backend::RenderDeviceVK::fnVkCmdDrawIndexedIndirectCountKHR(commandBuffer, vkArgumentBuffer, argumentBufferOffset, vkDrawCountBuffer, drawCountBufferOffset, maxDrawCount, sizeof(VkDrawIndexedIndirectCommand));
     }
 
     void RendererVK::Dispatch(CommandListID commandListID, u32 threadGroupCountX, u32 threadGroupCountY, u32 threadGroupCountZ)
@@ -846,6 +846,20 @@ namespace Renderer
             bufferBarrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
             break;
 
+        case PipelineBarrierType::TransferDestToComputeShaderRW:
+            srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
+            break;
+
+        case PipelineBarrierType::TransferDestToVertexBuffer:
+            srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+            break;
+
         case PipelineBarrierType::ComputeWriteToVertexShaderRead:
             srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
             dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
@@ -879,6 +893,13 @@ namespace Renderer
             dstStageMask = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
             bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
             bufferBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+            break;
+
+        case PipelineBarrierType::AllCommands:
+            srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
             break;
         }
 
@@ -1063,6 +1084,14 @@ namespace Renderer
         _device->CopyBuffer(vkDstBuffer, dstOffset, vkSrcBuffer, srcOffset, range);
 
         DestroyObjects(_destroyLists[_destroyListIndex]);
+    }
+
+    void RendererVK::FillBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, u32 data)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+        VkBuffer vkDstBuffer = _bufferHandler->GetBuffer(dstBuffer);
+
+        vkCmdFillBuffer(commandBuffer, vkDstBuffer, dstOffset, size, data);
     }
 
     void* RendererVK::MapBuffer(BufferID buffer)

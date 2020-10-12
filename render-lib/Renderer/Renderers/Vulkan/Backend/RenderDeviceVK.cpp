@@ -22,14 +22,15 @@
 
 #include "imgui/imgui_impl_vulkan.h"
 
-#define NOVUSCORE_RENDERER_DEBUG_OVERRIDE 0
-#define NOVUSCORE_RENDERER_GPU_VALIDATION 0
+#define NOVUSCORE_RENDERER_DEBUG_OVERRIDE 0 // This makes it so we use the debug layers even when we are not in Debug, like when we are in Release
+#define NOVUSCORE_RENDERER_GPU_VALIDATION 1
 
 namespace Renderer
 {
     namespace Backend
     {
         bool RenderDeviceVK::_initialized = false;
+        PFN_vkCmdDrawIndexedIndirectCountKHR RenderDeviceVK::fnVkCmdDrawIndexedIndirectCountKHR = nullptr;
 
         const std::vector<const char*> validationLayers =
         {
@@ -144,11 +145,11 @@ namespace Renderer
             _descriptorMegaPool = new DescriptorMegaPoolVK();
             _descriptorMegaPool->Init(FRAME_INDEX_COUNT, this);
 
+            fnVkCmdDrawIndexedIndirectCountKHR = (PFN_vkCmdDrawIndexedIndirectCountKHR)vkGetDeviceProcAddr(_device, "vkCmdDrawIndexedIndirectCountKHR");
+
             _initialized = true;
         }
 
-
-       
         void RenderDeviceVK::InitializeImguiVulkan()
         {
             if (_imguiContext == nullptr)
@@ -1161,6 +1162,7 @@ namespace Renderer
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
             extensions.push_back("VK_KHR_get_physical_device_properties2");
+            extensions.push_back("VK_EXT_debug_report");
 
             return extensions;
         }
