@@ -94,7 +94,7 @@ void UIRenderer::Update(f32 deltaTime)
     {
         const UISingleton::UIDataSingleton* dataSingleton = &ServiceLocator::GetUIRegistry()->ctx<UISingleton::UIDataSingleton>();
 
-        auto collisionView = ServiceLocator::GetUIRegistry()->view<UIComponent::Collision, UIComponent::Collidable>();
+        auto collisionView = ServiceLocator::GetUIRegistry()->view<UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible>();
         collisionView.each([&](UIComponent::Collision& collision) 
             {
                 hvec2 min = collision.minBound / dataSingleton->UIRESOLUTION;
@@ -103,10 +103,11 @@ void UIRenderer::Update(f32 deltaTime)
                 min.y = 1.f - min.y;
                 max.y = 1.f - max.y;
 
-                _debugRenderer->DrawLine2D(min, vec2(max.x, min.y), 0xff00ffff);
-                _debugRenderer->DrawLine2D(min, vec2(min.x, max.y), 0xff00ffff);
-                _debugRenderer->DrawLine2D(vec2(min.x, max.y), max, 0xff00ffff);
-                _debugRenderer->DrawLine2D(vec2(max.x, min.y), max, 0xff00ffff);
+                uint32_t color = 0xffd9dcdf;
+                _debugRenderer->DrawLine2D(min, vec2(max.x, min.y), color);
+                _debugRenderer->DrawLine2D(min, vec2(min.x, max.y), color);
+                _debugRenderer->DrawLine2D(vec2(min.x, max.y), max, color);
+                _debugRenderer->DrawLine2D(vec2(max.x, min.y), max, color);
             });
     }
 }
