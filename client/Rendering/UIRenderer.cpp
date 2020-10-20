@@ -92,11 +92,13 @@ void UIRenderer::Update(f32 deltaTime)
     bool drawCollisionBoxes = CVAR_UICollisionBoundsEnabled.Get() == 1;
     if (drawCollisionBoxes)
     {
+        const UISingleton::UIDataSingleton* dataSingleton = &ServiceLocator::GetUIRegistry()->ctx<UISingleton::UIDataSingleton>();
+
         auto collisionView = ServiceLocator::GetUIRegistry()->view<UIComponent::Collision, UIComponent::Collidable>();
         collisionView.each([&](UIComponent::Collision& collision) 
             {
-                hvec2 min = collision.minBound / hvec2(1920.f, 1080.f);
-                hvec2 max = collision.maxBound / hvec2(1920.f, 1080.f);
+                hvec2 min = collision.minBound / dataSingleton->UIRESOLUTION;
+                hvec2 max = collision.maxBound / dataSingleton->UIRESOLUTION;
 
                 min.y = 1.f - min.y;
                 max.y = 1.f - max.y;
