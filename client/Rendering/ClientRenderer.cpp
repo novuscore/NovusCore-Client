@@ -89,7 +89,7 @@ ClientRenderer::ClientRenderer()
     CreatePermanentResources();
 
     _debugRenderer = new DebugRenderer(_renderer);
-    _uiRenderer = new UIRenderer(_renderer);
+    _uiRenderer = new UIRenderer(_renderer, _debugRenderer);
     _terrainRenderer = new TerrainRenderer(_renderer, _debugRenderer);
     _nm2Renderer = new NM2Renderer(_renderer, _debugRenderer);
 
@@ -108,6 +108,7 @@ void ClientRenderer::Update(f32 deltaTime)
 
     _terrainRenderer->Update(deltaTime);
     _nm2Renderer->Update(deltaTime);
+    _uiRenderer->Update(deltaTime);
 
     _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(100.0f, 0.0f, 0.0f), 0xff0000ff);
     _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 100.0f, 0.0f), 0xff00ff00);
@@ -334,6 +335,10 @@ void ClientRenderer::Render()
     _debugRenderer->Add3DPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
 
     _uiRenderer->AddUIPass(&renderGraph, _mainColor, _frameIndex);
+
+    _debugRenderer->Add2DPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
+
+    _uiRenderer->AddImguiPass(&renderGraph, _mainColor, _frameIndex);
 
     renderGraph.AddSignalSemaphore(_sceneRenderedSemaphore); // Signal that we are ready to present
     renderGraph.AddSignalSemaphore(_frameSyncSemaphores.Get(_frameIndex)); // Signal that this frame has finished, for next frames sake

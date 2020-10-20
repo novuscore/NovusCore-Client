@@ -73,6 +73,67 @@ void DebugRenderer::Flush(Renderer::CommandList* commandList)
 
 void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
 {
+	struct TerrainDepthPrepassData
+	{
+		Renderer::RenderPassMutableResource mainColor;
+	};
+	renderGraph->AddPass<TerrainDepthPrepassData>("DebugRender2D",
+		[=](TerrainDepthPrepassData& data, Renderer::RenderGraphBuilder& builder) // Setup
+		{
+			data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_LOAD);
+
+			return true;// Return true from setup to enable this pass, return false to disable it
+		},
+		[=](TerrainDepthPrepassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
+		{
+			GPU_SCOPED_PROFILER_ZONE(commandList, DebugRender2D);
+
+			Renderer::GraphicsPipelineDesc pipelineDesc;
+			resources.InitializePipelineDesc(pipelineDesc);
+
+			// Rasterizer state
+			pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
+
+			// Render targets.
+			pipelineDesc.renderTargets[0] = data.mainColor;
+
+			// Shader
+			Renderer::VertexShaderDesc vertexShaderDesc;
+			vertexShaderDesc.path = "Data/shaders/uiDebug.vs.hlsl.spv";
+
+			Renderer::PixelShaderDesc pixelShaderDesc;
+			pixelShaderDesc.path = "Data/shaders/uiDebug.ps.hlsl.spv";
+
+			pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
+			pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
+
+			// Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
+			pipelineDesc.states.inputLayouts[0].enabled = true;
+			pipelineDesc.states.inputLayouts[0].SetName("Position");
+			pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::INPUT_FORMAT_R32G32B32_FLOAT;
+			pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
+			pipelineDesc.states.inputLayouts[0].alignedByteOffset = 0;
+
+			pipelineDesc.states.inputLayouts[1].enabled = true;
+			pipelineDesc.states.inputLayouts[1].SetName("Color");
+			pipelineDesc.states.inputLayouts[1].format = Renderer::InputFormat::INPUT_FORMAT_R8G8B8A8_UNORM;
+			pipelineDesc.states.inputLayouts[1].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
+			pipelineDesc.states.inputLayouts[1].alignedByteOffset = 12;
+
+			pipelineDesc.states.primitiveTopology = Renderer::PrimitiveTopology::Lines;
+
+			// Set pipeline
+			Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+			commandList.BeginPipeline(pipeline);
+
+			commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+			commandList.SetVertexBuffer(0, _debugVertexBuffer);
+
+			// Draw
+			commandList.Draw(_debugVertexCount[DBG_VERTEX_BUFFER_LINES_2D], 1, _debugVertexOffset[DBG_VERTEX_BUFFER_LINES_2D], 0);
+
+			commandList.EndPipeline(pipeline);
+		});
 }
 
 void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)

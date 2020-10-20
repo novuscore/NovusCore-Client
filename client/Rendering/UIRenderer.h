@@ -10,21 +10,27 @@ namespace Renderer
     class RenderGraph;
     class Renderer;
 }
+class DebugRenderer;
 
 class Window;
 class Keybind;
 class UIRenderer
 {
 public:
-    UIRenderer(Renderer::Renderer* renderer);
+    UIRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer);
+
+    void Update(f32 deltaTime);
 
     void AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex);
+
+    void AddImguiPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex);
 
 private:
     void CreatePermanentResources();
 
 private:
     Renderer::Renderer* _renderer;
+    DebugRenderer* _debugRenderer;
 
     Renderer::SamplerID _linearSampler;
     Renderer::BufferID _indexBuffer;
