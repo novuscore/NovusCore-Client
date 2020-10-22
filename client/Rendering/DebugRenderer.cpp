@@ -73,18 +73,18 @@ void DebugRenderer::Flush(Renderer::CommandList* commandList)
 
 void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
 {
-	struct TerrainDepthPrepassData
+	struct Debug2DPassData
 	{
 		Renderer::RenderPassMutableResource mainColor;
 	};
-	renderGraph->AddPass<TerrainDepthPrepassData>("DebugRender2D",
-		[=](TerrainDepthPrepassData& data, Renderer::RenderGraphBuilder& builder) // Setup
+	renderGraph->AddPass<Debug2DPassData>("DebugRender2D",
+		[=](Debug2DPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
 		{
 			data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_LOAD);
 
 			return true;// Return true from setup to enable this pass, return false to disable it
 		},
-		[=](TerrainDepthPrepassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
+		[=](Debug2DPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
 		{
 			GPU_SCOPED_PROFILER_ZONE(commandList, DebugRender2D);
 
@@ -99,10 +99,10 @@ void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 
 			// Shader
 			Renderer::VertexShaderDesc vertexShaderDesc;
-			vertexShaderDesc.path = "Data/shaders/uiDebug.vs.hlsl.spv";
+			vertexShaderDesc.path = "Data/shaders/debug2D.vs.hlsl.spv";
 
 			Renderer::PixelShaderDesc pixelShaderDesc;
-			pixelShaderDesc.path = "Data/shaders/uiDebug.ps.hlsl.spv";
+			pixelShaderDesc.path = "Data/shaders/debug2D.ps.hlsl.spv";
 
 			pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 			pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
@@ -138,20 +138,20 @@ void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 
 void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
 {
-	struct TerrainDepthPrepassData
+	struct Debug3DPassData
 	{
 		Renderer::RenderPassMutableResource mainColor;
 		Renderer::RenderPassMutableResource mainDepth;
 	};
-	renderGraph->AddPass<TerrainDepthPrepassData>("DebugRender3D",
-		[=](TerrainDepthPrepassData& data, Renderer::RenderGraphBuilder& builder) // Setup
+	renderGraph->AddPass<Debug3DPassData>("DebugRender3D",
+		[=](Debug3DPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
 		{
 			data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_LOAD);
 			data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_LOAD);
 
 			return true;// Return true from setup to enable this pass, return false to disable it
 		},
-		[=](TerrainDepthPrepassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
+		[=](Debug3DPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
 		{
 			GPU_SCOPED_PROFILER_ZONE(commandList, DebugRender3D);
 
@@ -162,10 +162,10 @@ void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 
 			// Shader
 			Renderer::VertexShaderDesc vertexShaderDesc;
-			vertexShaderDesc.path = "Data/shaders/debug.vs.hlsl.spv";
+			vertexShaderDesc.path = "Data/shaders/debug3D.vs.hlsl.spv";
 
 			Renderer::PixelShaderDesc pixelShaderDesc;
-			pixelShaderDesc.path = "Data/shaders/debug.ps.hlsl.spv";
+			pixelShaderDesc.path = "Data/shaders/debug3D.ps.hlsl.spv";
 
 			pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 			pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
