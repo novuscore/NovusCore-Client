@@ -39,6 +39,10 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void SetTexture(string Texture)", asMETHOD(Panel, SetTexture)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("Color GetColor()", asMETHOD(Panel, GetColor)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetColor(Color color)", asMETHOD(Panel, SetColor)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("string GetBorder()", asMETHOD(Panel, GetBorder)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetBorder(string Texture)", asMETHOD(Panel, SetBorder)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetBorderSize(uint topSize, uint rightSize, uint bottomSize, uint leftSize)", asMETHOD(Panel, SetBorderSize)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetBorderInset(uint topBorderInset, uint rightBorderInset, uint bottomBorderInset, uint leftBorderInset)", asMETHOD(Panel, SetBorderInset)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetSlicing(uint topOffset, uint rightOffset, uint bottomOffset, uint leftOffset)", asMETHOD(Panel, SetSlicing)); assert(r >= 0);
     }
 
@@ -117,6 +121,36 @@ namespace UIScripting
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         image->style.color = color;
+    }
+
+    const std::string& Panel::GetBorder() const
+    {
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        return image->style.border;
+    }
+
+    void Panel::SetBorder(const std::string& texture)
+    {
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        image->style.border = texture;
+    }
+
+    void Panel::SetBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize)
+    {
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        image->style.borderSize.top = topSize;
+        image->style.borderSize.right = rightSize;
+        image->style.borderSize.bottom = bottomSize;
+        image->style.borderSize.left = leftSize;
+    }
+
+    void Panel::SetBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset)
+    {
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        image->style.borderInset.top = topBorderInset;
+        image->style.borderInset.right = rightBorderInset;
+        image->style.borderInset.bottom = bottomBorderInset;
+        image->style.borderInset.left = leftBorderInset;
     }
 
     void Panel::SetSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset)

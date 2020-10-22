@@ -234,6 +234,17 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                         _drawImageDescriptorSet.Bind("_panelData"_h, image.constantBuffer->GetBuffer(frameIndex));
                         _drawImageDescriptorSet.Bind("_texture"_h, image.textureID);
 
+                        if (image.borderID != Renderer::TextureID::Invalid())
+                        {
+                            _drawImageDescriptorSet.Bind("_border"_h, image.borderID);
+                        }
+                        else
+                        {
+                            _drawImageDescriptorSet.Bind("_border"_h, _emptyBorder);
+                        }
+
+                        
+
                         commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawImageDescriptorSet, frameIndex);
 
                         commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
@@ -348,6 +359,16 @@ void UIRenderer::CreatePermanentResources()
 
     _renderer->QueueDestroyBuffer(stagingBuffer);
     _renderer->CopyBuffer(_indexBuffer, 0, stagingBuffer, 0, indexBufferSize);
+
+    // Create empty border texture
+    Renderer::DataTextureDesc emptyBorderDesc;
+    emptyBorderDesc.debugName = "EmptyBorder";
+    emptyBorderDesc.width = 1;
+    emptyBorderDesc.height = 1;
+    emptyBorderDesc.format = Renderer::ImageFormat::IMAGE_FORMAT_R8G8B8A8_UNORM;
+    emptyBorderDesc.data = new u8[4]{ 0, 0, 0, 0 };
+    
+    _emptyBorder = _renderer->CreateDataTexture(emptyBorderDesc);
 
     // Create descriptor sets
     _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());

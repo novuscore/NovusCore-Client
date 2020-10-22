@@ -123,7 +123,7 @@ bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
         return false;
     }
 
-    // Load Chunks if map does not use WMO as base
+    // Load Chunks if map does not use Map Object as base
     if (!mapSingleton.currentMap.header.flags.UseMapObjectInsteadOfTerrain)
     {
         size_t loadedChunks = 0;
@@ -177,8 +177,6 @@ bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
             NC_LOG_ERROR("0 map chunks found in (%s)", absolutePath.string().c_str());
             return false;
         }
-
-        NC_LOG_SUCCESS("Loaded %u chunks", loadedChunks);
     }
     
     NC_LOG_SUCCESS("Loaded Map (%s)", mapInternalName.c_str());

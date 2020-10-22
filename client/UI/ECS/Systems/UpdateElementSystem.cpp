@@ -96,6 +96,12 @@ namespace UISystem
                 image.textureID = renderer->LoadTexture(Renderer::TextureDesc{ image.style.texture });
             }
 
+            if (!image.style.border.empty())
+            {
+                ZoneScopedNC("(Re)load Border", tracy::Color::RoyalBlue);
+                image.borderID = renderer->LoadTexture(Renderer::TextureDesc{ image.style.border });
+            }
+
             // Create constant buffer if necessary
             auto constantBuffer = image.constantBuffer;
             if (constantBuffer == nullptr)
@@ -104,6 +110,8 @@ namespace UISystem
                 image.constantBuffer = constantBuffer;
             }
             constantBuffer->resource.color = image.style.color;
+            constantBuffer->resource.borderSize = image.style.borderSize;
+            constantBuffer->resource.borderInset = image.style.borderInset;
             constantBuffer->resource.slicingOffset = image.style.slicingOffset;
             constantBuffer->resource.size = transform.size;
             constantBuffer->ApplyAll();

@@ -182,6 +182,7 @@ void EngineLoop::Run()
     inputManager->RegisterKeybind("Move Backward", GLFW_KEY_S, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
     inputManager->RegisterKeybind("Move Left", GLFW_KEY_A, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
     inputManager->RegisterKeybind("Move Right", GLFW_KEY_D, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
+    inputManager->RegisterKeybind("Move Jump", GLFW_KEY_SPACE, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
 
     // Initialize Localplayer
     localplayerSingleton.entity = _updateFramework.gameRegistry.create();
@@ -191,7 +192,7 @@ void EngineLoop::Run()
     transform.scale = vec3(0.5f, 2.f, 0.5f); // "Ish" scale for humans
 
     _updateFramework.gameRegistry.emplace<DebugBox>(localplayerSingleton.entity);
-    Model& model = EntityUtils::CreateModelComponent(_updateFramework.gameRegistry, localplayerSingleton.entity, "Data/models/Cube.novusmodel");
+    //Model& model = EntityUtils::CreateModelComponent(_updateFramework.gameRegistry, localplayerSingleton.entity, "Data/models/Cube.novusmodel");
 
     // Load Scripts
     std::string scriptPath = "./Data/scripts";
@@ -246,7 +247,6 @@ void EngineLoop::Run()
         statsSingleton.AddTimings(timings.deltaTime, timings.simulationFrameTime, timings.renderFrameTime);
 
         bool lockFrameRate = CVAR_FramerateLock.Get() == 1;
-        
         if (lockFrameRate)
         {
             f32 targetFramerate = static_cast<f32>(CVAR_FramerateTarget.Get());
@@ -316,6 +316,10 @@ bool EngineLoop::Update(f32 deltaTime)
             UIUtils::ClearAllElements();
 
             ScriptHandler::ReloadScripts();
+
+            // Resend "LoadScene" to trigger UI events
+            SceneManager* sceneManager = ServiceLocator::GetSceneManager();
+            sceneManager->LoadScene(sceneManager->GetScene());
         }
         else if (message.code == MSG_IN_LOAD_MAP)
         {
@@ -446,6 +450,9 @@ void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
     ImGui::Text("Camera Location : %f x, %f y, %f z", cameraLocation.x, cameraLocation.y, cameraLocation.z);
     ImGui::Text("Camera Rotation : %f x, %f y, %f z", cameraRotation.x, cameraRotation.y, cameraRotation.z);
 
+    ImGui::Spacing();
+    ImGui::Spacing();
+
     vec2 adtPos = Terrain::MapUtils::WorldPositionToADTCoordinates(cameraLocation);
 
     vec2 chunkPos = Terrain::MapUtils::GetChunkFromAdtPosition(adtPos);
@@ -458,9 +465,6 @@ void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
     vec2 patchLocalPos = (cellRemainder * Terrain::MAP_CELL_SIZE);
     vec2 patchPos = patchLocalPos / Terrain::MAP_PATCH_SIZE;
     vec2 patchRemainder = patchPos - glm::floor(patchPos);
-
-    ImGui::Spacing();
-    ImGui::Spacing();
 
     ImGui::Text("ADT : %f x, %f y", adtPos.x, adtPos.y);
     ImGui::Text("Chunk : %f x, %f y", chunkPos.x, chunkPos.y);

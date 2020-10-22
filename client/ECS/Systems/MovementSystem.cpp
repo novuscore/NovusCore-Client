@@ -150,9 +150,21 @@ void MovementSystem::Update(entt::registry& registry)
             transform.velocityDirection -= transform.left;
         }
 
+        bool isJumping = inputManager->IsKeyPressed("Move Jump"_h);
+        if (isJumping)
+        {
+            transform.velocityDirection += transform.up;
+        }
+
         if (glm::length2(transform.velocityDirection) != 0)
         {
             transform.velocity = glm::normalize(transform.velocityDirection) * movementData.speed;
+        }
+
+        // Apply Jump after calculating velocity
+        if (isJumping)
+        {
+            transform.velocity.y += 7.1111f;
         }
 
         // If we are moving in directions that counter themselves unset them
