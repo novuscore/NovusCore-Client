@@ -57,6 +57,11 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void SetTexture(string Texture)", asMETHOD(Button, SetTexture)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("Color GetColor()", asMETHOD(Button, GetColor)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetColor(Color color)", asMETHOD(Button, SetColor)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("string GetBorder()", asMETHOD(Button, GetBorder)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetBorder(string Texture)", asMETHOD(Button, SetBorder)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetBorderSize(uint topSize, uint rightSize, uint bottomSize, uint leftSize)", asMETHOD(Button, SetBorderSize)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetBorderInset(uint topBorderInset, uint rightBorderInset, uint bottomBorderInset, uint leftBorderInset)", asMETHOD(Button, SetBorderInset)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetSlicing(uint topOffset, uint rightOffset, uint bottomOffset, uint leftOffset)", asMETHOD(Button, SetSlicing)); assert(r >= 0);
     }
 
     const bool Button::IsClickable() const
@@ -135,6 +140,43 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
         image->style.color = color;
+    }
+
+    const std::string& Button::GetBorder() const
+    {
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        return image->style.border;
+    }
+    void Button::SetBorder(const std::string& texture)
+    {
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        image->style.border = texture;
+    }
+
+    void Button::SetBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize)
+    {
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        image->style.borderSize.top = topSize;
+        image->style.borderSize.right = rightSize;
+        image->style.borderSize.bottom = bottomSize;
+        image->style.borderSize.left = leftSize;
+    }
+    void Button::SetBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset)
+    {
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        image->style.borderInset.top = topBorderInset;
+        image->style.borderInset.right = rightBorderInset;
+        image->style.borderInset.bottom = bottomBorderInset;
+        image->style.borderInset.left = leftBorderInset;
+    }
+
+    void Button::SetSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset)
+    {
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        image->style.slicingOffset.top = topOffset;
+        image->style.slicingOffset.right = rightOffset;
+        image->style.slicingOffset.bottom = bottomOffset;
+        image->style.slicingOffset.left = leftOffset;
     }
 
     Button* Button::CreateButton()

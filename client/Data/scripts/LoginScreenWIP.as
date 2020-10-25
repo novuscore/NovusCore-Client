@@ -1,7 +1,7 @@
 /*
 *	NOVUSCORE LOGIN SCREEN
-*	Version 0.1.5.LOCKNO
-*	Updated 05/09/2020	
+*	Version 0.1.6: Borders.
+*	Updated 22/10/2020	
 */
 
 void LogIn()
@@ -45,7 +45,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	uint LABELFONTSIZE = 50;
 	uint INPUTFIELDFONTSIZE = 35;
 	string FONT = "Data/fonts/Ubuntu/Ubuntu-Regular.ttf";
-	Color TEXTCOLOR = Color(0,0,0.5);
+	Color TEXTCOLOR = Color(1,0.78,0);
 
 	Panel@ background = CreatePanel();
 	Panel@ userNameFieldPanel = CreatePanel();
@@ -58,7 +58,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	InputField@ usernameField = CreateInputField();
 	InputField@ passwordField = CreateInputField();
 
-	background.SetSize(vec2(1920,1080));
+	background.SetSize(vec2(1920,1080)); // TODO: We need some fill parent for whole screen.
 	background.SetTexture("Data/extracted/textures/Interface/Glues/LoadingScreens/LoadScreenOutlandWide.dds");
 	background.SetDepthLayer(0);
 	DataStorage::EmplaceEntity("LOGIN-background", background.GetEntityId());
@@ -70,12 +70,16 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	userNameLabel.SetFont(FONT, LABELFONTSIZE);
 	userNameLabel.SetColor(TEXTCOLOR);
 	userNameLabel.SetText("Username");
+	userNameLabel.SetHorizontalAlignment(1);
 	
 	userNameFieldPanel.SetParent(background);
 	userNameFieldPanel.SetAnchor(vec2(0.5,0.5));
 	userNameFieldPanel.SetTransform(vec2(0, -50), SIZE);
 	userNameFieldPanel.SetLocalAnchor(vec2(0.5,0));
-	userNameFieldPanel.SetTexture("Data/textures/NovusUIPanel.png");
+	userNameFieldPanel.SetTexture("Data/extracted/textures/Interface/Tooltips/chatbubble-background.dds");
+	userNameFieldPanel.SetBorder("Data/extracted/textures/Interface/Glues/Common/Glue-Tooltip-Border.dds");
+	userNameFieldPanel.SetBorderSize(16, 16, 16, 16);
+	userNameFieldPanel.SetBorderInset(4, 5, 9, 10);
 			
 	usernameField.SetParent(userNameFieldPanel);
 	usernameField.SetPosition(vec2(0,0));
@@ -91,12 +95,16 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	passwordLabel.SetFont(FONT, LABELFONTSIZE);
 	passwordLabel.SetColor(TEXTCOLOR);
 	passwordLabel.SetText("Password");
+	passwordLabel.SetHorizontalAlignment(1);
 			
 	passwordFieldPanel.SetParent(background);
 	passwordFieldPanel.SetAnchor(vec2(0.5,0.5));
 	passwordFieldPanel.SetTransform(vec2(0, 50), SIZE);
 	passwordFieldPanel.SetLocalAnchor(vec2(0.5,0));
-	passwordFieldPanel.SetTexture("Data/textures/NovusUIPanel.png");
+	passwordFieldPanel.SetTexture("Data/extracted/textures/Interface/Tooltips/chatbubble-background.dds");
+	passwordFieldPanel.SetBorder("Data/extracted/textures/Interface/Glues/Common/Glue-Tooltip-Border.dds");
+	passwordFieldPanel.SetBorderSize(16, 16, 16, 16);
+	passwordFieldPanel.SetBorderInset(4, 5, 9, 10);
 		
 	passwordField.SetParent(passwordFieldPanel);
 	passwordField.SetPosition(vec2(0,0));
@@ -109,7 +117,9 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	submitButton.SetAnchor(vec2(0.5,0.5));
 	submitButton.SetTransform(vec2(0, SIZE.y * 2.5f), SIZE);
 	submitButton.SetLocalAnchor(vec2(0.5,0));
-	submitButton.SetTexture("Data/textures/NovusUIPanel.png");
+	submitButton.SetTexture("Data/extracted/Textures/interface/glues/common/glue-panel-button-up-blue.dds");
+	// TOP, RIGHT, BOTTOM, LEFT
+	submitButton.SetBorderInset(0, 0, 0, 0);
 	submitButton.SetFont(FONT, INPUTFIELDFONTSIZE);
 	submitButton.SetText("Submit");
 	submitButton.OnClick(OnLoginButtonClick);

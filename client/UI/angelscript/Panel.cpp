@@ -128,7 +128,6 @@ namespace UIScripting
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         return image->style.border;
     }
-
     void Panel::SetBorder(const std::string& texture)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
@@ -143,7 +142,6 @@ namespace UIScripting
         image->style.borderSize.bottom = bottomSize;
         image->style.borderSize.left = leftSize;
     }
-
     void Panel::SetBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
