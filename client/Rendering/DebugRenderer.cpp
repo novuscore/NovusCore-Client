@@ -188,7 +188,7 @@ void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 			// Depth state
 			pipelineDesc.states.depthStencilState.depthEnable = true;
 			pipelineDesc.states.depthStencilState.depthWriteEnable = false;
-			pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_LESS;
+			pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_GREATER;
 
 			// Rasterizer state
 			pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;

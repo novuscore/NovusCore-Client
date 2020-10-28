@@ -104,7 +104,7 @@ void WaterRenderer::AddWaterPass(Renderer::RenderGraph* renderGraph, Renderer::D
         // Depth state
         pipelineDesc.states.depthStencilState.depthEnable = true;
         pipelineDesc.states.depthStencilState.depthWriteEnable = true;
-        pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_LESS;
+        pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_GREATER;
 
         // Rasterizer state
         pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_NONE; //Renderer::CullMode::CULL_MODE_BACK;

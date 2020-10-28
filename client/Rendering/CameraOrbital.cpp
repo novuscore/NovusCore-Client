@@ -155,7 +155,7 @@ void CameraOrbital::Update(f32 deltaTime, float fovInDegrees, float aspectRatioW
     vec3 position = _position + t;
 
     _viewMatrix = glm::lookAt(position, _position, worldUp);
-    _projectionMatrix = glm::perspective(glm::radians(fovInDegrees), aspectRatioWH, _nearClip, _farClip);
+    _projectionMatrix = glm::perspective(glm::radians(fovInDegrees), aspectRatioWH, _farClip, _nearClip);
     _viewProjectionMatrix = _projectionMatrix * _viewMatrix;
 
     UpdateCameraVectors();

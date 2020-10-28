@@ -1,7 +1,7 @@
 #include "ClientRenderer.h"
 #include "UIRenderer.h"
 #include "TerrainRenderer.h"
-#include "NM2Renderer.h"
+#include "CModelRenderer.h"
 #include "DebugRenderer.h"
 #include "CameraFreelook.h"
 #include "../Utils/ServiceLocator.h"
@@ -91,7 +91,7 @@ ClientRenderer::ClientRenderer()
     _debugRenderer = new DebugRenderer(_renderer);
     _uiRenderer = new UIRenderer(_renderer, _debugRenderer);
     _terrainRenderer = new TerrainRenderer(_renderer, _debugRenderer);
-    _nm2Renderer = new NM2Renderer(_renderer, _debugRenderer);
+    _cModelRenderer = new CModelRenderer(_renderer, _debugRenderer);
 
     ServiceLocator::SetClientRenderer(this);
 }
@@ -107,7 +107,7 @@ void ClientRenderer::Update(f32 deltaTime)
     _frameAllocator->Reset();
 
     _terrainRenderer->Update(deltaTime);
-    _nm2Renderer->Update(deltaTime);
+    _cModelRenderer->Update(deltaTime);
     _uiRenderer->Update(deltaTime);
 
     _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(100.0f, 0.0f, 0.0f), 0xff0000ff);
@@ -189,7 +189,7 @@ void ClientRenderer::Render()
             // Depth state
             pipelineDesc.states.depthStencilState.depthEnable = true;
             pipelineDesc.states.depthStencilState.depthWriteEnable = true;
-            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_LESS;
+            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_GREATER;
 
             // Rasterizer state
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
@@ -199,7 +199,7 @@ void ClientRenderer::Render()
             pipelineDesc.depthStencil = data.mainDepth;
 
             // Clear mainColor TODO: This should be handled by the parameter in Setup, and it should definitely not act on ImageID and DepthImageID
-            commandList.Clear(_mainDepth, 1.0f);
+            commandList.Clear(_mainDepth, 0.0f);
 
             // Set pipeline
             Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
@@ -330,7 +330,7 @@ void ClientRenderer::Render()
 
     _terrainRenderer->AddTerrainPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
 
-    _nm2Renderer->AddNM2Pass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
+    _cModelRenderer->AddCModelPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
     
     _debugRenderer->Add3DPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
 

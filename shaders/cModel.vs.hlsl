@@ -1,11 +1,10 @@
 #include "globalData.inc.hlsl"
 
-[[vk::binding(0, PER_PASS)]] ByteAddressBuffer _instanceData;
-
-[[vk::binding(0, PER_DRAW)]] ByteAddressBuffer _vertexPositions;
-[[vk::binding(1, PER_DRAW)]] ByteAddressBuffer _vertexNormals;
-[[vk::binding(2, PER_DRAW)]] ByteAddressBuffer _vertexUVs0;
-[[vk::binding(3, PER_DRAW)]] ByteAddressBuffer _vertexUVs1;
+[[vk::binding(0, PER_DRAW)]] ByteAddressBuffer _instanceData;
+[[vk::binding(1, PER_DRAW)]] ByteAddressBuffer _vertexPositions;
+[[vk::binding(2, PER_DRAW)]] ByteAddressBuffer _vertexNormals;
+[[vk::binding(3, PER_DRAW)]] ByteAddressBuffer _vertexUVs0;
+[[vk::binding(4, PER_DRAW)]] ByteAddressBuffer _vertexUVs1;
 
 struct InstanceData
 {
@@ -54,8 +53,8 @@ Vertex LoadVertex(uint vertexID)
 
     // TODO: Remove this from the shader, we want to do this in the dataextractor instead
     vertex.position = float3(-vertex.position.x, vertex.position.z, -vertex.position.y);
-    vertex.normal = vertex.normal.rbg;
-    vertex.normal.z = -vertex.normal.z;
+    vertex.normal = float3(-vertex.normal.x, vertex.normal.z, -vertex.normal.y);
+    vertex.normal = normalize(vertex.normal);
 
     return vertex;
 }
