@@ -64,8 +64,8 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("void MarkBoundsDirty()", asMETHOD(T, MarkBoundsDirty)); assert(r >= 0);
         }
 
-        const entt::entity GetEntityId() const { return _entityId; }
-        const UI::ElementType GetType() const { return _elementType; }
+        inline const entt::entity GetEntityId() const { return _entityId; }
+        inline const UI::ElementType GetType() const { return _elementType; }
 
         // Transform Functions
         vec2 GetScreenPosition() const;

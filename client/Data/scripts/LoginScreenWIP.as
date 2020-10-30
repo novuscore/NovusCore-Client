@@ -1,6 +1,6 @@
 /*
 *	NOVUSCORE LOGIN SCREEN
-*	Version 0.1.6: Borders.
+*	Version 0.2: Fancified.
 *	Updated 22/10/2020	
 */
 
@@ -46,6 +46,8 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	uint INPUTFIELDFONTSIZE = 35;
 	string FONT = "Data/fonts/Ubuntu/Ubuntu-Regular.ttf";
 	Color TEXTCOLOR = Color(1,0.78,0);
+	Color OUTLINECOLOR = Color(0,0,0);
+	float outlineWidth = 1.0f;
 
 	Panel@ background = CreatePanel();
 	Panel@ userNameFieldPanel = CreatePanel();
@@ -58,7 +60,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	InputField@ usernameField = CreateInputField();
 	InputField@ passwordField = CreateInputField();
 
-	background.SetSize(vec2(1920,1080)); // TODO: We need some fill parent for whole screen.
+	background.SetSize(UI::GetResolution()); // TODO: We need some fill parent for whole screen.
 	background.SetTexture("Data/extracted/textures/Interface/Glues/LoadingScreens/LoadScreenOutlandWide.dds");
 	background.SetDepthLayer(0);
 	DataStorage::EmplaceEntity("LOGIN-background", background.GetEntityId());
@@ -70,6 +72,8 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	userNameLabel.SetFont(FONT, LABELFONTSIZE);
 	userNameLabel.SetColor(TEXTCOLOR);
 	userNameLabel.SetText("Username");
+	userNameLabel.SetOutlineWidth(outlineWidth);
+	userNameLabel.SetOutlineColor(OUTLINECOLOR);
 	userNameLabel.SetHorizontalAlignment(1);
 	
 	userNameFieldPanel.SetParent(background);
@@ -95,6 +99,8 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	passwordLabel.SetFont(FONT, LABELFONTSIZE);
 	passwordLabel.SetColor(TEXTCOLOR);
 	passwordLabel.SetText("Password");
+	passwordLabel.SetOutlineWidth(outlineWidth);
+	passwordLabel.SetOutlineColor(OUTLINECOLOR);
 	passwordLabel.SetHorizontalAlignment(1);
 			
 	passwordFieldPanel.SetParent(background);
@@ -119,24 +125,27 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	submitButton.SetLocalAnchor(vec2(0.5,0));
 	submitButton.SetTexture("Data/extracted/Textures/interface/glues/common/glue-panel-button-up-blue.dds");
 	// TOP, RIGHT, BOTTOM, LEFT
-	submitButton.SetBorderInset(0, 0, 0, 0);
+	submitButton.SetBorderInset(0, 108, 16, 0);
 	submitButton.SetFont(FONT, INPUTFIELDFONTSIZE);
 	submitButton.SetText("Submit");
+	submitButton.SetOutlineWidth(outlineWidth);
+	submitButton.SetOutlineColor(OUTLINECOLOR);
 	submitButton.OnClick(OnLoginButtonClick);
 			
 	checkBox.SetParent(background);
 	checkBox.SetAnchor(vec2(0.5,0.5));
-	checkBox.SetTransform(vec2(-SIZE.x/2, SIZE.y * 4), vec2(25,25));
-	checkBox.SetBackgroundTexture("Data/textures/NovusUIPanel.png");
-	checkBox.SetCheckTexture("Data/textures/debug.jpg");
+	checkBox.SetTransform(vec2(-SIZE.x/2, SIZE.y * 4), vec2(40,40));
+	checkBox.SetTexture("Data/extracted/Textures/interface/buttons/ui-checkbox-up.dds");
+	checkBox.SetCheckTexture("Data/extracted/Textures/interface/buttons/ui-checkbox-check.dds");
 	checkBox.SetCheckColor(Color(0,1,0));
 	checkBox.SetExpandBoundsToChildren(true);
 	
 	rememberAccountLabel.SetParent(checkBox);
-	rememberAccountLabel.SetTransform(vec2(25,0), vec2(SIZE.x - 25, 25));
+	rememberAccountLabel.SetTransform(vec2(40,0), vec2(SIZE.x - 20, 40));
 	rememberAccountLabel.SetFont(FONT, 25);
 	rememberAccountLabel.SetColor(TEXTCOLOR);
 	rememberAccountLabel.SetText("Remember Account Name");
+	rememberAccountLabel.SetVerticalAlignment(1);
 	
 	background.MarkDirty();
 	background.MarkBoundsDirty();		

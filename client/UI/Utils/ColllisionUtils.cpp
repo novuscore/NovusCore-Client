@@ -20,7 +20,7 @@ namespace UIUtils::Collision
             UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
             UIComponent::Collision* childCollision = &registry->get<UIComponent::Collision>(child.entId);
 
-            if (!childCollision->HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
+            if (!collision->HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
                 continue;
 
             if (childCollision->minBound.x < collision->minBound.x) { collision->minBound.x = childCollision->minBound.x; }

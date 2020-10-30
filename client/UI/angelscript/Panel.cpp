@@ -125,7 +125,7 @@ namespace UIScripting
 
     const std::string& Panel::GetBorder() const
     {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         return image->style.border;
     }
     void Panel::SetBorder(const std::string& texture)

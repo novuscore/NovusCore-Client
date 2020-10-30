@@ -5,6 +5,8 @@
 #include <Renderer/Descriptors/TextureDesc.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
 #include <Renderer/Buffer.h>
+#include "../../render-lib/Window/Window.h"
+#include "GLFW/glfw3.h"
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyVulkan.hpp>
 #include "CVar/CVarSystem.h"
@@ -60,7 +62,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRendere
     registry->prepare<UIComponent::Checkbox>();
 
     // Register UI singletons.
-    registry->set<UISingleton::UIDataSingleton>();
+    UISingleton::UIDataSingleton& dataSingleton = registry->set<UISingleton::UIDataSingleton>();
 
     //Reserve component space
     const int ENTITIES_TO_PREALLOCATE = 10000;
@@ -85,6 +87,11 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRendere
     registry->reserve<UIComponent::InputField>(ENTITIES_TO_PREALLOCATE);
     registry->reserve<UIComponent::Checkbox>(ENTITIES_TO_PREALLOCATE);
 
+    // Set up UI resolution. TODO Update when window size updates.
+    i32 width, height;
+    glfwGetWindowSize(ServiceLocator::GetWindow()->GetWindow(), &width, &height);
+    f32 aspectRatio = (static_cast<f32>(width) / static_cast<f32>(height));
+    dataSingleton.UIRESOLUTION = hvec2(dataSingleton.referenceHeight * aspectRatio, dataSingleton.referenceHeight);
 }
 
 void UIRenderer::Update(f32 deltaTime)
@@ -242,8 +249,6 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                         {
                             _drawImageDescriptorSet.Bind("_border"_h, _emptyBorder);
                         }
-
-                        
 
                         commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_drawImageDescriptorSet, frameIndex);
 

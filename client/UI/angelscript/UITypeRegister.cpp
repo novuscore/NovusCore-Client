@@ -1,5 +1,5 @@
 #include "UITypeRegister.h"
-#include "RegistryUtils.h"
+#include "UIUtils.h"
 #include "BaseElement.h"
 #include "Panel.h"
 #include "Label.h"
@@ -19,6 +19,6 @@ namespace UI
         UIScripting::InputField::RegisterType();
         UIScripting::Checkbox::RegisterType();
         UIScripting::Slider::RegisterType();
-        UIUtils::Registry::RegisterNamespace();
+        UIUtils::RegisterNamespace();
     }
 }

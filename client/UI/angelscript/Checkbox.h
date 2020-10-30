@@ -24,18 +24,28 @@ namespace UIScripting
         void SetOnFocusCallback(asIScriptFunction* callback);
 
         // Background Functions
-        const std::string& GetBackgroundTexture() const;
-        void SetBackgroundTexture(const std::string& texture);
+        const std::string& GetTexture() const;
+        void SetTexture(const std::string& texture);
+        const Color GetColor() const;
+        void SetColor(const Color& color);
 
-        const Color GetBackgroundColor() const;
-        void SetBackgroundColor(const Color& color);
+        const std::string& GetBorder() const;
+        void SetBorder(const std::string& texture);
+        void SetBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize);
+        void SetBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset);
+        void SetSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset);
 
         // Check Functions
         const std::string& GetCheckTexture() const;
         void SetCheckTexture(const std::string& texture);
-
         const Color GetCheckColor() const;
         void SetCheckColor(const Color& color);
+
+        const std::string& GetCheckBorder() const;
+        void SetCheckBorder(const std::string& texture);
+        void SetCheckBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize);
+        void SetCheckBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset);
+        void SetCheckSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset);
 
         // Checkbox Functions
         const bool IsChecked() const;
