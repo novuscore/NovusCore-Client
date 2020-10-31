@@ -148,6 +148,13 @@ InputManager::InputManager() : _keyToKeybindMap(), _titleToKeybindMap(), _keyboa
 
 void InputManager::KeyboardInputHandler(Window* window, i32 key, i32 /*scanCode*/, i32 actionMask, i32 modifierMask)
 {
+    // We use bit 1 for "NONE" (No Modifiers)
+    {
+        modifierMask = modifierMask << 1;
+        if (modifierMask == 0)
+            modifierMask |= 0x1;
+    }
+
     for (auto kv : _keyboardInputCallbackMap)
     {
         //If this returns true it consumed the input.
@@ -164,7 +171,7 @@ void InputManager::KeyboardInputHandler(Window* window, i32 key, i32 /*scanCode*
             inputBinding->state = 0;
 
         // Validate ActionMask and then check Modifier Mask
-        bool validModifier = inputBinding->modifierMask == KEYBIND_MOD_ANY || inputBinding->modifierMask & modifierMask || inputBinding->modifierMask == 0 && modifierMask == 0;
+        bool validModifier = inputBinding->modifierMask == KEYBIND_MOD_ANY || inputBinding->modifierMask & modifierMask;
         if ((inputBinding->actionMask & (1 << actionMask)) && validModifier)
         {
             inputBinding->state = actionMask == GLFW_RELEASE ? 0 : 1;
@@ -172,7 +179,7 @@ void InputManager::KeyboardInputHandler(Window* window, i32 key, i32 /*scanCode*
             if (!inputBinding->callback)
                 continue;
 
-            //If this returns true it consumed the input.
+            // If this returns true it consumed the input.
             if (inputBinding->callback(window, inputBinding))
                 return;
         }
@@ -182,13 +189,20 @@ void InputManager::CharInputHandler(Window* window, u32 unicodeKey)
 {
     for (auto kv : _charInputCallbackMap)
     {
-        //If this returns true it consumed the input.
+        // If this returns true it consumed the input.
         if (kv.second(window, unicodeKey))
             break;
     }
 }
 void InputManager::MouseInputHandler(Window* window, i32 button, i32 actionMask, i32 modifierMask)
 {
+    // We use bit 1 for "NONE" (No Modifiers)
+    {
+        modifierMask = modifierMask << 1;
+        if (modifierMask == 0)
+            modifierMask |= 0x1;
+    }
+
     _mouseState = actionMask == GLFW_RELEASE ? 0 : 1;
 
     for (auto kv : _keyToKeybindMap[button])
@@ -204,7 +218,11 @@ void InputManager::MouseInputHandler(Window* window, i32 button, i32 actionMask,
             if (!inputBinding->callback)
                 continue;
 
-            inputBinding->callback(window, inputBinding);
+            inputBinding->currentModifierMask = modifierMask;
+
+            // If this returns true it consumed the input.
+            if (inputBinding->callback(window, inputBinding))
+                break;
         }
     }
 }

@@ -35,6 +35,11 @@ namespace tf
     class Framework;
 }
 
+namespace Editor
+{
+    class Editor;
+}
+
 struct FrameworkRegistryPair
 {
     entt::registry gameRegistry;
@@ -106,5 +111,6 @@ private:
     FrameworkRegistryPair _updateFramework;
 
     ClientRenderer* _clientRenderer;
+    Editor::Editor* _editor;
     NetworkPair _network;
 };

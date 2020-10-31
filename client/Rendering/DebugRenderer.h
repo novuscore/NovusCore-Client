@@ -35,6 +35,8 @@ public:
 	void DrawRectangle2D(const vec2& min, const vec2& max, uint32_t color);
 	void DrawFrustum(const mat4x4& viewProjectionMatrix, uint32_t color);
 
+	static vec3 UnProject(const vec3& point, const mat4x4& m);
+
 private:
 	struct DebugVertex
 	{

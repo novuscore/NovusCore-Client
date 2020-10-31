@@ -229,6 +229,7 @@ float4 Shade(uint16_t pixelId, float4 texture1, float4 texture2, float3 normal, 
     result.rgb = Lighting(result.rgb, normal, isLit) + specular;
     return result;
 }
+
 float4 Blend(uint16_t blendingMode, float4 previousColor, float4 color)
 {
     float4 result = previousColor;
@@ -239,13 +240,15 @@ float4 Blend(uint16_t blendingMode, float4 previousColor, float4 color)
     }
     else if (blendingMode == 1) // ALPHA KEY
     {
-        if (color.a > 1.0f / 255.0f)
+        if (color.a >= 224.0f / 255.0f)
         {
             float3 blendedColor = color.rgb * color.a + previousColor.rgb * (1 - color.a);
             result.rgb += blendedColor;
             result.a = max(color.a, previousColor.a); // TODO: Check if this is actually needed
-
-            //color = float4(texture1.rgb, 1);
+        }
+        else
+        {
+            discard;
         }
     }
     else if (blendingMode == 2) // ALPHA
@@ -328,6 +331,8 @@ PSOutput main(PSInput input)
         }
 
         float4 shadedColor = Shade(pixelShaderId, texture1, texture2, input.normal, (materialFlags & 0x1) == 0);
+        
+        //float4 shadedColor = float4(pixelShaderId, materialFlags, j, 1);
         color = Blend(blendingMode, color, shadedColor);
     }
 

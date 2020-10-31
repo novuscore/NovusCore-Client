@@ -23,33 +23,60 @@ bool MapLoader::Init(entt::registry* registry)
     MapSingleton& mapSingleton = registry->set<MapSingleton>();
     DBCSingleton& dbcSingleton = registry->ctx<DBCSingleton>();
 
-    if (mapSingleton.mapDBCFiles.size() != 0)
+    if (mapSingleton.mapDBCEntries.size() != 0)
     {
         NC_LOG_ERROR("MapLoader::Init can only be called once");
         return false;
     }
 
-    auto itr = dbcSingleton.nameHashToDBCFile.find("Maps"_h);
-    if (itr == dbcSingleton.nameHashToDBCFile.end())
+    // Load Maps.ndbc
     {
-        NC_LOG_ERROR("Maps.ndbc has not been loaded, please check your data folder.");
-        return false;
+        auto itr = dbcSingleton.nameHashToDBCFile.find("Maps"_h);
+        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        {
+            NC_LOG_ERROR("Maps.ndbc has not been loaded, please check your data folder.");
+            return false;
+        }
+
+        if (!ExtractMapDBC(itr->second, mapSingleton.mapDBCEntries))
+        {
+            NC_LOG_ERROR("Failed to correctly load Maps.ndbc data");
+            return false;
+        }
+
+        for (DBC::Map& map : mapSingleton.mapDBCEntries)
+        {
+            u32 mapNameHash = dbcSingleton.stringTable.GetStringHash(map.name);
+            u32 mapInternalNameHash = dbcSingleton.stringTable.GetStringHash(map.internalName);
+
+            mapSingleton.mapIdToDBC[map.id] = &map;
+            mapSingleton.mapNameToDBC[mapNameHash] = &map;
+            mapSingleton.mapInternalNameToDBC[mapInternalNameHash] = &map;
+        }
     }
 
-    if (!ExtractMapDBC(itr->second, mapSingleton.mapDBCFiles))
+    // Load AreaTable.ndbc
     {
-        NC_LOG_ERROR("Failed to correctly load Maps.ndbc data");
-        return false;
-    }
+        auto itr = dbcSingleton.nameHashToDBCFile.find("AreaTable"_h);
+        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        {
+            NC_LOG_ERROR("AreaTable.ndbc has not been loaded, please check your data folder.");
+            return false;
+        }
 
-    for (DBC::Map& map : mapSingleton.mapDBCFiles)
-    {
-        u32 mapNameHash = dbcSingleton.stringTable.GetStringHash(map.Name);
-        u32 mapInternalNameHash = dbcSingleton.stringTable.GetStringHash(map.InternalName);
+        if (!ExtractAreaTableDBC(itr->second, mapSingleton.areaTableDBCEntries))
+        {
+            NC_LOG_ERROR("Failed to correctly load Maps.ndbc data");
+            return false;
+        }
 
-        mapSingleton.mapIdToDBC[map.Id] = &map;
-        mapSingleton.mapNameToDBC[mapNameHash] = &map;
-        mapSingleton.mapInternalNameToDBC[mapInternalNameHash] = &map;
+        for (DBC::AreaTable& area : mapSingleton.areaTableDBCEntries)
+        {
+            u32 areaNameHash = dbcSingleton.stringTable.GetStringHash(area.name);
+
+            mapSingleton.areaIdToDBC[area.id] = &area;
+            mapSingleton.areaNameToDBC[areaNameHash] = &area;
+        }
     }
 
     return true;
@@ -74,7 +101,7 @@ bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
 
     const DBC::Map* map = mapSingleton.mapInternalNameToDBC[mapInternalNameHash];
 
-    const std::string& mapInternalName = dbcSingleton.stringTable.GetString(map->InternalName);
+    const std::string& mapInternalName = dbcSingleton.stringTable.GetString(map->internalName);
     fs::path absolutePath = std::filesystem::absolute("Data/extracted/maps/" + mapInternalName);
     if (!fs::is_directory(absolutePath))
     {
@@ -85,7 +112,7 @@ bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
     // Clear currently loaded map
     mapSingleton.currentMap.Clear();
 
-    mapSingleton.currentMap.id = map->Id;
+    mapSingleton.currentMap.id = map->id;
     mapSingleton.currentMap.name = mapInternalName;
 
     bool nmapFound = false;
@@ -197,6 +224,20 @@ bool MapLoader::ExtractMapDBC(DBC::File& file, std::vector<DBC::Map>& maps)
     return true;
 }
 
+bool MapLoader::ExtractAreaTableDBC(DBC::File& file, std::vector<DBC::AreaTable>& areas)
+{
+    u32 numAreas = 0;
+    file.buffer->GetU32(numAreas);
+
+    if (numAreas == 0)
+        return false;
+
+    // Resize our vector and fill it with map data
+    areas.resize(numAreas);
+    file.buffer->GetBytes(reinterpret_cast<u8*>(&areas[0]), sizeof(DBC::AreaTable) * numAreas);
+    return true;
+}
+
 bool MapLoader::ExtractHeaderData(FileReader& reader, Terrain::MapHeader& header)
 {
     Bytebuffer buffer(nullptr, reader.Length());
@@ -262,7 +303,16 @@ bool MapLoader::ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk, Stri
     if (numMapObjectPlacements > 0)
     {
         chunk.mapObjectPlacements.resize(numMapObjectPlacements);
-        buffer.GetBytes(reinterpret_cast<u8*>(&chunk.mapObjectPlacements[0]), sizeof(Terrain::MapObjectPlacement) * numMapObjectPlacements);
+        buffer.GetBytes(reinterpret_cast<u8*>(&chunk.mapObjectPlacements[0]), sizeof(Terrain::Placement) * numMapObjectPlacements);
+    }
+
+    u32 numComplexModelPlacements;
+    buffer.Get<u32>(numComplexModelPlacements);
+
+    if (numComplexModelPlacements > 0)
+    {
+        chunk.complexModelPlacements.resize(numComplexModelPlacements);
+        buffer.GetBytes(reinterpret_cast<u8*>(&chunk.complexModelPlacements[0]), sizeof(Terrain::Placement) * numComplexModelPlacements);
     }
 
     // Read Liquid Headers

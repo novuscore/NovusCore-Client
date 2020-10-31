@@ -16,10 +16,10 @@ enum KeybindAction
 };
 enum KeybindModifier
 {
-    KEYBIND_MOD_NONE = 0,
-    KEYBIND_MOD_SHIFT = 0x01 << 0,
-    KEYBIND_MOD_CONTROL = 0x01 << 1,
-    KEYBIND_MOD_ALT = 0x01 << 2,
+    KEYBIND_MOD_NONE = 0x01 << 0,
+    KEYBIND_MOD_SHIFT = 0x01 << 1,
+    KEYBIND_MOD_CONTROL = 0x01 << 2,
+    KEYBIND_MOD_ALT = 0x01 << 3,
 
     // Combinations
     KEYBIND_MOD_ANY = KEYBIND_MOD_NONE | KEYBIND_MOD_SHIFT | KEYBIND_MOD_CONTROL | KEYBIND_MOD_ALT
@@ -40,6 +40,10 @@ public:
     i32 actionMask;
     i32 key;
     i32 modifierMask;
+
+    // Runtime Values
     i32 state;
+    i32 currentModifierMask;
+
     std::function<KeybindCallbackFunc> callback;
 };

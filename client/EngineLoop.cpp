@@ -12,6 +12,7 @@
 #include "Rendering/TerrainRenderer.h"
 #include "Rendering/CameraFreelook.h"
 #include "Rendering/CameraOrbital.h"
+#include "Editor/Editor.h"
 #include "Loaders/Texture/TextureLoader.h"
 #include "Loaders/Map/MapLoader.h"
 #include "Loaders/DBC/DBCLoader.h"
@@ -26,7 +27,6 @@
 #include "ECS/Components/Network/ConnectionSingleton.h"
 #include "ECS/Components/Network/AuthenticationSingleton.h"
 #include "ECS/Components/LocalplayerSingleton.h"
-
 
 // Components
 #include "ECS/Components/Transform.h"
@@ -53,6 +53,7 @@
 #include <tracy/Tracy.hpp>
 
 #include "imgui/imgui.h"
+#include "imgui/imgui_internal.h"
 #include "imgui/imgui_impl_vulkan.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/misc/cpp/imgui_stdlib.h"
@@ -74,6 +75,7 @@ EngineLoop::EngineLoop() : _isRunning(false), _inputQueue(256), _outputQueue(256
 EngineLoop::~EngineLoop()
 {
     delete _clientRenderer;
+    delete _editor;
 }
 
 void EngineLoop::Start()
@@ -140,6 +142,7 @@ void EngineLoop::Run()
     ServiceLocator::SetSceneManager(sceneManager);
 
     _clientRenderer = new ClientRenderer();
+    _editor = new Editor::Editor();
 
     CameraFreeLook* cameraFreeLook = new CameraFreeLook(vec3(-8000.0f, 100.0f, 1600.0f)); // Stormwind Harbor
     //CameraFreeLook* cameraFreeLook = new CameraFreeLook(vec3(300.0f, 0.0f, -4700.0f)); // Razor Hill
@@ -339,8 +342,14 @@ bool EngineLoop::Update(f32 deltaTime)
     Camera* camera = ServiceLocator::GetCamera();
     camera->Update(deltaTime, 75.0f, static_cast<f32>(_clientRenderer->WIDTH) / static_cast<f32>(_clientRenderer->HEIGHT));
 
-    _clientRenderer->Update(deltaTime);
+    i32* editorEnabledCVAR = CVarSystem::Get()->GetIntCVar("editor.Enable"_h);
+    if (*editorEnabledCVAR)
+    {
+        _editor->Update(deltaTime);
+    }
 
+    _clientRenderer->Update(deltaTime);
+    
     return true;
 }
 

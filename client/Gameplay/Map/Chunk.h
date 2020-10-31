@@ -37,7 +37,7 @@
 namespace Terrain
 {
     constexpr i32 MAP_CHUNK_TOKEN = 1128812107; // UTF8 -> Binary -> Decimal for "chnk"
-    constexpr i32 MAP_CHUNK_VERSION = 4;
+    constexpr i32 MAP_CHUNK_VERSION = 5;
     constexpr u16 MAP_CHUNK_ID_INVALID = std::numeric_limits<u16>().max();
 
     constexpr u32 MAP_CHUNKS_PER_MAP_STRIDE = 64;
@@ -72,7 +72,7 @@ namespace Terrain
         HeightPlane maxHeight;
     };
 
-    struct MapObjectPlacement
+    struct Placement
     {
         u32 nameID;
         vec3 position;
@@ -160,7 +160,8 @@ namespace Terrain
         Cell cells[MAP_CELLS_PER_CHUNK];
         u32 alphaMapStringID;
 
-        std::vector<MapObjectPlacement> mapObjectPlacements;
+        std::vector<Placement> mapObjectPlacements;
+        std::vector<Placement> complexModelPlacements;
 
         std::vector<CellLiquidHeader> liquidHeaders;
         std::vector<CellLiquidInstance> liquidInstances;

@@ -37,5 +37,10 @@ struct MapSingleton
 	robin_hood::unordered_map<u16, DBC::Map*> mapIdToDBC;
 	robin_hood::unordered_map<u32, DBC::Map*> mapNameToDBC;
 	robin_hood::unordered_map<u32, DBC::Map*> mapInternalNameToDBC;
-	std::vector<DBC::Map> mapDBCFiles;
+	std::vector<DBC::Map> mapDBCEntries;
+
+	robin_hood::unordered_map<u32, DBC::AreaTable*> areaIdToDBC;
+	robin_hood::unordered_map<u32, DBC::AreaTable*> areaNameToDBC;
+
+	std::vector<DBC::AreaTable> areaTableDBCEntries;
 };

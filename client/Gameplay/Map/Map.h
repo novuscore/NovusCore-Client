@@ -51,7 +51,7 @@ namespace Terrain
         MapDetailFlag flags;
 
         std::string mapObjectName = "";
-        MapObjectPlacement mapObjectPlacement;
+        Placement mapObjectPlacement;
     };
 
     struct Map

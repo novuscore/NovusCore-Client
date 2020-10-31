@@ -53,7 +53,7 @@ PSOutput main(PSInput input)
     float2 uv = input.uv; // [0.0 .. 8.0]
 
     // However the alpha needs to be between 0 and 1, so lets convert it
-    float3 alphaUV = float3(uv / 8.0f, float(cellID));
+    float3 alphaUV = float3(saturate(uv / 8.0f), float(cellID));
 
     const CellData cellData = LoadCellData(input.cellIndex);
 
@@ -74,14 +74,22 @@ PSOutput main(PSInput input)
     uint alphaID = chunkData.alphaID;
 
     float3 alpha = _terrainAlphaTextures[alphaID].Sample(_alphaSampler, alphaUV).rgb;
-    float4 diffuse0 = _terrainColorTextures[diffuse0ID].Sample(_colorSampler, uv);
-    float4 diffuse1 = _terrainColorTextures[diffuse1ID].Sample(_colorSampler, uv);
-    float4 diffuse2 = _terrainColorTextures[diffuse2ID].Sample(_colorSampler, uv);
-    float4 diffuse3 = _terrainColorTextures[diffuse3ID].Sample(_colorSampler, uv);
-    float4 color = diffuse0;
-    color = (diffuse1 * alpha.x) + (color * (1.0f - alpha.x));
-    color = (diffuse2 * alpha.y) + (color * (1.0f - alpha.y));
-    color = (diffuse3 * alpha.z) + (color * (1.0f - alpha.z));
+    float minusAlphaBlendSum = (1.0 - clamp(alpha.x + alpha.y + alpha.z, 0.0, 1.0));
+    float4 weightsVector = float4(minusAlphaBlendSum, alpha);
+
+    float4 color = float4(0, 0, 0, 0);
+
+    float4 diffuse0 = _terrainColorTextures[diffuse0ID].Sample(_colorSampler, uv) * weightsVector.x;
+    color += diffuse0;
+
+    float4 diffuse1 = _terrainColorTextures[diffuse1ID].Sample(_colorSampler, uv) * weightsVector.y;
+    color += diffuse1;
+
+    float4 diffuse2 = _terrainColorTextures[diffuse2ID].Sample(_colorSampler, uv) * weightsVector.z;
+    color += diffuse2;
+
+    float4 diffuse3 = _terrainColorTextures[diffuse3ID].Sample(_colorSampler, uv) * weightsVector.w;
+    color += diffuse3;
 
     // Apply lighting
     float3 normal = normalize(input.normal);
@@ -90,7 +98,6 @@ PSOutput main(PSInput input)
     color.rgb *= input.color;
     color = color * (saturate(_lightData.lightColor * lightFactor) + _lightData.ambientColor);
 
-    output.color = color;
-
+    output.color = saturate(color);
     return output;
 }

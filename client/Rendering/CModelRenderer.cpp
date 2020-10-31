@@ -21,6 +21,7 @@
 #include "../Loaders/DBC/DBC.h"
 
 #include <tracy/TracyVulkan.hpp>
+#include "../Gameplay/Map/Map.h"
 
 namespace fs = std::filesystem;
 
@@ -257,10 +258,6 @@ bool CModelRenderer::LoadCModel(std::string modelPath, u32& objectID)
     NC_LOG_MESSAGE("Loading CModel %u", objectCount);
     objectCount++;
 
-    u32 nextID = static_cast<u32>(_loadedCModels.size());
-    LoadedCModel& loadedCModel = _loadedCModels.emplace_back();
-    loadedCModel.debugName = modelPath;
-
     if (!StringUtils::EndsWith(modelPath, ".cmodel"))
     {
         NC_LOG_FATAL("Tried to call 'LoadCModel' with a reference to a file that didn't end with '.cmodel'");
@@ -300,6 +297,10 @@ bool CModelRenderer::LoadCModel(std::string modelPath, u32& objectID)
         {
             cModel.vertices.resize(numVertices);
             cModelBuffer.GetBytes(reinterpret_cast<u8*>(cModel.vertices.data()), numVertices * sizeof(CModel::ComplexVertex));
+        }
+        else
+        {
+            return false;
         }
     }
 
@@ -494,6 +495,10 @@ bool CModelRenderer::LoadCModel(std::string modelPath, u32& objectID)
 
     entt::registry* registry = ServiceLocator::GetGameRegistry();
     TextureSingleton& textureSingleton = registry->ctx<TextureSingleton>();
+
+    u32 nextID = static_cast<u32>(_loadedCModels.size());
+    LoadedCModel& loadedCModel = _loadedCModels.emplace_back();
+    loadedCModel.debugName = modelPath;
 
     size_t numRenderBatches = cModel.modelData.renderBatches.size();
     loadedCModel.mesh.renderBatches.resize(numRenderBatches);
@@ -1376,4 +1381,54 @@ bool CModelRenderer::LoadCreature(u32 displayId, u32& objectID)
     }
 
     return true;
+}
+
+void CModelRenderer::LoadFromChunk(const Terrain::Chunk& chunk, StringTable& stringTable)
+{
+    for (const Terrain::Placement& complexModelPlacement : chunk.complexModelPlacements)
+    {
+        const std::string& name = stringTable.GetString(complexModelPlacement.nameID);
+
+        u32 objectID = 0;
+        if (LoadCModel(name, objectID))
+        {
+            LoadedCModel& cModel = _loadedCModels[objectID];
+            
+            // Create staging buffer
+            const u32 bufferSize = sizeof(Instance);
+            Renderer::BufferDesc desc;
+            desc.name = "InstanceStaging";
+            desc.size = bufferSize;
+            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+            // Upload to staging buffer
+            Instance* dst = reinterpret_cast<Instance*>(_renderer->MapBuffer(stagingBuffer));
+
+            vec3 pos = complexModelPlacement.position;
+            pos = vec3(Terrain::MAP_HALF_SIZE - pos.x, pos.y, Terrain::MAP_HALF_SIZE - pos.z); // Go from [0 .. MAP_SIZE] to [-MAP_HALF_SIZE .. MAP_HALF_SIZE]
+            pos = vec3(pos.z, pos.y, pos.x); // Swizzle and invert x and z
+
+            vec3 rot = glm::radians(complexModelPlacement.rotation);
+            rot = vec3(rot.z, -rot.y, rot.x);
+
+            vec3 scale = vec3(complexModelPlacement.scale) / 1024.0f;
+
+            mat4x4 rotationMatrix = glm::eulerAngleXYZ(rot.x, rot.y, rot.z);
+            mat4x4 scaleMatrix = glm::scale(mat4x4(1.0f), scale);
+
+            dst->instanceMatrix = glm::translate(mat4x4(1.0f), pos) * rotationMatrix;// *scaleMatrix;
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            u32 dstOffset = sizeof(Instance) * cModel.numInstances++;
+
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(cModel.instanceBuffer, dstOffset, stagingBuffer, 0, bufferSize);
+        }
+    }
 }

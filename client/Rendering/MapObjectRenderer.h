@@ -25,7 +25,7 @@ namespace Terrain
 {
     struct Chunk;
     struct MapObject;
-    struct MapObjectPlacement;
+    struct Placement;
 }
 
 class StringTable;
@@ -56,7 +56,7 @@ class MapObjectRenderer
 
     struct MapObjectToBeLoaded
     {
-        const Terrain::MapObjectPlacement* placement = nullptr;
+        const Terrain::Placement* placement = nullptr;
         const std::string* nmorName = nullptr;
         u32 nmorNameHash = 0;
 
@@ -117,11 +117,13 @@ public:
 
     void AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 
-    void RegisterMapObjectToBeLoaded(const std::string& mapObjectName, const Terrain::MapObjectPlacement& mapObjectPlacement);
+    void RegisterMapObjectToBeLoaded(const std::string& mapObjectName, const Terrain::Placement& mapObjectPlacement);
     void RegisterMapObjectsToBeLoaded(const Terrain::Chunk& chunk, StringTable& stringTable);
     void ExecuteLoad();
 
     void Clear();
+
+    const std::vector<Terrain::CullingData>& GetCullingData() { return _cullingData; }
 
 private:
     void CreatePermanentResources();
@@ -135,7 +137,7 @@ private:
 
     void LoadRenderBatches(Bytebuffer& buffer, Mesh& mesh, LoadedMapObject& mapObject);
 
-    void AddInstance(LoadedMapObject& mapObject, const Terrain::MapObjectPlacement* placement);
+    void AddInstance(LoadedMapObject& mapObject, const Terrain::Placement* placement);
 
     void CreateBuffers();
 

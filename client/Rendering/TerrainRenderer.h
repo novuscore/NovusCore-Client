@@ -36,6 +36,7 @@ namespace Renderer
 class Camera;
 class DebugRenderer;
 class MapObjectRenderer;
+class CModelRenderer;
 class WaterRenderer;
 
 class TerrainRenderer
@@ -70,7 +71,7 @@ class TerrainRenderer
 #pragma pack(pop)
 
 public:
-    TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer);
+    TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer, CModelRenderer* complexModelRenderer);
     ~TerrainRenderer();
 
     void Update(f32 deltaTime);
@@ -78,6 +79,9 @@ public:
     void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 
     bool LoadMap(u32 mapInternalNameHash);
+
+    const std::vector<Geometry::AABoundingBox>& GetBoundingBoxes() { return _cellBoundingBoxes; }
+    MapObjectRenderer* GetMapObjectRenderer() { return _mapObjectRenderer; }
 private:
     void CreatePermanentResources();
 
@@ -127,6 +131,7 @@ private:
     
     // Subrenderers
     MapObjectRenderer* _mapObjectRenderer = nullptr;
+    CModelRenderer* _complexModelRenderer = nullptr;
     WaterRenderer* _waterRenderer = nullptr;
     DebugRenderer* _debugRenderer = nullptr;
 };

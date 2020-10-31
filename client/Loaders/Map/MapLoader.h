@@ -38,6 +38,7 @@ namespace DBC
 {
     struct File;
     struct Map;
+    struct AreaTable;
 }
 
 class MapLoader
@@ -49,7 +50,9 @@ public:
     static bool LoadMap(entt::registry* registry, u32 mapInternalNameHash);
 
 private:
+
     static bool ExtractMapDBC(DBC::File& file, std::vector<DBC::Map>& maps);
+    static bool ExtractAreaTableDBC(DBC::File& file, std::vector<DBC::AreaTable>& areas);
     static bool ExtractHeaderData(FileReader& reader, Terrain::MapHeader& header);
     static bool ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk, StringTable& stringTable);
 };

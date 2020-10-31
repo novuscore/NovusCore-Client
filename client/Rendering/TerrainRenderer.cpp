@@ -1,6 +1,7 @@
 #include "TerrainRenderer.h"
 #include "DebugRenderer.h"
 #include "MapObjectRenderer.h"
+#include "CModelRenderer.h"
 #include "WaterRenderer.h"
 #include <entt.hpp>
 #include "../Utils/ServiceLocator.h"
@@ -24,19 +25,16 @@
 
 #define USE_PACKED_HEIGHT_RANGE 1
 
+AutoCVar_Int CVAR_CullingEnabled("terrain.culling.Enable", "enable culling of terrain tiles", 1, CVarFlags::EditCheckbox);
+AutoCVar_Int CVAR_GPUCullingEnabled("terrain.culling.GPUCullEnable", "enable gpu culling", 1, CVarFlags::EditCheckbox);
+AutoCVar_Int CVAR_LockCullingFrustum("terrain.culling.LockFrustum", "lock frustrum for terrain culling", 0, CVarFlags::EditCheckbox);
 
-static vec3 s_debugPosition = vec3(0, 0, 0);
+AutoCVar_Int CVAR_HeightBoxEnable("terrain.heightBox.Enable", "draw height box", 1, CVarFlags::EditCheckbox);
+AutoCVar_Float CVAR_HeightBoxScale("terrain.heightBox.Scale", "size of the height box", 0.1f, CVarFlags::EditFloatDrag);
+AutoCVar_VecFloat CVAR_HeightBoxPosition("terrain.heightBox.Position", "position of the height box", vec4(0, 0, 0, 0), CVarFlags::Noedit);
+AutoCVar_Int CVAR_HeightBoxLockPosition("terrain.heightBox.LockPosition", "lock height box position", 0, CVarFlags::EditCheckbox);
 
-
-AutoCVar_Int CVAR_CullingEnabled("terrain.cullEnable", "enable culling of terrain tiles", 1, CVarFlags::EditCheckbox);
-
-AutoCVar_Int CVAR_GPUCullingEnabled("terrain.gpuCullEnable", "enable gpu culling", 1, CVarFlags::EditCheckbox);
-
-AutoCVar_Int CVAR_LockCullingFrustum("terrain.lockCullingFrustum", "lock frustrum for terrain culling", 0, CVarFlags::EditCheckbox);
-
-AutoCVar_Int CVAR_LockDebugPosition("terrain.lockDebugPosition", "lock terrain debug position", 0, CVarFlags::EditCheckbox);
-
-AutoCVar_Float CVAR_DebugPositionScale("terrain.debugPositionScale", "size of the debug position marker", 0.1f);
+AutoCVar_Int CVAR_DrawCellGrid("terrain.cellGrid.Enable", "draw debug grid for displaying cells", 1, CVarFlags::EditCheckbox);
 
 struct TerrainChunkData
 {
@@ -60,9 +58,10 @@ struct TerrainCellHeightRange
 #endif
 };
 
-TerrainRenderer::TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer)
+TerrainRenderer::TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer, CModelRenderer* complexModelRenderer)
     : _renderer(renderer)
     , _debugRenderer(debugRenderer)
+    , _complexModelRenderer(complexModelRenderer)
 {
     _mapObjectRenderer = new MapObjectRenderer(renderer, debugRenderer); // Needs to be created before CreatePermanentResources
     _waterRenderer = new WaterRenderer(renderer); // Needs to be created before CreatePermanentResources
@@ -88,17 +87,17 @@ TerrainRenderer::TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* de
 
     ServiceLocator::GetInputManager()->RegisterKeybind("ToggleLockDebugPosition", GLFW_KEY_F6, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
-        CVAR_LockDebugPosition.Toggle();
+        CVAR_HeightBoxLockPosition.Toggle();
         return true;
     });
     ServiceLocator::GetInputManager()->RegisterKeybind("DecreaseDebugPositionScale", GLFW_KEY_F7, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
-        CVAR_DebugPositionScale.Set(CVAR_DebugPositionScale.Get() - 0.1f);
+        CVAR_HeightBoxScale.Set(CVAR_HeightBoxScale.Get() - 0.1f);
         return true;
     });
     ServiceLocator::GetInputManager()->RegisterKeybind("IncreaseDebugPositionScale", GLFW_KEY_F8, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
     {
-        CVAR_DebugPositionScale.Set(CVAR_DebugPositionScale.Get() + 0.1f);
+            CVAR_HeightBoxScale.Set(CVAR_HeightBoxScale.Get() + 0.1f);
         return true;
     });
 }
@@ -116,29 +115,35 @@ void TerrainRenderer::Update(f32 deltaTime)
     //}
 
     Camera* camera = ServiceLocator::GetCamera();
-    constexpr auto hash = StringUtils::StringHash("terrain.lockDebugPosition");
-    i32* debugPos = CVarSystem::Get()->GetIntCVar(hash);
-    bool bDebugLock = *debugPos != 0;
-    if (!bDebugLock)
+
+    if (CVAR_HeightBoxEnable.Get())
     {
-        s_debugPosition = camera->GetPosition();
-        s_debugPosition.y = Terrain::MapUtils::GetHeightFromWorldPosition(s_debugPosition);
+        if (!CVAR_HeightBoxLockPosition.Get())
+        {
+            vec4 position = vec4(camera->GetPosition(), 0);
+            position.y = Terrain::MapUtils::GetHeightFromWorldPosition(position);
+
+            CVAR_HeightBoxPosition.Set(position);
+        }
+
+        f32 halfSize = CVAR_HeightBoxScale.GetFloat();
+        vec3 min = CVAR_HeightBoxPosition.Get();
+        min.x -= halfSize;
+        min.z -= halfSize;
+
+        vec3 max = CVAR_HeightBoxPosition.Get();
+        max.x += halfSize;
+        max.z += halfSize;
+
+        max.y += halfSize;
+
+        _debugRenderer->DrawAABB3D(min, max, 0xff00ff00);
     }
     
-    f32 halfSize = CVAR_DebugPositionScale.GetFloat();
-    vec3 min = s_debugPosition;
-    min.x -= halfSize;
-    min.z -= halfSize;
-
-    vec3 max = s_debugPosition;
-    max.x += halfSize;
-    max.z += halfSize;
-
-    max.y += halfSize;
-
-    _debugRenderer->DrawAABB3D(min, max, 0xff00ff00);
-    
-    DebugRenderCellTriangles(camera);
+    if (CVAR_DrawCellGrid.Get())
+    {
+        DebugRenderCellTriangles(camera);
+    }
 
     if (CVAR_CullingEnabled.Get() && !CVAR_GPUCullingEnabled.Get())
     {
@@ -721,15 +726,16 @@ bool TerrainRenderer::LoadMap(u32 mapInternalNameHash)
     // Unload everything in our alpha array
     _renderer->UnloadTexturesInArray(_terrainAlphaTextureArray, 0);
 
+    
+    // Register Map Object to be loaded
     if (mapSingleton.currentMap.header.flags.UseMapObjectInsteadOfTerrain)
     {
-        // Register Map Object to be loaded
         _mapObjectRenderer->RegisterMapObjectToBeLoaded(mapSingleton.currentMap.header.mapObjectName, mapSingleton.currentMap.header.mapObjectPlacement);
     }
     else
     {
         RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(32, 32), 32); // Load everything
-        //RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(32, 52), 2); // Goldshire
+        //RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(31, 50), 1); // Goldshire
         //RegisterChunksToBeLoaded(map, ivec2(40, 32), 8); // Razor Hill
         //RegisterChunksToBeLoaded(map, ivec2(22, 25), 8); // Borean Tundra
 
@@ -985,5 +991,7 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
     }
 
     _mapObjectRenderer->RegisterMapObjectsToBeLoaded(chunk, stringTable);
+    //_complexModelRenderer->LoadFromChunk(chunk, stringTable);
+
     _loadedChunks.push_back(chunkID);
 }

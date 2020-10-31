@@ -90,8 +90,8 @@ ClientRenderer::ClientRenderer()
 
     _debugRenderer = new DebugRenderer(_renderer);
     _uiRenderer = new UIRenderer(_renderer, _debugRenderer);
-    _terrainRenderer = new TerrainRenderer(_renderer, _debugRenderer);
     _cModelRenderer = new CModelRenderer(_renderer, _debugRenderer);
+    _terrainRenderer = new TerrainRenderer(_renderer, _debugRenderer, _cModelRenderer);
 
     ServiceLocator::SetClientRenderer(this);
 }

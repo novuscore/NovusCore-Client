@@ -203,7 +203,7 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
     }
 }
 
-void MapObjectRenderer::RegisterMapObjectToBeLoaded(const std::string& mapObjectName, const Terrain::MapObjectPlacement& mapObjectPlacement)
+void MapObjectRenderer::RegisterMapObjectToBeLoaded(const std::string& mapObjectName, const Terrain::Placement& mapObjectPlacement)
 {
     MapObjectToBeLoaded& mapObjectToBeLoaded = _mapObjectsToBeLoaded.emplace_back();
     mapObjectToBeLoaded.placement = &mapObjectPlacement;
@@ -213,7 +213,7 @@ void MapObjectRenderer::RegisterMapObjectToBeLoaded(const std::string& mapObject
 
 void MapObjectRenderer::RegisterMapObjectsToBeLoaded(const Terrain::Chunk& chunk, StringTable& stringTable)
 {
-    for (const Terrain::MapObjectPlacement& mapObjectPlacement : chunk.mapObjectPlacements)
+    for (const Terrain::Placement& mapObjectPlacement : chunk.mapObjectPlacements)
     {
         MapObjectToBeLoaded& mapObjectToBeLoaded = _mapObjectsToBeLoaded.emplace_back();
         mapObjectToBeLoaded.placement = &mapObjectPlacement;
@@ -607,7 +607,7 @@ void MapObjectRenderer::LoadRenderBatches(Bytebuffer& buffer, Mesh& mesh, Loaded
     buffer.GetBytes(reinterpret_cast<u8*>(&mapObject.cullingData.data()[cullingDataSize]), numRenderBatches * sizeof(Terrain::CullingData));
 }
 
-void MapObjectRenderer::AddInstance(LoadedMapObject& mapObject, const Terrain::MapObjectPlacement* placement)
+void MapObjectRenderer::AddInstance(LoadedMapObject& mapObject, const Terrain::Placement* placement)
 {
     u32 instanceID = static_cast<u32>(_instances.size());
     mapObject.instanceIDs.push_back(instanceID);

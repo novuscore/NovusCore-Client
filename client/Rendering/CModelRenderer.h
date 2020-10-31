@@ -47,6 +47,7 @@ public:
     void AddCModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 
     bool LoadCreature(u32 displayId, u32& objectID);
+    void LoadFromChunk(const Terrain::Chunk& chunk, StringTable& stringTable);
 private:
     void CreatePermanentResources();
 

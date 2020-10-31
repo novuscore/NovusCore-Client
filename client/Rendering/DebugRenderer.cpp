@@ -282,7 +282,7 @@ void DebugRenderer::DrawRectangle2D(const glm::vec2& min, const glm::vec2& max, 
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].push_back({ glm::vec3(min.x, max.y, 0.0f), color });
 }
 
-__forceinline static vec3 unproject(const vec3& point, const mat4x4& m)
+vec3 DebugRenderer::UnProject(const vec3& point, const mat4x4& m)
 {
 	vec4 obj = m * vec4(point, 1.0f);
 	obj /= obj.w;
@@ -295,15 +295,15 @@ void DebugRenderer::DrawFrustum(const mat4x4& viewProjectionMatrix, uint32_t col
 
 	vec4 viewport(0.0f, 0.0f, 640.0f, 360.0f);
 
-	const vec3 near0 = unproject(vec3(-1.0f, -1.0f, 0.0f), m);
-	const vec3 near1 = unproject(vec3(+1.0f, -1.0f, 0.0f), m);
-	const vec3 near2 = unproject(vec3(+1.0f, +1.0f, 0.0f), m);
-	const vec3 near3 = unproject(vec3(-1.0f, +1.0f, 0.0f), m);
+	const vec3 near0 = UnProject(vec3(-1.0f, -1.0f, 0.0f), m);
+	const vec3 near1 = UnProject(vec3(+1.0f, -1.0f, 0.0f), m);
+	const vec3 near2 = UnProject(vec3(+1.0f, +1.0f, 0.0f), m);
+	const vec3 near3 = UnProject(vec3(-1.0f, +1.0f, 0.0f), m);
 
-	const vec3 far0 = unproject(vec3(-1.0f, -1.0f, 1.0f), m);
-	const vec3 far1 = unproject(vec3(+1.0f, -1.0f, 1.0f), m);
-	const vec3 far2 = unproject(vec3(+1.0f, +1.0f, 1.0f), m);
-	const vec3 far3 = unproject(vec3(-1.0f, +1.0f, 1.0f), m);
+	const vec3 far0 = UnProject(vec3(-1.0f, -1.0f, 1.0f), m);
+	const vec3 far1 = UnProject(vec3(+1.0f, -1.0f, 1.0f), m);
+	const vec3 far2 = UnProject(vec3(+1.0f, +1.0f, 1.0f), m);
+	const vec3 far3 = UnProject(vec3(-1.0f, +1.0f, 1.0f), m);
 
 	// Near plane
 	DrawLine3D(near0, near1, color);
