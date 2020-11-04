@@ -34,13 +34,15 @@ namespace Terrain
     struct MapHeader;
 }
 
-namespace DBC
+namespace NDBC
 {
     struct File;
     struct Map;
     struct AreaTable;
 }
 
+struct MapSingleton;
+struct DBCSingleton;
 class MapLoader
 {
 public:
@@ -50,9 +52,14 @@ public:
     static bool LoadMap(entt::registry* registry, u32 mapInternalNameHash);
 
 private:
-
-    static bool ExtractMapDBC(DBC::File& file, std::vector<DBC::Map>& maps);
-    static bool ExtractAreaTableDBC(DBC::File& file, std::vector<DBC::AreaTable>& areas);
     static bool ExtractHeaderData(FileReader& reader, Terrain::MapHeader& header);
     static bool ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk, StringTable& stringTable);
+
+    static bool LoadMapDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
+    static bool LoadAreaTableDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
+    static bool LoadLightDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
+    static bool LoadLightParamsDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
+    static bool LoadLightIntBandDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
+    static bool LoadLightFloatBandDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
+    static bool LoadLightSkyboxDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
 };

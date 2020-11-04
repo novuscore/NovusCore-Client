@@ -33,7 +33,7 @@ namespace Terrain
     struct Chunk;
 }
 
-namespace DBC
+namespace NDBC
 {
     struct File;
     struct CreatureDisplayInfo;
@@ -53,7 +53,4 @@ public:
 private:
     static bool LoadCreatureModelDataDBC(DBCSingleton& dbcSingleton, DisplayInfoSingleton& displayInfoSingleton);
     static bool LoadCreatureDisplayInfoDBC(DBCSingleton& dbcSingleton, DisplayInfoSingleton& displayInfoSingleton);
-
-    static bool ExtractCreatureModelDataDBC(DBC::File& file, std::vector<DBC::CreatureModelData>& creatureDisplayInfos);
-    static bool ExtractCreatureDisplayInfoDBC(DBC::File& file, std::vector<DBC::CreatureDisplayInfo>& creatureDisplayInfos);
 };

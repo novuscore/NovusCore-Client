@@ -41,7 +41,7 @@ void CModelRenderer::Update(f32 deltaTime)
 {
 }
 
-void CModelRenderer::AddCModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
 {
     struct CModelPassData
     {
@@ -98,37 +98,17 @@ void CModelRenderer::AddCModelPass(Renderer::RenderGraph* renderGraph, Renderer:
 
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
 
+            _passDescriptorSet.Bind("_drawCallDatas", _drawCallDataBuffer);
+            _passDescriptorSet.Bind("_vertices", _vertexBuffer);
             _passDescriptorSet.Bind("_textures", _cModelTextures);
+            _passDescriptorSet.Bind("_textureUnits", _textureUnitBuffer);
+            _passDescriptorSet.Bind("_instances", _instanceBuffer);
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
-            for (LoadedCModel& loadedCModel : _loadedCModels)
-            {
-                commandList.PushMarker("CModel", Color::White);
+            commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
 
-                Mesh& mesh = loadedCModel.mesh;
-
-                _meshDescriptorSet.Bind("_instanceData", loadedCModel.instanceBuffer);
-                _meshDescriptorSet.Bind("_vertexPositions", mesh.vertexPositionsBuffer);
-                _meshDescriptorSet.Bind("_vertexNormals", mesh.vertexNormalsBuffer);
-                _meshDescriptorSet.Bind("_vertexUVs0", mesh.vertexUVs0Buffer);
-                _meshDescriptorSet.Bind("_vertexUVs1", mesh.vertexUVs1Buffer);
-                _meshDescriptorSet.Bind("_textureUnits", mesh.textureUnitsBuffer);
-                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_meshDescriptorSet, frameIndex);
-
-                for (size_t i = 0; i < mesh.renderBatches.size(); i++)
-                {
-                    RenderBatch& renderBatch = mesh.renderBatches[i];
-
-                    if (!renderBatch.isBackfaceCulled)
-                        continue;
-
-                    commandList.PushConstant(renderBatch.textureUnitIndices, 0, sizeof(renderBatch.textureUnitIndices));
-                    commandList.SetIndexBuffer(renderBatch.indexBuffer, Renderer::IndexFormat::UInt16);
-                    commandList.DrawIndexed(renderBatch.indexCount, loadedCModel.numInstances, 0, 0, 0);
-                }
-
-                commandList.PopMarker();
-            }
+            u32 numDrawCalls = static_cast<u32>(_drawCalls.size());
+            commandList.DrawIndexedIndirect(_drawCallBuffer, 0, numDrawCalls);
 
             commandList.EndPipeline(pipeline);
         }
@@ -142,43 +122,83 @@ void CModelRenderer::AddCModelPass(Renderer::RenderGraph* renderGraph, Renderer:
 
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
 
+            _passDescriptorSet.Bind("_drawCallDatas", _twoSidedDrawCallDataBuffer);
+            _passDescriptorSet.Bind("_vertices", _vertexBuffer);
             _passDescriptorSet.Bind("_textures", _cModelTextures);
+            _passDescriptorSet.Bind("_textureUnits", _textureUnitBuffer);
+            _passDescriptorSet.Bind("_instances", _instanceBuffer);
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
-            for (LoadedCModel& loadedCModel : _loadedCModels)
-            {
-                commandList.PushMarker("CModel", Color::White);
+            commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
 
-                Mesh& mesh = loadedCModel.mesh;
-
-                _meshDescriptorSet.Bind("_instanceData", loadedCModel.instanceBuffer);
-                _meshDescriptorSet.Bind("_vertexPositions", mesh.vertexPositionsBuffer);
-                _meshDescriptorSet.Bind("_vertexNormals", mesh.vertexNormalsBuffer);
-                _meshDescriptorSet.Bind("_vertexUVs0", mesh.vertexUVs0Buffer);
-                _meshDescriptorSet.Bind("_vertexUVs1", mesh.vertexUVs1Buffer);
-                _meshDescriptorSet.Bind("_textureUnits", mesh.textureUnitsBuffer);
-                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_meshDescriptorSet, frameIndex);
-
-                for (size_t i = 0; i < mesh.renderBatches.size(); i++)
-                {
-                    RenderBatch& renderBatch = mesh.renderBatches[i];
-
-                    if (renderBatch.isBackfaceCulled)
-                        continue;
-
-                    commandList.PushConstant(renderBatch.textureUnitIndices, 0, sizeof(renderBatch.textureUnitIndices));
-                    commandList.SetIndexBuffer(renderBatch.indexBuffer, Renderer::IndexFormat::UInt16);
-                    commandList.DrawIndexed(renderBatch.indexCount, loadedCModel.numInstances, 0, 0, 0);
-                }
-
-                commandList.PopMarker();
-            }
+            u32 numDrawCalls = static_cast<u32>(_twoSidedDrawCalls.size());
+            commandList.DrawIndexedIndirect(_twoSidedDrawCallBuffer, 0, numDrawCalls);
 
             commandList.EndPipeline(pipeline);
         }
     };
 
     renderGraph->AddPass<CModelPassData>("CModel Pass", setup, execute);
+}
+
+void CModelRenderer::RegisterLoadFromChunk(const Terrain::Chunk& chunk, StringTable& stringTable)
+{
+    for (const Terrain::Placement& placement : chunk.complexModelPlacements)
+    {
+        ComplexModelToBeLoaded& modelToBeLoaded = _complexModelsToBeLoaded.emplace_back();
+        modelToBeLoaded.placement = &placement;
+        modelToBeLoaded.name = &stringTable.GetString(placement.nameID);
+        modelToBeLoaded.nameHash = stringTable.GetStringHash(placement.nameID);
+    }
+}
+
+void CModelRenderer::ExecuteLoad()
+{
+    for (ComplexModelToBeLoaded& modelToBeLoaded : _complexModelsToBeLoaded)
+    {
+        // Placements reference a path to a ComplexModel, several placements can reference the same object
+        // Because of this we want only the first load to actually load the object, subsequent loads should reuse the loaded version
+        u32 modelID;
+
+        auto it = _nameHashToIndexMap.find(modelToBeLoaded.nameHash);
+        if (it == _nameHashToIndexMap.end())
+        {
+            modelID = static_cast<u32>(_loadedComplexModels.size());
+            LoadedComplexModel& complexModel = _loadedComplexModels.emplace_back();
+            LoadComplexModel(modelToBeLoaded, complexModel);
+
+            _nameHashToIndexMap[modelToBeLoaded.nameHash] = modelID;
+        }
+        else
+        {
+            modelID = it->second;
+        }
+
+        // Add placement as an instance
+        AddInstance(_loadedComplexModels[modelID], *modelToBeLoaded.placement);
+    }
+
+    CreateBuffers();
+    _complexModelsToBeLoaded.clear();
+}
+
+void CModelRenderer::Clear()
+{
+    _loadedComplexModels.clear();
+    _nameHashToIndexMap.clear();
+
+    _vertices.clear();
+    _indices.clear();
+    _textureUnits.clear();
+    _instances.clear();
+
+    _drawCalls.clear();
+    _drawCallDatas.clear();
+
+    _twoSidedDrawCalls.clear();
+    _twoSidedDrawCallDatas.clear();
+
+    _renderer->UnloadTexturesInArray(_cModelTextures, 0);
 }
 
 void CModelRenderer::CreatePermanentResources()
@@ -243,28 +263,111 @@ void CModelRenderer::CreatePermanentResources()
     }*/
 }
 
-bool CModelRenderer::LoadCModel(std::string modelPath, u32& objectID)
+bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, LoadedComplexModel& complexModel)
 {
-    u32 nameHash = StringUtils::fnv1a_32(modelPath.c_str(), modelPath.length());
+    const std::string& modelPath = *toBeLoaded.name;
+    
+    CModel::ComplexModel cModel;
+    if (!LoadFile(modelPath, cModel))
+        return false;
 
-    auto it = _nameHashToIndexMap.find(nameHash);
-    if (it != _nameHashToIndexMap.end())
+    entt::registry* registry = ServiceLocator::GetGameRegistry();
+    TextureSingleton& textureSingleton = registry->ctx<TextureSingleton>();
+
+    // Add vertices
+    size_t numVerticesBeforeAdd = _vertices.size();
+    size_t numVerticesToAdd = cModel.vertices.size();
+
+    _vertices.resize(numVerticesBeforeAdd + numVerticesToAdd);
+    memcpy(&_vertices[numVerticesBeforeAdd], cModel.vertices.data(), numVerticesToAdd * sizeof(CModel::ComplexVertex));
+
+    // Handle this models renderbatches
+    size_t numRenderBatches = static_cast<u32>(cModel.modelData.renderBatches.size());
+    for (size_t i = 0; i < numRenderBatches; i++)
     {
-        objectID = it->second;
-        return true;
+        CModel::ComplexRenderBatch& renderBatch = cModel.modelData.renderBatches[i];
+
+        // Select where to store the DrawCall templates, this won't be necessary once we do backface culling in the culling compute shader
+        bool isTwoSided = IsRenderBatchTwoSided(renderBatch, cModel);
+        std::vector<DrawCall>& drawCallTemplates = (isTwoSided) ? complexModel.twoSidedDrawCallTemplates : complexModel.drawCallTemplates;
+        std::vector<DrawCallData>& drawCallDataTemplates = (isTwoSided) ? complexModel.twoSidedDrawCallDataTemplates : complexModel.drawCallDataTemplates;
+
+        if (isTwoSided)
+        {
+            complexModel.numTwoSidedDrawCalls++;
+        }
+        else
+        {
+            complexModel.numDrawCalls++;
+        }
+
+        // For each renderbatch we want to create a template DrawCall and DrawCallData inside of the LoadedComplexModel
+        DrawCall& drawCallTemplate = drawCallTemplates.emplace_back();
+        DrawCallData& drawCallDataTemplate = drawCallDataTemplates.emplace_back();
+        
+        drawCallTemplate.instanceCount = 1;
+        drawCallTemplate.vertexOffset = static_cast<u32>(numVerticesBeforeAdd);
+
+        // Add indices
+        size_t numIndicesBeforeAdd = _indices.size();
+        size_t numIndicesToAdd = renderBatch.indexCount;
+
+        _indices.resize(numIndicesBeforeAdd + numIndicesToAdd);
+        memcpy(&_indices[numIndicesBeforeAdd], &cModel.modelData.indices[renderBatch.indexStart], numIndicesToAdd * sizeof(u16));
+
+        drawCallTemplate.firstIndex = static_cast<u32>(numIndicesBeforeAdd);
+        drawCallTemplate.indexCount = static_cast<u32>(numIndicesToAdd);
+
+        // Add texture units
+        size_t numTextureUnitsBeforeAdd = _textureUnits.size();
+        size_t numTextureUnitsToAdd = renderBatch.textureUnits.size();
+
+        _textureUnits.resize(numTextureUnitsBeforeAdd + numTextureUnitsToAdd);
+        for (size_t j = 0; j < numTextureUnitsToAdd; j++)
+        {
+            TextureUnit& textureUnit = _textureUnits[numTextureUnitsBeforeAdd + j];
+
+            CModel::ComplexTextureUnit& complexTextureUnit = renderBatch.textureUnits[j];
+            CModel::ComplexMaterial& complexMaterial = cModel.materials[complexTextureUnit.materialIndex];
+            
+            bool isProjectedTexture = (static_cast<u8>(complexTextureUnit.flags) & static_cast<u8>(CModel::ComplexTextureUnitFlag::PROJECTED_TEXTURE)) != 0;
+            u16 materialFlag = *reinterpret_cast<u16*>(&complexMaterial.flags) << 1;
+            u16 blendingMode = complexMaterial.blendingMode << 11;
+
+            textureUnit.data = static_cast<u16>(isProjectedTexture) | materialFlag | blendingMode;
+            textureUnit.materialType = complexTextureUnit.shaderId;
+
+            // Load Textures into Texture Array
+            {
+                // TODO: Wotlk only supports 2 textures, when we upgrade to cata+ this might need to be reworked
+                for (u32 t = 0; t < complexTextureUnit.textureCount; t++)
+                {
+                    // Load Texture
+                    CModel::ComplexTexture& complexTexture = cModel.textures[complexTextureUnit.textureIndices[t]];
+
+                    Renderer::TextureDesc textureDesc;
+                    textureDesc.path = "Data/extracted/Textures/" + textureSingleton.textureStringTable.GetString(complexTexture.textureNameIndex);
+                    _renderer->LoadTextureIntoArray(textureDesc, _cModelTextures, textureUnit.textureIds[t]);
+                }
+            }
+        }
+
+        drawCallDataTemplate.textureUnitOffset = static_cast<u32>(numTextureUnitsBeforeAdd);
+        drawCallDataTemplate.numTextureUnits = static_cast<u32>(numTextureUnitsToAdd);
     }
 
-    static u32 objectCount = 0;
-    NC_LOG_MESSAGE("Loading CModel %u", objectCount);
-    objectCount++;
+    return true;
+}
 
-    if (!StringUtils::EndsWith(modelPath, ".cmodel"))
+bool CModelRenderer::LoadFile(const std::string& cModelPathString, CModel::ComplexModel& cModel)
+{
+    if (!StringUtils::EndsWith(cModelPathString, ".cmodel"))
     {
         NC_LOG_FATAL("Tried to call 'LoadCModel' with a reference to a file that didn't end with '.cmodel'");
         return false;
     }
 
-    fs::path cModelPath = "Data/extracted/CModels/" + modelPath;
+    fs::path cModelPath = "Data/extracted/CModels/" + cModelPathString;
     cModelPath.make_preferred();
     cModelPath = fs::absolute(cModelPath);
 
@@ -279,29 +382,24 @@ bool CModelRenderer::LoadCModel(std::string modelPath, u32& objectID)
     cModelFile.Read(&cModelBuffer, cModelBuffer.size);
     cModelFile.Close();
 
-    CModel::ComplexModel cModel;
-
     if (!cModelBuffer.Get(cModel.header))
         return false;
 
     if (!cModelBuffer.Get(cModel.flags))
         return false;
-    
+
     // Read Vertices
     {
         u32 numVertices = 0;
         if (!cModelBuffer.GetU32(numVertices))
             return false;
 
-        if (numVertices > 0)
-        {
-            cModel.vertices.resize(numVertices);
-            cModelBuffer.GetBytes(reinterpret_cast<u8*>(cModel.vertices.data()), numVertices * sizeof(CModel::ComplexVertex));
-        }
-        else
-        {
+        // If there are no vertices, we don't need to render it
+        if (numVertices == 0)
             return false;
-        }
+
+        cModel.vertices.resize(numVertices);
+        cModelBuffer.GetBytes(reinterpret_cast<u8*>(cModel.vertices.data()), numVertices * sizeof(CModel::ComplexVertex));
     }
 
     // Read Textures
@@ -368,19 +466,6 @@ bool CModelRenderer::LoadCModel(std::string modelPath, u32& objectID)
             cModelBuffer.GetBytes(reinterpret_cast<u8*>(cModel.textureTransparencyLookupTable.data()), numElements * sizeof(u16));
         }
     }
-
-    // Read Texture UV Animation Lookup Table
-    /*{
-        u32 numElements = 0;
-        if (!cModelBuffer.GetU32(numElements))
-            return false;
-
-        if (numElements > 0)
-        {
-            cModel.textureUVAnimationLookupTable.resize(numElements);
-            cModelBuffer.GetBytes(reinterpret_cast<u8*>(cModel.textureUVAnimationLookupTable.data()), numElements * sizeof(u16));
-        }
-    }*/
 
     // Read Texture Combiner Combos
     {
@@ -493,942 +578,328 @@ bool CModelRenderer::LoadCModel(std::string modelPath, u32& objectID)
         }
     }
 
-    entt::registry* registry = ServiceLocator::GetGameRegistry();
-    TextureSingleton& textureSingleton = registry->ctx<TextureSingleton>();
-
-    u32 nextID = static_cast<u32>(_loadedCModels.size());
-    LoadedCModel& loadedCModel = _loadedCModels.emplace_back();
-    loadedCModel.debugName = modelPath;
-
-    size_t numRenderBatches = cModel.modelData.renderBatches.size();
-    loadedCModel.mesh.renderBatches.resize(numRenderBatches);
-
-    for (u32 i = 0; i < numRenderBatches; i++)
-    {
-        CModel::ComplexRenderBatch& complexRenderBatch = cModel.modelData.renderBatches[i];
-        RenderBatch& renderBatch = loadedCModel.mesh.renderBatches[i];
-
-        renderBatch.indexStart = complexRenderBatch.indexStart;
-        renderBatch.indexCount = complexRenderBatch.indexCount;
-
-        // Create Texture Units
-        for (u32 j = 0; j < complexRenderBatch.textureUnits.size(); j++)
-        {
-            CModel::ComplexTextureUnit& complexTextureUnit = complexRenderBatch.textureUnits[j];
-            CModel::ComplexMaterial& complexMaterial = cModel.materials[complexTextureUnit.materialIndex];
-
-            if (complexMaterial.flags.disableBackfaceCulling)
-                renderBatch.isBackfaceCulled = false;
-
-            renderBatch.textureUnitIndices[j] = static_cast<u8>(loadedCModel.mesh.textureUnits.size());
-
-            TextureUnit& textureUnit = loadedCModel.mesh.textureUnits.emplace_back();
-            
-            // TODO: Use "isOpaque" to define which pipeline to use
-            //textureUnit.isOpaque = complexMaterial.blendingMode == 0 || (complexMaterial.blendingMode == 1 && complexMaterial.flags.depthWrite == 1);
-           
-            bool isProjectedTexture = (static_cast<u8>(complexTextureUnit.flags) & static_cast<u8>(CModel::ComplexTextureUnitFlag::PROJECTED_TEXTURE)) != 0;
-            u16 materialFlag = *reinterpret_cast<u16*>(&complexMaterial.flags) << 1;
-            u16 blendingMode = complexMaterial.blendingMode << 11;
-
-            textureUnit.data = static_cast<u16>(isProjectedTexture) | materialFlag | blendingMode;
-            textureUnit.materialType = complexTextureUnit.shaderId;
-
-            // Load Textures into Texture Array
-            {
-                // TODO: Wotlk only supports 2 textures, when we upgrade to cata+ this might need to be reworked
-                for (u32 t = 0; t < complexTextureUnit.textureCount; t++)
-                {
-                    // Load Texture
-                    CModel::ComplexTexture& complexTexture = cModel.textures[complexTextureUnit.textureIndices[t]];
-
-                    Renderer::TextureDesc textureDesc;
-                    textureDesc.path = "Data/extracted/Textures/" + textureSingleton.textureStringTable.GetString(complexTexture.textureNameIndex);
-                    _renderer->LoadTextureIntoArray(textureDesc, _cModelTextures, textureUnit.textureIds[t]);
-                }
-            }
-        }
-
-        // -- Create Index Buffer --
-        {
-            const size_t bufferSize = renderBatch.indexCount * sizeof(u16);
-
-            Renderer::BufferDesc desc;
-            desc.name = "IndexBuffer";
-            desc.size = bufferSize;
-            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_INDEX_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-            desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-            renderBatch.indexBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "IndexBufferStaging";
-            desc.size = bufferSize;
-            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, &cModel.modelData.indices.data()[renderBatch.indexStart], bufferSize);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(renderBatch.indexBuffer, 0, stagingBuffer, 0, bufferSize);
-        }
-
-        // -- Create Texture Unit Indices Buffer --
-        {
-            const size_t bufferSize = sizeof(renderBatch.textureUnitIndices);
-
-            Renderer::BufferDesc desc;
-            desc.name = "TextureUnitIndicesBuffer";
-            desc.size = bufferSize;
-            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_UNIFORM_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-            desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-            renderBatch.textureUnitIndicesBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "TextureUnitIndicesBufferStaging";
-            desc.size = bufferSize;
-            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, &renderBatch.textureUnitIndices[0], bufferSize);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(renderBatch.textureUnitIndicesBuffer, 0, stagingBuffer, 0, bufferSize);
-        }
-    }
-
-    // TODO: Write the Vertices in seperate arrays in the extractor
-    size_t numVertices = cModel.vertices.size();
-
-    std::vector<vec3> vertexPositions;
-    std::vector<vec3> vertexNormals;
-    std::vector<vec2> vertexUV0;
-    std::vector<vec2> vertexUV1;
-
-    vertexPositions.resize(numVertices);
-    vertexNormals.resize(numVertices);
-    vertexUV0.resize(numVertices);
-    vertexUV1.resize(numVertices);
-
-    for (u32 i = 0; i < numVertices; i++)
-    {
-        CModel::ComplexVertex& vertex = cModel.vertices[i];
-
-        vertexPositions[i] = vertex.position;
-        vertexNormals[i] = vertex.normal;
-        vertexUV0[i] = vertex.uvCords[0];
-        vertexUV1[i] = vertex.uvCords[1];
-    }
-
-    // -- Create Vertex Position Buffer --
-    {
-        const size_t bufferSize = vertexPositions.size() * sizeof(vec3);
-
-        // Create buffer
-        Renderer::BufferDesc desc;
-        desc.name = "VertexPositions";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        loadedCModel.mesh.vertexPositionsBuffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "VertexPositionsStaging";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-
-        memcpy(dst, vertexPositions.data(), bufferSize);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(loadedCModel.mesh.vertexPositionsBuffer, 0, stagingBuffer, 0, bufferSize);
-    }
-
-    // -- Create Vertex Normal Buffer --
-    {
-        const size_t bufferSize = vertexNormals.size() * sizeof(vec3);
-
-        // Create buffer
-        Renderer::BufferDesc desc;
-        desc.name = "VertexNormals";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        loadedCModel.mesh.vertexNormalsBuffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "VertexNormalsStaging";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-
-        memcpy(dst, vertexNormals.data(), bufferSize);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(loadedCModel.mesh.vertexNormalsBuffer, 0, stagingBuffer, 0, bufferSize);
-    }
-
-    // -- Create UV0 Buffer --
-    {
-        const size_t bufferSize = vertexUV0.size() * sizeof(vec2);
-
-        // Create buffer
-        Renderer::BufferDesc desc;
-        desc.name = "VertexUVs0";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        loadedCModel.mesh.vertexUVs0Buffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "VertexUVs0Staging";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-
-        memcpy(dst, vertexUV0.data(), bufferSize);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(loadedCModel.mesh.vertexUVs0Buffer, 0, stagingBuffer, 0, bufferSize);
-    }
-
-    // -- Create UV1 Buffer --
-    {
-        const size_t bufferSize = vertexUV1.size() * sizeof(vec2);
-
-        // Create buffer
-        Renderer::BufferDesc desc;
-        desc.name = "VertexUVs1";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        loadedCModel.mesh.vertexUVs1Buffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "VertexUVs1Staging";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-
-        memcpy(dst, vertexUV1.data(), bufferSize);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(loadedCModel.mesh.vertexUVs1Buffer, 0, stagingBuffer, 0, bufferSize);
-    }
-
-    // -- Create Texture Unit Buffer --
-    {
-        const size_t bufferSize = loadedCModel.mesh.textureUnits.size() * sizeof(TextureUnit);
-
-        Renderer::BufferDesc desc;
-        desc.name = "TextureUnitsBuffer";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        loadedCModel.mesh.textureUnitsBuffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "TextureUnitsBufferStaging";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-        memcpy(dst, loadedCModel.mesh.textureUnits.data(), bufferSize);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(loadedCModel.mesh.textureUnitsBuffer, 0, stagingBuffer, 0, bufferSize);
-    }
-
-    // -- Create Instance Buffer
-    {
-        const size_t bufferSize = MAX_INSTANCES * sizeof(Instance);
-
-        // Create buffer
-        Renderer::BufferDesc desc;
-        desc.name = "Instance";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        loadedCModel.instanceBuffer = _renderer->CreateBuffer(desc);
-    }
-
-    objectID = nextID;
     return true;
 }
 
-bool CModelRenderer::LoadCreatureCModel(std::string model, DBC::CreatureDisplayInfo* displayInfo, DBC::CreatureModelData* modelData, u32& objectID)
+bool CModelRenderer::IsRenderBatchTwoSided(const CModel::ComplexRenderBatch& renderBatch, const CModel::ComplexModel& cModel)
 {
-    u32 nameHash = StringUtils::fnv1a_32(model.c_str(), model.length());
-
-    auto it = _nameHashToIndexMap.find(nameHash);
-    if (it != _nameHashToIndexMap.end())
+    if (renderBatch.textureUnits.size() > 0)
     {
-        objectID = it->second;
-        return true;
+        const CModel::ComplexMaterial& complexMaterial = cModel.materials[renderBatch.textureUnits[0].materialIndex];
+        return complexMaterial.flags.disableBackfaceCulling;
     }
 
-    static u32 objectCount = 0;
-    NC_LOG_MESSAGE("Loading Creature NM2 %u", objectCount);
-    objectCount++;
-
-    u32 nextID = static_cast<u32>(_loadedCModels.size());
-    LoadedCModel& loadedNM2 = _loadedCModels.emplace_back();
-    loadedNM2.debugName = model;
-
-    if (!StringUtils::EndsWith(model, ".cModel"))
-    {
-        NC_LOG_FATAL("Tried to call 'LoadCreatureCModel' with a reference to a file that didn't end with '.cModel'");
-        return false;
-    }
-
-    std::string modelTextureFolder = "Data/extracted/Textures/" + fs::path(model).parent_path().string() + "/";
-    fs::path absoluteModelPath = "Data/extracted/NM2/" + model;
-    absoluteModelPath.make_preferred();
-    absoluteModelPath = fs::absolute(absoluteModelPath);
-
-    FileReader cModelFile(absoluteModelPath.string(), absoluteModelPath.filename().string());
-    if (!cModelFile.Open())
-    {
-        NC_LOG_FATAL("Failed to open NM2 file: %s", absoluteModelPath.string().c_str());
-        return false;
-    }
-
-    Bytebuffer cModelBuffer(nullptr, cModelFile.Length());
-    cModelFile.Read(&cModelBuffer, cModelBuffer.size);
-    cModelFile.Close();
-
-    /*NM2::NM2Root cModel;
-
-    if (!cModelBuffer.Get(cModel.header))
-        return false;
-
-    u32 numVertices = 0;
-    if (!cModelBuffer.GetU32(numVertices))
-        return false;
-
-    if (numVertices > 0)
-    {
-        cModel.vertices.resize(numVertices);
-        cModelBuffer.GetBytes(reinterpret_cast<u8*>(cModel.vertices.data()), numVertices * sizeof(NM2::M2Vertex));
-    }
-
-    u32 numTextures = 0;
-    if (!cModelBuffer.GetU32(numTextures))
-        return false;
-
-    if (numTextures > 0)
-    {
-        cModel.textures.resize(numTextures);
-        cModelBuffer.GetBytes(reinterpret_cast<u8*>(cModel.textures.data()), numTextures * sizeof(NM2::M2Texture));
-    }
-
-    u32 numMaterials = 0;
-    if (!cModelBuffer.GetU32(numMaterials))
-        return false;
-
-    if (numMaterials > 0)
-    {
-        cModel.materials.resize(numMaterials);
-        cModelBuffer.GetBytes(reinterpret_cast<u8*>(cModel.materials.data()), numMaterials * sizeof(NM2::M2Material));
-    }
-
-    u32 numTextureIndicesToId = 0;
-    if (!cModelBuffer.GetU32(numTextureIndicesToId))
-        return false;
-
-    if (numTextureIndicesToId > 0)
-    {
-        cModel.textureIndicesToId.resize(numTextureIndicesToId);
-        if (!cModelBuffer.GetBytes(reinterpret_cast<u8*>(cModel.textureIndicesToId.data()), numTextureIndicesToId * sizeof(u16)))
-            return false;
-    }
-
-    u32 numTextureCombos = 0;
-    if (!cModelBuffer.GetU32(numTextureCombos))
-        return false;
-
-    if (numTextureCombos > 0)
-    {
-        cModel.textureCombos.resize(numTextureCombos);
-        if (!cModelBuffer.GetBytes(reinterpret_cast<u8*>(cModel.textureCombos.data()), numTextureCombos * sizeof(u16)))
-            return false;
-    }
-
-    u32 numSkins = 0;
-    if (!cModelBuffer.GetU32(numSkins))
-        return false;
-
-    if (!numSkins)
-        return false;
-
-    std::vector<Material> materials;
-    materials.reserve(8);
-
-    // Create mesh, each MapObject becomes one Mesh in loadedMapObject
-    Mesh& mesh = loadedCModel.mesh;
-    NM2::M2Skin& skin = cModel.skin;
-    std::vector<vec3> vertexPositions;
-    std::vector<vec3> vertexNormals;
-    std::vector<vec2> uv0Coordinates;
-    std::vector<vec2> uv1Coordinates;
-
-    if (!cModelBuffer.GetU32(skin.token))
-        return false;
-
-    u32 numSkinVertexIndexes = 0;
-    if (!cModelBuffer.GetU32(numSkinVertexIndexes))
-        return false;
-
-    if (numSkinVertexIndexes > 0)
-    {
-        skin.vertexIndexes.resize(numSkinVertexIndexes);
-        if (!cModelBuffer.GetBytes(reinterpret_cast<u8*>(skin.vertexIndexes.data()), numSkinVertexIndexes * sizeof(u16)))
-            return false;
-    }
-
-    u32 numSkinIndices = 0;
-    if (!cModelBuffer.GetU32(numSkinIndices))
-        return false;
-
-    if (numSkinIndices > 0)
-    {
-        skin.indices.resize(numSkinIndices);
-        if (!cModelBuffer.GetBytes(reinterpret_cast<u8*>(skin.indices.data()), numSkinIndices * sizeof(u16)))
-            return false;
-    }
-
-    u32 numSkinSubMeshes = 0;
-    if (!cModelBuffer.GetU32(numSkinSubMeshes))
-        return false;
-
-    mesh.subMeshes.resize(numSkinSubMeshes);
-    mesh.textureUnits.resize(numSkinSubMeshes);
-
-    vertexPositions.reserve(numSkinVertexIndexes);
-    uv0Coordinates.reserve(numSkinVertexIndexes);
-    uv1Coordinates.reserve(numSkinVertexIndexes);
-    for (const u16& vertexIndex : skin.vertexIndexes)
-    {
-        const NM2::M2Vertex& vertex = cModel.vertices[vertexIndex];
-
-        vertexPositions.push_back(vertex.position);
-        vertexNormals.push_back(vertex.normal);
-        uv0Coordinates.push_back(vertex.uvCords[0]);
-        uv1Coordinates.push_back(vertex.uvCords[1]);
-    }
-
-    for (u32 i = 0; i < numSkinSubMeshes; i++)
-    {
-        SubMesh& subMesh = mesh.subMeshes[i];
-
-        if (!cModelBuffer.GetU16(subMesh.indexStart))
-            return false;
-
-        if (!cModelBuffer.GetU16(subMesh.indexCount))
-            return false;
-
-        subMesh.materialNum = i;
-
-        // -- Create Index Buffer --
-        {
-            const size_t bufferSize = subMesh.indexCount * sizeof(u16);
-
-            Renderer::BufferDesc desc;
-            desc.name = "IndexBuffer";
-            desc.size = bufferSize;
-            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_INDEX_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-            desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-            subMesh.indexBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "IndexBufferStaging";
-            desc.size = bufferSize;
-            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, &skin.indices.data()[subMesh.indexStart], bufferSize);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(subMesh.indexBuffer, 0, stagingBuffer, 0, bufferSize);
-        }
-    }
-
-    // 1 Material per TextureUnit
-    materials.resize(numSkinSubMeshes);
-
-    for (u32 i = 0; i < numSkinSubMeshes; i++)
-    {
-        TextureUnits& textureUnit = mesh.textureUnits[i];
-
-        if (!cModelBuffer.GetU8(textureUnit.flags))
-            return false;
-
-        if (!cModelBuffer.GetU16(textureUnit.shaderId))
-            return false;
-
-        if (!cModelBuffer.GetU16(textureUnit.skinSectionIndex))
-            return false;
-
-        if (!cModelBuffer.GetU16(textureUnit.geosetIndex))
-            return false;
-
-        if (!cModelBuffer.GetU16(textureUnit.materialIndex))
-            return false;
-
-        if (!cModelBuffer.GetU16(textureUnit.textureCount))
-            return false;
-
-        if (!cModelBuffer.GetU16(textureUnit.textureComboIndex))
-            return false;
-
-        Material& material = materials[textureUnit.skinSectionIndex];
-        material.type = textureUnit.shaderId;
-        material.blendingMode = cModel.materials[textureUnit.materialIndex].blendingMode;
-
-        for (u16 j = 0; j < textureUnit.textureCount; j++)
-        {
-            // Set TextureId to the offset into cModel.textures (Below we will load all textures and then we will resolve the actual texture id)
-            material.textureIDs[j] = cModel.textureCombos[textureUnit.textureComboIndex + j];
-        }
-    }
-
-    // -- Create Vertex Positions Buffer --
-    {
-        const size_t bufferSize = vertexPositions.size() * sizeof(vec3);
-
-        // Create buffer
-        Renderer::BufferDesc desc;
-        desc.name = "VertexPositions";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        mesh.vertexPositionsBuffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "VertexPositionsStaging";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-
-        memcpy(dst, vertexPositions.data(), bufferSize);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(mesh.vertexPositionsBuffer, 0, stagingBuffer, 0, bufferSize);
-    }
-
-    // -- Create Vertex Normals Buffer --
-    {
-        const size_t bufferSize = vertexNormals.size() * sizeof(vec3);
-
-        // Create buffer
-        Renderer::BufferDesc desc;
-        desc.name = "VertexNormals";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        mesh.vertexNormalsBuffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "VertexNormalsStaging";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-
-        memcpy(dst, vertexNormals.data(), bufferSize);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(mesh.vertexNormalsBuffer, 0, stagingBuffer, 0, bufferSize);
-    }
-
-    // -- Create UV0 Buffer --
-    {
-        const size_t bufferSize = uv0Coordinates.size() * sizeof(vec2);
-
-        // Create buffer
-        Renderer::BufferDesc desc;
-        desc.name = "VertexUVs0";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        mesh.vertexUVs0Buffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "VertexUVs0Staging";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-
-        memcpy(dst, uv0Coordinates.data(), bufferSize);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(mesh.vertexUVs0Buffer, 0, stagingBuffer, 0, bufferSize);
-    }
-
-    // -- Create UV1 Buffer --
-    {
-        const size_t bufferSize = uv1Coordinates.size() * sizeof(vec2);
-
-        // Create buffer
-        Renderer::BufferDesc desc;
-        desc.name = "VertexUVs1";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        mesh.vertexUVs1Buffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "VertexUVs1Staging";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-
-        memcpy(dst, uv1Coordinates.data(), bufferSize);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(mesh.vertexUVs1Buffer, 0, stagingBuffer, 0, bufferSize);
-    }
-
-    entt::registry* registry = ServiceLocator::GetGameRegistry();
-    TextureSingleton& textureSingleton = registry->ctx<TextureSingleton>();
-    DBCSingleton& dbcSingleton = registry->ctx<DBCSingleton>();
-
-    // Load all textures into TextureArray
-    for (u32 i = 0; i < numTextures; i++)
-    {
-        const NM2::M2Texture& texture = cModel.textures[i];
-        u32& textureId = loadedCModel.textureIds.emplace_back();
-        textureId = INVALID_M2_TEXTURE_ID;
-
-        if (texture.textureNameIndex == std::numeric_limits<u32>().max())
-            continue;
-
-        if (texture.type == NM2::TextureTypes::DEFAULT)
-        {
-            Renderer::TextureDesc textureDesc;
-            textureDesc.path = "Data/extracted/Textures/" + textureSingleton.textureStringTable.GetString(texture.textureNameIndex);
-
-            _renderer->LoadTextureIntoArray(textureDesc, _cModelTextures, textureId);
-        }
-        else if (texture.type == NM2::TextureTypes::MONSTER_SKIN_1)
-        {
-            Renderer::TextureDesc textureDesc;
-            textureDesc.path = modelTextureFolder + dbcSingleton.stringTable.GetString(displayInfo->texture1) + ".dds";
-
-            _renderer->LoadTextureIntoArray(textureDesc, _cModelTextures, textureId);
-        }
-        else if (texture.type == NM2::TextureTypes::MONSTER_SKIN_2)
-        {
-            Renderer::TextureDesc textureDesc;
-            textureDesc.path = modelTextureFolder + dbcSingleton.stringTable.GetString(displayInfo->texture2) + ".dds";
-
-            _renderer->LoadTextureIntoArray(textureDesc, _cModelTextures, textureId);
-        }
-        else if (texture.type == NM2::TextureTypes::MONSTER_SKIN_3)
-        {
-            Renderer::TextureDesc textureDesc;
-            textureDesc.path = modelTextureFolder + dbcSingleton.stringTable.GetString(displayInfo->texture3) + ".dds";
-
-            _renderer->LoadTextureIntoArray(textureDesc, _cModelTextures, textureId);
-        }
-        else
-        {
-            assert(false);
-        }
-    }
-
-    // Resolve all material texture ids
-    for (Material& material : materials)
-    {
-        for (i32 i = 0; i < 4; i++)
-        {
-            u32& textureId = material.textureIDs[i];
-            if (textureId == INVALID_M2_TEXTURE_ID)
-                continue;
-
-            textureId = loadedCModel.textureIds[textureId];
-        }
-    }
-
-    // -- Create Materials Buffer
-    {
-        const size_t bufferSize = materials.size() * sizeof(Material);
-
-        // Create buffer
-        Renderer::BufferDesc desc;
-        desc.name = "Materials";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        loadedCModel.materialsBuffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "MaterialsStaging";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-        memcpy(dst, materials.data(), bufferSize);
-
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(loadedCModel.materialsBuffer, 0, stagingBuffer, 0, bufferSize);
-    }
-
-    // -- Create Instance Buffer
-    {
-        const size_t bufferSize = MAX_INSTANCES * sizeof(Instance);
-
-        // Create buffer
-        Renderer::BufferDesc desc;
-        desc.name = "Instance";
-        desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
-        desc.cpuAccess = Renderer::BufferCPUAccess::None;
-
-        loadedCModel.instanceBuffer = _renderer->CreateBuffer(desc);
-    }*/
-
-    objectID = nextID;
-    return true;
+    return false;
 }
 
-bool CModelRenderer::LoadCreature(u32 displayId, u32& objectID)
+void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain::Placement& placement)
 {
-    entt::registry* registry = ServiceLocator::GetGameRegistry();
-    DBCSingleton& dbcSingleton = registry->ctx<DBCSingleton>();
-    DisplayInfoSingleton& displayInfoSingleton = registry->ctx<DisplayInfoSingleton>();
+    // Add the instance
+    size_t numInstancesBeforeAdd = _instances.size();
+    Instance& instance = _instances.emplace_back();
 
-    // Ensure DisplayInfo Exists
-    auto displayInfoItr = displayInfoSingleton.creatureDisplayIdToDisplayInfo.find(displayId);
-    if (displayInfoItr == displayInfoSingleton.creatureDisplayIdToDisplayInfo.end())
-        return false;
+    vec3 pos = placement.position;
+    pos = vec3(Terrain::MAP_HALF_SIZE - pos.x, pos.y, Terrain::MAP_HALF_SIZE - pos.z); // Go from [0 .. MAP_SIZE] to [-MAP_HALF_SIZE .. MAP_HALF_SIZE]
+    pos = vec3(pos.z, pos.y, pos.x); // Swizzle and invert x and z
 
-    DBC::CreatureDisplayInfo* displayInfo = displayInfoItr->second;
+    vec3 rot = glm::radians(placement.rotation);
+    rot = vec3(rot.z, -rot.y, rot.x);
 
-    // Ensure ModelData Exists
-    auto modelDataItr = displayInfoSingleton.creatureModelIdToModelData.find(displayInfo->modelId);
-    if (modelDataItr == displayInfoSingleton.creatureModelIdToModelData.end())
-        return false;
+    vec3 scale = vec3(placement.scale) / 1024.0f;
 
-    DBC::CreatureModelData* modelData = modelDataItr->second;
+    mat4x4 rotationMatrix = glm::eulerAngleXYZ(rot.x, rot.y, rot.z);
+    mat4x4 scaleMatrix = glm::scale(mat4x4(1.0f), scale);
 
-    // Check if ModelPath is valid
-    if (modelData->modelPath == std::numeric_limits<u32>().max())
-        return false;
+    instance.instanceMatrix = glm::translate(mat4x4(1.0f), pos) * rotationMatrix * scaleMatrix;
 
-    // Get ModelPath String from StringTable
-    std::string modelPath = dbcSingleton.stringTable.GetString(modelData->modelPath);
-
-    if (LoadCreatureCModel(modelPath, displayInfo, modelData, objectID))
+    // Add the DrawCalls and DrawCallDatas
+    size_t numDrawCallsBeforeAdd = _drawCalls.size();
+    for (u32 i = 0; i < complexModel.numDrawCalls; i++)
     {
-        LoadedCModel& cModel = _loadedCModels[objectID];
+        const DrawCall& drawCallTemplate = complexModel.drawCallTemplates[i];
+        const DrawCallData& drawCallDataTemplate = complexModel.drawCallDataTemplates[i];
+
+        DrawCall& drawCall = _drawCalls.emplace_back();
+        DrawCallData& drawCallData = _drawCallDatas.emplace_back();
+
+        // Copy data from the templates
+        drawCall.firstIndex = drawCallTemplate.firstIndex;
+        drawCall.indexCount = drawCallTemplate.indexCount;
+        drawCall.instanceCount = drawCallTemplate.instanceCount;
+        drawCall.vertexOffset = drawCallTemplate.vertexOffset;
+
+        drawCallData.textureUnitOffset = drawCallDataTemplate.textureUnitOffset;
+        drawCallData.numTextureUnits = drawCallDataTemplate.numTextureUnits;
+        
+        // Fill in the data that shouldn't be templated
+        drawCall.firstInstance = static_cast<u32>(numDrawCallsBeforeAdd + i); // This is used in the shader to retrieve the DrawCallData
+        drawCallData.instanceID = static_cast<u32>(numInstancesBeforeAdd);
+    }
+
+    // Add the DrawCalls and DrawCallDatas for twosided drawcalls
+    size_t numTwoSidedDrawCallsBeforeAdd = _twoSidedDrawCalls.size();
+    for (u32 i = 0; i < complexModel.numTwoSidedDrawCalls; i++)
+    {
+        const DrawCall& drawCallTemplate = complexModel.twoSidedDrawCallTemplates[i];
+        const DrawCallData& drawCallDataTemplate = complexModel.twoSidedDrawCallDataTemplates[i];
+
+        DrawCall& drawCall = _twoSidedDrawCalls.emplace_back();
+        DrawCallData& drawCallData = _twoSidedDrawCallDatas.emplace_back();
+
+        // Copy data from the templates
+        drawCall.firstIndex = drawCallTemplate.firstIndex;
+        drawCall.indexCount = drawCallTemplate.indexCount;
+        drawCall.instanceCount = drawCallTemplate.instanceCount;
+        drawCall.vertexOffset = drawCallTemplate.vertexOffset;
+
+        drawCallData.textureUnitOffset = drawCallDataTemplate.textureUnitOffset;
+        drawCallData.numTextureUnits = drawCallDataTemplate.numTextureUnits;
+
+        // Fill in the data that shouldn't be templated
+        drawCall.firstInstance = static_cast<u32>(numTwoSidedDrawCallsBeforeAdd + i); // This is used in the shader to retrieve the DrawCallData
+        drawCallData.instanceID = static_cast<u32>(numInstancesBeforeAdd);
+    }
+}
+
+void CModelRenderer::CreateBuffers()
+{
+    // Create Vertex buffer
+    if (_vertexBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_vertexBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CModelVertexBuffer";
+        desc.size = sizeof(CModel::ComplexVertex) * _vertices.size();
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _vertexBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
-        const u32 bufferSize = sizeof(Instance);
-        Renderer::BufferDesc desc;
-        desc.name = "InstanceStaging";
-        desc.size = bufferSize;
+        desc.name = "CModelVertexStaging";
         desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
 
         // Upload to staging buffer
-        Instance* dst = reinterpret_cast<Instance*>(_renderer->MapBuffer(stagingBuffer));
-
-        vec3 pos = vec3(-8000, 100.f, 1600.f);
-        mat4x4 rotationMatrix = glm::eulerAngleXYZ(glm::radians(0.f), glm::radians(0.f), glm::radians(0.f));
-
-        dst->instanceMatrix = glm::translate(mat4x4(1.0f), pos) * rotationMatrix;
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _vertices.data(), desc.size);
         _renderer->UnmapBuffer(stagingBuffer);
-
-        u32 dstOffset = sizeof(Instance) * cModel.numInstances++;
 
         // Queue destroy staging buffer
         _renderer->QueueDestroyBuffer(stagingBuffer);
-
         // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(cModel.instanceBuffer, dstOffset, stagingBuffer, 0, bufferSize);
+        _renderer->CopyBuffer(_vertexBuffer, 0, stagingBuffer, 0, desc.size);
     }
 
-    return true;
-}
-
-void CModelRenderer::LoadFromChunk(const Terrain::Chunk& chunk, StringTable& stringTable)
-{
-    for (const Terrain::Placement& complexModelPlacement : chunk.complexModelPlacements)
+    // Create Index buffer
+    if (_indexBuffer != Renderer::BufferID::Invalid())
     {
-        const std::string& name = stringTable.GetString(complexModelPlacement.nameID);
+        _renderer->QueueDestroyBuffer(_indexBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CModelIndexBuffer";
+        desc.size = sizeof(u16) * _indices.size();
+        desc.usage = Renderer::BUFFER_USAGE_INDEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _indexBuffer = _renderer->CreateBuffer(desc);
 
-        u32 objectID = 0;
-        if (LoadCModel(name, objectID))
-        {
-            LoadedCModel& cModel = _loadedCModels[objectID];
-            
-            // Create staging buffer
-            const u32 bufferSize = sizeof(Instance);
-            Renderer::BufferDesc desc;
-            desc.name = "InstanceStaging";
-            desc.size = bufferSize;
-            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+        // Create staging buffer
+        desc.name = "CModelIndexStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
 
-            // Upload to staging buffer
-            Instance* dst = reinterpret_cast<Instance*>(_renderer->MapBuffer(stagingBuffer));
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _indices.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
 
-            vec3 pos = complexModelPlacement.position;
-            pos = vec3(Terrain::MAP_HALF_SIZE - pos.x, pos.y, Terrain::MAP_HALF_SIZE - pos.z); // Go from [0 .. MAP_SIZE] to [-MAP_HALF_SIZE .. MAP_HALF_SIZE]
-            pos = vec3(pos.z, pos.y, pos.x); // Swizzle and invert x and z
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_indexBuffer, 0, stagingBuffer, 0, desc.size);
+    }
 
-            vec3 rot = glm::radians(complexModelPlacement.rotation);
-            rot = vec3(rot.z, -rot.y, rot.x);
+    // Create TextureUnit buffer
+    if (_textureUnitBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_textureUnitBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CModelTextureUnitBuffer";
+        desc.size = sizeof(TextureUnit) * _textureUnits.size();
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _textureUnitBuffer = _renderer->CreateBuffer(desc);
 
-            vec3 scale = vec3(complexModelPlacement.scale) / 1024.0f;
+        // Create staging buffer
+        desc.name = "CModelTextureUnitStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
-            mat4x4 rotationMatrix = glm::eulerAngleXYZ(rot.x, rot.y, rot.z);
-            mat4x4 scaleMatrix = glm::scale(mat4x4(1.0f), scale);
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
 
-            dst->instanceMatrix = glm::translate(mat4x4(1.0f), pos) * rotationMatrix;// *scaleMatrix;
-            _renderer->UnmapBuffer(stagingBuffer);
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _textureUnits.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
 
-            u32 dstOffset = sizeof(Instance) * cModel.numInstances++;
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_textureUnitBuffer, 0, stagingBuffer, 0, desc.size);
+    }
 
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
+    // Create Instance buffer
+    if (_instanceBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_instanceBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CModelInstanceBuffer";
+        desc.size = sizeof(Instance) * _instances.size();
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _instanceBuffer = _renderer->CreateBuffer(desc);
 
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(cModel.instanceBuffer, dstOffset, stagingBuffer, 0, bufferSize);
-        }
+        // Create staging buffer
+        desc.name = "CModelInstanceStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _instances.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_instanceBuffer, 0, stagingBuffer, 0, desc.size);
+    }
+
+    // Create DrawCall buffer
+    if (_drawCallBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_drawCallBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CModelDrawCallBuffer";
+        desc.size = sizeof(DrawCall) * _drawCalls.size();
+        desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _drawCallBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "CModelDrawCallStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _drawCalls.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_drawCallBuffer, 0, stagingBuffer, 0, desc.size);
+    }
+
+    // Create DrawCall buffer for twosided drawcalls
+    if (_twoSidedDrawCallBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_twoSidedDrawCallBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CModel2SidedDrawCallBuffer";
+        desc.size = sizeof(DrawCall) * _twoSidedDrawCalls.size();
+        desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _twoSidedDrawCallBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "CModel2SidedDrawCallStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _twoSidedDrawCalls.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_twoSidedDrawCallBuffer, 0, stagingBuffer, 0, desc.size);
+    }
+
+    // Create DrawCallData buffer
+    if (_drawCallDataBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_drawCallDataBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CModelDrawCallDataBuffer";
+        desc.size = sizeof(DrawCallData) * _drawCallDatas.size();
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _drawCallDataBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "CModelDrawCallDataStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _drawCallDatas.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_drawCallDataBuffer, 0, stagingBuffer, 0, desc.size);
+    }
+
+    // Create DrawCallData buffer for twosided drawcalls
+    if (_twoSidedDrawCallDataBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_twoSidedDrawCallDataBuffer);
+    }
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CModelDrawCallDataBuffer";
+        desc.size = sizeof(DrawCallData) * _twoSidedDrawCallDatas.size();
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _twoSidedDrawCallDataBuffer = _renderer->CreateBuffer(desc);
+
+        // Create staging buffer
+        desc.name = "CModel2SidedDrawCallDataStaging";
+        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+        // Upload to staging buffer
+        void* dst = _renderer->MapBuffer(stagingBuffer);
+        memcpy(dst, _twoSidedDrawCallDatas.data(), desc.size);
+        _renderer->UnmapBuffer(stagingBuffer);
+
+        // Queue destroy staging buffer
+        _renderer->QueueDestroyBuffer(stagingBuffer);
+        // Copy from staging buffer to buffer
+        _renderer->CopyBuffer(_twoSidedDrawCallDataBuffer, 0, stagingBuffer, 0, desc.size);
     }
 }

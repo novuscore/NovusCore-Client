@@ -91,12 +91,12 @@ PSOutput main(PSInput input)
     float4 diffuse3 = _terrainColorTextures[diffuse3ID].Sample(_colorSampler, uv) * weightsVector.w;
     color += diffuse3;
 
+    // Apply Vertex Lighting
+    color.rgb *= input.color;
+
     // Apply lighting
     float3 normal = normalize(input.normal);
-
-    float lightFactor = max(dot(normal, -normalize(_lightData.lightDir.xyz)), 0.0);
-    color.rgb *= input.color;
-    color = color * (saturate(_lightData.lightColor * lightFactor) + _lightData.ambientColor);
+    color.rgb = Lighting(color.rgb, normal, true);
 
     output.color = saturate(color);
     return output;

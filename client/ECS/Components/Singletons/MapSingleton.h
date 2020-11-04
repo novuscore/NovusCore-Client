@@ -25,7 +25,7 @@
 #include <NovusTypes.h>
 #include <robin_hood.h>
 #include "../../../Gameplay/Map/Map.h"
-#include "../../../Loaders/DBC/DBC.h"
+#include "../../../Loaders/NDBC/NDBC.h"
 
 struct MapSingleton
 {
@@ -34,13 +34,32 @@ struct MapSingleton
     Terrain::Map currentMap;
 	u32 loadedMapHash = 0;
 
-	robin_hood::unordered_map<u16, DBC::Map*> mapIdToDBC;
-	robin_hood::unordered_map<u32, DBC::Map*> mapNameToDBC;
-	robin_hood::unordered_map<u32, DBC::Map*> mapInternalNameToDBC;
-	std::vector<DBC::Map> mapDBCEntries;
+	vec3 ambientLight;
+	vec3 diffuseLight;
+	vec3 lightDirection;
 
-	robin_hood::unordered_map<u32, DBC::AreaTable*> areaIdToDBC;
-	robin_hood::unordered_map<u32, DBC::AreaTable*> areaNameToDBC;
+	robin_hood::unordered_map<u32, NDBC::Map*> mapIdToDBC;
+	robin_hood::unordered_map<u32, NDBC::Map*> mapNameToDBC;
+	robin_hood::unordered_map<u32, NDBC::Map*> mapInternalNameToDBC;
+	std::vector<NDBC::Map> mapDBCEntries;
 
-	std::vector<DBC::AreaTable> areaTableDBCEntries;
+	robin_hood::unordered_map<u32, NDBC::AreaTable*> areaIdToDBC;
+	robin_hood::unordered_map<u32, NDBC::AreaTable*> areaNameToDBC;
+	std::vector<NDBC::AreaTable> areaTableDBCEntries;
+
+	robin_hood::unordered_map<u32, NDBC::Light*> lightIdToDBC;
+	robin_hood::unordered_map<u32, std::vector<NDBC::Light*>> mapIdToLightDBC;
+	std::vector<NDBC::Light> lightDBCEntries;
+
+	robin_hood::unordered_map<u32, NDBC::LightParams*> lightParamsIdToDBC;
+	std::vector<NDBC::LightParams> lightParamsDBCEntries;
+
+	robin_hood::unordered_map<u32, NDBC::LightIntBand*> lightIntBandIdToDBC;
+	std::vector<NDBC::LightIntBand> lightIntBandDBCEntries;
+
+	robin_hood::unordered_map<u32, NDBC::LightFloatBand*> lightFloatBandIdToDBC;
+	std::vector<NDBC::LightFloatBand> lightFloatBandDBCEntries;
+
+	robin_hood::unordered_map<u32, NDBC::LightSkybox*> lightSkyboxIdToDBC;
+	std::vector<NDBC::LightSkybox> lightSkyboxDBCEntries;
 };

@@ -15,7 +15,7 @@
 #include "Editor/Editor.h"
 #include "Loaders/Texture/TextureLoader.h"
 #include "Loaders/Map/MapLoader.h"
-#include "Loaders/DBC/DBCLoader.h"
+#include "Loaders/NDBC/NDBCLoader.h"
 #include "Loaders/DisplayInfo/DisplayInfoLoader.h"
 
 // Component Singletons
@@ -24,9 +24,9 @@
 #include "ECS/Components/Singletons/ScriptSingleton.h"
 #include "ECS/Components/Singletons/DataStorageSingleton.h"
 #include "ECS/Components/Singletons/SceneManagerSingleton.h"
+#include "ECS/Components/Singletons/LocalplayerSingleton.h"
 #include "ECS/Components/Network/ConnectionSingleton.h"
 #include "ECS/Components/Network/AuthenticationSingleton.h"
-#include "ECS/Components/LocalplayerSingleton.h"
 
 // Components
 #include "ECS/Components/Transform.h"
@@ -39,6 +39,8 @@
 #include "ECS/Systems/Rendering/RenderModelSystem.h"
 #include "ECS/Systems/Physics/SimulateDebugCubeSystem.h"
 #include "ECS/Systems/MovementSystem.h"
+#include "ECS/Systems/AreaUpdateSystem.h"
+#include "ECS/Systems/DayNightSystem.h"
 
 // Utils
 #include "UI/Utils/ElementUtils.h"
@@ -101,6 +103,13 @@ void EngineLoop::Stop()
     PassMessage(message);
 }
 
+void EngineLoop::Abort()
+{
+    Message exitMessage;
+    exitMessage.code = MSG_OUT_EXIT_CONFIRM;
+    _outputQueue.enqueue(exitMessage);
+}
+
 void EngineLoop::PassMessage(Message& message)
 {
     _inputQueue.enqueue(message);
@@ -119,10 +128,20 @@ void EngineLoop::Run()
     _updateFramework.uiRegistry.create();
     SetupUpdateFramework();
 
-    TextureLoader::Load(&_updateFramework.gameRegistry);
-    DBCLoader::Load(&_updateFramework.gameRegistry);
-    DisplayInfoLoader::Init(&_updateFramework.gameRegistry);
-    MapLoader::Init(&_updateFramework.gameRegistry);
+    bool failedToLoad = false;
+    failedToLoad |= !TextureLoader::Load(&_updateFramework.gameRegistry);
+    failedToLoad |= !NDBCLoader::Load(&_updateFramework.gameRegistry);
+    failedToLoad |= !DisplayInfoLoader::Init(&_updateFramework.gameRegistry);
+    failedToLoad |= !MapLoader::Init(&_updateFramework.gameRegistry);
+
+    if (failedToLoad)
+    {
+        Abort();
+        return;
+    }
+
+    DayNightSystem::Init(_updateFramework.gameRegistry);
+    AreaUpdateSystem::Init(_updateFramework.gameRegistry);
 
     TimeSingleton& timeSingleton = _updateFramework.gameRegistry.set<TimeSingleton>();
     ScriptSingleton& scriptSingleton = _updateFramework.gameRegistry.set<ScriptSingleton>();
@@ -396,6 +415,24 @@ void EngineLoop::SetupUpdateFramework()
     });
     movementSystemTask.gather(connectionUpdateSystemTask);
 
+    // DayNightSystem
+    tf::Task dayNightSystemTask = framework.emplace([&gameRegistry]()
+    {
+        ZoneScopedNC("DayNightSystem::Update", tracy::Color::Blue2)
+        DayNightSystem::Update(gameRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
+    dayNightSystemTask.gather(movementSystemTask);
+
+    // AreaUpdateSystem
+    tf::Task areaUpdateSystemTask = framework.emplace([&gameRegistry]()
+    {
+        ZoneScopedNC("AreaUpdateSystem::Update", tracy::Color::Blue2)
+        AreaUpdateSystem::Update(gameRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
+    areaUpdateSystemTask.gather(dayNightSystemTask);
+
     // SimulateDebugCubeSystem
     tf::Task simulateDebugCubeSystemTask = framework.emplace([this, &gameRegistry]()
     {
@@ -403,7 +440,7 @@ void EngineLoop::SetupUpdateFramework()
             SimulateDebugCubeSystem::Update(gameRegistry, _clientRenderer->GetDebugRenderer());
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
-    simulateDebugCubeSystemTask.gather(movementSystemTask);
+    simulateDebugCubeSystemTask.gather(areaUpdateSystemTask);
 
     // RenderModelSystem
     tf::Task renderModelSystemTask = framework.emplace([this, &gameRegistry]()

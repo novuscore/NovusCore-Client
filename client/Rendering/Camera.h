@@ -1,5 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
+#include <CVar/CVarSystem.h>
 
 enum class FrustumPlane
 {
@@ -35,11 +36,11 @@ public:
     void SetActive(bool state) { _active = state; }
     bool IsActive() { return _active; }
 
-    void SetNearClip(f32 value) { _nearClip = value; }
-    f32 GetNearClip() { return _nearClip; }
+    void SetNearClip(f32 value) { *CVarSystem::Get()->GetFloatCVar("camera.nearClip") = value; }
+    f32 GetNearClip() { return static_cast<f32>(*CVarSystem::Get()->GetFloatCVar("camera.nearClip")); }
 
-    void SetFarClip(f32 value) { _farClip = value; }
-    f32 GetFarClip() { return _farClip; }
+    void SetFarClip(f32 value) { *CVarSystem::Get()->GetFloatCVar("camera.farClip") = value; }
+    f32 GetFarClip() { return static_cast<f32>(*CVarSystem::Get()->GetFloatCVar("camera.farClip")); }
 
     bool LoadFromFile(std::string filename);
     bool SaveToFile(std::string filename);

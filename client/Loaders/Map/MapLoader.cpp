@@ -5,7 +5,8 @@
 #include <filesystem>
 #include <entt.hpp>
 
-#include "../DBC/DBC.h"
+#include "../NDBC/NDBC.h"
+#include "../NDBC/NDBCLoader.h"
 #include "../../ECS/Components/Singletons/MapSingleton.h"
 #include "../../ECS/Components/Singletons/DBCSingleton.h"
 
@@ -29,55 +30,26 @@ bool MapLoader::Init(entt::registry* registry)
         return false;
     }
 
-    // Load Maps.ndbc
-    {
-        auto itr = dbcSingleton.nameHashToDBCFile.find("Maps"_h);
-        if (itr == dbcSingleton.nameHashToDBCFile.end())
-        {
-            NC_LOG_ERROR("Maps.ndbc has not been loaded, please check your data folder.");
-            return false;
-        }
+    if (!LoadMapDBC(mapSingleton, dbcSingleton))
+        return false;
 
-        if (!ExtractMapDBC(itr->second, mapSingleton.mapDBCEntries))
-        {
-            NC_LOG_ERROR("Failed to correctly load Maps.ndbc data");
-            return false;
-        }
+    if (!LoadAreaTableDBC(mapSingleton, dbcSingleton))
+        return false;
 
-        for (DBC::Map& map : mapSingleton.mapDBCEntries)
-        {
-            u32 mapNameHash = dbcSingleton.stringTable.GetStringHash(map.name);
-            u32 mapInternalNameHash = dbcSingleton.stringTable.GetStringHash(map.internalName);
+    if (!LoadLightDBC(mapSingleton, dbcSingleton))
+        return false;
 
-            mapSingleton.mapIdToDBC[map.id] = &map;
-            mapSingleton.mapNameToDBC[mapNameHash] = &map;
-            mapSingleton.mapInternalNameToDBC[mapInternalNameHash] = &map;
-        }
-    }
+    if (!LoadLightParamsDBC(mapSingleton, dbcSingleton))
+        return false;
 
-    // Load AreaTable.ndbc
-    {
-        auto itr = dbcSingleton.nameHashToDBCFile.find("AreaTable"_h);
-        if (itr == dbcSingleton.nameHashToDBCFile.end())
-        {
-            NC_LOG_ERROR("AreaTable.ndbc has not been loaded, please check your data folder.");
-            return false;
-        }
+    if (!LoadLightIntBandDBC(mapSingleton, dbcSingleton))
+        return false;
 
-        if (!ExtractAreaTableDBC(itr->second, mapSingleton.areaTableDBCEntries))
-        {
-            NC_LOG_ERROR("Failed to correctly load Maps.ndbc data");
-            return false;
-        }
+    if (!LoadLightFloatBandDBC(mapSingleton, dbcSingleton))
+        return false;
 
-        for (DBC::AreaTable& area : mapSingleton.areaTableDBCEntries)
-        {
-            u32 areaNameHash = dbcSingleton.stringTable.GetStringHash(area.name);
-
-            mapSingleton.areaIdToDBC[area.id] = &area;
-            mapSingleton.areaNameToDBC[areaNameHash] = &area;
-        }
-    }
+    if (!LoadLightSkyboxDBC(mapSingleton, dbcSingleton))
+        return false;
 
     return true;
 }
@@ -99,9 +71,10 @@ bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
         return false;
     }
 
-    const DBC::Map* map = mapSingleton.mapInternalNameToDBC[mapInternalNameHash];
+    const NDBC::File& mapFile = dbcSingleton.nameHashToDBCFile["Maps"_h];
+    const NDBC::Map* map = mapSingleton.mapInternalNameToDBC[mapInternalNameHash];
 
-    const std::string& mapInternalName = dbcSingleton.stringTable.GetString(map->internalName);
+    const std::string& mapInternalName = mapFile.stringTable->GetString(map->internalName);
     fs::path absolutePath = std::filesystem::absolute("Data/extracted/maps/" + mapInternalName);
     if (!fs::is_directory(absolutePath))
     {
@@ -207,34 +180,6 @@ bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
     }
     
     NC_LOG_SUCCESS("Loaded Map (%s)", mapInternalName.c_str());
-    return true;
-}
-
-bool MapLoader::ExtractMapDBC(DBC::File& file, std::vector<DBC::Map>& maps)
-{
-    u32 numMaps = 0;
-    file.buffer->GetU32(numMaps);
-
-    if (numMaps == 0)
-        return false;
-    
-    // Resize our vector and fill it with map data
-    maps.resize(numMaps);
-    file.buffer->GetBytes(reinterpret_cast<u8*>(&maps[0]), sizeof(DBC::Map) * numMaps);
-    return true;
-}
-
-bool MapLoader::ExtractAreaTableDBC(DBC::File& file, std::vector<DBC::AreaTable>& areas)
-{
-    u32 numAreas = 0;
-    file.buffer->GetU32(numAreas);
-
-    if (numAreas == 0)
-        return false;
-
-    // Resize our vector and fill it with map data
-    areas.resize(numAreas);
-    file.buffer->GetBytes(reinterpret_cast<u8*>(&areas[0]), sizeof(DBC::AreaTable) * numAreas);
     return true;
 }
 
@@ -377,5 +322,203 @@ bool MapLoader::ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk, Stri
     
     stringTable.Deserialize(&buffer);
     assert(stringTable.GetNumStrings() > 0); // We always expect to have at least 1 string in our stringtable, a path for the base texture
+    return true;
+}
+
+bool MapLoader::LoadMapDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+{
+    // Load Maps.ndbc
+    {
+        auto itr = dbcSingleton.nameHashToDBCFile.find("Maps"_h);
+        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        {
+            NC_LOG_ERROR("Maps.ndbc has not been loaded, please check your data folder.");
+            return false;
+        }
+
+        if (!NDBCLoader::LoadDataIntoVector<NDBC::Map>(itr->second, mapSingleton.mapDBCEntries))
+        {
+            NC_LOG_ERROR("Failed to correctly load Maps.ndbc data");
+            return false;
+        }
+
+        for (NDBC::Map& map : mapSingleton.mapDBCEntries)
+        {
+            u32 mapNameHash = itr->second.stringTable->GetStringHash(map.name);
+            u32 mapInternalNameHash = itr->second.stringTable->GetStringHash(map.internalName);
+
+            mapSingleton.mapIdToDBC[map.id] = &map;
+            mapSingleton.mapNameToDBC[mapNameHash] = &map;
+            mapSingleton.mapInternalNameToDBC[mapInternalNameHash] = &map;
+        }
+    }
+
+    return true;
+}
+
+bool MapLoader::LoadAreaTableDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+{
+    // Load AreaTable.ndbc
+    {
+        auto itr = dbcSingleton.nameHashToDBCFile.find("AreaTable"_h);
+        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        {
+            NC_LOG_ERROR("AreaTable.ndbc has not been loaded, please check your data folder.");
+            return false;
+        }
+
+        if (!NDBCLoader::LoadDataIntoVector<NDBC::AreaTable>(itr->second, mapSingleton.areaTableDBCEntries))
+        {
+            NC_LOG_ERROR("Failed to correctly load AreaTable.ndbc data");
+            return false;
+        }
+
+        for (NDBC::AreaTable& area : mapSingleton.areaTableDBCEntries)
+        {
+            u32 areaNameHash = itr->second.stringTable->GetStringHash(area.name);
+
+            mapSingleton.areaIdToDBC[area.id] = &area;
+            mapSingleton.areaNameToDBC[areaNameHash] = &area;
+        }
+    }
+
+    return true;
+}
+
+bool MapLoader::LoadLightDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+{
+    // Load Light.ndbc
+    {
+        auto itr = dbcSingleton.nameHashToDBCFile.find("Light"_h);
+        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        {
+            NC_LOG_ERROR("Light.ndbc has not been loaded, please check your data folder.");
+            return false;
+        }
+
+        if (!NDBCLoader::LoadDataIntoVector<NDBC::Light>(itr->second, mapSingleton.lightDBCEntries))
+        {
+            NC_LOG_ERROR("Failed to correctly load Light.ndbc data");
+            return false;
+        }
+
+        for (NDBC::Light& light : mapSingleton.lightDBCEntries)
+        {
+            // Fix world position for non default lights
+            if (light.position != vec3(0, 0, 0))
+            {
+                light.position.x = Terrain::MAP_HALF_SIZE - light.position.x;
+                light.position.z = Terrain::MAP_HALF_SIZE - light.position.z;
+            }
+
+            mapSingleton.lightIdToDBC[light.id] = &light;
+            mapSingleton.mapIdToLightDBC[light.mapId].push_back(&light);
+        }
+    }
+
+    return true;
+}
+
+bool MapLoader::LoadLightParamsDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+{
+    // Load LightParams.ndbc
+    {
+        auto itr = dbcSingleton.nameHashToDBCFile.find("LightParams"_h);
+        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        {
+            NC_LOG_ERROR("LightParams.ndbc has not been loaded, please check your data folder.");
+            return false;
+        }
+
+        if (!NDBCLoader::LoadDataIntoVector<NDBC::LightParams>(itr->second, mapSingleton.lightParamsDBCEntries))
+        {
+            NC_LOG_ERROR("Failed to correctly load LightParams.ndbc data");
+            return false;
+        }
+
+        for (NDBC::LightParams& lightParams : mapSingleton.lightParamsDBCEntries)
+        {
+            mapSingleton.lightParamsIdToDBC[lightParams.id] = &lightParams;
+        }
+    }
+
+    return true;
+}
+
+bool MapLoader::LoadLightIntBandDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+{
+    // Load LightIntBand.ndbc
+    {
+        auto itr = dbcSingleton.nameHashToDBCFile.find("LightIntBand"_h);
+        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        {
+            NC_LOG_ERROR("LightIntBand.ndbc has not been loaded, please check your data folder.");
+            return false;
+        }
+
+        if (!NDBCLoader::LoadDataIntoVector<NDBC::LightIntBand>(itr->second, mapSingleton.lightIntBandDBCEntries))
+        {
+            NC_LOG_ERROR("Failed to correctly load LightIntBand.ndbc data");
+            return false;
+        }
+
+        for (NDBC::LightIntBand& lightIntBand : mapSingleton.lightIntBandDBCEntries)
+        {
+            mapSingleton.lightIntBandIdToDBC[lightIntBand.id] = &lightIntBand;
+        }
+    }
+
+    return true;
+}
+
+bool MapLoader::LoadLightFloatBandDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+{
+    // Load LightFloatBand.ndbc
+    {
+        auto itr = dbcSingleton.nameHashToDBCFile.find("LightFloatBand"_h);
+        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        {
+            NC_LOG_ERROR("LightFloatBand.ndbc has not been loaded, please check your data folder.");
+            return false;
+        }
+
+        if (!NDBCLoader::LoadDataIntoVector<NDBC::LightFloatBand>(itr->second, mapSingleton.lightFloatBandDBCEntries))
+        {
+            NC_LOG_ERROR("Failed to correctly load LightFloatBand.ndbc data");
+            return false;
+        }
+
+        for (NDBC::LightFloatBand& lightFloatBand : mapSingleton.lightFloatBandDBCEntries)
+        {
+            mapSingleton.lightFloatBandIdToDBC[lightFloatBand.id] = &lightFloatBand;
+        }
+    }
+
+    return true;
+}
+
+bool MapLoader::LoadLightSkyboxDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+{
+    // Load LightSkybox.ndbc
+    {
+        auto itr = dbcSingleton.nameHashToDBCFile.find("LightSkybox"_h);
+        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        {
+            NC_LOG_ERROR("LightSkybox.ndbc has not been loaded, please check your data folder.");
+            return false;
+        }
+
+        if (!NDBCLoader::LoadDataIntoVector<NDBC::LightSkybox>(itr->second, mapSingleton.lightSkyboxDBCEntries))
+        {
+            NC_LOG_ERROR("Failed to correctly load LightSkybox.ndbc data");
+            return false;
+        }
+
+        for (NDBC::LightSkybox& lightSkybox : mapSingleton.lightSkyboxDBCEntries)
+        {
+            mapSingleton.lightSkyboxIdToDBC[lightSkybox.id] = &lightSkybox;
+        }
+    }
+
     return true;
 }

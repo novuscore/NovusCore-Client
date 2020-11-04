@@ -89,6 +89,7 @@ namespace Editor
         MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
         DBCSingleton& dbcSingleton = registry->ctx<DBCSingleton>();
 
+        const NDBC::File& areaTableFile = dbcSingleton.nameHashToDBCFile["AreaTable"_h];
         Terrain::Chunk& chunk = mapSingleton.currentMap.chunks[chunkId];
         Terrain::Cell& cell = chunk.cells[cellId];
 
@@ -101,20 +102,18 @@ namespace Editor
             debugRenderer->DrawAABB3D(chunkAABB.min, chunkAABB.max, 0xFF0000FF);
         }
 
-        const DBC::AreaTable* zone = mapSingleton.areaIdToDBC[cell.areaId];
-        const DBC::AreaTable* area = nullptr;
+        const NDBC::AreaTable* zone = mapSingleton.areaIdToDBC[cell.areaId];
+        const NDBC::AreaTable* area = nullptr;
 
-        if (zone->parentId)
+        if (zone && zone->parentId)
         {
             area = zone;
             zone = mapSingleton.areaIdToDBC[area->parentId];
         }
-        
-        const std::string& zoneName = dbcSingleton.stringTable.GetString(zone->name);
 
 
         ImGui::Text("Selected Chunk (%u)", chunkId);
-        ImGui::BulletText("Zone: %s", zoneName.c_str());
+        ImGui::BulletText("Zone: %s", zone ? areaTableFile.stringTable->GetString(zone->name).c_str() : "No Zone Name");
         ImGui::BulletText("Map Object Placements: %u", chunk.mapObjectPlacements.size());
         ImGui::BulletText("Complex Model Placements: %u", chunk.complexModelPlacements.size());
 
@@ -123,7 +122,7 @@ namespace Editor
 
         bool hasLiquid = chunk.liquidHeaders.size() > 0 ? chunk.liquidHeaders[cellId].packedData != 0 : false;
         ImGui::Text("Selected Cell (%u)", cellId);
-        ImGui::BulletText("Area: %s", area ? dbcSingleton.stringTable.GetString(area->name).c_str() : "No Area Name");
+        ImGui::BulletText("Area: %s", area ? areaTableFile.stringTable->GetString(area->name).c_str() : "No Area Name");
         ImGui::BulletText("Area Id: %u, Has Holes:%u, Has Liquid: %u", cell.areaId, cell.hole > 0, hasLiquid);
 
         ImGui::Spacing();

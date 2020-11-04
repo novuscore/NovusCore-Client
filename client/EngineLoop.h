@@ -72,6 +72,7 @@ public:
 
     void Start();
     void Stop();
+    void Abort();
 
     void PassMessage(Message& message);
     bool TryGetMessage(Message& message);
@@ -104,7 +105,7 @@ private:
     void DrawImguiMenuBar();
 
 private:
-    bool _isRunning;
+    bool _isRunning = false;
 
     moodycamel::ConcurrentQueue<Message> _inputQueue;
     moodycamel::ConcurrentQueue<Message> _outputQueue;

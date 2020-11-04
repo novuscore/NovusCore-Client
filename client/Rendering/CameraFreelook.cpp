@@ -174,7 +174,7 @@ void CameraFreeLook::Update(f32 deltaTime, float fovInDegrees, float aspectRatio
     const mat4x4 cameraMatrix = glm::translate(mat4x4(1.0f), _position) * _rotationMatrix;
     _viewMatrix = glm::inverse(cameraMatrix);
 
-    _projectionMatrix = glm::perspective(glm::radians(fovInDegrees), aspectRatioWH, _farClip, _nearClip);
+    _projectionMatrix = glm::perspective(glm::radians(fovInDegrees), aspectRatioWH, GetFarClip(), GetNearClip());
     _viewProjectionMatrix = _projectionMatrix * _viewMatrix;
 
     UpdateCameraVectors();

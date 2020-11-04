@@ -9,7 +9,7 @@
 #include "../../Rendering/CameraOrbital.h"
 #include "../Components/Singletons/TimeSingleton.h"
 #include "../Components/Network/ConnectionSingleton.h"
-#include "../Components/LocalplayerSingleton.h"
+#include "../Components/Singletons/LocalplayerSingleton.h"
 #include "../Components/Transform.h"
 
 #include <glm/gtx/rotate_vector.hpp>

@@ -5,7 +5,8 @@
 #include <filesystem>
 #include <entt.hpp>
 
-#include "../DBC/DBC.h"
+#include "../NDBC/NDBC.h"
+#include "../NDBC/NDBCLoader.h"
 #include "../../ECS/Components/Singletons/DisplayInfoSingleton.h"
 #include "../../ECS/Components/Singletons/DBCSingleton.h"
 
@@ -40,13 +41,13 @@ bool DisplayInfoLoader::LoadCreatureDisplayInfoDBC(DBCSingleton& dbcSingleton, D
         return false;
     }
 
-    if (!ExtractCreatureDisplayInfoDBC(itr->second, displayInfoSingleton.creatureDisplayInfoDBCFiles))
+    if (!NDBCLoader::LoadDataIntoVector<NDBC::CreatureDisplayInfo>(itr->second, displayInfoSingleton.creatureDisplayInfoDBCFiles))
     {
         NC_LOG_ERROR("Failed to correctly load CreatureDisplayInfo.ndbc data");
         return false;
     }
 
-    for (DBC::CreatureDisplayInfo& creatureDisplayInfo : displayInfoSingleton.creatureDisplayInfoDBCFiles)
+    for (NDBC::CreatureDisplayInfo& creatureDisplayInfo : displayInfoSingleton.creatureDisplayInfoDBCFiles)
     {
         displayInfoSingleton.creatureDisplayIdToDisplayInfo[creatureDisplayInfo.id] = &creatureDisplayInfo;
     }
@@ -69,46 +70,16 @@ bool DisplayInfoLoader::LoadCreatureModelDataDBC(DBCSingleton& dbcSingleton, Dis
         return false;
     }
 
-    if (!ExtractCreatureModelDataDBC(itr->second, displayInfoSingleton.creatureModelDataDBCFiles))
+    if (!NDBCLoader::LoadDataIntoVector<NDBC::CreatureModelData>(itr->second, displayInfoSingleton.creatureModelDataDBCFiles))
     {
         NC_LOG_ERROR("Failed to correctly load CreatureModelData.ndbc data");
         return false;
     }
 
-    for (DBC::CreatureModelData& creatureModelData : displayInfoSingleton.creatureModelDataDBCFiles)
+    for (NDBC::CreatureModelData& creatureModelData : displayInfoSingleton.creatureModelDataDBCFiles)
     {
         displayInfoSingleton.creatureModelIdToModelData[creatureModelData.id] = &creatureModelData;
     }
-
-    return true;
-}
-
-bool DisplayInfoLoader::ExtractCreatureDisplayInfoDBC(DBC::File& file, std::vector<DBC::CreatureDisplayInfo>& creatureDisplayInfos)
-{
-    u32 numCreatureDisplayInfos = 0;
-    file.buffer->GetU32(numCreatureDisplayInfos);
-
-    if (numCreatureDisplayInfos == 0)
-        return false;
-    
-    // Resize our vector and fill it with CreatureDisplayInfo data
-    creatureDisplayInfos.resize(numCreatureDisplayInfos);
-    file.buffer->GetBytes(reinterpret_cast<u8*>(&creatureDisplayInfos[0]), sizeof(DBC::CreatureDisplayInfo) * numCreatureDisplayInfos);
-
-    return true;
-}
-
-bool DisplayInfoLoader::ExtractCreatureModelDataDBC(DBC::File& file, std::vector<DBC::CreatureModelData>& creatureModelDatas)
-{
-    u32 numcreatureModelDatas = 0;
-    file.buffer->GetU32(numcreatureModelDatas);
-
-    if (numcreatureModelDatas == 0)
-        return false;
-
-    // Resize our vector and fill it with CreatureDisplayInfo data
-    creatureModelDatas.resize(numcreatureModelDatas);
-    file.buffer->GetBytes(reinterpret_cast<u8*>(&creatureModelDatas[0]), sizeof(DBC::CreatureModelData) * numcreatureModelDatas);
 
     return true;
 }

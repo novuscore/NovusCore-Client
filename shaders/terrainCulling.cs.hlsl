@@ -84,15 +84,6 @@ bool IsAABBInsideFrustum(float4 frustum[6], AABB aabb)
 [numthreads(32, 1, 1)]
 void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
-	// todo: initialize the draw arguments before dispatch
-	if (dispatchThreadId.x == 0)
-	{
-		// indexCount, instanceCount, indexOffset, vertexOffset
-		_argumentBuffer.Store4(0, uint4(NUM_INDICES_PER_CELL, 0, 0, 0));
-		// instanceOffset
-		_argumentBuffer.Store(16, 0);
-	}
-
 	const uint instanceIndex = dispatchThreadId.x;
 	CellInstance instance = _instances.Load<CellInstance>(instanceIndex * 8);
 

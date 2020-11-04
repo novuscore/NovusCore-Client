@@ -55,10 +55,11 @@ float3 Lighting(float3 baseColor, float4 vertexColor, float3 normal, Material ma
 {
     float3 currColor;
     float3 lDiffuse = float3(0, 0, 0);
+    float3 accumlatedLight = float3(1.0f, 1.0f, 1.0f);
 
     if (materialParam.exteriorLit == 1)
     {
-        float nDotL = dot(normal, -normalize(_lightData.lightDir.xyz));
+        float nDotL = saturate(dot(normal, -normalize(_lightData.lightDir.xyz)));
 
         float3 ambientColor = _lightData.ambientColor.rgb + vertexColor.rgb;
 
@@ -66,7 +67,7 @@ float3 Lighting(float3 baseColor, float4 vertexColor, float3 normal, Material ma
         float3 groundColor = (ambientColor * 0.699999988);
 
         currColor = lerp(groundColor, skyColor, 0.5 + (0.5 * nDotL));
-        lDiffuse = _lightData.lightColor.rgb * saturate(nDotL);
+        lDiffuse = _lightData.lightColor.rgb * nDotL;
     }
     else
     {
@@ -74,7 +75,8 @@ float3 Lighting(float3 baseColor, float4 vertexColor, float3 normal, Material ma
     }
 
     float3 gammaDiffTerm = baseColor * (currColor + lDiffuse);
-    return gammaDiffTerm;
+    float3 linearDiffTerm = (baseColor * baseColor) * accumlatedLight;
+    return sqrt(gammaDiffTerm * gammaDiffTerm + linearDiffTerm);
 }
 
 PSOutput main(PSInput input)

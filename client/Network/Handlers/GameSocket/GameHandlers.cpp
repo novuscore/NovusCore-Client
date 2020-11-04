@@ -6,7 +6,7 @@
 #include "../../../Utils/EntityUtils.h"
 #include "../../../Utils/ServiceLocator.h"
 #include "../../../ECS/Components/Transform.h"
-#include "../../../ECS/Components/LocalplayerSingleton.h"
+#include "../../../ECS/Components/Singletons/LocalplayerSingleton.h"
 
 namespace GameSocket
 {

@@ -1,5 +1,3 @@
-#include "globalData.inc.hlsl"
-
 struct VSInput
 {
 	float3 position : Position;

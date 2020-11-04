@@ -1,8 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
 
-#include <array>
-
 #include <Utils/StringUtils.h>
 #include <Renderer/Descriptors/ImageDesc.h>
 #include <Renderer/Descriptors/DepthImageDesc.h>
@@ -15,6 +13,7 @@
 #include <Renderer/DescriptorSet.h>
 
 #include "../Gameplay/Map/Chunk.h"
+#include "CModel/CModel.h"
 #include "ViewConstantBuffer.h"
 
 namespace Renderer
@@ -24,7 +23,7 @@ namespace Renderer
     class DescriptorSet;
 }
 
-namespace DBC
+namespace NDBC
 {
     struct CreatureDisplayInfo;
     struct CreatureModelData;
@@ -44,15 +43,20 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddCModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
+    void AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 
-    bool LoadCreature(u32 displayId, u32& objectID);
-    void LoadFromChunk(const Terrain::Chunk& chunk, StringTable& stringTable);
+    void RegisterLoadFromChunk(const Terrain::Chunk& chunk, StringTable& stringTable);
+    void ExecuteLoad();
+
+    void Clear();
+    
 private:
-    void CreatePermanentResources();
-
-    bool LoadCModel(std::string modelPath, u32& objectID);
-    bool LoadCreatureCModel(std::string modelPath, DBC::CreatureDisplayInfo* displayInfo, DBC::CreatureModelData* modelData, u32& objectID);
+    struct ComplexModelToBeLoaded
+    {
+        const Terrain::Placement* placement = nullptr;
+        const std::string* name = nullptr;
+        u32 nameHash = 0;
+    };
 
     struct Instance
     {
@@ -73,11 +77,11 @@ private:
         u16 indexCount = 0;
         bool isBackfaceCulled = true;
 
-        u8 textureUnitIndices[8] = 
-        { 
-            CMODEL_INVALID_TEXTURE_UNIT_INDEX, CMODEL_INVALID_TEXTURE_UNIT_INDEX, 
+        u8 textureUnitIndices[8] =
+        {
             CMODEL_INVALID_TEXTURE_UNIT_INDEX, CMODEL_INVALID_TEXTURE_UNIT_INDEX,
-            CMODEL_INVALID_TEXTURE_UNIT_INDEX, CMODEL_INVALID_TEXTURE_UNIT_INDEX, 
+            CMODEL_INVALID_TEXTURE_UNIT_INDEX, CMODEL_INVALID_TEXTURE_UNIT_INDEX,
+            CMODEL_INVALID_TEXTURE_UNIT_INDEX, CMODEL_INVALID_TEXTURE_UNIT_INDEX,
             CMODEL_INVALID_TEXTURE_UNIT_INDEX, CMODEL_INVALID_TEXTURE_UNIT_INDEX
         };
 
@@ -90,32 +94,85 @@ private:
         std::vector<RenderBatch> renderBatches;
         std::vector<TextureUnit> textureUnits;
 
-        Renderer::BufferID vertexPositionsBuffer;
-        Renderer::BufferID vertexNormalsBuffer;
-        Renderer::BufferID vertexUVs0Buffer;
-        Renderer::BufferID vertexUVs1Buffer;
+        Renderer::BufferID vertexBuffer;
         Renderer::BufferID textureUnitsBuffer;
     };
 
-    static const u32 MAX_INSTANCES = 256;
-    struct LoadedCModel
+    struct DrawCall
+    {
+        u32 indexCount;
+        u32 instanceCount;
+        u32 firstIndex;
+        u32 vertexOffset;
+        u32 firstInstance;
+    };
+
+    struct DrawCallData
+    {
+        u32 instanceID;
+        
+        u16 textureUnitOffset;
+        u16 numTextureUnits;
+    };
+
+    static const u32 MAX_INSTANCES = 512;
+    struct LoadedComplexModel
     {
         std::string debugName = "";
 
-        Mesh mesh;
+        u32 numDrawCalls = 0;
+        std::vector<DrawCall> drawCallTemplates;
+        std::vector<DrawCallData> drawCallDataTemplates;
 
-        u32 numInstances;
-        Renderer::BufferID instanceBuffer;
+        u32 numTwoSidedDrawCalls = 0;
+        std::vector<DrawCall> twoSidedDrawCallTemplates;
+        std::vector<DrawCallData> twoSidedDrawCallDataTemplates;
     };
 
+private:
+    void CreatePermanentResources();
+
+    bool LoadComplexModel(ComplexModelToBeLoaded& complexModelToBeLoaded, LoadedComplexModel& complexModel);
+    bool LoadFile(const std::string& cModelPathString, CModel::ComplexModel& cModel);
+
+    bool IsRenderBatchTwoSided(const CModel::ComplexRenderBatch& renderBatch, const CModel::ComplexModel& cModel);
+
+    void AddInstance(LoadedComplexModel& complexModel, const Terrain::Placement& placement);
+
+    void CreateBuffers();
+
+private:
     Renderer::Renderer* _renderer;
 
     Renderer::SamplerID _sampler;
     Renderer::DescriptorSet _passDescriptorSet;
     Renderer::DescriptorSet _meshDescriptorSet;
 
-    std::vector<LoadedCModel> _loadedCModels;
+    std::vector<ComplexModelToBeLoaded> _complexModelsToBeLoaded;
+    std::vector<LoadedComplexModel> _loadedComplexModels;
     robin_hood::unordered_map<u32, u32> _nameHashToIndexMap;
+
+    std::vector<CModel::ComplexVertex> _vertices;
+    std::vector<u16> _indices;
+    std::vector<TextureUnit> _textureUnits;
+    std::vector<Instance> _instances;
+
+    std::vector<DrawCall> _drawCalls;
+    std::vector<DrawCallData> _drawCallDatas;
+
+    std::vector<DrawCall> _twoSidedDrawCalls;
+    std::vector<DrawCallData> _twoSidedDrawCallDatas;
+
+    Renderer::BufferID _vertexBuffer;
+    Renderer::BufferID _indexBuffer;
+    Renderer::BufferID _textureUnitBuffer;
+    Renderer::BufferID _instanceBuffer;
+
+    Renderer::BufferID _drawCallBuffer;
+    Renderer::BufferID _drawCallDataBuffer;
+
+    Renderer::BufferID _twoSidedDrawCallBuffer;
+    Renderer::BufferID _twoSidedDrawCallDataBuffer;
 
     Renderer::TextureArrayID _cModelTextures;
 

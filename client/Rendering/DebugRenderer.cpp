@@ -126,7 +126,7 @@ void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 			Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
 			commandList.BeginPipeline(pipeline);
 
-			commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+			//commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
 			commandList.SetVertexBuffer(0, _debugVertexBuffer);
 
 			// Draw

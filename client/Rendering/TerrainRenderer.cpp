@@ -333,6 +333,12 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                     memcpy(_cullingConstantBuffer->resource.frustumPlanes, camera->GetFrustumPlanes(), sizeof(vec4[6]));
                     _cullingConstantBuffer->Apply(frameIndex);
                 }
+                
+                // Reset the counter
+                commandList.FillBuffer(_argumentBuffer, 0, 4, Terrain::NUM_INDICES_PER_CELL);
+                commandList.FillBuffer(_argumentBuffer, 4, 12, 0);
+                commandList.FillBuffer(_argumentBuffer, 16, 4, 0);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _argumentBuffer);
 
                 _cullingPassDescriptorSet.Bind("_instances", _instanceBuffer);
                 _cullingPassDescriptorSet.Bind("_heightRanges", _cellHeightRangeBuffer);
@@ -511,7 +517,7 @@ void TerrainRenderer::CreatePermanentResources()
         Renderer::BufferDesc desc;
         desc.name = "TerrainArgumentBuffer";
         desc.size = sizeof(VkDrawIndexedIndirectCommand);
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER;
+        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
         _argumentBuffer = _renderer->CreateBuffer(desc);
     }
 
@@ -719,6 +725,7 @@ bool TerrainRenderer::LoadMap(u32 mapInternalNameHash)
     _loadedChunks.clear();
     _cellBoundingBoxes.clear();
     _mapObjectRenderer->Clear();
+    _complexModelRenderer->Clear();
     //_waterRenderer->Clear();
 
     // Unload everything but the first texture in our color array
@@ -773,6 +780,7 @@ bool TerrainRenderer::LoadMap(u32 mapInternalNameHash)
     }
 
     _mapObjectRenderer->ExecuteLoad();
+    _complexModelRenderer->ExecuteLoad();
 
     // Load Water
     //_waterRenderer->LoadWater(_loadedChunks);
@@ -991,7 +999,7 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
     }
 
     _mapObjectRenderer->RegisterMapObjectsToBeLoaded(chunk, stringTable);
-    //_complexModelRenderer->LoadFromChunk(chunk, stringTable);
+    _complexModelRenderer->RegisterLoadFromChunk(chunk, stringTable);
 
     _loadedChunks.push_back(chunkID);
 }

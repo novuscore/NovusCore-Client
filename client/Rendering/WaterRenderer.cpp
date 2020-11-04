@@ -14,8 +14,6 @@
 
 #include "../ECS/Components/Singletons/MapSingleton.h"
 
-#include "../Loaders/DBC/DBC.h"
-
 #include <tracy/TracyVulkan.hpp>
 
 namespace fs = std::filesystem;

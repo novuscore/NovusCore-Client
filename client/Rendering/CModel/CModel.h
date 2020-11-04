@@ -8,13 +8,9 @@ namespace CModel
 {
     struct ComplexVertex
     {
-        // TODO: Bring size of this struct down to at least 32 bytes, but preferably 24.
-
-        vec3 position = vec3(0, 0, 0);
-        u8 boneWeights[4] = { 0, 0, 0, 0 };
-        u8 boneIndices[4] = { 0, 0, 0, 0 };
-        vec3 normal = vec3(0, 0, 0);
-        vec2 uvCords[2] = { vec2(0, 0), vec2(0, 0) };
+        hvec3 position = hvec3(f16(0), f16(0), f16(0));
+        u8 octNormal[2] = { 0 };
+        hvec2 uvCords[2] = { hvec2(f16(0), f16(0)), hvec2(f16(0), f16(0)) };
     };
 
     enum class ComplexTextureType : u32

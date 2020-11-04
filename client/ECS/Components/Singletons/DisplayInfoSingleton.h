@@ -24,15 +24,15 @@
 #pragma once
 #include <NovusTypes.h>
 #include <robin_hood.h>
-#include "../../../Loaders/DBC/DBC.h"
+#include "../../../Loaders/NDBC/NDBC.h"
 
 struct DisplayInfoSingleton
 {
 	DisplayInfoSingleton() {}
 
-	robin_hood::unordered_map<u32, DBC::CreatureDisplayInfo*> creatureDisplayIdToDisplayInfo;
-	robin_hood::unordered_map<u32, DBC::CreatureModelData*> creatureModelIdToModelData;
+	robin_hood::unordered_map<u32, NDBC::CreatureDisplayInfo*> creatureDisplayIdToDisplayInfo;
+	robin_hood::unordered_map<u32, NDBC::CreatureModelData*> creatureModelIdToModelData;
 
-	std::vector<DBC::CreatureModelData> creatureModelDataDBCFiles;
-	std::vector<DBC::CreatureDisplayInfo> creatureDisplayInfoDBCFiles;
+	std::vector<NDBC::CreatureModelData> creatureModelDataDBCFiles;
+	std::vector<NDBC::CreatureDisplayInfo> creatureDisplayInfoDBCFiles;
 };
