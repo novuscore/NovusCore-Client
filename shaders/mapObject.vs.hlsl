@@ -133,15 +133,26 @@ Vertex UnpackVertex(PackedVertex packedVertex)
     return vertex;
 }
 
-Vertex LoadVertex(uint vertexID, uint16_t vertexColorTextureID0, uint16_t vertexColorTextureID1, uint vertexOffset)
+Vertex LoadVertex(uint vertexID, uint vertexColorTextureID0, uint vertexColorTextureID1, uint vertexOffset)
 {
     PackedVertex packedVertex = _vertices.Load<PackedVertex>(vertexID * 16);
     
     Vertex vertex = UnpackVertex(packedVertex);
 
     uint offsetVertexID = vertexID - vertexOffset;
-    uint3 vertexColorUV = uint3(offsetVertexID % 1024, asfloat(offsetVertexID) / 1024.0f, 0);
-    
+    uint3 vertexColorUV = uint3(offsetVertexID % 1024, offsetVertexID / 1024, 0);
+
+    /*if (vertexOffset > vertexID)
+    {
+        vertex.color0 = float4(1.0f, 0.0f, 0.0f, 1.0f);
+        vertex.color1 = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+    else
+    {
+        vertex.color0 = float4(0.0f, 1.0f, 0.0f, 1.0f);
+        vertex.color1 = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    }*/
+
     vertex.color0 = _textures[vertexColorTextureID0].Load(vertexColorUV);
     vertex.color1 = _textures[vertexColorTextureID1].Load(vertexColorUV);
 
@@ -154,15 +165,21 @@ VSOutput main(VSInput input)
 
     InstanceLookupData lookupData = _instanceLookup.Load<InstanceLookupData>(input.instanceID * 16); // 16 = sizeof(InstanceLookupData)
     
-    InstanceData instanceData = LoadInstanceData(lookupData.instanceID);
-    Vertex vertex = LoadVertex(input.vertexID, lookupData.vertexColorTextureID0, lookupData.vertexColorTextureID1, lookupData.vertexOffset); 
+    uint instanceID = lookupData.instanceID;
+    uint vertexColorTextureID0 = lookupData.vertexColorTextureID0;
+    uint vertexColorTextureID1 = lookupData.vertexColorTextureID1;
+    uint vertexOffset = lookupData.vertexOffset;
+    uint materialParamID = lookupData.materialParamID;
+
+    InstanceData instanceData = LoadInstanceData(instanceID);
+    Vertex vertex = LoadVertex(input.vertexID, vertexColorTextureID0, vertexColorTextureID1, vertexOffset);
 
     float4 position = float4(vertex.position, 1.0f);
     position = mul(position, instanceData.instanceMatrix);
 
     output.position = mul(position, _viewData.viewProjectionMatrix);
     output.normal = mul(vertex.normal, (float3x3)instanceData.instanceMatrix);
-    output.materialParamID = lookupData.materialParamID;
+    output.materialParamID = materialParamID;
     output.color0 = vertex.color0;
     output.color1 = vertex.color1;
 

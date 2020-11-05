@@ -111,7 +111,7 @@ namespace Renderer
     void CommandList::PushMarker(std::string marker, Color color)
     {
         Commands::PushMarker* command = AddCommand<Commands::PushMarker>();
-        assert(marker.length() < 16); // Max length of marker names is enforced to 15 chars since we have to store the string internally
+        assert(marker.length() < Commands::PushMarker::MARKER_MAX_LENGTH); // Max length of marker names is enforced because we have to store the string internally
         strcpy_s(command->marker, marker.c_str());
         command->color = color;
 

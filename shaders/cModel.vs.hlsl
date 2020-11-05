@@ -99,11 +99,6 @@ Vertex LoadVertex(uint vertexID)
     vertex.normal = UnpackNormal(packedVertex);
     vertex.uv01 = UnpackUVs(packedVertex);
 
-    // TODO: Remove this from the shader, we want to do this in the dataextractor instead
-    vertex.position = float3(-vertex.position.x, vertex.position.z, -vertex.position.y);
-    vertex.normal = float3(-vertex.normal.x, vertex.normal.z, -vertex.normal.y);
-    vertex.normal = normalize(vertex.normal);
-
     return vertex;
 }
 

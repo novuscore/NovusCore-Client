@@ -5,6 +5,7 @@
 
 #include <filesystem>
 #include <GLFW/glfw3.h>
+#include <tracy/TracyVulkan.hpp>
 
 #include <InputManager.h>
 #include <Renderer/Renderer.h>
@@ -18,12 +19,16 @@
 #include "../ECS/Components/Singletons/TextureSingleton.h"
 #include "../ECS/Components/Singletons/DisplayInfoSingleton.h"
 
-#include "../Loaders/NDBC/NDBC.h"
-
-#include <tracy/TracyVulkan.hpp>
+#include "Camera.h"
 #include "../Gameplay/Map/Map.h"
+#include "CVar/CVarSystem.h"
+#include <tracy/TracyVulkan.hpp>
 
 namespace fs = std::filesystem;
+
+AutoCVar_Int CVAR_ComplexModelCullingEnabled("complexModels.cullEnable", "enable culling of complex models", 1, CVarFlags::EditCheckbox);
+AutoCVar_Int CVAR_ComplexModelLockCullingFrustum("complexModels.lockCullingFrustum", "lock frustrum for complex model culling", 0, CVarFlags::EditCheckbox);
+AutoCVar_Int CVAR_ComplexModelDrawBoundingBoxes("complexModels.drawBoundingBoxes", "draw bounding boxes for complex models", 0, CVarFlags::EditCheckbox);
 
 CModelRenderer::CModelRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer)
     : _renderer(renderer)
@@ -39,6 +44,63 @@ CModelRenderer::~CModelRenderer()
 
 void CModelRenderer::Update(f32 deltaTime)
 {
+    bool drawBoundingBoxes = CVAR_ComplexModelDrawBoundingBoxes.Get() == 1;
+    if (drawBoundingBoxes)
+    {
+        for (DrawCall& drawCall : _opaqueDrawCalls)
+        {
+            DrawCallData& drawCallData = _opaqueDrawCallDatas[drawCall.firstInstance];
+            u32 instanceID = drawCallData.instanceID;
+            u32 cullingDataID = drawCallData.cullingDataID;
+
+            Instance& instance = _instances[instanceID];
+            CModel::CullingData& cullingData = _cullingDatas[cullingDataID];
+
+            vec3 center = (cullingData.minBoundingBox + cullingData.maxBoundingBox) * f16(0.5f);
+            vec3 extents = vec3(cullingData.maxBoundingBox) - center;
+
+            // transform center
+            mat4x4& m = instance.instanceMatrix;
+            vec3 transformedCenter = vec3(m * vec4(center, 1.0f));
+
+            // Transform extents (take maximum)
+            glm::mat3x3 absMatrix = glm::mat3x3(glm::abs(vec3(m[0])), glm::abs(vec3(m[1])), glm::abs(vec3(m[2])));
+            vec3 transformedExtents = absMatrix * extents;
+
+            // Transform to min/max box representation
+            vec3 transformedMin = transformedCenter - transformedExtents;
+            vec3 transformedMax = transformedCenter + transformedExtents;
+
+            _debugRenderer->DrawAABB3D(transformedMin, transformedMax, 0xff00ffff);
+        }
+
+        for (DrawCall& drawCall : _transparentDrawCalls)
+        {
+            DrawCallData& drawCallData = _transparentDrawCallDatas[drawCall.firstInstance];
+            u32 instanceID = drawCallData.instanceID;
+            u32 cullingDataID = drawCallData.cullingDataID;
+
+            Instance& instance = _instances[instanceID];
+            CModel::CullingData& cullingData = _cullingDatas[cullingDataID];
+
+            vec3 center = (cullingData.minBoundingBox + cullingData.maxBoundingBox) * f16(0.5f);
+            vec3 extents = vec3(cullingData.maxBoundingBox) - center;
+
+            // transform center
+            mat4x4& m = instance.instanceMatrix;
+            vec3 transformedCenter = vec3(m * vec4(center, 1.0f));
+
+            // Transform extents (take maximum)
+            glm::mat3x3 absMatrix = glm::mat3x3(glm::abs(vec3(m[0])), glm::abs(vec3(m[1])), glm::abs(vec3(m[2])));
+            vec3 transformedExtents = absMatrix * extents;
+
+            // Transform to min/max box representation
+            vec3 transformedMin = transformedCenter - transformedExtents;
+            vec3 transformedMax = transformedCenter + transformedExtents;
+
+            _debugRenderer->DrawAABB3D(transformedMin, transformedMax, 0xff00ffff);
+        }
+    }
 }
 
 void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
@@ -49,96 +111,203 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
         Renderer::RenderPassMutableResource mainDepth;
     };
 
-    const auto setup = [=](CModelPassData& data, Renderer::RenderGraphBuilder& builder)
-    {
-        data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-        data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+    const bool cullingEnabled = CVAR_ComplexModelCullingEnabled.Get();
+    const bool lockFrustum = CVAR_ComplexModelLockCullingFrustum.Get();
 
-        return true; // Return true from setup to enable this pass, return false to disable it
-    };
-
-    const auto execute = [=](CModelPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList)
-    {
-        GPU_SCOPED_PROFILER_ZONE(commandList, NM2Pass);
-
-        Renderer::GraphicsPipelineDesc pipelineDesc;
-        resources.InitializePipelineDesc(pipelineDesc);
-
-        // Shaders
-        Renderer::VertexShaderDesc vertexShaderDesc;
-        vertexShaderDesc.path = "Data/shaders/cModel.vs.hlsl.spv";
-        pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
-
-        Renderer::PixelShaderDesc pixelShaderDesc;
-        pixelShaderDesc.path = "Data/shaders/cModel.ps.hlsl.spv";
-        pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
-
-        // Depth state
-        pipelineDesc.states.depthStencilState.depthEnable = true;
-        pipelineDesc.states.depthStencilState.depthWriteEnable = true;
-        pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_GREATER;
-
-        // Rasterizer state
-        pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK; //Renderer::CullMode::CULL_MODE_BACK;
-        pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
-
-        pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;
-        pipelineDesc.states.blendState.renderTargets[0].blendOp = Renderer::BlendOp::BLEND_OP_ADD;
-        pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::BLEND_MODE_SRC_ALPHA;
-        pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::BLEND_MODE_INV_SRC_ALPHA;
-
-        // Render targets
-        pipelineDesc.renderTargets[0] = data.mainColor;
-        pipelineDesc.depthStencil = data.mainDepth;
-
-        // Set Backface Culled Pipeline
-        { 
-            Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
-            commandList.BeginPipeline(pipeline);
-
-            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
-
-            _passDescriptorSet.Bind("_drawCallDatas", _drawCallDataBuffer);
-            _passDescriptorSet.Bind("_vertices", _vertexBuffer);
-            _passDescriptorSet.Bind("_textures", _cModelTextures);
-            _passDescriptorSet.Bind("_textureUnits", _textureUnitBuffer);
-            _passDescriptorSet.Bind("_instances", _instanceBuffer);
-            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
-
-            commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
-
-            u32 numDrawCalls = static_cast<u32>(_drawCalls.size());
-            commandList.DrawIndexedIndirect(_drawCallBuffer, 0, numDrawCalls);
-
-            commandList.EndPipeline(pipeline);
-        }
-       
-        // Set No Backface Culled Pipeline
+    renderGraph->AddPass<CModelPassData>("CModel Pass", 
+        [=](CModelPassData& data, Renderer::RenderGraphBuilder& builder)
         {
-            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_NONE;
+            data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+            data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
 
-            Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
-            commandList.BeginPipeline(pipeline);
+            return true; // Return true from setup to enable this pass, return false to disable it
+        },
+        [=](CModelPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList)
+        {
+            GPU_SCOPED_PROFILER_ZONE(commandList, NM2Pass);
 
-            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+            Renderer::ComputePipelineDesc cullingPipelineDesc;
+            resources.InitializePipelineDesc(cullingPipelineDesc);
 
-            _passDescriptorSet.Bind("_drawCallDatas", _twoSidedDrawCallDataBuffer);
-            _passDescriptorSet.Bind("_vertices", _vertexBuffer);
-            _passDescriptorSet.Bind("_textures", _cModelTextures);
-            _passDescriptorSet.Bind("_textureUnits", _textureUnitBuffer);
-            _passDescriptorSet.Bind("_instances", _instanceBuffer);
-            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
+            Renderer::ComputeShaderDesc shaderDesc;
+            shaderDesc.path = "Data/shaders/cModelCulling.cs.hlsl.spv";
+            cullingPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
 
-            commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
+            Renderer::GraphicsPipelineDesc pipelineDesc;
+            resources.InitializePipelineDesc(pipelineDesc);
 
-            u32 numDrawCalls = static_cast<u32>(_twoSidedDrawCalls.size());
-            commandList.DrawIndexedIndirect(_twoSidedDrawCallBuffer, 0, numDrawCalls);
+            // Shaders
+            Renderer::VertexShaderDesc vertexShaderDesc;
+            vertexShaderDesc.path = "Data/shaders/cModel.vs.hlsl.spv";
+            pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
-            commandList.EndPipeline(pipeline);
-        }
-    };
+            Renderer::PixelShaderDesc pixelShaderDesc;
+            pixelShaderDesc.path = "Data/shaders/cModel.ps.hlsl.spv";
+            pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
-    renderGraph->AddPass<CModelPassData>("CModel Pass", setup, execute);
+            // Depth state
+            pipelineDesc.states.depthStencilState.depthEnable = true;
+            pipelineDesc.states.depthStencilState.depthWriteEnable = true;
+            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_GREATER;
+
+            // Rasterizer state
+            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK; //Renderer::CullMode::CULL_MODE_BACK;
+            pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
+
+            // Render targets
+            pipelineDesc.renderTargets[0] = data.mainColor;
+            pipelineDesc.depthStencil = data.mainDepth;
+
+            // Set Opaque Pipeline
+            u32 numOpaqueDrawCalls = static_cast<u32>(_opaqueDrawCalls.size());
+            if (numOpaqueDrawCalls > 0)
+            {
+                commandList.PushMarker("Opaque " + std::to_string(numOpaqueDrawCalls), Color::White);
+
+                // Cull
+                if (cullingEnabled)
+                {
+                    // Reset the counter
+                    commandList.FillBuffer(_opaqueDrawCountBuffer, 0, 4, 0);
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _opaqueDrawCountBuffer);
+
+                    // Do culling
+                    Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(cullingPipelineDesc);
+                    commandList.BeginPipeline(pipeline);
+
+                    if (!lockFrustum)
+                    {
+                        Camera* camera = ServiceLocator::GetCamera();
+                        memcpy(_opaqueCullingConstantBuffer->resource.frustumPlanes, camera->GetFrustumPlanes(), sizeof(vec4[6]));
+                        _opaqueCullingConstantBuffer->resource.cameraPos = camera->GetPosition();
+                        _opaqueCullingConstantBuffer->resource.maxDrawCount = numOpaqueDrawCalls;
+                        _opaqueCullingConstantBuffer->Apply(frameIndex);
+                    }
+
+                    _cullingDescriptorSet.Bind("_drawCallDatas", _opaqueDrawCallDataBuffer);
+                    _cullingDescriptorSet.Bind("_drawCalls", _opaqueDrawCallBuffer);
+                    _cullingDescriptorSet.Bind("_culledDrawCalls", _opaqueCulledDrawCallBuffer);
+                    _cullingDescriptorSet.Bind("_drawCount", _opaqueDrawCountBuffer);
+                    _cullingDescriptorSet.Bind("_instances", _instanceBuffer);
+                    _cullingDescriptorSet.Bind("_cullingDatas", _cullingDataBuffer);
+                    _cullingDescriptorSet.Bind("_constants", _opaqueCullingConstantBuffer->GetBuffer(frameIndex));
+                    
+                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingDescriptorSet, frameIndex);
+                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+
+                    commandList.Dispatch((numOpaqueDrawCalls + 31) / 32, 1, 1);
+
+                    commandList.EndPipeline(pipeline);
+
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _opaqueCulledDrawCallBuffer);
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _opaqueDrawCountBuffer);
+                }
+                else
+                {
+                    // Reset the counter
+                    commandList.FillBuffer(_opaqueDrawCountBuffer, 0, 4, numOpaqueDrawCalls);
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _opaqueDrawCountBuffer);
+                }
+
+                // Draw
+                Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+                commandList.BeginPipeline(pipeline);
+
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+
+                _passDescriptorSet.Bind("_drawCallDatas", _opaqueDrawCallDataBuffer);
+                _passDescriptorSet.Bind("_vertices", _vertexBuffer);
+                _passDescriptorSet.Bind("_textures", _cModelTextures);
+                _passDescriptorSet.Bind("_textureUnits", _textureUnitBuffer);
+                _passDescriptorSet.Bind("_instances", _instanceBuffer);
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
+
+                commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
+
+                Renderer::BufferID argumentBuffer = (cullingEnabled) ? _opaqueCulledDrawCallBuffer : _opaqueDrawCallBuffer;
+                commandList.DrawIndexedIndirectCount(argumentBuffer, 0, _opaqueDrawCountBuffer, 0, numOpaqueDrawCalls);
+
+                commandList.EndPipeline(pipeline);
+                commandList.PopMarker();
+            }
+
+            // Set Transparent Pipeline
+            u32 numTransparentDrawCalls = static_cast<u32>(_transparentDrawCalls.size());
+            if (numTransparentDrawCalls > 0)
+            {
+                commandList.PushMarker("Transparent " + std::to_string(numTransparentDrawCalls), Color::White);
+
+                // Cull
+                if (cullingEnabled)
+                {
+                    // Reset the counter
+                    commandList.FillBuffer(_transparentDrawCountBuffer, 0, 4, 0);
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentDrawCountBuffer);
+
+                    // Do culling
+                    Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(cullingPipelineDesc);
+                    commandList.BeginPipeline(pipeline);
+
+                    if (!lockFrustum)
+                    {
+                        Camera* camera = ServiceLocator::GetCamera();
+                        memcpy(_transparentCullingConstantBuffer->resource.frustumPlanes, camera->GetFrustumPlanes(), sizeof(vec4[6]));
+                        _transparentCullingConstantBuffer->resource.cameraPos = camera->GetPosition();
+                        _transparentCullingConstantBuffer->resource.maxDrawCount = numTransparentDrawCalls;
+                        _transparentCullingConstantBuffer->Apply(frameIndex);
+                    }
+
+                    _cullingDescriptorSet.Bind("_drawCallDatas", _transparentDrawCallDataBuffer);
+                    _cullingDescriptorSet.Bind("_drawCalls", _transparentDrawCallBuffer);
+                    _cullingDescriptorSet.Bind("_culledDrawCalls", _transparentCulledDrawCallBuffer);
+                    _cullingDescriptorSet.Bind("_drawCount", _transparentDrawCountBuffer);
+                    _cullingDescriptorSet.Bind("_instances", _instanceBuffer);
+                    _cullingDescriptorSet.Bind("_cullingDatas", _cullingDataBuffer);
+                    _cullingDescriptorSet.Bind("_constants", _transparentCullingConstantBuffer->GetBuffer(frameIndex));
+
+                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingDescriptorSet, frameIndex);
+                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+
+                    commandList.Dispatch((numTransparentDrawCalls + 31) / 32, 1, 1);
+
+                    commandList.EndPipeline(pipeline);
+
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _transparentCulledDrawCallBuffer);
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _transparentDrawCountBuffer);
+                }
+                else
+                {
+                    // Reset the counter
+                    commandList.FillBuffer(_transparentDrawCountBuffer, 0, 4, numTransparentDrawCalls);
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _transparentDrawCountBuffer);
+                }
+
+                // Draw
+                pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;
+                pipelineDesc.states.blendState.renderTargets[0].blendOp = Renderer::BlendOp::BLEND_OP_ADD;
+                pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::BLEND_MODE_SRC_ALPHA;
+                pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::BLEND_MODE_INV_SRC_ALPHA;
+
+                Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+                commandList.BeginPipeline(pipeline);
+
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+
+                _passDescriptorSet.Bind("_drawCallDatas", _transparentDrawCallDataBuffer);
+                _passDescriptorSet.Bind("_vertices", _vertexBuffer);
+                _passDescriptorSet.Bind("_textures", _cModelTextures);
+                _passDescriptorSet.Bind("_textureUnits", _textureUnitBuffer);
+                _passDescriptorSet.Bind("_instances", _instanceBuffer);
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
+
+                commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
+
+                commandList.DrawIndexedIndirect(_transparentDrawCallBuffer, 0, numTransparentDrawCalls);
+
+                commandList.EndPipeline(pipeline);
+                commandList.PopMarker();
+            }
+        });
 }
 
 void CModelRenderer::RegisterLoadFromChunk(const Terrain::Chunk& chunk, StringTable& stringTable)
@@ -191,12 +360,13 @@ void CModelRenderer::Clear()
     _indices.clear();
     _textureUnits.clear();
     _instances.clear();
+    _cullingDatas.clear();
 
-    _drawCalls.clear();
-    _drawCallDatas.clear();
+    _opaqueDrawCalls.clear();
+    _opaqueDrawCallDatas.clear();
 
-    _twoSidedDrawCalls.clear();
-    _twoSidedDrawCallDatas.clear();
+    _transparentDrawCalls.clear();
+    _transparentDrawCallDatas.clear();
 
     _renderer->UnloadTexturesInArray(_cModelTextures, 0);
 }
@@ -218,10 +388,31 @@ void CModelRenderer::CreatePermanentResources()
 
     _sampler = _renderer->CreateSampler(samplerDesc);
 
+    _cullingDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
+
     _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
     _passDescriptorSet.Bind("_sampler", _sampler);
 
-    _meshDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
+    _opaqueCullingConstantBuffer = new Renderer::Buffer<CullingConstants>(_renderer, "CModelOpaqueCullingConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
+    _transparentCullingConstantBuffer = new Renderer::Buffer<CullingConstants>(_renderer, "CModelTransparentCullingConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
+
+    // Create OpaqueDrawCountBuffer
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CModelOpaqueDrawCountBuffer";
+        desc.size = sizeof(u32);
+        desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _opaqueDrawCountBuffer = _renderer->CreateBuffer(desc);
+    }
+
+    // Create TransparentDrawCountBuffer
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CModelTransparentDrawCountBuffer";
+        desc.size = sizeof(u32);
+        desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        _transparentDrawCountBuffer = _renderer->CreateBuffer(desc);
+    }
 
     /*u32 objectID = 0;
     if (LoadCModel("Creature/ArthasLichKing/ArthasLichKing.cmodel", objectID))
@@ -281,6 +472,12 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
     _vertices.resize(numVerticesBeforeAdd + numVerticesToAdd);
     memcpy(&_vertices[numVerticesBeforeAdd], cModel.vertices.data(), numVerticesToAdd * sizeof(CModel::ComplexVertex));
 
+    // Handle the CullingData
+    size_t numCullingDataBeforeAdd = _cullingDatas.size();
+
+    CModel::CullingData& cullingData = _cullingDatas.emplace_back();
+    cullingData = cModel.cullingData;
+
     // Handle this models renderbatches
     size_t numRenderBatches = static_cast<u32>(cModel.modelData.renderBatches.size());
     for (size_t i = 0; i < numRenderBatches; i++)
@@ -288,17 +485,17 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
         CModel::ComplexRenderBatch& renderBatch = cModel.modelData.renderBatches[i];
 
         // Select where to store the DrawCall templates, this won't be necessary once we do backface culling in the culling compute shader
-        bool isTwoSided = IsRenderBatchTwoSided(renderBatch, cModel);
-        std::vector<DrawCall>& drawCallTemplates = (isTwoSided) ? complexModel.twoSidedDrawCallTemplates : complexModel.drawCallTemplates;
-        std::vector<DrawCallData>& drawCallDataTemplates = (isTwoSided) ? complexModel.twoSidedDrawCallDataTemplates : complexModel.drawCallDataTemplates;
+        bool isTransparent = IsRenderBatchTransparent(renderBatch, cModel);
+        std::vector<DrawCall>& drawCallTemplates = (isTransparent) ? complexModel.transparentDrawCallTemplates : complexModel.opaqueDrawCallTemplates;
+        std::vector<DrawCallData>& drawCallDataTemplates = (isTransparent) ? complexModel.transparentDrawCallDataTemplates : complexModel.opaqueDrawCallDataTemplates;
 
-        if (isTwoSided)
+        if (isTransparent)
         {
-            complexModel.numTwoSidedDrawCalls++;
+            complexModel.numTransparentDrawCalls++;
         }
         else
         {
-            complexModel.numDrawCalls++;
+            complexModel.numOpaqueDrawCalls++;
         }
 
         // For each renderbatch we want to create a template DrawCall and DrawCallData inside of the LoadedComplexModel
@@ -352,8 +549,9 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
             }
         }
 
-        drawCallDataTemplate.textureUnitOffset = static_cast<u32>(numTextureUnitsBeforeAdd);
-        drawCallDataTemplate.numTextureUnits = static_cast<u32>(numTextureUnitsToAdd);
+        drawCallDataTemplate.cullingDataID = static_cast<u32>(numCullingDataBeforeAdd);
+        drawCallDataTemplate.textureUnitOffset = static_cast<u16>(numTextureUnitsBeforeAdd);
+        drawCallDataTemplate.numTextureUnits = static_cast<u16>(numTextureUnitsToAdd);
     }
 
     return true;
@@ -384,6 +582,23 @@ bool CModelRenderer::LoadFile(const std::string& cModelPathString, CModel::Compl
 
     if (!cModelBuffer.Get(cModel.header))
         return false;
+
+    if (cModel.header.typeID != CModel::COMPLEX_MODEL_TOKEN)
+    {
+        NC_LOG_FATAL("We opened ComplexModel file (%s) with invalid token %u instead of expected token %u", cModelPath.string().c_str(), cModel.header.typeID, CModel::COMPLEX_MODEL_TOKEN);
+    }
+
+    if (cModel.header.typeVersion != CModel::COMPLEX_MODEL_VERSION)
+    {
+        if (cModel.header.typeVersion < CModel::COMPLEX_MODEL_VERSION)
+        {
+            NC_LOG_FATAL("Loaded ComplexModel file (%s) with too old version %u instead of expected version of %u, rerun dataextractor", cModelPath.string().c_str(), cModel.header.typeVersion, CModel::COMPLEX_MODEL_VERSION);
+        }
+        else
+        {
+            NC_LOG_FATAL("Loaded ComplexModel file (%s) with too new version %u instead of expected version of %u, update your client", cModelPath.string().c_str(), cModel.header.typeVersion, CModel::COMPLEX_MODEL_VERSION);
+        }
+    }
 
     if (!cModelBuffer.Get(cModel.flags))
         return false;
@@ -578,15 +793,20 @@ bool CModelRenderer::LoadFile(const std::string& cModelPathString, CModel::Compl
         }
     }
 
+    // Read Culling Data
+    if (!cModelBuffer.GetBytes(reinterpret_cast<u8*>(&cModel.cullingData), sizeof(CModel::CullingData)))
+        return false;
+
     return true;
 }
 
-bool CModelRenderer::IsRenderBatchTwoSided(const CModel::ComplexRenderBatch& renderBatch, const CModel::ComplexModel& cModel)
+bool CModelRenderer::IsRenderBatchTransparent(const CModel::ComplexRenderBatch& renderBatch, const CModel::ComplexModel& cModel)
 {
     if (renderBatch.textureUnits.size() > 0)
     {
         const CModel::ComplexMaterial& complexMaterial = cModel.materials[renderBatch.textureUnits[0].materialIndex];
-        return complexMaterial.flags.disableBackfaceCulling;
+        
+        return complexMaterial.blendingMode != 0 && complexMaterial.blendingMode != 1;
     }
 
     return false;
@@ -612,15 +832,15 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
 
     instance.instanceMatrix = glm::translate(mat4x4(1.0f), pos) * rotationMatrix * scaleMatrix;
 
-    // Add the DrawCalls and DrawCallDatas
-    size_t numDrawCallsBeforeAdd = _drawCalls.size();
-    for (u32 i = 0; i < complexModel.numDrawCalls; i++)
+    // Add the opaque DrawCalls and DrawCallDatas
+    size_t numOpaqueDrawCallsBeforeAdd = _opaqueDrawCalls.size();
+    for (u32 i = 0; i < complexModel.numOpaqueDrawCalls; i++)
     {
-        const DrawCall& drawCallTemplate = complexModel.drawCallTemplates[i];
-        const DrawCallData& drawCallDataTemplate = complexModel.drawCallDataTemplates[i];
+        const DrawCall& drawCallTemplate = complexModel.opaqueDrawCallTemplates[i];
+        const DrawCallData& drawCallDataTemplate = complexModel.opaqueDrawCallDataTemplates[i];
 
-        DrawCall& drawCall = _drawCalls.emplace_back();
-        DrawCallData& drawCallData = _drawCallDatas.emplace_back();
+        DrawCall& drawCall = _opaqueDrawCalls.emplace_back();
+        DrawCallData& drawCallData = _opaqueDrawCallDatas.emplace_back();
 
         // Copy data from the templates
         drawCall.firstIndex = drawCallTemplate.firstIndex;
@@ -632,19 +852,19 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
         drawCallData.numTextureUnits = drawCallDataTemplate.numTextureUnits;
         
         // Fill in the data that shouldn't be templated
-        drawCall.firstInstance = static_cast<u32>(numDrawCallsBeforeAdd + i); // This is used in the shader to retrieve the DrawCallData
+        drawCall.firstInstance = static_cast<u32>(numOpaqueDrawCallsBeforeAdd + i); // This is used in the shader to retrieve the DrawCallData
         drawCallData.instanceID = static_cast<u32>(numInstancesBeforeAdd);
     }
 
-    // Add the DrawCalls and DrawCallDatas for twosided drawcalls
-    size_t numTwoSidedDrawCallsBeforeAdd = _twoSidedDrawCalls.size();
-    for (u32 i = 0; i < complexModel.numTwoSidedDrawCalls; i++)
+    // Add the transparent DrawCalls and DrawCallDatas
+    size_t numTransparentDrawCallsBeforeAdd = _transparentDrawCalls.size();
+    for (u32 i = 0; i < complexModel.numTransparentDrawCalls; i++)
     {
-        const DrawCall& drawCallTemplate = complexModel.twoSidedDrawCallTemplates[i];
-        const DrawCallData& drawCallDataTemplate = complexModel.twoSidedDrawCallDataTemplates[i];
+        const DrawCall& drawCallTemplate = complexModel.transparentDrawCallTemplates[i];
+        const DrawCallData& drawCallDataTemplate = complexModel.transparentDrawCallDataTemplates[i];
 
-        DrawCall& drawCall = _twoSidedDrawCalls.emplace_back();
-        DrawCallData& drawCallData = _twoSidedDrawCallDatas.emplace_back();
+        DrawCall& drawCall = _transparentDrawCalls.emplace_back();
+        DrawCallData& drawCallData = _transparentDrawCallDatas.emplace_back();
 
         // Copy data from the templates
         drawCall.firstIndex = drawCallTemplate.firstIndex;
@@ -656,7 +876,7 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
         drawCallData.numTextureUnits = drawCallDataTemplate.numTextureUnits;
 
         // Fill in the data that shouldn't be templated
-        drawCall.firstInstance = static_cast<u32>(numTwoSidedDrawCallsBeforeAdd + i); // This is used in the shader to retrieve the DrawCallData
+        drawCall.firstInstance = static_cast<u32>(numTransparentDrawCallsBeforeAdd + i); // This is used in the shader to retrieve the DrawCallData
         drawCallData.instanceID = static_cast<u32>(numInstancesBeforeAdd);
     }
 }
@@ -783,80 +1003,20 @@ void CModelRenderer::CreateBuffers()
         _renderer->CopyBuffer(_instanceBuffer, 0, stagingBuffer, 0, desc.size);
     }
 
-    // Create DrawCall buffer
-    if (_drawCallBuffer != Renderer::BufferID::Invalid())
+    // Create CullingData buffer
+    if (_cullingDataBuffer != Renderer::BufferID::Invalid())
     {
-        _renderer->QueueDestroyBuffer(_drawCallBuffer);
+        _renderer->QueueDestroyBuffer(_cullingDataBuffer);
     }
     {
         Renderer::BufferDesc desc;
-        desc.name = "CModelDrawCallBuffer";
-        desc.size = sizeof(DrawCall) * _drawCalls.size();
-        desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
-        _drawCallBuffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "CModelDrawCallStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-        memcpy(dst, _drawCalls.data(), desc.size);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(_drawCallBuffer, 0, stagingBuffer, 0, desc.size);
-    }
-
-    // Create DrawCall buffer for twosided drawcalls
-    if (_twoSidedDrawCallBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_twoSidedDrawCallBuffer);
-    }
-    {
-        Renderer::BufferDesc desc;
-        desc.name = "CModel2SidedDrawCallBuffer";
-        desc.size = sizeof(DrawCall) * _twoSidedDrawCalls.size();
-        desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
-        _twoSidedDrawCallBuffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "CModel2SidedDrawCallStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-        memcpy(dst, _twoSidedDrawCalls.data(), desc.size);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(_twoSidedDrawCallBuffer, 0, stagingBuffer, 0, desc.size);
-    }
-
-    // Create DrawCallData buffer
-    if (_drawCallDataBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_drawCallDataBuffer);
-    }
-    {
-        Renderer::BufferDesc desc;
-        desc.name = "CModelDrawCallDataBuffer";
-        desc.size = sizeof(DrawCallData) * _drawCallDatas.size();
+        desc.name = "CModelCullDataBuffer";
+        desc.size = sizeof(CModel::CullingData) * _cullingDatas.size();
         desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
-        _drawCallDataBuffer = _renderer->CreateBuffer(desc);
+        _cullingDataBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
-        desc.name = "CModelDrawCallDataStaging";
+        desc.name = "CModelCullDataStaging";
         desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
@@ -864,42 +1024,148 @@ void CModelRenderer::CreateBuffers()
 
         // Upload to staging buffer
         void* dst = _renderer->MapBuffer(stagingBuffer);
-        memcpy(dst, _drawCallDatas.data(), desc.size);
+        memcpy(dst, _cullingDatas.data(), desc.size);
         _renderer->UnmapBuffer(stagingBuffer);
 
         // Queue destroy staging buffer
         _renderer->QueueDestroyBuffer(stagingBuffer);
         // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(_drawCallDataBuffer, 0, stagingBuffer, 0, desc.size);
+        _renderer->CopyBuffer(_cullingDataBuffer, 0, stagingBuffer, 0, desc.size);
     }
 
-    // Create DrawCallData buffer for twosided drawcalls
-    if (_twoSidedDrawCallDataBuffer != Renderer::BufferID::Invalid())
+    // Destroy OpaqueDrawCall buffer
+    if (_opaqueDrawCallBuffer != Renderer::BufferID::Invalid())
     {
-        _renderer->QueueDestroyBuffer(_twoSidedDrawCallDataBuffer);
+        _renderer->QueueDestroyBuffer(_opaqueDrawCallBuffer);
     }
+
+    // Destroy OpaqueDrawCallData buffer
+    if (_opaqueDrawCallDataBuffer != Renderer::BufferID::Invalid())
     {
-        Renderer::BufferDesc desc;
-        desc.name = "CModelDrawCallDataBuffer";
-        desc.size = sizeof(DrawCallData) * _twoSidedDrawCallDatas.size();
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
-        _twoSidedDrawCallDataBuffer = _renderer->CreateBuffer(desc);
+        _renderer->QueueDestroyBuffer(_opaqueDrawCallDataBuffer);
+    }
 
-        // Create staging buffer
-        desc.name = "CModel2SidedDrawCallDataStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+    if (_opaqueDrawCalls.size() > 0)
+    {
+        // Create OpaqueDrawCall and OpaqueCulledDrawCall buffer
+        {
+            Renderer::BufferDesc desc;
+            desc.name = "CModelOpaqueDrawCallBuffer";
+            desc.size = sizeof(DrawCall) * _opaqueDrawCalls.size();
+            desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+            _opaqueDrawCallBuffer = _renderer->CreateBuffer(desc);
+            _opaqueCulledDrawCallBuffer = _renderer->CreateBuffer(desc);
 
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+            // Create staging buffer
+            desc.name = "CModelOpaqueDrawCallStaging";
+            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-        memcpy(dst, _twoSidedDrawCallDatas.data(), desc.size);
-        _renderer->UnmapBuffer(stagingBuffer);
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
 
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(_twoSidedDrawCallDataBuffer, 0, stagingBuffer, 0, desc.size);
+            // Upload to staging buffer
+            void* dst = _renderer->MapBuffer(stagingBuffer);
+            memcpy(dst, _opaqueDrawCalls.data(), desc.size);
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(_opaqueDrawCallBuffer, 0, stagingBuffer, 0, desc.size);
+        }
+
+        // Create OpaqueDrawCallData buffer
+        {
+            Renderer::BufferDesc desc;
+            desc.name = "CModelOpaqueDrawCallDataBuffer";
+            desc.size = sizeof(DrawCallData) * _opaqueDrawCallDatas.size();
+            desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+            _opaqueDrawCallDataBuffer = _renderer->CreateBuffer(desc);
+
+            // Create staging buffer
+            desc.name = "CModelOpaqueDrawCallDataStaging";
+            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+            // Upload to staging buffer
+            void* dst = _renderer->MapBuffer(stagingBuffer);
+            memcpy(dst, _opaqueDrawCallDatas.data(), desc.size);
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(_opaqueDrawCallDataBuffer, 0, stagingBuffer, 0, desc.size);
+        }
+    }
+
+    // Destroy TransparentDrawCall buffer
+    if (_transparentDrawCallBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_transparentDrawCallBuffer);
+    }
+
+    // Destroy TransparentDrawCallData buffer
+    if (_transparentDrawCallDataBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_transparentDrawCallDataBuffer);
+    }
+
+    if (_transparentDrawCalls.size() > 0)
+    {
+        // Create TransparentDrawCall and TransparentCulledDrawCall buffer
+        {
+            Renderer::BufferDesc desc;
+            desc.name = "CModelAlphaDrawCallBuffer";
+            desc.size = sizeof(DrawCall) * _transparentDrawCalls.size();
+            desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+            _transparentDrawCallBuffer = _renderer->CreateBuffer(desc);
+            _transparentCulledDrawCallBuffer = _renderer->CreateBuffer(desc);
+
+            // Create staging buffer
+            desc.name = "CModelAlphaDrawCallStaging";
+            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+            // Upload to staging buffer
+            void* dst = _renderer->MapBuffer(stagingBuffer);
+            memcpy(dst, _transparentDrawCalls.data(), desc.size);
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(_transparentDrawCallBuffer, 0, stagingBuffer, 0, desc.size);
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+        }
+
+        // Create TransparentDrawCallData buffer
+        {
+            Renderer::BufferDesc desc;
+            desc.name = "CModelAlphaDrawCallDataBuffer";
+            desc.size = sizeof(DrawCallData) * _transparentDrawCallDatas.size();
+            desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+            _transparentDrawCallDataBuffer = _renderer->CreateBuffer(desc);
+
+            // Create staging buffer
+            desc.name = "CModelAlphaDrawCallDataStaging";
+            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+            // Upload to staging buffer
+            void* dst = _renderer->MapBuffer(stagingBuffer);
+            memcpy(dst, _transparentDrawCallDatas.data(), desc.size);
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(_transparentDrawCallDataBuffer, 0, stagingBuffer, 0, desc.size);
+        }
     }
 }

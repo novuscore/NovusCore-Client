@@ -264,7 +264,7 @@ PSOutput main(PSInput input)
 
     float4 color = float4(0, 0, 0, 0);
     float3 specular = float3(0, 0, 0);
-    bool isLit = false;
+    bool isUnlit = false;
 
     for (uint textureUnitIndex = drawCallData.textureUnitOffset; textureUnitIndex < drawCallData.textureUnitOffset + drawCallData.numTextureUnits; textureUnitIndex++)
     {
@@ -290,13 +290,13 @@ PSOutput main(PSInput input)
             texture2 = _textures[textureUnit.textureIDs[1]].Sample(_sampler, input.uv01.zw);
         }
 
-        isLit |= (materialFlags & 0x1);
+        isUnlit |= (materialFlags & 0x1);
 
         float4 shadedColor = Shade(pixelShaderId, texture1, texture2, specular);
         color = Blend(blendingMode, color, shadedColor);
     }
 
-    color.rgb = Lighting(color.rgb, input.normal, !isLit) + specular;
+    color.rgb = Lighting(color.rgb, float3(0.0f, 0.0f, 0.0f), input.normal, !isUnlit) + specular;
 
     PSOutput output;
     output.color = saturate(color);

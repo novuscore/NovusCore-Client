@@ -237,7 +237,11 @@ void MapObjectRenderer::ExecuteLoad()
         {
             mapObjectID = static_cast<u32>(_loadedMapObjects.size());
             LoadedMapObject& mapObject = _loadedMapObjects.emplace_back();
-            LoadMapObject(mapObjectToBeLoaded, mapObject);
+            if (!LoadMapObject(mapObjectToBeLoaded, mapObject))
+            {
+                _loadedMapObjects.pop_back();
+                continue;
+            }
 
             _nameHashToIndexMap[mapObjectToBeLoaded.nmorNameHash] = mapObjectID;
         }
@@ -314,13 +318,15 @@ bool MapObjectRenderer::LoadMapObject(MapObjectToBeLoaded& mapObjectToBeLoaded, 
     if (!StringUtils::EndsWith(*mapObjectToBeLoaded.nmorName, ".nmor"))
     {
         NC_LOG_FATAL("For some reason, a Chunk had a MapObjectPlacement with a reference to a file that didn't end with .nmor");
+        return false;
     }
 
     fs::path nmorPath = "Data/extracted/MapObjects/" + *mapObjectToBeLoaded.nmorName;
     nmorPath.make_preferred();
     nmorPath = fs::absolute(nmorPath);
 
-    LoadRoot(nmorPath, mapObjectToBeLoaded.meshRoot, mapObject);
+    if (!LoadRoot(nmorPath, mapObjectToBeLoaded.meshRoot, mapObject))
+        return false;
 
     // Load meshes
     std::string nmorNameWithoutExtension = mapObjectToBeLoaded.nmorName->substr(0, mapObjectToBeLoaded.nmorName->length() - 5); // Remove .nmor
@@ -342,7 +348,8 @@ bool MapObjectRenderer::LoadMapObject(MapObjectToBeLoaded& mapObjectToBeLoaded, 
         nmoPath = fs::absolute(nmoPath);
 
         Mesh& mesh = mapObjectToBeLoaded.meshes.emplace_back();
-        LoadMesh(nmoPath, mesh, mapObject);
+        if (!LoadMesh(nmoPath, mesh, mapObject))
+            return false;
     }
 
     static u32 vertexColorTextureCount = 0;
@@ -404,12 +411,13 @@ bool MapObjectRenderer::LoadMapObject(MapObjectToBeLoaded& mapObjectToBeLoaded, 
     return true;
 }
 
-void MapObjectRenderer::LoadRoot(const std::filesystem::path nmorPath, MeshRoot& meshRoot, LoadedMapObject& mapObject)
+bool MapObjectRenderer::LoadRoot(const std::filesystem::path nmorPath, MeshRoot& meshRoot, LoadedMapObject& mapObject)
 {
     FileReader nmorFile(nmorPath.string(), nmorPath.filename().string());
     if (!nmorFile.Open())
     {
         NC_LOG_FATAL("Failed to load Map Object Root file: %s", nmorPath.string());
+        return false;
     }
 
     Bytebuffer buffer(nullptr, nmorFile.Length());
@@ -419,20 +427,32 @@ void MapObjectRenderer::LoadRoot(const std::filesystem::path nmorPath, MeshRoot&
     Terrain::MapObjectRootHeader header;
 
     // Read header
-    buffer.Get<Terrain::MapObjectRootHeader>(header);
+    if (!buffer.Get<Terrain::MapObjectRootHeader>(header))
+        return false;
 
     if (header.token != Terrain::MAP_OBJECT_ROOT_TOKEN)
     {
-        NC_LOG_FATAL("We opened MapObjectRoot file (%s) with invalid token %u instead of expected token %u", nmorPath.string(), header.token, Terrain::MAP_OBJECT_ROOT_TOKEN);
+        NC_LOG_FATAL("Found MapObjectRoot file (%s) with invalid token %u instead of expected token %u", nmorPath.string(), header.token, Terrain::MAP_OBJECT_ROOT_TOKEN);
+        return false;
     }
 
     if (header.version != Terrain::MAP_OBJECT_ROOT_VERSION)
     {
-        NC_LOG_FATAL("We opened MapObjectRoot file (%s) with invalid version %u instead of expected version %u, rerun dataextractor", nmorPath.string(), header.version, Terrain::MAP_OBJECT_ROOT_VERSION);
+        if (header.version < Terrain::MAP_OBJECT_ROOT_VERSION)
+        {
+            NC_LOG_FATAL("Found MapObjectRoot file (%s) with older version %u instead of expected version %u, rerun dataextractor", nmorPath.string().c_str(), header.version, Terrain::MAP_OBJECT_ROOT_VERSION);
+            return false;
+        }
+        else
+        {
+            NC_LOG_FATAL("Found MapObjectRoot file (%s) with newer version %u instead of expected version %u, update your client", nmorPath.string().c_str(), header.version, Terrain::MAP_OBJECT_ROOT_VERSION);
+            return false;
+        }
     }
 
     // Read number of materials
-    buffer.Get<u32>(meshRoot.numMaterials);
+    if (!buffer.Get<u32>(meshRoot.numMaterials))
+        return false;
 
     // Read materials
     entt::registry* registry = ServiceLocator::GetGameRegistry();
@@ -442,7 +462,8 @@ void MapObjectRenderer::LoadRoot(const std::filesystem::path nmorPath, MeshRoot&
     for (u32 i = 0; i < meshRoot.numMaterials; i++)
     {
         Terrain::MapObjectMaterial mapObjectMaterial;
-        buffer.GetBytes(reinterpret_cast<u8*>(&mapObjectMaterial), sizeof(Terrain::MapObjectMaterial));
+        if (!buffer.GetBytes(reinterpret_cast<u8*>(&mapObjectMaterial), sizeof(Terrain::MapObjectMaterial)))
+            return false;
 
         Material& material = _materials.emplace_back();
         material.materialType = mapObjectMaterial.materialType;
@@ -471,15 +492,19 @@ void MapObjectRenderer::LoadRoot(const std::filesystem::path nmorPath, MeshRoot&
     }
 
     // Read number of meshes
-    buffer.Get<u32>(meshRoot.numMeshes);
+    if (!buffer.Get<u32>(meshRoot.numMeshes))
+        return false;
+
+    return true;
 }
 
-void MapObjectRenderer::LoadMesh(const std::filesystem::path nmoPath, Mesh& mesh, LoadedMapObject& mapObject)
+bool MapObjectRenderer::LoadMesh(const std::filesystem::path nmoPath, Mesh& mesh, LoadedMapObject& mapObject)
 {
     FileReader nmoFile(nmoPath.string(), nmoPath.filename().string());
     if (!nmoFile.Open())
     {
         NC_LOG_FATAL("Failed to load Map Object file: %s", nmoPath.string());
+        return false;
     }
 
     Bytebuffer nmoBuffer(nullptr, nmoFile.Length());
@@ -492,93 +517,118 @@ void MapObjectRenderer::LoadMesh(const std::filesystem::path nmoPath, Mesh& mesh
 
     if (header.token != Terrain::MAP_OBJECT_TOKEN)
     {
-        NC_LOG_FATAL("We opened MapObject file (%s) with invalid token %u instead of expected token %u", nmoPath.string().c_str(), header.token, Terrain::MAP_OBJECT_TOKEN);
+        NC_LOG_FATAL("Found MapObject file (%s) with invalid token %u instead of expected token %u", nmoPath.string().c_str(), header.token, Terrain::MAP_OBJECT_TOKEN);
+        return false;
     }
 
     if (header.version != Terrain::MAP_OBJECT_VERSION)
     {
         if (header.version < Terrain::MAP_OBJECT_VERSION)
         {
-            NC_LOG_FATAL("We opened MapObject file (%s) with too old version %u instead of expected version %u, rerun dataextractor", nmoPath.string().c_str(), header.version, Terrain::MAP_OBJECT_VERSION);
+            NC_LOG_FATAL("Found MapObject file (%s) with older version %u instead of expected version %u, rerun dataextractor", nmoPath.string().c_str(), header.version, Terrain::MAP_OBJECT_VERSION);
+            return false;
         }
         else
         {
-            NC_LOG_FATAL("We opened MapObject file (%s) with too new version %u instead of expected version %u, update your client", nmoPath.string().c_str(), header.version, Terrain::MAP_OBJECT_VERSION);
+            NC_LOG_FATAL("Found MapObject file (%s) with newer version %u instead of expected version %u, update your client", nmoPath.string().c_str(), header.version, Terrain::MAP_OBJECT_VERSION);
+            return false;
         }
     }
 
     // Read flags
-    nmoBuffer.Get<Terrain::MapObjectFlags>(mesh.renderFlags);
+    if (!nmoBuffer.Get<Terrain::MapObjectFlags>(mesh.renderFlags))
+        return false;
 
     // Read indices and vertices
-    LoadIndicesAndVertices(nmoBuffer, mesh, mapObject);
+    if (!LoadIndicesAndVertices(nmoBuffer, mesh, mapObject))
+        return false;
 
     // Read renderbatches
-    LoadRenderBatches(nmoBuffer, mesh, mapObject);
+    if (!LoadRenderBatches(nmoBuffer, mesh, mapObject))
+        return false;
+
+    return true;
 }
 
-void MapObjectRenderer::LoadIndicesAndVertices(Bytebuffer& buffer, Mesh& mesh, LoadedMapObject& mapObject)
+bool MapObjectRenderer::LoadIndicesAndVertices(Bytebuffer& buffer, Mesh& mesh, LoadedMapObject& mapObject)
 {
     mesh.baseIndexOffset = static_cast<u32>(_indices.size());
     mesh.baseVertexOffset = static_cast<u32>(_vertices.size());
 
     // Read number of indices
     u32 indexCount;
-    buffer.Get<u32>(indexCount);
+    if (!buffer.Get<u32>(indexCount))
+        return false;
 
     _indices.resize(mesh.baseIndexOffset + indexCount);
 
     // Read indices
-    buffer.GetBytes(reinterpret_cast<u8*>(_indices.data() + mesh.baseIndexOffset), indexCount * sizeof(u16));
+    if (!buffer.GetBytes(reinterpret_cast<u8*>(_indices.data() + mesh.baseIndexOffset), indexCount * sizeof(u16)))
+        return false;
     
     // Read number of vertices
     u32 vertexCount;
-    buffer.Get<u32>(vertexCount);
+    if (!buffer.Get<u32>(vertexCount))
+        return false;
+
     _vertices.resize(mesh.baseVertexOffset + vertexCount);
     
     // Read vertices
-    buffer.GetBytes(reinterpret_cast<u8*>(&_vertices.data()[mesh.baseVertexOffset]), vertexCount * sizeof(Terrain::MapObjectVertex));
+    if (!buffer.GetBytes(reinterpret_cast<u8*>(&_vertices.data()[mesh.baseVertexOffset]), vertexCount * sizeof(Terrain::MapObjectVertex)))
+        return false;
 
     vec3 position = _vertices[0].position;
 
     // Read number of vertex color sets
     u32 numVertexColorSets;
-    buffer.Get<u32>(numVertexColorSets);
+    if (!buffer.Get<u32>(numVertexColorSets))
+        return false;
 
     // Vertex colors
     for (u32 i = 0; i < numVertexColorSets; i++)
     {
         // Read number of vertex colors
         u32 numVertexColors;
-        buffer.Get<u32>(numVertexColors);
+        if (!buffer.Get<u32>(numVertexColors))
+            return false;
+
+        if (numVertexColors == 0)
+            continue;
 
         u32 vertexColorSize = numVertexColors * sizeof(u32);
         
         u32 beforeSize = static_cast<u32>(mapObject.vertexColors[i].size());
         mapObject.vertexColors[i].resize(beforeSize + numVertexColors);
 
-        buffer.GetBytes(reinterpret_cast<u8*>(&mapObject.vertexColors[i][beforeSize]), vertexColorSize);
+        if (!buffer.GetBytes(reinterpret_cast<u8*>(&mapObject.vertexColors[i][beforeSize]), vertexColorSize))
+            return false;
     }
+
+    return true;
 }
 
-void MapObjectRenderer::LoadRenderBatches(Bytebuffer& buffer, Mesh& mesh, LoadedMapObject& mapObject)
+bool MapObjectRenderer::LoadRenderBatches(Bytebuffer& buffer, Mesh& mesh, LoadedMapObject& mapObject)
 {
     // Read number of triangle data
     u32 numTriangleData;
-    buffer.Get<u32>(numTriangleData);
+    if (!buffer.Get<u32>(numTriangleData))
+        return false;
 
     // Skip triangle data for now
-    buffer.SkipRead(numTriangleData * sizeof(Terrain::TriangleData));
+    if (!buffer.SkipRead(numTriangleData * sizeof(Terrain::TriangleData)))
+        return false;
 
     // Read number of RenderBatches
     u32 numRenderBatches;
-    buffer.Get<u32>(numRenderBatches);
+    if (!buffer.Get<u32>(numRenderBatches))
+        return false;
 
     u32 renderBatchesSize = static_cast<u32>(mapObject.renderBatches.size());
     mapObject.renderBatches.resize(renderBatchesSize + numRenderBatches);
 
     // Read RenderBatches
-    buffer.GetBytes(reinterpret_cast<u8*>(&mapObject.renderBatches.data()[renderBatchesSize]), numRenderBatches * sizeof(Terrain::RenderBatch));
+    if (!buffer.GetBytes(reinterpret_cast<u8*>(&mapObject.renderBatches.data()[renderBatchesSize]), numRenderBatches * sizeof(Terrain::RenderBatch)))
+        return false;
 
     mapObject.renderBatchOffsets.reserve(renderBatchesSize + numRenderBatches);
     for (u32 i = 0; i < numRenderBatches; i++)
@@ -604,7 +654,10 @@ void MapObjectRenderer::LoadRenderBatches(Bytebuffer& buffer, Mesh& mesh, Loaded
 
     mapObject.cullingData.resize(cullingDataSize + numRenderBatches);
 
-    buffer.GetBytes(reinterpret_cast<u8*>(&mapObject.cullingData.data()[cullingDataSize]), numRenderBatches * sizeof(Terrain::CullingData));
+    if (!buffer.GetBytes(reinterpret_cast<u8*>(&mapObject.cullingData.data()[cullingDataSize]), numRenderBatches * sizeof(Terrain::CullingData)))
+        return false;
+
+    return true;
 }
 
 void MapObjectRenderer::AddInstance(LoadedMapObject& mapObject, const Terrain::Placement* placement)

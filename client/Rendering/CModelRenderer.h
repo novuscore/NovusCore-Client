@@ -49,7 +49,7 @@ public:
     void ExecuteLoad();
 
     void Clear();
-    
+
 private:
     struct ComplexModelToBeLoaded
     {
@@ -110,23 +110,29 @@ private:
     struct DrawCallData
     {
         u32 instanceID;
-        
+        u32 cullingDataID;
         u16 textureUnitOffset;
         u16 numTextureUnits;
     };
 
-    static const u32 MAX_INSTANCES = 512;
     struct LoadedComplexModel
     {
         std::string debugName = "";
 
-        u32 numDrawCalls = 0;
-        std::vector<DrawCall> drawCallTemplates;
-        std::vector<DrawCallData> drawCallDataTemplates;
+        u32 numOpaqueDrawCalls = 0;
+        std::vector<DrawCall> opaqueDrawCallTemplates;
+        std::vector<DrawCallData> opaqueDrawCallDataTemplates;
 
-        u32 numTwoSidedDrawCalls = 0;
-        std::vector<DrawCall> twoSidedDrawCallTemplates;
-        std::vector<DrawCallData> twoSidedDrawCallDataTemplates;
+        u32 numTransparentDrawCalls = 0;
+        std::vector<DrawCall> transparentDrawCallTemplates;
+        std::vector<DrawCallData> transparentDrawCallDataTemplates;
+    };
+
+    struct CullingConstants
+    {
+        vec4 frustumPlanes[6];
+        vec3 cameraPos;
+        u32 maxDrawCount;
     };
 
 private:
@@ -135,7 +141,7 @@ private:
     bool LoadComplexModel(ComplexModelToBeLoaded& complexModelToBeLoaded, LoadedComplexModel& complexModel);
     bool LoadFile(const std::string& cModelPathString, CModel::ComplexModel& cModel);
 
-    bool IsRenderBatchTwoSided(const CModel::ComplexRenderBatch& renderBatch, const CModel::ComplexModel& cModel);
+    bool IsRenderBatchTransparent(const CModel::ComplexRenderBatch& renderBatch, const CModel::ComplexModel& cModel);
 
     void AddInstance(LoadedComplexModel& complexModel, const Terrain::Placement& placement);
 
@@ -145,8 +151,8 @@ private:
     Renderer::Renderer* _renderer;
 
     Renderer::SamplerID _sampler;
+    Renderer::DescriptorSet _cullingDescriptorSet;
     Renderer::DescriptorSet _passDescriptorSet;
-    Renderer::DescriptorSet _meshDescriptorSet;
 
     std::vector<ComplexModelToBeLoaded> _complexModelsToBeLoaded;
     std::vector<LoadedComplexModel> _loadedComplexModels;
@@ -156,23 +162,31 @@ private:
     std::vector<u16> _indices;
     std::vector<TextureUnit> _textureUnits;
     std::vector<Instance> _instances;
+    std::vector<CModel::CullingData> _cullingDatas;
 
-    std::vector<DrawCall> _drawCalls;
-    std::vector<DrawCallData> _drawCallDatas;
+    std::vector<DrawCall> _opaqueDrawCalls;
+    std::vector<DrawCallData> _opaqueDrawCallDatas;
 
-    std::vector<DrawCall> _twoSidedDrawCalls;
-    std::vector<DrawCallData> _twoSidedDrawCallDatas;
+    std::vector<DrawCall> _transparentDrawCalls;
+    std::vector<DrawCallData> _transparentDrawCallDatas;
 
     Renderer::BufferID _vertexBuffer;
     Renderer::BufferID _indexBuffer;
     Renderer::BufferID _textureUnitBuffer;
     Renderer::BufferID _instanceBuffer;
+    Renderer::BufferID _cullingDataBuffer;
 
-    Renderer::BufferID _drawCallBuffer;
-    Renderer::BufferID _drawCallDataBuffer;
+    Renderer::Buffer<CullingConstants>* _opaqueCullingConstantBuffer;
+    Renderer::BufferID _opaqueDrawCallBuffer;
+    Renderer::BufferID _opaqueCulledDrawCallBuffer;
+    Renderer::BufferID _opaqueDrawCallDataBuffer;
+    Renderer::BufferID _opaqueDrawCountBuffer;
 
-    Renderer::BufferID _twoSidedDrawCallBuffer;
-    Renderer::BufferID _twoSidedDrawCallDataBuffer;
+    Renderer::Buffer<CullingConstants>* _transparentCullingConstantBuffer;
+    Renderer::BufferID _transparentDrawCallBuffer;
+    Renderer::BufferID _transparentCulledDrawCallBuffer;
+    Renderer::BufferID _transparentDrawCallDataBuffer;
+    Renderer::BufferID _transparentDrawCountBuffer;
 
     Renderer::TextureArrayID _cModelTextures;
 

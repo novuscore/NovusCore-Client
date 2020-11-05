@@ -96,7 +96,7 @@ PSOutput main(PSInput input)
 
     // Apply lighting
     float3 normal = normalize(input.normal);
-    color.rgb = Lighting(color.rgb, normal, true);
+    color.rgb = Lighting(color.rgb, float3(0.0f, 0.0f, 0.0f), normal, true);
 
     output.color = saturate(color);
     return output;

@@ -6,6 +6,9 @@
 #pragma pack(push, 1)
 namespace CModel
 {
+    constexpr u32 COMPLEX_MODEL_TOKEN = 10;
+    constexpr u32 COMPLEX_MODEL_VERSION = 2;
+
     struct ComplexVertex
     {
         hvec3 position = hvec3(f16(0), f16(0), f16(0));
@@ -23,6 +26,7 @@ namespace CModel
         COMPONENT_ENVIRONMENT, // OBSOLETE
         COMPONENT_CHAR_HAIR,
         COMPONENT_CHAR_FACIAL_HAIR, // OBSOLETE
+        COMPONENT_SKIN_EXTRA,
         COMPONENT_UI_SKIN,
         COMPONENT_TAUREN_MANE, // OBSOLETE
         COMPONENT_MONSTER_SKIN_1,
@@ -134,6 +138,13 @@ namespace CModel
         // 0x1000 to 0x200000 are unk (Legion+)
     };
 
+    struct CullingData
+    {
+        hvec3 minBoundingBox = hvec3(static_cast<f16>(100000.0f));
+        hvec3 maxBoundingBox = hvec3(static_cast<f16>(-100000.0f));
+        f32 boundingSphereRadius = 0.0f;
+    }; // 16 bytes
+
     struct ComplexModel
     {
     public:
@@ -153,6 +164,8 @@ namespace CModel
         std::vector<u16> textureUVAnimationLookupTable;
 
         std::vector<u16> textureCombinerCombos;
+
+        CullingData cullingData;
     };
 }
 #pragma pack(pop)

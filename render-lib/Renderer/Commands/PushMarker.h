@@ -10,7 +10,9 @@ namespace Renderer
             static const BackendDispatchFunction DISPATCH_FUNCTION;
 
             Color color = Color::White;
-            char marker[16];
+
+            static const u32 MARKER_MAX_LENGTH = 32;
+            char marker[MARKER_MAX_LENGTH];
         };
     }
 }

@@ -742,7 +742,7 @@ bool TerrainRenderer::LoadMap(u32 mapInternalNameHash)
     else
     {
         RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(32, 32), 32); // Load everything
-        //RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(31, 50), 1); // Goldshire
+        //RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(31, 49), 1); // Goldshire
         //RegisterChunksToBeLoaded(map, ivec2(40, 32), 8); // Razor Hill
         //RegisterChunksToBeLoaded(map, ivec2(22, 25), 8); // Borean Tundra
 
