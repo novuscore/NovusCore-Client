@@ -18,7 +18,7 @@
 #include "../ECS/Components/Singletons/TextureSingleton.h"
 #include "../ECS/Components/Singletons/DisplayInfoSingleton.h"
 
-#include "../Loaders/DBC/DBC.h"
+#include "../Loaders/NDBC/NDBC.h"
 
 #include <tracy/TracyVulkan.hpp>
 #include "../Gameplay/Map/Map.h"
