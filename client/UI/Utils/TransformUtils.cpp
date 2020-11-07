@@ -1,10 +1,27 @@
 #include "TransformUtils.h"
+
+#include "../../Utils/ServiceLocator.h"
+#include "../../render-lib/Window/Window.h"
+#include "GLFW/glfw3.h"
 #include <tracy/Tracy.hpp>
+
 #include "entity/registry.hpp"
 #include "../ECS/Components/Dirty.h"
+#include "../ECS/Components/Singletons/UIDataSingleton.h"
 
 namespace UIUtils::Transform
-{   
+{
+    const hvec2 WindowPositionToUIPosition(const hvec2& WindowPosition)
+    {
+        i32 width, height;
+        glfwGetWindowSize(ServiceLocator::GetWindow()->GetWindow(), &width, &height);
+        
+        const hvec2 clampedPosition = WindowPosition / hvec2(static_cast<f32>(width), static_cast<f32>(height));
+        const hvec2& uiResolution = ServiceLocator::GetUIRegistry()->ctx<UISingleton::UIDataSingleton>().UIRESOLUTION;
+
+        return clampedPosition * uiResolution;
+    }
+
     void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent)
     {
         ZoneScoped;

@@ -29,7 +29,7 @@ namespace UIInput
     bool OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
     {
         ZoneScoped;
-        const hvec2 mouse = ServiceLocator::GetInputManager()->GetMousePosition();
+        const hvec2 mouse = UIUtils::Transform::WindowPositionToUIPosition(ServiceLocator::GetInputManager()->GetMousePosition());
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
 
@@ -113,6 +113,9 @@ namespace UIInput
     void OnMousePositionUpdate(Window* window, f32 x, f32 y)
     {
         ZoneScoped;
+
+        const hvec2 mouse = UIUtils::Transform::WindowPositionToUIPosition(hvec2(x, y));
+
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
         if (dataSingleton.draggedWidget != entt::null)
@@ -123,7 +126,7 @@ namespace UIInput
 
             if (transform->parent != entt::null)
             {
-                hvec2 newLocalPos = hvec2(x, y) - transform->position - dataSingleton.dragOffset;
+                hvec2 newLocalPos = mouse - transform->position - dataSingleton.dragOffset;
                 if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_X))
                     newLocalPos.x = transform->localPosition.x;
                 else if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_Y))
@@ -133,7 +136,7 @@ namespace UIInput
             }
             else
             {
-                hvec2 newPos = hvec2(x, y) - dataSingleton.dragOffset;
+                hvec2 newPos = mouse - dataSingleton.dragOffset;
                 if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_X))
                     newPos.x = transform->position.x;
                 else if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_Y))
@@ -165,7 +168,7 @@ namespace UIInput
 
             const UIComponent::Collision& collision = eventGroup.get<UIComponent::Collision>(entity);
             // Check so mouse if within widget bounds.
-            if (x < collision.minBound.x || x > collision.maxBound.x || y < collision.minBound.y || y > collision.maxBound.y)
+            if (mouse.x < collision.minBound.x || mouse.x > collision.maxBound.x || mouse.y < collision.minBound.y || mouse.y > collision.maxBound.y)
                 continue;
 
             // Hovered widget hasn't changed.

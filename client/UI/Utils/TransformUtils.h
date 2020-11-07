@@ -7,6 +7,8 @@
 
 namespace UIUtils::Transform
 {
+    const hvec2 WindowPositionToUIPosition(const hvec2& WindowPosition);
+
     inline static const hvec2 GetScreenPosition(const UIComponent::Transform* transform)
     {
         return transform->position + transform->localPosition;
