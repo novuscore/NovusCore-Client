@@ -1,5 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
+#include "../ECS/Components/Text.h"
 
 #include "BaseElement.h"
 
@@ -33,23 +34,26 @@ namespace UIScripting
         // TransformEvents Functions
         const bool IsFocusable() const;
         void SetFocusable(bool focusable);
-        void SetOnFocusCallback(asIScriptFunction* callback);
-        void SetOnUnFocusCallback(asIScriptFunction* callback);
+        void SetOnFocusGainedCallback(asIScriptFunction* callback);
+        void SetOnFocusLostCallback(asIScriptFunction* callback);
 
         //Label Functions
         const std::string GetText() const;
         void SetText(const std::string& newText, bool updateWriteHead = true);
 
-        const Color& GetTextColor() const;
-        void SetTextColor(const Color& color);
+        const Color& GetColor() const;
+        void SetColor(const Color& color);
 
-        const Color& GetTextOutlineColor() const;
-        void SetTextOutlineColor(const Color& outlineColor);
+        const Color& GetOutlineColor() const;
+        void SetOutlineColor(const Color& outlineColor);
 
-        const f32 GetTextOutlineWidth() const;
-        void SetTextOutlineWidth(f32 outlineWidth);
+        const f32 GetOutlineWidth() const;
+        void SetOutlineWidth(f32 outlineWidth);
 
-        void SetTextFont(const std::string& fontPath, f32 fontSize);
+        void SetFont(const std::string& fontPath, f32 fontSize);
+
+        void SetHorizontalAlignment(UI::TextHorizontalAlignment alignment);
+        void SetVerticalAlignment(UI::TextVerticalAlignment alignment);
 
         static InputField* CreateInputField();
     };

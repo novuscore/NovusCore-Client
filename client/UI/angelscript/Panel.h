@@ -17,12 +17,13 @@ namespace UIScripting
         const bool IsClickable() const;
         const bool IsDraggable() const;
         const bool IsFocusable() const;
-        void SetEventFlag(const UI::TransformEventsFlags flags);
-        void UnsetEventFlag(const UI::TransformEventsFlags flags);
         void SetOnClickCallback(asIScriptFunction* callback);
+        
         void SetOnDragStartedCallback(asIScriptFunction* callback);
         void SetOnDragEndedCallback(asIScriptFunction* callback);
-        void SetOnFocusCallback(asIScriptFunction* callback);
+
+        void SetOnFocusGainedCallback(asIScriptFunction* callback);
+        void SetOnFocusLostCallback(asIScriptFunction* callback);
 
         // Renderable Functions
         const std::string& GetTexture() const;

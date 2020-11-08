@@ -8,12 +8,14 @@ namespace UI
     enum TransformEventsFlags : u8
     {
         UIEVENTS_FLAG_NONE = 1 << 0,
+
         UIEVENTS_FLAG_CLICKABLE = 1 << 1,
         UIEVENTS_FLAG_DRAGGABLE = 1 << 2,
         UIEVENTS_FLAG_FOCUSABLE = 1 << 3,
+        UIEVENTS_FLAG_RESIZEABLE = 1 << 4,
 
-        UIEVENTS_FLAG_DRAGLOCK_X = 1 << 4,
-        UIEVENTS_FLAG_DRAGLOCK_Y = 1 << 5
+        UIEVENTS_FLAG_DRAGLOCK_X = 1 << 5,
+        UIEVENTS_FLAG_DRAGLOCK_Y = 1 << 6
     };
 }
 
@@ -31,11 +33,11 @@ namespace UIComponent
         asIScriptFunction* onDragStartedCallback = nullptr;
         asIScriptFunction* onDragEndedCallback = nullptr;
         
-        asIScriptFunction* onFocusedCallback = nullptr;
-        asIScriptFunction* onUnfocusedCallback = nullptr;
+        asIScriptFunction* onFocusGainedCallback = nullptr;
+        asIScriptFunction* onFocusLostCallback = nullptr;
         
-        asIScriptFunction* onHoveredCallback = nullptr;
-        asIScriptFunction* onUnhoveredCallback = nullptr;
+        asIScriptFunction* onHoverStartedCallback = nullptr;
+        asIScriptFunction* onHoverEndedCallback = nullptr;
 
         inline void SetFlag(const UI::TransformEventsFlags inFlags) { flags |= inFlags; }
         inline void UnsetFlag(const UI::TransformEventsFlags inFlags) { flags &= ~inFlags; }

@@ -38,7 +38,7 @@ namespace UIInput
         if (dataSingleton.focusedWidget != entt::null)
         {
             auto [elementInfo, events] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.focusedWidget);
-            UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onUnfocusedCallback);
+            UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusLostCallback);
             dataSingleton.focusedWidget = entt::null;
         }
 
@@ -85,7 +85,7 @@ namespace UIInput
                 {
                     dataSingleton.focusedWidget = entity;
 
-                    UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusedCallback);
+                    UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusGainedCallback);
                 }
 
                 if (events.IsClickable())
@@ -198,7 +198,7 @@ namespace UIInput
         UIComponent::TransformEvents& events = registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget);
         if (key == GLFW_KEY_ESCAPE)
         {
-            UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onUnfocusedCallback);
+            UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusLostCallback);
             dataSingleton.focusedWidget = entt::null;
 
             return true;

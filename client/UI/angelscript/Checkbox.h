@@ -16,12 +16,10 @@ namespace UIScripting
 
         // TransformEvents Functions
         const bool IsClickable() const;
-        const bool IsDraggable() const;
         const bool IsFocusable() const;
-        void SetEventFlag(const UI::TransformEventsFlags flags);
-        void UnsetEventFlag(const UI::TransformEventsFlags flags);
         void SetOnClickCallback(asIScriptFunction* callback);
-        void SetOnFocusCallback(asIScriptFunction* callback);
+        void SetOnFocusGainedCallback(asIScriptFunction* callback);
+        void SetOnFocusLostCallback(asIScriptFunction* callback);
 
         // Background Functions
         const std::string& GetTexture() const;
@@ -48,6 +46,8 @@ namespace UIScripting
         void SetCheckSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset);
 
         // Checkbox Functions
+        void SetOnCheckedCallback(asIScriptFunction* callback);
+        void SetOnUncheckedCallback(asIScriptFunction* callback);
         const bool IsChecked() const;
         void SetChecked(bool checked);
         void ToggleChecked();
