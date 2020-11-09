@@ -25,7 +25,6 @@ namespace UIComponent
         Transform()
         {
             children.reserve(8);
-            sizeof(Transform)
         }
 
         u8 flags = 0;
