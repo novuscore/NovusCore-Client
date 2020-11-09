@@ -23,7 +23,7 @@ namespace UIScripting
     void SliderHandle::OnDragged()
     {
         const UIComponent::Transform* transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
-        _slider->OnClicked(transform->position + transform->localPosition);
+        _slider->OnClicked(transform->anchorPosition + transform->position);
     }
 
     SliderHandle* SliderHandle::CreateSliderHandle(Slider* owningSlider)

@@ -57,22 +57,14 @@ namespace UIScripting
     vec2 BaseElement::GetLocalPosition() const
     {
         const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
-        return transform->parent == entt::null ? vec2(0, 0) : transform->localPosition;
-    }
-    vec2 BaseElement::GetParentPosition() const
-    {
-        const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
-        return transform->parent == entt::null ? vec2(0, 0) : transform->position;
+        return transform->position;
     }
     void BaseElement::SetPosition(const vec2& position)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        auto transform = &registry->get<UIComponent::Transform>(_entityId);
+        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
 
-        if (transform->parent == entt::null)
-            transform->position = position;
-        else
-            transform->localPosition = position;
+        transform->position = position;
 
         UIUtils::Transform::UpdateChildTransforms(registry, transform);
     }
@@ -101,12 +93,9 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto transform = &registry->get<UIComponent::Transform>(_entityId);
 
-        if (transform->parent == entt::null)
-            transform->position = position;
-        else
-            transform->localPosition = position;
+        transform->position = position;
 
-        if (!transform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
+        if (!transform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE) || transform->parent == entt::null)
             transform->size = size;
 
         if (transform->children.size())
@@ -127,10 +116,10 @@ namespace UIScripting
             return;
         transform->anchor = anchor;
 
-        if (transform->parent != entt::null)
-        {
-            transform->position = UIUtils::Transform::GetAnchorPosition(&registry->get<UIComponent::Transform>(transform->parent), anchor);
-        }
+        if (transform->parent == entt::null)
+            transform->anchorPosition = UIUtils::Transform::GetAnchorPositionOnScreen(anchor);
+        else
+            transform->anchorPosition = UIUtils::Transform::GetAnchorPositionInElement(&registry->get<UIComponent::Transform>(transform->parent), anchor);
 
         if (transform->children.size())
             UIUtils::Transform::UpdateChildTransforms(registry, transform);
@@ -237,13 +226,10 @@ namespace UIScripting
         transform->parent = parent->GetEntityId();
 
         auto parentTransform = &registry->get<UIComponent::Transform>(transform->parent);
-        // Add us as parent's child.
         parentTransform->children.push_back({ _entityId, _elementType });
 
-        // Update position. Keeping relative.
-        hvec2 Origin = UIUtils::Transform::GetAnchorPosition(parentTransform, transform->anchor);
-        transform->localPosition = transform->position - Origin;
-        transform->position = Origin;
+        // Update anchor position.
+        transform->anchorPosition = UIUtils::Transform::GetAnchorPositionInElement(parentTransform, transform->anchor);
 
         // Handle fillParentSize
         if (transform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE))

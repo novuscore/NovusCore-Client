@@ -196,7 +196,7 @@ namespace UISystem
             if (textLengthWithoutSpaces > 0)
             {
                 vec2 alignment = UIUtils::Text::GetAlignment(&text);
-                vec2 currentPosition = UIUtils::Transform::GetAnchorPosition(&transform, alignment);
+                vec2 currentPosition = UIUtils::Transform::GetAnchorPositionInElement(&transform, alignment);
                 f32 startX = currentPosition.x;
                 currentPosition.x -= lineWidths[0] * alignment.x;
                 currentPosition.y += text.style.fontSize * (1 - alignment.y);

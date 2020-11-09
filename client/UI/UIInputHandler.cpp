@@ -74,7 +74,7 @@ namespace UIInput
                 {
                     const UIComponent::Transform& transform = registry->get<UIComponent::Transform>(entity);
                     dataSingleton.draggedWidget = entity;
-                    dataSingleton.dragOffset = mouse - (transform.position + transform.localPosition);
+                    dataSingleton.dragOffset = mouse - (transform.anchorPosition + transform.position);
                     
                     UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onDragStartedCallback);
                 }
@@ -126,23 +126,23 @@ namespace UIInput
 
             if (transform->parent != entt::null)
             {
-                hvec2 newLocalPos = mouse - transform->position - dataSingleton.dragOffset;
+                hvec2 newLocalPos = mouse - transform->anchorPosition - dataSingleton.dragOffset;
                 if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_X))
-                    newLocalPos.x = transform->localPosition.x;
+                    newLocalPos.x = transform->position.x;
                 else if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_Y))
-                    newLocalPos.y = transform->localPosition.y;
+                    newLocalPos.y = transform->position.y;
 
-                transform->localPosition = newLocalPos;
+                transform->position = newLocalPos;
             }
             else
             {
                 hvec2 newPos = mouse - dataSingleton.dragOffset;
                 if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_X))
-                    newPos.x = transform->position.x;
+                    newPos.x = transform->anchorPosition.x;
                 else if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_Y))
-                    newPos.y = transform->position.y;
+                    newPos.y = transform->anchorPosition.y;
 
-                transform->position = newPos;
+                transform->anchorPosition = newPos;
             }
 
             // Handle OnDrag(s)

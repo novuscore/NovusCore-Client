@@ -25,14 +25,19 @@ namespace UIComponent
         Transform()
         {
             children.reserve(8);
+            sizeof(Transform)
         }
 
+        u8 flags = 0;
+
+        hvec2 anchorPosition = hvec2(0.f, 0.f);
         hvec2 position = hvec2(0.f, 0.f);
-        hvec2 localPosition = hvec2(0.f, 0.f);
+
         hvec2 anchor = hvec2(0.f, 0.f);
         hvec2 localAnchor = hvec2(0.f, 0.f);
+        
         hvec2 size = hvec2(0.f, 0.f);
-        u8 flags = 0;
+        
         entt::entity parent = entt::null;
         std::vector<UI::UIChild> children;
 

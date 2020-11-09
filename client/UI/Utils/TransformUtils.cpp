@@ -6,7 +6,6 @@
 #include <tracy/Tracy.hpp>
 
 #include "entity/registry.hpp"
-#include "../ECS/Components/Dirty.h"
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
 
 namespace UIUtils::Transform
@@ -22,6 +21,12 @@ namespace UIUtils::Transform
         return clampedPosition * uiResolution;
     }
 
+    hvec2 GetAnchorPositionOnScreen(hvec2 anchorPosition)
+    {
+        const hvec2& uiResolution = ServiceLocator::GetUIRegistry()->ctx<UISingleton::UIDataSingleton>().UIRESOLUTION;
+        return uiResolution * anchorPosition;
+    }
+
     void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent)
     {
         ZoneScoped;
@@ -29,7 +34,7 @@ namespace UIUtils::Transform
         {
             UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
 
-            childTransform->position = UIUtils::Transform::GetAnchorPosition(parent, childTransform->anchor);
+            childTransform->anchorPosition = UIUtils::Transform::GetAnchorPositionInElement(parent, childTransform->anchor);
             if (childTransform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
                 childTransform->size = parent->size;
 

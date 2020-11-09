@@ -11,7 +11,7 @@ namespace UIUtils::Transform
 
     inline static const hvec2 GetScreenPosition(const UIComponent::Transform* transform)
     {
-        return transform->position + transform->localPosition;
+        return transform->anchorPosition + transform->position;
     };
 
     inline static const hvec2 GetMinBounds(const UIComponent::Transform* transform)
@@ -28,25 +28,24 @@ namespace UIUtils::Transform
         return hvec2(screenPosition.x + transform->size.x - (transform->localAnchor.x * transform->size.x), screenPosition.y + transform->size.y - (transform->localAnchor.y * transform->size.y));
     }
 
-    inline static const vec2 GetAnchorPosition(const UIComponent::Transform* transform, hvec2 anchor)
+    inline static const hvec2 GetAnchorPositionInElement(const UIComponent::Transform* transform, hvec2 anchor)
     {
         return GetMinBounds(transform) + (transform->size * anchor);
     }
 
-    inline static void RemoveChild(entt::registry* registry, entt::entity parent, entt::entity child)
+    hvec2 GetAnchorPositionOnScreen(hvec2 anchorPosition);
+
+    inline static void RemoveChild(entt::registry* registry, entt::entity child)
     {
         UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child);
-        if (childTransform->parent != parent)
-            return;
-        UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(parent);
+        UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(childTransform->parent);
 
+        childTransform->parent = entt::null;
+        childTransform->anchorPosition = GetAnchorPositionOnScreen(childTransform->anchor);
+        
         auto itr = std::find_if(parentTransform->children.begin(), parentTransform->children.end(), [child](UI::UIChild& uiChild) { return uiChild.entId == child; });
         if (itr != parentTransform->children.end())
             parentTransform->children.erase(itr);
-
-        childTransform->position = childTransform->position + childTransform->localPosition;
-        childTransform->localPosition = vec2(0, 0);
-        childTransform->parent = entt::null;
     }
 
     void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent);

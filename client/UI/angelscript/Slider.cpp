@@ -198,7 +198,7 @@ namespace UIScripting
         slider->currentValue = newValue;
 
         // Update slider position.
-        handleTransform->localPosition = vec2(0.0f, 0.0f);
+        handleTransform->position = vec2(0.0f, 0.0f);
         _handle->SetAnchor(vec2(percent, 0.5f));
         _handle->MarkBoundsDirty();
         _handle->MarkDirty();
@@ -218,7 +218,7 @@ namespace UIScripting
         const UIComponent::Slider* slider = &registry->get<UIComponent::Slider>(_entityId);
         UIComponent::Transform* handleTransform = &registry->get<UIComponent::Transform>(_handle->GetEntityId());
 
-        handleTransform->localPosition = vec2(0.0f, 0.0f);
+        handleTransform->position = vec2(0.0f, 0.0f);
         _handle->SetAnchor(vec2(UIUtils::Slider::GetPercent(slider), 0.5f));
         _handle->MarkBoundsDirty();
         _handle->MarkDirty();
