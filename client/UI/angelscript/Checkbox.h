@@ -1,7 +1,5 @@
 #pragma once
-
 #include "BaseElement.h"
-#include "../ECS/Components/TransformEvents.h"
 
 namespace UIScripting
 {

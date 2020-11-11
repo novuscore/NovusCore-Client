@@ -36,8 +36,5 @@ namespace UIUtils::Visibility
         return visibility->visibilityFlags == UI::VisibilityFlags::FULL_VISIBLE;
     }
 
-    /*
-    *   THREAD-SAFE.
-    */
     void UpdateChildVisibility(entt::registry* registry, const entt::entity parent, bool parentVisibility);
 };
