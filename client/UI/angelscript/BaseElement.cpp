@@ -257,7 +257,7 @@ namespace UIScripting
         if (transform->parent == entt::null)
             return;
 
-        UIUtils::Transform::RemoveChild(registry, transform->parent, _entityId);
+        UIUtils::Transform::RemoveChild(registry, _entityId);
     }
 
     bool BaseElement::GetExpandBoundsToChildren() const

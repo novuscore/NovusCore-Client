@@ -1,6 +1,5 @@
 #pragma once
 #include <NovusTypes.h>
-
 #include "BaseElement.h"
 
 namespace UIScripting

@@ -5,6 +5,7 @@
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
 #include "../ECS/Components/ElementInfo.h"
 #include "../ECS/Components/TransformEvents.h"
+#include "../ECS/Components/Text.h"
 #include "../ECS/Components/InputField.h"
 #include "../ECS/Components/Renderable.h"
 #include "../Utils/TextUtils.h"

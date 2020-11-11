@@ -69,7 +69,6 @@ namespace UIScripting
         // Transform Functions
         vec2 GetScreenPosition() const;
         vec2 GetLocalPosition() const;
-        vec2 GetParentPosition() const;
         void SetPosition(const vec2& position);
 
         vec2 GetSize() const;

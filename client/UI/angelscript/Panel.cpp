@@ -2,6 +2,7 @@
 #include "../../Scripting/ScriptEngine.h"
 #include "../../Utils/ServiceLocator.h"
 
+#include "../ECS/Components/TransformEvents.h"
 #include "../ECS/Components/Image.h"
 #include "../ECS/Components/Renderable.h"
 
