@@ -13,8 +13,12 @@ namespace UIScripting
 
         // TransformEvents Functions
         const bool IsClickable() const;
+        void SetClickable(bool clickable);
         const bool IsDraggable() const;
+        void SetDraggable(bool draggable);
         const bool IsFocusable() const;
+        void SetFocusable(bool focusable);
+        
         void SetOnClickCallback(asIScriptFunction* callback);
         
         void SetOnDragStartedCallback(asIScriptFunction* callback);

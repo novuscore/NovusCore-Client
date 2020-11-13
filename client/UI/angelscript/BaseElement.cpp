@@ -35,6 +35,7 @@ namespace UIScripting
         elementInfo->scriptingObject = this;
 
         registry->emplace<UIComponent::Transform>(_entityId);
+        registry->emplace<UIComponent::Relation>(_entityId);
 
         UIComponent::SortKey* sortKey = &registry->emplace<UIComponent::SortKey>(_entityId);
         sortKey->data.entId = _entityId;
