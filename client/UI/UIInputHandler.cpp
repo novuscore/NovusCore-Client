@@ -15,6 +15,8 @@
 #include "ECS/Components/Collision.h"
 #include "ECS/Components/Collidable.h"
 #include "ECS/Components/Visible.h"
+
+#include "Utils/ElementUtils.h"
 #include "Utils/TransformUtils.h"
 #include "Utils/ColllisionUtils.h"
 #include "Utils/EventUtils.h"
@@ -121,29 +123,15 @@ namespace UIInput
         if (dataSingleton.draggedWidget != entt::null)
         {
             const UIComponent::ElementInfo* elementInfo = &registry->get<UIComponent::ElementInfo>(dataSingleton.draggedWidget);
-            auto transform = &registry->get<UIComponent::Transform>(dataSingleton.draggedWidget);
-            auto events = &registry->get<UIComponent::TransformEvents>(dataSingleton.draggedWidget);
+            auto [transform, events] = registry->get<UIComponent::Transform, UIComponent::TransformEvents>(dataSingleton.draggedWidget);
 
-            if (transform->parent != entt::null)
-            {
-                hvec2 newLocalPos = mouse - transform->anchorPosition - dataSingleton.dragOffset;
-                if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_X))
-                    newLocalPos.x = transform->position.x;
-                else if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_Y))
-                    newLocalPos.y = transform->position.y;
+            hvec2 newPos = mouse - transform.anchorPosition - dataSingleton.dragOffset;
+            if (events.HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_X))
+                newPos.x = transform.position.x;
+            else if (events.HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_Y))
+                newPos.y = transform.position.y;
 
-                transform->position = newLocalPos;
-            }
-            else
-            {
-                hvec2 newPos = mouse - dataSingleton.dragOffset;
-                if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_X))
-                    newPos.x = transform->anchorPosition.x;
-                else if (events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_Y))
-                    newPos.y = transform->anchorPosition.y;
-
-                transform->anchorPosition = newPos;
-            }
+            transform.position = newPos;
 
             // Handle OnDrag(s)
             if (elementInfo->type == UI::ElementType::UITYPE_SLIDERHANDLE)
@@ -152,9 +140,9 @@ namespace UIInput
                 sliderHandle->OnDragged();
             }
 
-            UIUtils::Transform::UpdateChildTransforms(registry, transform);
-            UIUtils::Transform::MarkDirty(registry, dataSingleton.draggedWidget);
-            UIUtils::Transform::MarkChildrenDirty(registry, dataSingleton.draggedWidget);
+            UIUtils::MarkDirty(registry, dataSingleton.draggedWidget);
+            UIUtils::MarkChildrenDirty(registry, dataSingleton.draggedWidget);
+            UIUtils::Transform::UpdateChildTransforms(registry, dataSingleton.draggedWidget);
             UIUtils::Collision::MarkBoundsDirty(registry, dataSingleton.draggedWidget);
         }
 

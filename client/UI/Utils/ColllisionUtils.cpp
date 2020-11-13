@@ -2,6 +2,7 @@
 #include <tracy/Tracy.hpp>
 #include "../ECS/Components/Collision.h"
 #include "../ECS/Components/Transform.h"
+#include "../ECS/Components/Relation.h"
 #include "TransformUtils.h"
 
 namespace UIUtils::Collision
@@ -9,62 +10,59 @@ namespace UIUtils::Collision
     void UpdateBounds(entt::registry* registry, entt::entity entityId, bool updateParent)
     {
         ZoneScoped;
-        UIComponent::Collision* collision = &registry->get<UIComponent::Collision>(entityId);
-        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(entityId);
-        collision->minBound = UIUtils::Transform::GetMinBounds(transform);
-        collision->maxBound = UIUtils::Transform::GetMaxBounds(transform);
+        auto[collision, transform, relation] = registry->get<UIComponent::Collision, UIComponent::Transform, UIComponent::Relation>(entityId);
+        collision.minBound = UIUtils::Transform::GetMinBounds(&transform);
+        collision.maxBound = UIUtils::Transform::GetMaxBounds(&transform);
 
-        for (const UI::UIChild& child : transform->children)
+        for (const UI::UIChild& child : relation.children)
         {
             UpdateBounds(registry, child.entId, false);
-            UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
             UIComponent::Collision* childCollision = &registry->get<UIComponent::Collision>(child.entId);
 
-            if (!collision->HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
+            if (!collision.HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
                 continue;
 
-            if (childCollision->minBound.x < collision->minBound.x) { collision->minBound.x = childCollision->minBound.x; }
-            if (childCollision->minBound.y < collision->minBound.y) { collision->minBound.y = childCollision->minBound.y; }
+            if (childCollision->minBound.x < collision.minBound.x) { collision.minBound.x = childCollision->minBound.x; }
+            if (childCollision->minBound.y < collision.minBound.y) { collision.minBound.y = childCollision->minBound.y; }
 
-            if (childCollision->maxBound.x > collision->maxBound.x) { collision->maxBound.x = childCollision->maxBound.x; }
-            if (childCollision->maxBound.y > collision->maxBound.y) { collision->maxBound.y = childCollision->maxBound.y; }
+            if (childCollision->maxBound.x > collision.maxBound.x) { collision.maxBound.x = childCollision->maxBound.x; }
+            if (childCollision->maxBound.y > collision.maxBound.y) { collision.maxBound.y = childCollision->maxBound.y; }
         }
 
-        if (!updateParent || transform->parent == entt::null)
+        if (!updateParent || relation.parent == entt::null)
             return;
 
-        UIComponent::Collision* parentCollision = &registry->get<UIComponent::Collision>(transform->parent);
+        UIComponent::Collision* parentCollision = &registry->get<UIComponent::Collision>(relation.parent);
         if (parentCollision->HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
-            ShallowUpdateBounds(registry, transform->parent);
+            ShallowUpdateBounds(registry, relation.parent);
     }
 
     void ShallowUpdateBounds(entt::registry* registry, entt::entity entityId)
     {
         ZoneScoped;
-        UIComponent::Collision* collision = &registry->get<UIComponent::Collision>(entityId);
-        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(entityId);
-        collision->minBound = UIUtils::Transform::GetMinBounds(transform);
-        collision->maxBound = UIUtils::Transform::GetMaxBounds(transform);
+        auto [collision, transform, relation] = registry->get<UIComponent::Collision, UIComponent::Transform, UIComponent::Relation>(entityId);
+        collision.minBound = UIUtils::Transform::GetMinBounds(&transform);
+        collision.maxBound = UIUtils::Transform::GetMaxBounds(&transform);
 
-        if (collision->HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
+        if (collision.HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
         {
-            for (const UI::UIChild& child : transform->children)
+            for (const UI::UIChild& child : relation.children)
             {
                 UIComponent::Collision* childCollision = &registry->get<UIComponent::Collision>(child.entId);
 
-                if (childCollision->minBound.x < collision->minBound.x) { collision->minBound.x = childCollision->minBound.x; }
-                if (childCollision->minBound.y < collision->minBound.y) { collision->minBound.y = childCollision->minBound.y; }
+                if (childCollision->minBound.x < collision.minBound.x) { collision.minBound.x = childCollision->minBound.x; }
+                if (childCollision->minBound.y < collision.minBound.y) { collision.minBound.y = childCollision->minBound.y; }
 
-                if (childCollision->maxBound.x > collision->maxBound.x) { collision->maxBound.x = childCollision->maxBound.x; }
-                if (childCollision->maxBound.y > collision->maxBound.y) { collision->maxBound.y = childCollision->maxBound.y; }
+                if (childCollision->maxBound.x > collision.maxBound.x) { collision.maxBound.x = childCollision->maxBound.x; }
+                if (childCollision->maxBound.y > collision.maxBound.y) { collision.maxBound.y = childCollision->maxBound.y; }
             }
         }
 
-        if (transform->parent == entt::null)
+        if (relation.parent == entt::null)
             return;
 
-        UIComponent::Collision* parentCollision = &registry->get<UIComponent::Collision>(transform->parent);
+        UIComponent::Collision* parentCollision = &registry->get<UIComponent::Collision>(relation.parent);
         if (parentCollision->HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
-            ShallowUpdateBounds(registry, transform->parent);
+            ShallowUpdateBounds(registry, relation.parent);
     }
 }

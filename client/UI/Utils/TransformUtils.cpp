@@ -4,9 +4,10 @@
 #include "../../render-lib/Window/Window.h"
 #include "GLFW/glfw3.h"
 #include <tracy/Tracy.hpp>
-
 #include "entity/registry.hpp"
+
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
+#include "../ECS/Components/Relation.h"
 
 namespace UIUtils::Transform
 {
@@ -27,31 +28,19 @@ namespace UIUtils::Transform
         return uiResolution * anchorPosition;
     }
 
-    void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent)
+    void UpdateChildTransforms(entt::registry* registry, entt::entity entity)
     {
+        auto [transform, relation] = registry->get<UIComponent::Transform, UIComponent::Relation>(entity);
         ZoneScoped;
-        for (const UI::UIChild& child : parent->children)
+        for (const UI::UIChild& child : relation.children)
         {
             UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
 
-            childTransform->anchorPosition = UIUtils::Transform::GetAnchorPositionInElement(parent, childTransform->anchor);
+            childTransform->anchorPosition = UIUtils::Transform::GetAnchorPositionInElement(&transform, childTransform->anchor);
             if (childTransform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
-                childTransform->size = parent->size;
+                childTransform->size = transform.size;
 
-            UpdateChildTransforms(registry, childTransform);
-        }
-    }
-
-    void MarkChildrenDirty(entt::registry* registry, const entt::entity entityId)
-    {
-        ZoneScoped;
-        const auto transform = &registry->get<UIComponent::Transform>(entityId);
-        for (const UI::UIChild& child : transform->children)
-        {
-            if (!registry->has<UIComponent::Dirty>(child.entId))
-                registry->emplace<UIComponent::Dirty>(child.entId);
-
-            MarkChildrenDirty(registry, child.entId);
+            UpdateChildTransforms(registry, child.entId);
         }
     }
 }

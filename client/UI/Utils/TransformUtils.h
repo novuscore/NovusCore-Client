@@ -2,8 +2,6 @@
 #include <NovusTypes.h>
 #include <entity/fwd.hpp>
 #include "../ECS/Components/Transform.h"
-#include "../ECS/Components/Dirty.h"
-#include "../ECS/Components/BoundsDirty.h"
 
 namespace UIUtils::Transform
 {
@@ -35,27 +33,5 @@ namespace UIUtils::Transform
 
     hvec2 GetAnchorPositionOnScreen(hvec2 anchorPosition);
 
-    inline static void RemoveChild(entt::registry* registry, entt::entity child)
-    {
-        UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child);
-        UIComponent::Transform* parentTransform = &registry->get<UIComponent::Transform>(childTransform->parent);
-
-        childTransform->parent = entt::null;
-        childTransform->anchorPosition = GetAnchorPositionOnScreen(childTransform->anchor);
-        
-        auto itr = std::find_if(parentTransform->children.begin(), parentTransform->children.end(), [child](UI::UIChild& uiChild) { return uiChild.entId == child; });
-        if (itr != parentTransform->children.end())
-            parentTransform->children.erase(itr);
-    }
-
-    void UpdateChildTransforms(entt::registry* registry, UIComponent::Transform* parent);
-
-    void MarkChildrenDirty(entt::registry* registry, const entt::entity entityId);
-
-    inline static void MarkDirty(entt::registry* registry, entt::entity entId)
-    {
-        if (!registry->has<UIComponent::Dirty>(entId))
-            registry->emplace<UIComponent::Dirty>(entId);
-    }
-
+    void UpdateChildTransforms(entt::registry* registry, entt::entity entity);
 };

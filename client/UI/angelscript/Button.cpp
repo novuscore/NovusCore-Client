@@ -6,6 +6,7 @@
 
 #include "../ECS/Components/Transform.h"
 #include "../ECS/Components/Transformevents.h"
+#include "../ECS/Components/Relation.h"
 #include "../ECS/Components/Image.h"
 #include "../ECS/Components/Renderable.h"
 #include "../ECS/Components/SortKey.h"
@@ -23,11 +24,12 @@ namespace UIScripting
         
         _label = Label::CreateLabel();
         _label->SetHorizontalAlignment(UI::TextHorizontalAlignment::CENTER);
-        auto labelTransform = &registry->get<UIComponent::Transform>(_label->GetEntityId());
-        labelTransform->parent = _entityId;
-        labelTransform->SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
-        registry->get<UIComponent::SortKey>(_label->GetEntityId()).data.depth++;
-        registry->get<UIComponent::Transform>(_entityId).children.push_back({ _label->GetEntityId(), _label->GetType() });
+        auto [labelTransform, labelRelation, labelSortKey] = registry->get<UIComponent::Transform, UIComponent::Relation, UIComponent::SortKey>(_label->GetEntityId());
+        labelTransform.SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
+        labelRelation.parent = _entityId;
+        labelSortKey.data.depth++;
+        
+        registry->get<UIComponent::Relation>(_entityId).children.push_back({ _label->GetEntityId(), _label->GetType() });
     }
     
     void Button::RegisterType()
