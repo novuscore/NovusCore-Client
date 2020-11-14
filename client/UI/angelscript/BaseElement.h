@@ -26,20 +26,23 @@ namespace UIScripting
         static void RegisterBase()
         {
             i32 r = ScriptEngine::RegisterScriptClassFunction("Entity GetEntityId()", asMETHOD(T, GetEntityId)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetTransform(vec2 position, vec2 size)", asMETHOD(T, SetTransform)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetScreenPosition()", asMETHOD(T, GetScreenPosition)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetLocalPosition()", asMETHOD(T, GetLocalPosition)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetPosition(vec2 position)", asMETHOD(T, SetPosition)); assert(r >= 0);
+
+            r = ScriptEngine::RegisterScriptClassFunction("vec2 GetSize()", asMETHOD(T, GetSize)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetSize(vec2 size)", asMETHOD(T, SetSize)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("bool GetFillParentSize()", asMETHOD(T, GetFillParentSize)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetFillParentSize(bool fillParent)", asMETHOD(T, SetFillParentSize)); assert(r >= 0);
+
+            r = ScriptEngine::RegisterScriptClassFunction("void SetTransform(vec2 position, vec2 size)", asMETHOD(T, SetTransform)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetAnchor()", asMETHOD(T, GetAnchor)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetAnchor(vec2 anchor)", asMETHOD(T, SetAnchor)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetLocalAnchor()", asMETHOD(T, GetLocalAnchor)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetLocalAnchor(vec2 anchor)", asMETHOD(T, SetLocalAnchor)); assert(r >= 0);
 
-            r = ScriptEngine::RegisterScriptClassFunction("vec2 GetSize()", asMETHOD(T, GetSize)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetSize(vec2 size)", asMETHOD(T, SetSize)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("bool GetFillParentSize()", asMETHOD(T, GetFillParentSize)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetFillParentSize(bool fillParent)", asMETHOD(T, SetFillParentSize)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetPadding(float top, float right, float bottom, float left)", asMETHOD(T, SetPadding)); assert(r >= 0);
             
             r = ScriptEngine::RegisterScriptClassFunction("uint8 GetDepthLayer()", asMETHOD(T, GetDepthLayer)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetDepthLayer(uint8 layer)", asMETHOD(T, SetDepthLayer)); assert(r >= 0);
@@ -51,10 +54,11 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("void UnsetParent()", asMETHOD(T, UnsetParent)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void Destroy(bool destroyChildren = true)", asMETHOD(T, Destroy)); assert(r >= 0);
 
-            r = ScriptEngine::RegisterScriptClassFunction("void SetExpandBoundsToChildren(bool enabled)", asMETHOD(T, SetExpandBoundsToChildren)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void GetCollisionIncludesChildren()", asMETHOD(T, GetCollisionIncludesChildren)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetCollisionIncludesChildren(bool enabled)", asMETHOD(T, SetCollisionIncludesChildren)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("bool IsVisible()", asMETHOD(T, IsVisible)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("bool IsLocallyVisible()", asMETHOD(T, IsLocallyVisible)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("bool IsSelfVisible()", asMETHOD(T, IsSelfVisible)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("bool IsParentVisible()", asMETHOD(T, IsParentVisible)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetVisible(bool visible)", asMETHOD(T, SetVisible)); assert(r >= 0);
 
@@ -73,6 +77,8 @@ namespace UIScripting
 
         vec2 GetSize() const;
         void SetSize(const vec2& size);
+        bool GetFillParentSize() const;
+        void SetFillParentSize(bool fillParent);
 
         void SetTransform(const vec2& position, const vec2& size);
 
@@ -82,8 +88,7 @@ namespace UIScripting
         vec2 GetLocalAnchor() const;
         void SetLocalAnchor(const vec2& localAnchor);
         
-        bool GetFillParentSize() const;
-        void SetFillParentSize(bool fillParent);
+        void SetPadding(f32 top, f32 right, f32 bottom, f32 left);
 
         UI::DepthLayer GetDepthLayer() const;
         void SetDepthLayer(const UI::DepthLayer layer);
@@ -95,11 +100,11 @@ namespace UIScripting
         void SetParent(BaseElement* parent);
         void UnsetParent();
 
-        bool GetExpandBoundsToChildren() const;
-        void SetExpandBoundsToChildren(bool expand);
+        bool GetCollisionIncludesChildren() const;
+        void SetCollisionIncludesChildren(bool expand);
 
         bool IsVisible() const;
-        bool IsLocallyVisible() const;
+        bool IsSelfVisible() const;
         bool IsParentVisible() const;
         void SetVisible(bool visible);
     

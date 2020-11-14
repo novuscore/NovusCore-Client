@@ -46,6 +46,30 @@ namespace UI
         BOTTOM
     };
 
+#pragma pack(push, 1)
+    struct Box
+    {
+        u32 top = 0;
+        u32 right = 0;
+        u32 bottom = 0;
+        u32 left = 0;
+    };
+    struct FBox
+    {
+        f32 top = 0.0f;
+        f32 right = 0.0f;
+        f32 bottom = 0.0f;
+        f32 left = 0.0f;
+    };
+    struct HBox
+    {
+        f16 top = f16(0.0f);
+        f16 right = f16(0.0f);
+        f16 bottom = f16(0.0f);
+        f16 left = f16(0.0f);
+    };
+#pragma pack(pop)
+
     struct TextStylesheet
     {
         Color color = Color(1, 1, 1, 1);

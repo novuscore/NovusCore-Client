@@ -28,7 +28,9 @@ namespace UIUtils::Transform
 
     inline static const hvec2 GetAnchorPositionInElement(const UIComponent::Transform* transform, hvec2 anchor)
     {
-        return GetMinBounds(transform) + (transform->size * anchor);
+        hvec2 minAnchorBound = GetMinBounds(transform) + hvec2(transform->padding.left, transform->padding.top);
+        hvec2 adjustedSize = transform->size - hvec2(transform->padding.right, transform->padding.bottom);
+        return minAnchorBound + adjustedSize * anchor;
     }
 
     hvec2 GetAnchorPositionOnScreen(hvec2 anchorPosition);

@@ -5,30 +5,12 @@
 
 namespace UI
 {
-#pragma pack(push, 1)
-    struct Box
-    {
-        u32 top = 0;
-        u32 right = 0;
-        u32 bottom = 0;
-        u32 left = 0;
-    };
-    struct FBox
-    {
-        f32 top = 0.0f;
-        f32 right = 1.0f;
-        f32 bottom = 1.0f;
-        f32 left = 0.0f;
-    };
-#pragma pack(pop)
-
-
     struct ImageStylesheet
     {
         std::string texture = "";
         Color color = Color(1, 1, 1, 1);
         
-        FBox texCoord;
+        FBox texCoord = FBox{ 0.0f, 1.0f, 1.0f, 0.0f };
         std::string border = "";
         Box borderSize;
         Box borderInset;

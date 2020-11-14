@@ -88,6 +88,28 @@ namespace UIScripting
 
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
+    bool BaseElement::GetFillParentSize() const
+    {
+        const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        return transform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE);
+    }
+    void BaseElement::SetFillParentSize(bool fillParent)
+    {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        auto [transform, relation] = registry->get <UIComponent::Transform, UIComponent::Relation>(_entityId);
+
+        if (transform.HasFlag(UI::TransformFlags::FILL_PARENTSIZE) == fillParent)
+            return;
+        transform.ToggleFlag(UI::TransformFlags::FILL_PARENTSIZE);
+
+        if (relation.parent == entt::null)
+            return;
+
+        auto parentTransform = &registry->get<UIComponent::Transform>(relation.parent);
+        transform.size = parentTransform->size;
+
+        UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
+    }
 
     void BaseElement::SetTransform(const vec2& position, const vec2& size)
     {
@@ -140,25 +162,11 @@ namespace UIScripting
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
 
-    bool BaseElement::GetFillParentSize() const
-    {
-        const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
-        return transform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE);
-    }
-    void BaseElement::SetFillParentSize(bool fillParent)
+    void BaseElement::SetPadding(f32 top, f32 right, f32 bottom, f32 left)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        auto [transform, relation] = registry->get <UIComponent::Transform, UIComponent::Relation> (_entityId);
-
-        if (transform.HasFlag(UI::TransformFlags::FILL_PARENTSIZE) == fillParent)
-            return;
-        transform.ToggleFlag(UI::TransformFlags::FILL_PARENTSIZE);
-
-        if (relation.parent == entt::null)
-            return;
-
-        auto parentTransform = &registry->get<UIComponent::Transform>(relation.parent);
-        transform.size = parentTransform->size;
+        auto transform = &registry->get<UIComponent::Transform>(_entityId);
+        transform->padding = UI::HBox{ f16(top), f16(right), f16(bottom), f16(left) };
 
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
@@ -250,12 +258,12 @@ namespace UIScripting
         UIUtils::RemoveFromParent(registry, _entityId);
     }
 
-    bool BaseElement::GetExpandBoundsToChildren() const
+    bool BaseElement::GetCollisionIncludesChildren() const
     {
         const auto collision = &ServiceLocator::GetUIRegistry()->get<UIComponent::Collision>(_entityId);
         return collision->HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS);
     }
-    void BaseElement::SetExpandBoundsToChildren(bool expand)
+    void BaseElement::SetCollisionIncludesChildren(bool expand)
     {
         auto collision = &ServiceLocator::GetUIRegistry()->get<UIComponent::Collision>(_entityId);
 
@@ -270,7 +278,7 @@ namespace UIScripting
         const UIComponent::Visibility* visibility = &ServiceLocator::GetUIRegistry()->get<UIComponent::Visibility>(_entityId);
         return visibility->visibilityFlags == UI::VisibilityFlags::FULL_VISIBLE;
     }
-    bool BaseElement::IsLocallyVisible() const
+    bool BaseElement::IsSelfVisible() const
     {
         const UIComponent::Visibility* visibility = &ServiceLocator::GetUIRegistry()->get<UIComponent::Visibility>(_entityId);
         return visibility->HasFlag(UI::VisibilityFlags::VISIBLE);
