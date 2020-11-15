@@ -32,6 +32,9 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineWidth(float width)", asMETHOD(Label, SetOutlineWidth)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("float GetOutlineWidth()", asMETHOD(Label, GetOutlineWidth)); assert(r >= 0);
 
+        r = ScriptEngine::RegisterScriptClassFunction("bool IsMultiline()", asMETHOD(Label, IsMultiline)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetMultiline(bool multiline)", asMETHOD(Label, SetMultiline)); assert(r >= 0);
+
         r = ScriptEngine::RegisterScriptClassFunction("void SetHorizontalAlignment(uint8 alignment)", asMETHOD(Label, SetHorizontalAlignment)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetVerticalAlignment(uint8 alignment)", asMETHOD(Label, SetVerticalAlignment)); assert(r >= 0);
     }
@@ -90,6 +93,17 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
         text->style.outlineWidth = outlineWidth;
+    }
+
+    bool Label::IsMultiline()
+    {
+        const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
+        return text->multiline;
+    }
+    void Label::SetMultiline(bool multiline)
+    {
+        UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
+        text->multiline = multiline;
     }
 
     void Label::SetHorizontalAlignment(UI::TextHorizontalAlignment alignment)

@@ -30,7 +30,7 @@ namespace UIComponent
 
         UI::TextHorizontalAlignment horizontalAlignment = UI::TextHorizontalAlignment::LEFT;
         UI::TextVerticalAlignment verticalAlignment = UI::TextVerticalAlignment::TOP;
-        bool isMultiline = false;
+        bool multiline = false;
 
         Renderer::Font* font = nullptr;
 

@@ -16,14 +16,21 @@ namespace UIUtils::Transform
     {
         const hvec2 screenPosition = GetScreenPosition(transform);
 
-        return hvec2(screenPosition.x - (transform->localAnchor.x * transform->size.x), screenPosition.y - (transform->localAnchor.y * transform->size.y));
+        return screenPosition - (transform->localAnchor * transform->size);
     };
 
     inline static const hvec2 GetMaxBounds(const UIComponent::Transform* transform)
     {
         const hvec2 screenPosition = GetScreenPosition(transform);
 
-        return hvec2(screenPosition.x + transform->size.x - (transform->localAnchor.x * transform->size.x), screenPosition.y + transform->size.y - (transform->localAnchor.y * transform->size.y));
+        return screenPosition + transform->size - (transform->localAnchor * transform->size);
+    }
+
+    inline static const hvec2 GetInnerSize(const UIComponent::Transform* transform)
+    {
+        const hvec2 totalPadding = hvec2(transform->padding.left + transform->padding.right, transform->padding.top + transform->padding.bottom);
+
+        return transform->size - totalPadding;
     }
 
     inline static const hvec2 GetAnchorPositionInElement(const UIComponent::Transform* transform, hvec2 anchor)

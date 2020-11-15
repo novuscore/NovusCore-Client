@@ -106,7 +106,7 @@ namespace UIScripting
             return;
 
         auto parentTransform = &registry->get<UIComponent::Transform>(relation.parent);
-        transform.size = parentTransform->size;
+        transform.size = UIUtils::Transform::GetInnerSize(parentTransform);
 
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
@@ -234,7 +234,7 @@ namespace UIScripting
 
         transform.anchorPosition = UIUtils::Transform::GetAnchorPositionInElement(&parentTransform, transform.anchor);
         if (transform.HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
-            transform.size = parentTransform.size;
+            transform.size = UIUtils::Transform::GetInnerSize(&parentTransform);
 
         // Keep relative offsets for all child depths, adding onto it how much we moved in depth.
         i16 difference = parentSortKey.data.depth - sortKey.data.depth + 1;

@@ -199,7 +199,7 @@ namespace UISystem
                 vec2 currentPosition = UIUtils::Transform::GetAnchorPositionInElement(&transform, alignment);
                 f32 startX = currentPosition.x;
                 currentPosition.x -= lineWidths[0] * alignment.x;
-                currentPosition.y += text.style.fontSize * (1 - alignment.y);
+                currentPosition.y += text.style.fontSize * (1 - alignment.y) * lineWidths.size();
 
                 std::vector<UISystem::UIVertex> vertices;
 
@@ -231,7 +231,7 @@ namespace UISystem
                     const Renderer::FontChar& fontChar = text.font->GetChar(character);
                     const vec2& pos = currentPosition + vec2(fontChar.xOffset, fontChar.yOffset);
                     const vec2& size = vec2(fontChar.width, fontChar.height);
-                    UI::FBox texCoords;
+                    UI::FBox texCoords{ 0.f, 1.f, 1.f, 0.f };
 
                     vertices.clear();
                     CalculateVertices(pos, size, texCoords, vertices);

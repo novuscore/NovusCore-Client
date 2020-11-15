@@ -51,6 +51,9 @@ namespace UIScripting
 
         void SetFont(const std::string& fontPath, f32 fontSize);
 
+        bool IsMultiline();
+        void SetMultiline(bool multiline);
+        
         void SetHorizontalAlignment(UI::TextHorizontalAlignment alignment);
         void SetVerticalAlignment(UI::TextVerticalAlignment alignment);
 

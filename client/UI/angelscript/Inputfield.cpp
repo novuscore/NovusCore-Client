@@ -56,6 +56,9 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineWidth(float width)", asMETHOD(InputField, SetOutlineWidth)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetFont(string fontPath, float fontSize)", asMETHOD(InputField, SetFont)); assert(r >= 0);
 
+        r = ScriptEngine::RegisterScriptClassFunction("bool IsMultiline()", asMETHOD(InputField, IsMultiline)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetMultiline(bool multiline)", asMETHOD(InputField, SetMultiline)); assert(r >= 0);
+
         r = ScriptEngine::RegisterScriptClassFunction("void SetHorizontalAlignment(uint8 alignment)", asMETHOD(InputField, SetHorizontalAlignment)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetVerticalAlignment(uint8 alignment)", asMETHOD(InputField, SetVerticalAlignment)); assert(r >= 0);
     }
@@ -79,7 +82,7 @@ namespace UIScripting
         case GLFW_KEY_ENTER:
         {
             entt::registry* registry = ServiceLocator::GetUIRegistry();
-            if (registry->get<UIComponent::Text>(_entityId).isMultiline)
+            if (registry->get<UIComponent::Text>(_entityId).multiline)
             {
                 HandleCharInput('\n');
                 break;
@@ -249,6 +252,17 @@ namespace UIScripting
         UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         text->style.fontPath = fontPath;
         text->style.fontSize = fontSize;
+    }
+
+    bool InputField::IsMultiline()
+    {
+        const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
+        return text->multiline;
+    }
+    void InputField::SetMultiline(bool multiline)
+    {
+        UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
+        text->multiline = multiline;
     }
 
     void InputField::SetHorizontalAlignment(UI::TextHorizontalAlignment alignment)
