@@ -10,9 +10,12 @@
 #include <Memory/MemoryTracker.h>
 #include "Rendering/ClientRenderer.h"
 #include "Rendering/TerrainRenderer.h"
+#include "Rendering/MapObjectRenderer.h"
+#include "Rendering/CModelRenderer.h"
 #include "Rendering/CameraFreelook.h"
 #include "Rendering/CameraOrbital.h"
 #include "Editor/Editor.h"
+#include "Loaders/Config/ConfigLoader.h"
 #include "Loaders/Texture/TextureLoader.h"
 #include "Loaders/Map/MapLoader.h"
 #include "Loaders/NDBC/NDBCLoader.h"
@@ -25,6 +28,7 @@
 #include "ECS/Components/Singletons/DataStorageSingleton.h"
 #include "ECS/Components/Singletons/SceneManagerSingleton.h"
 #include "ECS/Components/Singletons/LocalplayerSingleton.h"
+#include "ECS/Components/Singletons/ConfigSingleton.h"
 #include "ECS/Components/Network/ConnectionSingleton.h"
 #include "ECS/Components/Network/AuthenticationSingleton.h"
 
@@ -129,6 +133,7 @@ void EngineLoop::Run()
     SetupUpdateFramework();
 
     bool failedToLoad = false;
+    failedToLoad |= !ConfigLoader::Init(&_updateFramework.gameRegistry);
     failedToLoad |= !TextureLoader::Load(&_updateFramework.gameRegistry);
     failedToLoad |= !NDBCLoader::Load(&_updateFramework.gameRegistry);
     failedToLoad |= !DisplayInfoLoader::Init(&_updateFramework.gameRegistry);
@@ -163,16 +168,36 @@ void EngineLoop::Run()
     _clientRenderer = new ClientRenderer();
     _editor = new Editor::Editor();
 
-    CameraFreeLook* cameraFreeLook = new CameraFreeLook(vec3(-8000.0f, 100.0f, 1600.0f)); // Stormwind Harbor
-    //CameraFreeLook* cameraFreeLook = new CameraFreeLook(vec3(300.0f, 0.0f, -4700.0f)); // Razor Hill
-    //CameraFreeLook* cameraFreeLook = new CameraFreeLook(vec3(3308.0f, 0.0f, 5316.0f)); // Borean Tundra
-    //CameraFreeLook* cameraFreeLook = new CameraFreeLook(vec3(0.0f, 0.0f, 0.0f)); // Center of Map (0, 0)
+    CameraFreeLook* cameraFreeLook = new CameraFreeLook(vec3(0.0f, 0.0f, 0.0f)); // Center of Map (0, 0)
     cameraFreeLook->Init();
     ServiceLocator::SetCameraFreeLook(cameraFreeLook);
 
     CameraOrbital* cameraOrbital = new CameraOrbital();
     cameraOrbital->Init();
     ServiceLocator::SetCameraOrbital(cameraOrbital);
+
+    ConfigSingleton& configSingleton = _updateFramework.gameRegistry.ctx<ConfigSingleton>();
+
+    // Check Startup Settings for UI
+    UIConfig& uiConfig = configSingleton.uiConfig;
+    {
+        const std::string& defaultMap = uiConfig.GetDefaultMap();
+
+        if (defaultMap.length() != 0)
+        {
+            MapSingleton& mapSingleton = _updateFramework.gameRegistry.ctx<MapSingleton>();
+
+            u32 defaultMapHash = StringUtils::fnv1a_32(defaultMap.c_str(), defaultMap.length());
+            auto itr = mapSingleton.mapNameToDBC.find(defaultMapHash);
+            if (itr != mapSingleton.mapNameToDBC.end())
+            {
+                const NDBC::Map* map = itr->second;
+
+                cameraFreeLook->LoadFromFile("freelook.cameradata");
+                _clientRenderer->GetTerrainRenderer()->LoadMap(map);
+            }
+        }
+    }
 
     // Bind Movement Keys
     InputManager* inputManager = ServiceLocator::GetInputManager();
@@ -255,7 +280,6 @@ void EngineLoop::Run()
             break;
         
         DrawEngineStats(&statsSingleton);
-        DrawMemoryStats();
         DrawImguiMenuBar();
 
         timings.simulationFrameTime = updateTimer.GetLifeTime();
@@ -343,15 +367,6 @@ bool EngineLoop::Update(f32 deltaTime)
             SceneManager* sceneManager = ServiceLocator::GetSceneManager();
             sceneManager->LoadScene(sceneManager->GetScene());
         }
-        else if (message.code == MSG_IN_LOAD_MAP)
-        {
-            LoadMapInfo* loadMapInfo = reinterpret_cast<LoadMapInfo*>(message.object);
-
-            ServiceLocator::GetClientRenderer()->GetTerrainRenderer()->LoadMap(loadMapInfo->mapInternalNameHash);
-            ServiceLocator::GetCamera()->SetPosition(vec3(loadMapInfo->y, 100, loadMapInfo->x));
-
-            delete loadMapInfo;
-        }
     }
 
     // Update Systems will modify the Camera, so we wait with updating the Camera 
@@ -368,6 +383,21 @@ bool EngineLoop::Update(f32 deltaTime)
     }
 
     _clientRenderer->Update(deltaTime);
+
+    ConfigSingleton& configSingleton = _updateFramework.gameRegistry.ctx<ConfigSingleton>();
+    {
+        if (CVarSystem::Get()->IsDirty())
+        {
+            ConfigLoader::Save(ConfigSaveType::CVAR);
+            CVarSystem::Get()->ClearDirty();
+        }
+
+        if (configSingleton.uiConfig.IsDirty())
+        {
+            ConfigLoader::Save(ConfigSaveType::UI);
+            configSingleton.uiConfig.ClearDirty();
+        }
+    }
     
     return true;
 }
@@ -483,15 +513,274 @@ void EngineLoop::ImguiNewFrame()
 
 void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
 {
-    ImGui::Begin("Engine Info");
+    if (ImGui::Begin("Engine Info"))
+    {
+        EngineStatsSingleton::Frame average = stats->AverageFrame(240);
 
-    EngineStatsSingleton::Frame average = stats->AverageFrame(240);
+        ImGui::Text("FPS : %f ", 1.f / average.deltaTime);
+        ImGui::Text("global frametime : %f ms", average.deltaTime * 1000);
 
-    ImGui::Text("FPS : %f ", 1.f/  average.deltaTime);
-    ImGui::Text("global frametime : %f ms", average.deltaTime * 1000);
+        if (ImGui::BeginTabBar("Information"))
+        {
+            if (ImGui::BeginTabItem("Map"))
+            {
+                ImGui::Spacing();
+                DrawMapStats();
+                ImGui::EndTabItem();
+            }
 
-    vec3 cameraLocation = ServiceLocator::GetCamera()->GetPosition();
-    vec3 cameraRotation = ServiceLocator::GetCamera()->GetRotation();
+            if (ImGui::BeginTabItem("Position"))
+            {
+                ImGui::Spacing();
+                DrawPositionStats();
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Memory"))
+            {
+                ImGui::Spacing();
+                DrawMemoryStats();
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Frame Timings"))
+            {
+                ImGui::Spacing();
+                // Draw Timing Graph
+                {
+                    ImGui::Text("update time : %f ms", average.simulationFrameTime * 1000);
+                    ImGui::Text("render time (CPU): %f ms", average.renderFrameTime * 1000);
+
+                    //read the frame buffer to gather timings for the histograms
+                    std::vector<float> updateTimes;
+                    updateTimes.reserve(stats->frameStats.size());
+
+                    std::vector<float> renderTimes;
+                    renderTimes.reserve(stats->frameStats.size());
+
+                    for (int i = 0; i < stats->frameStats.size(); i++)
+                    {
+                        updateTimes.push_back(stats->frameStats[i].simulationFrameTime * 1000);
+                        renderTimes.push_back(stats->frameStats[i].renderFrameTime * 1000);
+                    }
+
+                    ImPlot::SetNextPlotLimits(0.0, 120.0, 0, 33.0);
+
+                    //lock minimum Y to 0 (cant have negative ms)
+                    //lock X completely as its fixed 120 frames
+                    if (ImPlot::BeginPlot("Timing", "frame", "ms", ImVec2(400, 300), 0, ImPlotAxisFlags_Lock, ImPlotAxisFlags_LockMin))
+                    {
+                        ImPlot::PlotLine("Update Time", updateTimes.data(), (int)updateTimes.size());
+                        ImPlot::PlotLine("Render Time", renderTimes.data(), (int)renderTimes.size());
+                        ImPlot::EndPlot();
+                    }
+                }
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
+        }
+    }
+
+    ImGui::End();
+}
+
+void EngineLoop::DrawMapStats()
+{
+    entt::registry* registry = ServiceLocator::GetGameRegistry();
+    MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
+    NDBCSingleton& ndbcSingleton = registry->ctx<NDBCSingleton>();
+
+    static const std::string* selectedMap = nullptr;
+    static std::string selectedMapToLower;
+
+    if (selectedMap == nullptr && mapSingleton.mapNames.size() > 0)
+        selectedMap = mapSingleton.mapNames[0];
+
+    selectedMapToLower.resize(selectedMap->length());
+    std::transform(selectedMap->begin(), selectedMap->end(), selectedMapToLower.begin(), std::tolower);
+
+    // Map Selection
+    {
+        ImGui::Text("Select a map");
+
+        static std::string searchText = "";
+        static std::string searchTextToLower = "";
+        static std::string mapNameCopy = "";
+        ImGui::InputText("Filter", &searchText);
+
+        searchTextToLower.resize(searchText.length());
+        std::transform(searchText.begin(), searchText.end(), searchTextToLower.begin(), std::tolower);
+
+        bool hasFilter = searchText.length() != 0;
+
+        static const char* preview = nullptr;
+        if (!hasFilter)
+            preview = selectedMap->c_str();
+
+        if (ImGui::BeginCombo("##", preview)) // The second parameter is the label previewed before opening the combo.
+        {
+            for (const std::string* mapName : mapSingleton.mapNames)
+            {
+                mapNameCopy.resize(mapName->length());
+                std::transform(mapName->begin(), mapName->end(), mapNameCopy.begin(), std::tolower);
+
+                if (mapNameCopy.find(searchTextToLower) == std::string::npos)
+                    continue;
+
+                bool isSelected = selectedMap == mapName;
+
+                if (ImGui::Selectable(mapName->c_str(), &isSelected))
+                {
+                    selectedMap = mapName;
+                    preview = selectedMap->c_str();
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+        else
+        {
+            if (hasFilter)
+            {
+                if (selectedMapToLower.find(searchTextToLower) != std::string::npos)
+                {
+                    preview = selectedMap->c_str();
+                }
+                else
+                {
+                    for (const std::string* mapName : mapSingleton.mapNames)
+                    {
+                        mapNameCopy.resize(mapName->length());
+                        std::transform(mapName->begin(), mapName->end(), mapNameCopy.begin(), std::tolower);
+
+                        if (mapNameCopy.find(searchTextToLower) == std::string::npos)
+                            continue;
+
+                        preview = mapName->c_str();
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (ImGui::Button("Load"))
+        {
+            u32 mapNamehash = StringUtils::fnv1a_32(preview, strlen(preview));
+            const NDBC::Map* map = mapSingleton.mapNameToDBC[mapNamehash];
+
+            ServiceLocator::GetClientRenderer()->GetTerrainRenderer()->LoadMap(map);
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Set Default"))
+        {
+            ConfigSingleton& configSingleton = registry->ctx<ConfigSingleton>();
+            configSingleton.uiConfig.SetDefaultMap(preview);
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Clear Default"))
+        {
+            ConfigSingleton& configSingleton = registry->ctx<ConfigSingleton>();
+            configSingleton.uiConfig.SetDefaultMap("");
+        }
+
+        ImGui::Spacing();
+    }
+
+    if (ImGui::BeginTabBar("Map Information"))
+    {
+        bool mapIsLoaded = mapSingleton.currentMap.IsLoadedMap();
+
+        if (ImGui::BeginTabItem("Basic Info"))
+        {
+            if (!mapIsLoaded)
+            {
+                ImGui::Text("No Map Loaded");
+            }
+            else
+            {
+                const NDBC::File& ndbcFile = ndbcSingleton.nameHashToDBCFile["Maps"_h];
+                const NDBC::Map* map = mapSingleton.mapIdToDBC[mapSingleton.currentMap.id];
+
+                const std::string& publicMapName = ndbcFile.stringTable->GetString(map->name);
+                const std::string& internalMapName = ndbcFile.stringTable->GetString(map->internalName);
+
+                static std::string instanceType = "............."; // Default to 13 Characters (Max that can be set to force default size to not need reallocation)
+                {
+                    if (map->instanceType == 0 || map->instanceType >= 5)
+                        instanceType = "Open World";
+                    else
+                    {
+                        if (map->instanceType == 1)
+                            instanceType = "Dungeon";
+                        else if (map->instanceType == 2)
+                            instanceType = "Raid";
+                        else if (map->instanceType == 3)
+                            instanceType = "Battleground";
+                        else if (map->instanceType == 4)
+                            instanceType = "Arena";
+                    }
+                }
+
+                ImGui::Text("Map Id:            %u", map->id);
+                ImGui::Text("Public Name:       %s", publicMapName.c_str());
+                ImGui::Text("Internal name:     %s", internalMapName.c_str());
+                ImGui::Text("Instance Type:     %s", instanceType.c_str());
+                ImGui::Text("Max Players:       %u", map->maxPlayers);
+                ImGui::Text("Expansion:         %u", map->expansion);
+            }
+
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Placement Info"))
+        {
+            if (!mapIsLoaded)
+            {
+                ImGui::Text("No Map Loaded");
+            }
+            else
+            {
+                if (mapSingleton.currentMap.header.flags.UseMapObjectInsteadOfTerrain)
+                {
+                    ImGui::Text("Loaded World Object:           %s", mapSingleton.currentMap.header.mapObjectName.c_str());
+                }
+                else
+                {
+                    ImGui::Text("Loaded Chunks:                 %u", mapSingleton.currentMap.chunks.size());
+                }
+
+                TerrainRenderer* terrainRenderer = _clientRenderer->GetTerrainRenderer();
+                MapObjectRenderer* mapObjectRenderer = terrainRenderer->GetMapObjectRenderer();
+                CModelRenderer* cModelRenderer = _clientRenderer->GetCModelRenderer();
+
+                ImGui::Text("Loaded Map Objects:            %u", mapObjectRenderer->GetNumLoadedMapObjects());
+                ImGui::Text("Loaded Complex Models:         %u", cModelRenderer->GetNumLoadedCModels());
+
+                ImGui::Separator();
+
+                ImGui::Text("Map Object Placements:         %u", mapObjectRenderer->GetNumMapObjectPlacements());
+                ImGui::Text("Complex Models Placements:     %u", cModelRenderer->GetNumCModelPlacements());
+            }
+            
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
+}
+
+void EngineLoop::DrawPositionStats()
+{
+    Camera* camera = ServiceLocator::GetCamera();
+    vec3 cameraLocation = camera->GetPosition();
+    vec3 cameraRotation = camera->GetRotation();
 
     ImGui::Text("Camera Location : %f x, %f y, %f z", cameraLocation.x, cameraLocation.y, cameraLocation.z);
     ImGui::Text("Camera Rotation : %f x, %f y, %f z", cameraRotation.x, cameraRotation.y, cameraRotation.z);
@@ -521,47 +810,10 @@ void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
     ImGui::Text("Chunk Remainder : %f x, %f y", chunkRemainder.x, chunkRemainder.y);
     ImGui::Text("Cell  Remainder : %f x, %f y", cellRemainder.x, cellRemainder.y);
     ImGui::Text("Patch Remainder : %f x, %f y", patchRemainder.x, patchRemainder.y);
-
-    static bool advancedStats = false;
-    ImGui::Checkbox("Advanced Stats", &advancedStats);
-
-    if(advancedStats)
-    {
-        ImGui::Text("update time : %f ms", average.simulationFrameTime * 1000);
-        ImGui::Text("render time (CPU): %f ms", average.renderFrameTime * 1000);
-
-        //read the frame buffer to gather timings for the histograms
-        std::vector<float> updateTimes;
-        updateTimes.reserve(stats->frameStats.size());
-
-        std::vector<float> renderTimes;
-        renderTimes.reserve(stats->frameStats.size());
-
-        for (int i = 0; i < stats->frameStats.size(); i++)
-        {
-            updateTimes.push_back(stats->frameStats[i].simulationFrameTime * 1000);
-            renderTimes.push_back(stats->frameStats[i].renderFrameTime * 1000);
-        }
-
-        ImPlot::SetNextPlotLimits(0.0, 120.0, 0, 33.0);
-
-        //lock minimum Y to 0 (cant have negative ms)
-        //lock X completely as its fixed 120 frames
-        if (ImPlot::BeginPlot("Timing", "frame", "ms", ImVec2(400, 300), 0, ImPlotAxisFlags_Lock, ImPlotAxisFlags_LockMin))
-        {
-            ImPlot::PlotLine("Update Time", updateTimes.data(), (int)updateTimes.size());
-            ImPlot::PlotLine("Render Time", renderTimes.data(), (int)renderTimes.size());
-            ImPlot::EndPlot();
-        }
-    }
-
-    ImGui::End();
 }
 
 void EngineLoop::DrawMemoryStats()
 {
-    ImGui::Begin("Memory Info");
-
     // RAM
     size_t ramUsage = Memory::MemoryTracker::GetMemoryUsage() / 1000000;
     size_t ramBudget = Memory::MemoryTracker::GetMemoryBudget() / 1000000;
@@ -595,43 +847,14 @@ void EngineLoop::DrawMemoryStats()
     f32 vramMinPercent = (static_cast<f32>(vramUsage) / static_cast<f32>(vramMinBudget)) * 100;
 
     ImGui::Text("VRAM Usage (Min specs): %luMB / %luMB (%.2f%%)", vramUsage, vramMinBudget, vramMinPercent);
-
-    ImGui::End();
 }
 
 void EngineLoop::DrawImguiMenuBar()
 {
     if (ImGui::BeginMainMenuBar())
     {
-        if (ImGui::BeginMenu("File"))
-        {
-            if (ImGui::BeginMenu("Load Map", "CTRL+Z")) 
-            {
-                static std::string mapload = "Azeroth";
+        _editor->DrawImguiMenuBar();
 
-                ImGui::InputText("Map to load", &mapload);
-
-                if (ImGui::Button("Load Map"))
-                {
-                    u32 namehash = StringUtils::fnv1a_32(mapload.data(), mapload.size());
-                    ServiceLocator::GetClientRenderer()->GetTerrainRenderer()->LoadMap(namehash);
-                }
-                ImGui::EndMenu();
-            }
-           
-            ImGui::EndMenu();
-        }
-        //mockup
-        if (ImGui::BeginMenu("Edit"))
-        {
-            if (ImGui::MenuItem("Undo", "CTRL+Z")) {}
-            if (ImGui::MenuItem("Redo", "CTRL+Y", false, false)) {}
-            ImGui::Separator();
-            if (ImGui::MenuItem("Cut", "CTRL+X")) {}
-            if (ImGui::MenuItem("Copy", "CTRL+C")) {}
-            if (ImGui::MenuItem("Paste", "CTRL+V")) {}
-            ImGui::EndMenu();
-        }
         if (ImGui::BeginMenu("Debug"))
         {
             if (ImGui::BeginMenu("CVAR"))

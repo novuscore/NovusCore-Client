@@ -289,6 +289,9 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             entt::registry* registry = ServiceLocator::GetGameRegistry();
             MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
 
+            if (!mapSingleton.currentMap.IsLoadedMap())
+                return;
+
             if (mapSingleton.currentMap.header.flags.UseMapObjectInsteadOfTerrain)
                 return;
 
@@ -577,9 +580,6 @@ void TerrainRenderer::CreatePermanentResources()
         _renderer->UnmapBuffer(indexUploadBuffer);
         _renderer->CopyBuffer(_cellIndexBuffer, 0, indexUploadBuffer, 0, indexUploadBufferDesc.size);
     }
-
-    // Load default map
-    LoadMap("Azeroth"_h);
 }
 
 void TerrainRenderer::RegisterChunksToBeLoaded(Terrain::Map& map, ivec2 middleChunk, u16 drawDistance)
@@ -713,12 +713,12 @@ void TerrainRenderer::ExecuteLoad()
     _chunksToBeLoaded.clear();
 }
 
-bool TerrainRenderer::LoadMap(u32 mapInternalNameHash)
+bool TerrainRenderer::LoadMap(const NDBC::Map* map)
 {
     entt::registry* registry = ServiceLocator::GetGameRegistry();
     MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
 
-    if (!MapLoader::LoadMap(registry, mapInternalNameHash))
+    if (!MapLoader::LoadMap(registry, map))
         return false;
 
     // Clear Terrain, WMOs and Water

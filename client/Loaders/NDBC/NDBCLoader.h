@@ -18,9 +18,7 @@ public:
     template <typename T>
     static bool LoadDataIntoVector(NDBC::File& file, std::vector<T>& data)
     {
-        u32 numElements = 0;
-        file.buffer->GetU32(numElements);
-
+        u32 numElements = file.numRows;
         if (numElements == 0)
             return false;
 

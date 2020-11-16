@@ -513,9 +513,11 @@ namespace Renderer
             pipeline.cacheDescHash = cacheDescHash;
 
             std::vector<BindInfo> bindInfos;
+            std::vector<BindInfoPushConstant> bindInfoPushConstants;
 
             const BindReflection& bindReflection = _shaderHandler->GetBindReflection(desc.computeShader);
             bindInfos.insert(bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
+            bindInfoPushConstants.insert(bindInfoPushConstants.end(), bindReflection.pushConstants.begin(), bindReflection.pushConstants.end());
 
             for (BindInfo& bindInfo : bindInfos)
             {
@@ -528,6 +530,14 @@ namespace Renderer
                 layoutBinding.stageFlags = bindInfo.stageFlags;
 
                 layout.bindings.push_back(layoutBinding);
+            }
+
+            for (BindInfoPushConstant& pushConstant : bindInfoPushConstants)
+            {
+                VkPushConstantRange& range = pipeline.pushConstantRanges.emplace_back();
+                range.offset = pushConstant.offset;
+                range.size = pushConstant.size;
+                range.stageFlags = pushConstant.stageFlags;
             }
 
             size_t numDescriptorSets = pipeline.descriptorSetLayoutDatas.size();
@@ -548,8 +558,8 @@ namespace Renderer
             pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
             pipelineLayoutInfo.setLayoutCount = static_cast<u32>(pipeline.descriptorSetLayouts.size());
             pipelineLayoutInfo.pSetLayouts = pipeline.descriptorSetLayouts.data();
-            pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
-            pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+            pipelineLayoutInfo.pushConstantRangeCount = static_cast<u32>(pipeline.pushConstantRanges.size()); // Optional
+            pipelineLayoutInfo.pPushConstantRanges = pipeline.pushConstantRanges.data();
 
             if (vkCreatePipelineLayout(_device->_device, &pipelineLayoutInfo, nullptr, &pipeline.pipelineLayout) != VK_SUCCESS)
             {

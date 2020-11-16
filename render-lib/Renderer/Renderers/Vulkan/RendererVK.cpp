@@ -917,6 +917,13 @@ namespace Renderer
             VkPipelineLayout layout = _pipelineHandler->GetPipelineLayout(graphicsPipelineID);
             vkCmdPushConstants(commandBuffer, layout, VkShaderStageFlagBits::VK_SHADER_STAGE_FRAGMENT_BIT, offset, size, data);
         }
+
+        ComputePipelineID computePipelineID = _commandListHandler->GetBoundComputePipeline(commandListID);
+        if (computePipelineID != ComputePipelineID::Invalid())
+        {
+            VkPipelineLayout layout = _pipelineHandler->GetPipelineLayout(computePipelineID);
+            vkCmdPushConstants(commandBuffer, layout, VkShaderStageFlagBits::VK_SHADER_STAGE_COMPUTE_BIT, offset, size, data);
+        }
     }
 
     void RendererVK::Present(Window* window, ImageID imageID, GPUSemaphoreID semaphoreID)

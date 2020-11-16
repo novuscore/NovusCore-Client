@@ -4,7 +4,7 @@
 #include "../../Rendering/CameraOrbital.h"
 #include "../../Rendering/CameraFreeLook.h"
 #include "../Components/Singletons/TimeSingleton.h"
-#include "../Components/Singletons/DBCSingleton.h"
+#include "../Components/Singletons/NDBCSingleton.h"
 #include "../Components/Singletons/DayNightSingleton.h"
 
 void AreaUpdateSystem::Init(entt::registry& registry)
@@ -23,6 +23,10 @@ void AreaUpdateSystem::Update(entt::registry& registry)
     {
         areaUpdateSingleton.updateTimer -= AreaUpdateTimeToUpdate;
 
+        MapSingleton& mapSingleton = registry.ctx<MapSingleton>();
+        if (mapSingleton.currentMap.id == std::numeric_limits<u16>().max())
+            return;
+
         Camera* camera = ServiceLocator::GetCamera();
         vec3 position = camera->GetPosition();
 
@@ -30,11 +34,14 @@ void AreaUpdateSystem::Update(entt::registry& registry)
         u16 cellId = 0;
         GetChunkIdAndCellIdFromPosition(position, chunkId, cellId);
 
-        MapSingleton& mapSingleton = registry.ctx<MapSingleton>();
-        DBCSingleton& dbcSingleton = registry.ctx<DBCSingleton>();
-        Terrain::Cell& cell = mapSingleton.currentMap.chunks[chunkId].cells[cellId];
+        NDBCSingleton& ndbcSingleton = registry.ctx<NDBCSingleton>();
 
-        const NDBC::AreaTable* zone = mapSingleton.areaIdToDBC[cell.areaId];
+        auto itr = mapSingleton.currentMap.chunks.find(chunkId);
+
+        bool hasChunk = itr != mapSingleton.currentMap.chunks.end();
+        Terrain::Cell* cell = hasChunk ? &itr->second.cells[cellId] : nullptr;
+
+        const NDBC::AreaTable* zone = cell ? mapSingleton.areaIdToDBC[cell->areaId] : nullptr;
         const NDBC::AreaTable* area = nullptr;
 
         if (zone && zone->parentId)
@@ -63,8 +70,11 @@ void AreaUpdateSystem::Update(entt::registry& registry)
             const vec3& lightPosition = light->position;
 
             // LightPosition of (0,0,0) and fallOff of (0,0) means default, override!
-            if (lightPosition == vec3(0, 0, 0) && light->fallOff == vec2(0, 0))
+            if (lightPosition == vec3(0, 0, 0))
+            {
                 defaultLight = light;
+                continue;
+            }
 
             f32 distanceToLight = glm::distance(position, lightPosition);
             if (distanceToLight < light->fallOff.x)
@@ -83,45 +93,53 @@ void AreaUpdateSystem::Update(entt::registry& registry)
 
         AreaUpdateLightColorData finalColorData;
 
-        size_t numInnerLights = innerRadiusLights.size();
-        size_t numOuterLights = outerRadiusLights.size();
-        if (numInnerLights)
+        i32 forceUseDefaultLight = *CVarSystem::Get()->GetIntCVar("lights.useDefault");
+        if (forceUseDefaultLight)
         {
-            if (numInnerLights > 1)
-            {
-                // Sort Inner Radius Lights by distance
-                std::sort(innerRadiusLights.begin(), innerRadiusLights.end(), [](AreaUpdateLightData a, AreaUpdateLightData b) { return a.distance < b.distance; });
-            }
-
-            NDBC::Light* light = innerRadiusLights[0].light;
-            finalColorData = GetLightColorData(mapSingleton, light);
-        }
-        else if (numOuterLights)
-        {
-            // Sort Outer Radius Lights by distance
-            std::sort(outerRadiusLights.begin(), outerRadiusLights.end(), [](AreaUpdateLightData a, AreaUpdateLightData b) { return a.distance > b.distance; });
-
-            AreaUpdateLightColorData lightColor = GetLightColorData(mapSingleton, defaultLight);
-
-            for (AreaUpdateLightData& lightData : outerRadiusLights)
-            {
-                NDBC::Light* light = lightData.light;
-
-                AreaUpdateLightColorData outerColorData = GetLightColorData(mapSingleton, light);
-
-                f32 lengthOfFallOff = light->fallOff.y - light->fallOff.x;
-                f32 val = (light->fallOff.y - lightData.distance) / lengthOfFallOff;
-
-                lightColor.ambientColor = glm::mix(lightColor.ambientColor, outerColorData.ambientColor, val);
-                lightColor.diffuseColor = glm::mix(lightColor.diffuseColor, outerColorData.diffuseColor, val);
-            }
-
-            finalColorData.ambientColor = lightColor.ambientColor;
-            finalColorData.diffuseColor = lightColor.diffuseColor;
+            finalColorData = GetLightColorData(mapSingleton, defaultLight);
         }
         else
         {
-            finalColorData = GetLightColorData(mapSingleton, defaultLight);
+            size_t numInnerLights = innerRadiusLights.size();
+            size_t numOuterLights = outerRadiusLights.size();
+            if (numInnerLights)
+            {
+                if (numInnerLights > 1)
+                {
+                    // Sort Inner Radius Lights by distance
+                    std::sort(innerRadiusLights.begin(), innerRadiusLights.end(), [](AreaUpdateLightData a, AreaUpdateLightData b) { return a.distance < b.distance; });
+                }
+
+                NDBC::Light* light = innerRadiusLights[0].light;
+                finalColorData = GetLightColorData(mapSingleton, light);
+            }
+            else if (numOuterLights)
+            {
+                // Sort Outer Radius Lights by distance
+                std::sort(outerRadiusLights.begin(), outerRadiusLights.end(), [](AreaUpdateLightData a, AreaUpdateLightData b) { return a.distance > b.distance; });
+
+                AreaUpdateLightColorData lightColor = GetLightColorData(mapSingleton, defaultLight);
+
+                for (AreaUpdateLightData& lightData : outerRadiusLights)
+                {
+                    NDBC::Light* light = lightData.light;
+
+                    AreaUpdateLightColorData outerColorData = GetLightColorData(mapSingleton, light);
+
+                    f32 lengthOfFallOff = light->fallOff.y - light->fallOff.x;
+                    f32 val = (light->fallOff.y - lightData.distance) / lengthOfFallOff;
+
+                    lightColor.ambientColor = glm::mix(lightColor.ambientColor, outerColorData.ambientColor, val);
+                    lightColor.diffuseColor = glm::mix(lightColor.diffuseColor, outerColorData.diffuseColor, val);
+                }
+
+                finalColorData.ambientColor = lightColor.ambientColor;
+                finalColorData.diffuseColor = lightColor.diffuseColor;
+            }
+            else
+            {
+                finalColorData = GetLightColorData(mapSingleton, defaultLight);
+            }
         }
 
         mapSingleton.ambientLight = finalColorData.ambientColor;
@@ -210,42 +228,50 @@ AreaUpdateLightColorData AreaUpdateSystem::GetLightColorData(MapSingleton& mapSi
     u32 lightIntBandStartId = lightParams->id * 18 - 17;
     u32 lightFloatBandStartId = lightParams->id * 6 - 5;
 
+    // TODO: If the first timeValue for a given light is higher than our current time, we need to figure out what to do.
+    // Do we discard that light in the search or do we handle it in here?
+
     // Get Ambient Light
     {
         NDBC::LightIntBand* lightIntBand = mapSingleton.lightIntBandIdToDBC[lightIntBandStartId];
-        vec3 color = UnpackUIntBGRToColor(lightIntBand->colorValues[0]);
+        vec3 color = vec3(0.0f, 0.0f, 0.0f);
 
-        if (lightIntBand->entries > 1)
+        if (lightIntBand->timeValues[0] < timeInSeconds)
         {
-            u32 currentIndex = 0;
-            u32 nextIndex = 0;
+            color = UnpackUIntBGRToColor(lightIntBand->colorValues[0]);
 
-            for (i32 i = lightIntBand->entries - 1; i >= 0; i--)
+            if (lightIntBand->entries > 1)
             {
-                if (lightIntBand->timeValues[i] <= timeInSeconds)
+                u32 currentIndex = 0;
+                u32 nextIndex = 0;
+
+                for (i32 i = lightIntBand->entries - 1; i >= 0; i--)
                 {
-                    currentIndex = i;
-                    break;
+                    if (lightIntBand->timeValues[i] <= timeInSeconds)
+                    {
+                        currentIndex = i;
+                        break;
+                    }
                 }
-            }
 
-            if (currentIndex < lightIntBand->entries - 1)
-                nextIndex = currentIndex + 1;
+                if (currentIndex < lightIntBand->entries - 1)
+                    nextIndex = currentIndex + 1;
 
-            // Lerp between Current the color of the current timestamp and the color of the next timestamp
-            {
-                u32 currentTimestamp = lightIntBand->timeValues[currentIndex];
-                u32 nextTimestamp = lightIntBand->timeValues[nextIndex];
+                // Lerp between Current the color of the current timestamp and the color of the next timestamp
+                {
+                    u32 currentTimestamp = lightIntBand->timeValues[currentIndex];
+                    u32 nextTimestamp = lightIntBand->timeValues[nextIndex];
 
-                f32 transitionTime = static_cast<f32>(nextTimestamp - currentTimestamp);
-                f32 relativeSeconds = static_cast<f32>(timeInSeconds - currentTimestamp);
+                    f32 transitionTime = static_cast<f32>(nextTimestamp - currentTimestamp);
+                    f32 relativeSeconds = static_cast<f32>(timeInSeconds - currentTimestamp);
 
-                f32 transitionProgress = relativeSeconds / transitionTime;
+                    f32 transitionProgress = relativeSeconds / transitionTime;
 
-                vec3 currentColor = UnpackUIntBGRToColor(lightIntBand->colorValues[currentIndex]);
-                vec3 nextColor = UnpackUIntBGRToColor(lightIntBand->colorValues[nextIndex]);
+                    vec3 currentColor = UnpackUIntBGRToColor(lightIntBand->colorValues[currentIndex]);
+                    vec3 nextColor = UnpackUIntBGRToColor(lightIntBand->colorValues[nextIndex]);
 
-                color = glm::mix(currentColor, nextColor, transitionProgress);
+                    color = glm::mix(currentColor, nextColor, transitionProgress);
+                }
             }
         }
 
@@ -255,39 +281,44 @@ AreaUpdateLightColorData AreaUpdateSystem::GetLightColorData(MapSingleton& mapSi
     // Get Diffuse Light
     {
         NDBC::LightIntBand* lightIntBand = mapSingleton.lightIntBandIdToDBC[lightIntBandStartId + 1];
-        vec3 color = UnpackUIntBGRToColor(lightIntBand->colorValues[0]);
+        vec3 color = vec3(0.0f, 0.0f, 0.0f);
 
-        if (lightIntBand->entries > 1)
+        if (lightIntBand->timeValues[0] < timeInSeconds)
         {
-            u32 currentIndex = 0;
-            u32 nextIndex = 0;
+            color = UnpackUIntBGRToColor(lightIntBand->colorValues[0]);
 
-            for (i32 i = lightIntBand->entries - 1; i >= 0; i--)
+            if (lightIntBand->entries > 1)
             {
-                if (lightIntBand->timeValues[i] <= timeInSeconds)
+                u32 currentIndex = std::numeric_limits<u32>().max();
+                u32 nextIndex = 0;
+
+                for (i32 i = lightIntBand->entries - 1; i >= 0; i--)
                 {
-                    currentIndex = i;
-                    break;
+                    if (lightIntBand->timeValues[i] <= timeInSeconds)
+                    {
+                        currentIndex = i;
+                        break;
+                    }
                 }
-            }
 
-            if (currentIndex < lightIntBand->entries - 1)
-                nextIndex = currentIndex + 1;
+                if (currentIndex < lightIntBand->entries - 1)
+                    nextIndex = currentIndex + 1;
 
-            // Lerp between Current the color of the current timestamp and the color of the next timestamp
-            {
-                u32 currentTimestamp = lightIntBand->timeValues[currentIndex];
-                u32 nextTimestamp = lightIntBand->timeValues[nextIndex];
+                // Lerp between Current the color of the current timestamp and the color of the next timestamp
+                {
+                    u32 currentTimestamp = lightIntBand->timeValues[currentIndex];
+                    u32 nextTimestamp = lightIntBand->timeValues[nextIndex];
 
-                f32 transitionTime = static_cast<f32>(nextTimestamp - currentTimestamp);
-                f32 relativeSeconds = static_cast<f32>(timeInSeconds - currentTimestamp);
+                    f32 transitionTime = static_cast<f32>(nextTimestamp - currentTimestamp);
+                    f32 relativeSeconds = static_cast<f32>(timeInSeconds - currentTimestamp);
 
-                f32 transitionProgress = relativeSeconds / transitionTime;
+                    f32 transitionProgress = relativeSeconds / transitionTime;
 
-                vec3 currentColor = UnpackUIntBGRToColor(lightIntBand->colorValues[currentIndex]);
-                vec3 nextColor = UnpackUIntBGRToColor(lightIntBand->colorValues[nextIndex]);
+                    vec3 currentColor = UnpackUIntBGRToColor(lightIntBand->colorValues[currentIndex]);
+                    vec3 nextColor = UnpackUIntBGRToColor(lightIntBand->colorValues[nextIndex]);
 
-                color = glm::mix(currentColor, nextColor, transitionProgress);
+                    color = glm::mix(currentColor, nextColor, transitionProgress);
+                }
             }
         }
 

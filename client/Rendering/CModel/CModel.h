@@ -7,7 +7,7 @@
 namespace CModel
 {
     constexpr u32 COMPLEX_MODEL_TOKEN = 10;
-    constexpr u32 COMPLEX_MODEL_VERSION = 2;
+    constexpr u32 COMPLEX_MODEL_VERSION = 3;
 
     struct ComplexVertex
     {
@@ -103,6 +103,7 @@ namespace CModel
         u32 vertexCount = 0;
         u32 indexStart = 0;
         u32 indexCount = 0;
+        u8 renderPriority = 0;
 
         // TODO: Add the remaining data later
 

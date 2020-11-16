@@ -51,6 +51,8 @@ class MapObjectRenderer
 
         u32 baseIndexOffset;
         u32 baseVertexOffset;
+        u32 baseVertexColor1Offset;
+        u32 baseVertexColor2Offset;
         u32 baseMaterialOffset;
     };
 
@@ -83,6 +85,8 @@ class MapObjectRenderer
     {
         u32 baseVertexOffset;
         u32 baseIndexOffset;
+        u32 baseVertexColor1Offset;
+        u32 baseVertexColor2Offset;
     };
 
     struct LoadedMapObject
@@ -124,6 +128,8 @@ public:
     void Clear();
 
     const std::vector<Terrain::CullingData>& GetCullingData() { return _cullingData; }
+    u32 GetNumLoadedMapObjects() { return static_cast<u32>(_loadedMapObjects.size()); }
+    u32 GetNumMapObjectPlacements() { return static_cast<u32>(_instances.size()); }
 
 private:
     void CreatePermanentResources();
@@ -158,6 +164,8 @@ private:
         u16 vertexColorTextureID1 = 0;
         u16 padding1;
         u32 vertexOffset;
+        u32 vertexColor1Offset;
+        u32 vertexColor2Offset;
     };
 
     struct InstanceData

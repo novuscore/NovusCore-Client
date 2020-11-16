@@ -32,15 +32,15 @@ struct MapSingleton
     MapSingleton() {}
 
     Terrain::Map currentMap;
-	u32 loadedMapHash = 0;
 
-	vec3 ambientLight;
-	vec3 diffuseLight;
-	vec3 lightDirection;
+	vec3 ambientLight = vec3(0.0f, 0.0f, 0.0f);
+	vec3 diffuseLight = vec3(0.0f, 0.0f, 0.0f);
+	vec3 lightDirection = vec3(0.0f, 0.0f, 0.0f);
 
 	robin_hood::unordered_map<u32, NDBC::Map*> mapIdToDBC;
 	robin_hood::unordered_map<u32, NDBC::Map*> mapNameToDBC;
 	robin_hood::unordered_map<u32, NDBC::Map*> mapInternalNameToDBC;
+	std::vector<const std::string*> mapNames;
 	std::vector<NDBC::Map> mapDBCEntries;
 
 	robin_hood::unordered_map<u32, NDBC::AreaTable*> areaIdToDBC;

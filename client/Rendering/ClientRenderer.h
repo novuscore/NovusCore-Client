@@ -46,6 +46,7 @@ public:
 
     void InitImgui();
     TerrainRenderer* GetTerrainRenderer() { return _terrainRenderer; }
+    CModelRenderer* GetCModelRenderer() { return _cModelRenderer; }
     DebugRenderer* GetDebugRenderer() { return _debugRenderer; }
 
     size_t GetVRAMUsage();

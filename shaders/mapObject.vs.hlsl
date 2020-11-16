@@ -14,6 +14,8 @@ struct InstanceLookupData
     uint16_t vertexColorTextureID1;
     uint16_t padding1;
     uint vertexOffset;
+    uint vertexColor1Offset;
+    uint vertexColor2Offset;
 };
 
 struct InstanceData
@@ -133,28 +135,29 @@ Vertex UnpackVertex(PackedVertex packedVertex)
     return vertex;
 }
 
-Vertex LoadVertex(uint vertexID, uint vertexColorTextureID0, uint vertexColorTextureID1, uint vertexOffset)
+Vertex LoadVertex(uint vertexID, uint vertexColor1Offset, uint vertexColor2Offset, uint vertexColorTextureID0, uint vertexColorTextureID1, uint vertexMeshOffset)
 {
     PackedVertex packedVertex = _vertices.Load<PackedVertex>(vertexID * 16);
     
     Vertex vertex = UnpackVertex(packedVertex);
 
-    uint offsetVertexID = vertexID - vertexOffset;
-    uint3 vertexColorUV = uint3(offsetVertexID % 1024, offsetVertexID / 1024, 0);
+    uint offsetVertex = vertexID - vertexMeshOffset;
 
-    /*if (vertexOffset > vertexID)
+    bool hasVertexColor1 = vertexColor1Offset != 0xffffffff;
     {
-        vertex.color0 = float4(1.0f, 0.0f, 0.0f, 1.0f);
-        vertex.color1 = float4(0.0f, 0.0f, 0.0f, 0.0f);
+        uint offsetVertexID1 = (offsetVertex + vertexColor1Offset) * hasVertexColor1;
+        uint3 vertexColorUV1 = uint3((float)offsetVertexID1 % 1024.0f, (float)offsetVertexID1 / 1024.0f, 0);
+
+        vertex.color0 = _textures[vertexColorTextureID0].Load(vertexColorUV1) * float4(hasVertexColor1, hasVertexColor1, hasVertexColor1, 1.0f);
     }
-    else
-    {
-        vertex.color0 = float4(0.0f, 1.0f, 0.0f, 1.0f);
-        vertex.color1 = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    }*/
 
-    vertex.color0 = _textures[vertexColorTextureID0].Load(vertexColorUV);
-    vertex.color1 = _textures[vertexColorTextureID1].Load(vertexColorUV);
+    bool hasVertexColor2 = vertexColor2Offset != 0xffffffff;
+    {
+        uint offsetVertexID2 = (offsetVertex + vertexColor2Offset) * hasVertexColor2;
+        uint3 vertexColorUV2 = uint3((float)offsetVertexID2 % 1024.0f, (float)offsetVertexID2 / 1024.0f, 0);
+
+        vertex.color1 = _textures[vertexColorTextureID1].Load(vertexColorUV2) * float4(hasVertexColor2, hasVertexColor2, hasVertexColor2, 1.0f);
+    }
 
     return vertex;
 }
@@ -163,7 +166,7 @@ VSOutput main(VSInput input)
 {
     VSOutput output;
 
-    InstanceLookupData lookupData = _instanceLookup.Load<InstanceLookupData>(input.instanceID * 16); // 16 = sizeof(InstanceLookupData)
+    InstanceLookupData lookupData = _instanceLookup.Load<InstanceLookupData>(input.instanceID * 24); // 24 = sizeof(InstanceLookupData)
     
     uint instanceID = lookupData.instanceID;
     uint vertexColorTextureID0 = lookupData.vertexColorTextureID0;
@@ -172,7 +175,7 @@ VSOutput main(VSInput input)
     uint materialParamID = lookupData.materialParamID;
 
     InstanceData instanceData = LoadInstanceData(instanceID);
-    Vertex vertex = LoadVertex(input.vertexID, vertexColorTextureID0, vertexColorTextureID1, vertexOffset);
+    Vertex vertex = LoadVertex(input.vertexID, lookupData.vertexColor1Offset, lookupData.vertexColor2Offset, vertexColorTextureID0, vertexColorTextureID1, vertexOffset);
 
     float4 position = float4(vertex.position, 1.0f);
     position = mul(position, instanceData.instanceMatrix);

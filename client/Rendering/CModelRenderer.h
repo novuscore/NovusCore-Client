@@ -50,6 +50,9 @@ public:
 
     void Clear();
 
+    u32 GetNumLoadedCModels() { return static_cast<u32>(_loadedComplexModels.size()); }
+    u32 GetNumCModelPlacements() { return static_cast<u32>(_instances.size()); }
+
 private:
     struct ComplexModelToBeLoaded
     {
@@ -113,6 +116,7 @@ private:
         u32 cullingDataID;
         u16 textureUnitOffset;
         u16 numTextureUnits;
+        u32 renderPriority;
     };
 
     struct LoadedComplexModel
@@ -128,14 +132,57 @@ private:
         std::vector<DrawCallData> transparentDrawCallDataTemplates;
     };
 
-    struct CullingConstants
+    struct CullConstants
     {
         vec4 frustumPlanes[6];
         vec3 cameraPos;
         u32 maxDrawCount;
     };
 
+    struct SortConstants
+    {
+        vec3 referencePosition;
+        u32 level;
+        u32 levelMask;
+        u32 width;
+        u32 height;
+    };
+
+    struct SortParams
+    {
+        vec3 refPosition;
+        u32 level;
+        u32 levelMask;
+        u32 width;
+        u32 height;
+        u32 dispatchX;
+        u32 dispatchY;
+        u32 dispatchZ;
+    };
+
+    struct TransposeConstants
+    {
+        u32 level;
+        u32 levelMask;
+        u32 width;
+        u32 height;
+    };
+
+    struct TransposeParams
+    {
+        u32 level;
+        u32 levelMask;
+        u32 width;
+        u32 height;
+        u32 dispatchX;
+        u32 dispatchY;
+        u32 dispatchZ;
+    };
+
 private:
+    void SortDrawCalls(Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const SortParams& sortParams);
+    void TransposeDrawCalls(Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const TransposeParams& transposeParams);
+
     void CreatePermanentResources();
 
     bool LoadComplexModel(ComplexModelToBeLoaded& complexModelToBeLoaded, LoadedComplexModel& complexModel);
@@ -152,6 +199,7 @@ private:
 
     Renderer::SamplerID _sampler;
     Renderer::DescriptorSet _cullingDescriptorSet;
+    Renderer::DescriptorSet _sortingDescriptorSet;
     Renderer::DescriptorSet _passDescriptorSet;
 
     std::vector<ComplexModelToBeLoaded> _complexModelsToBeLoaded;
@@ -176,15 +224,16 @@ private:
     Renderer::BufferID _instanceBuffer;
     Renderer::BufferID _cullingDataBuffer;
 
-    Renderer::Buffer<CullingConstants>* _opaqueCullingConstantBuffer;
+    Renderer::Buffer<CullConstants>* _opaqueCullConstantBuffer;
     Renderer::BufferID _opaqueDrawCallBuffer;
     Renderer::BufferID _opaqueCulledDrawCallBuffer;
     Renderer::BufferID _opaqueDrawCallDataBuffer;
     Renderer::BufferID _opaqueDrawCountBuffer;
 
-    Renderer::Buffer<CullingConstants>* _transparentCullingConstantBuffer;
+    Renderer::Buffer<CullConstants>* _transparentCullConstantBuffer;
     Renderer::BufferID _transparentDrawCallBuffer;
     Renderer::BufferID _transparentCulledDrawCallBuffer;
+    Renderer::BufferID _transparentCulledDrawCallBuffer2;
     Renderer::BufferID _transparentDrawCallDataBuffer;
     Renderer::BufferID _transparentDrawCountBuffer;
 

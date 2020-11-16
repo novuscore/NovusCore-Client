@@ -20,6 +20,8 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/implot.h"
 
+AutoCVar_Int CVAR_LightLockEnabled("lights.lock", "lock the light", 0, CVarFlags::EditCheckbox);
+AutoCVar_Int CVAR_LightUseDefaultEnabled("lights.useDefault", "Use the map's default light", 0, CVarFlags::EditCheckbox);
 
 const size_t FRAME_ALLOCATOR_SIZE = 8 * 1024 * 1024; // 8 MB
 u32 MAIN_RENDER_LAYER = "MainLayer"_h; // _h will compiletime hash the string into a u32
@@ -140,10 +142,13 @@ void ClientRenderer::Render()
     entt::registry* registry = ServiceLocator::GetGameRegistry();
     MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
 
-    _lightConstantBuffer->resource.ambientColor = vec4(mapSingleton.ambientLight, 1.0f);
-    _lightConstantBuffer->resource.lightColor = vec4(mapSingleton.diffuseLight, 1.0f);
-    _lightConstantBuffer->resource.lightDir = vec4(mapSingleton.lightDirection, 1.0f);
-    _lightConstantBuffer->Apply(_frameIndex);
+    if (!CVAR_LightLockEnabled.Get())
+    {
+        _lightConstantBuffer->resource.ambientColor = vec4(mapSingleton.ambientLight, 1.0f);
+        _lightConstantBuffer->resource.lightColor = vec4(mapSingleton.diffuseLight, 1.0f);
+        _lightConstantBuffer->resource.lightDir = vec4(mapSingleton.lightDirection, 1.0f);
+        _lightConstantBuffer->Apply(_frameIndex);
+    }
 
     _globalDescriptorSet.Bind("_viewData"_h, _viewConstantBuffer->GetBuffer(_frameIndex));
     _globalDescriptorSet.Bind("_lightData"_h, _lightConstantBuffer->GetBuffer(_frameIndex));

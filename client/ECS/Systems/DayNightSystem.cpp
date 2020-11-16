@@ -30,14 +30,31 @@ void DayNightSystem::Update(entt::registry& registry)
 
     if (ImGui::Begin("Clock"))
     {
-        if (ImGui::Button("Reset Time Multiplier"))
+        // Direct Time Manipulations
         {
-            CVAR_DayNightTimeMultiplier.Set(1.0);
+            if (ImGui::Button("Reset Time"))
+            {
+                SetInitialState(registry, dayNightSingleton.initialState);
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Set Time to Noon"))
+            {
+                dayNightSingleton.seconds = static_cast<f32>(DayNight_SecondsPerDay) / 2.0f;
+            }
         }
 
-        if (ImGui::Button("Reset Time"))
+        // Time Speed Manipulation
         {
-            SetInitialState(registry, dayNightSingleton.initialState);
+            if (ImGui::Button("Reset Speed"))
+            {
+                CVAR_DayNightTimeMultiplier.Set(1.0);
+            }
+
+            ImGui::SameLine();
+
+            ImGui::InputDouble("", CVAR_DayNightTimeMultiplier.GetPtr(), 1.0f, 10.f, "%.2f");
         }
 
         u32 totalSeconds = static_cast<u32>(dayNightSingleton.seconds);
@@ -51,9 +68,9 @@ void DayNightSystem::Update(entt::registry& registry)
         std::string secondsStr = seconds < 10 ? std::string("0").append(std::to_string(seconds)) : std::to_string(seconds);
 
         ImGui::Text("%s:%s:%s", hoursStr.c_str(), minsStr.c_str(), secondsStr.c_str());
-
-        ImGui::End();
     }
+
+    ImGui::End();
 }
 
 void DayNightSystem::SetInitialState(entt::registry& registry, DayNightTimestamp newInitialState)

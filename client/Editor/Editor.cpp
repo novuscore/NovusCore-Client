@@ -7,20 +7,23 @@
 #include "../Rendering/MapObjectRenderer.h"
 #include "../Rendering/DebugRenderer.h"
 #include "../Rendering/CameraFreelook.h"
-#include "../ECS/Components/Singletons/DBCSingleton.h"
+#include "../ECS/Components/Singletons/NDBCSingleton.h"
 #include "../ECS/Components/Singletons/MapSingleton.h"
 #include "../ECS/Components/Singletons/TextureSingleton.h"
 #include <CVar/CVarSystem.h>
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
 #include <entt.hpp>
+
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
+#include "imgui/misc/cpp/imgui_stdlib.h"
 
 namespace Editor
 {
     AutoCVar_Int CVAR_EditorEnabled("editor.Enable", "enable editor mode for the client", 1, CVarFlags::EditCheckbox);
-    AutoCVar_Int CVAR_EditorRayEnabled("editor..ray.Enable", "enable ray for debugging screen to world", 0, CVarFlags::EditCheckbox);
+
+    AutoCVar_Int CVAR_EditorRayEnabled("editor.ray.Enable", "enable ray for debugging screen to world", 0, CVarFlags::EditCheckbox);
     AutoCVar_VecFloat CVAR_EditorRayStartPosition("editor.ray.StartPosition", "", vec4(0, 0, 0, 0), CVarFlags::Noedit);
     AutoCVar_VecFloat CVAR_EditorRayEndPosition("editor.ray.EndPosition", "", vec4(0, 0, 0, 0), CVarFlags::Noedit);
 
@@ -40,7 +43,7 @@ namespace Editor
             debugRenderer->DrawLine3D(CVAR_EditorRayStartPosition.Get(), CVAR_EditorRayEndPosition.Get(), 0x00FF00FF);
         }
 
-        ImGui::Begin("Editor Info");
+        if (ImGui::Begin("Editor Info"))
         {
             if (_selectedBoundingBox.type != SelectedBoundingBoxType::NONE)
             {
@@ -67,8 +70,20 @@ namespace Editor
             ImGui::Spacing();
             ImGui::Spacing();
             ImGui::TextWrapped("You can clear your selection by using 'Shift + Mouse Left'");
+        }
 
-            ImGui::End();
+        ImGui::End();
+
+        _ndbcEditorHandler.Draw();
+    }
+
+    void Editor::DrawImguiMenuBar()
+    {
+        if (ImGui::BeginMenu("Editor"))
+        {
+            _ndbcEditorHandler.DrawImGuiMenuBar();
+
+            ImGui::EndMenu();
         }
     }
 
@@ -87,22 +102,30 @@ namespace Editor
 
         entt::registry* registry = ServiceLocator::GetGameRegistry();
         MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
-        DBCSingleton& dbcSingleton = registry->ctx<DBCSingleton>();
+        NDBCSingleton& ndbcSingleton = registry->ctx<NDBCSingleton>();
 
-        const NDBC::File& areaTableFile = dbcSingleton.nameHashToDBCFile["AreaTable"_h];
-        Terrain::Chunk& chunk = mapSingleton.currentMap.chunks[chunkId];
-        Terrain::Cell& cell = chunk.cells[cellId];
+        const NDBC::File& areaTableFile = ndbcSingleton.nameHashToDBCFile["AreaTable"_h];
+
+        auto itr = mapSingleton.currentMap.chunks.find(chunkId);
+        if (itr == mapSingleton.currentMap.chunks.end())
+            return;
+
+        Terrain::Chunk* chunk = &itr->second;
+        Terrain::Cell* cell = chunk ? &chunk->cells[cellId] : nullptr;
 
         // Draw AABB of current Chunk
         {
-            Geometry::AABoundingBox chunkAABB;
-            chunkAABB.min = vec3(chunkWorldPos.y, chunk.heightHeader.gridMinHeight, chunkWorldPos.x);
-            chunkAABB.max = vec3(chunkWorldPos.y - Terrain::MAP_CHUNK_SIZE, chunk.heightHeader.gridMaxHeight, chunkWorldPos.x - Terrain::MAP_CHUNK_SIZE);
+            if (chunk)
+            {
+                Geometry::AABoundingBox chunkAABB;
+                chunkAABB.min = vec3(chunkWorldPos.y, chunk->heightHeader.gridMinHeight, chunkWorldPos.x);
+                chunkAABB.max = vec3(chunkWorldPos.y - Terrain::MAP_CHUNK_SIZE, chunk->heightHeader.gridMaxHeight, chunkWorldPos.x - Terrain::MAP_CHUNK_SIZE);
 
-            debugRenderer->DrawAABB3D(chunkAABB.min, chunkAABB.max, 0xFF0000FF);
+                debugRenderer->DrawAABB3D(chunkAABB.min, chunkAABB.max, 0xFF0000FF);
+            }
         }
 
-        const NDBC::AreaTable* zone = mapSingleton.areaIdToDBC[cell.areaId];
+        const NDBC::AreaTable* zone = cell ? mapSingleton.areaIdToDBC[cell->areaId] : nullptr;
         const NDBC::AreaTable* area = nullptr;
 
         if (zone && zone->parentId)
@@ -111,19 +134,18 @@ namespace Editor
             zone = mapSingleton.areaIdToDBC[area->parentId];
         }
 
-
         ImGui::Text("Selected Chunk (%u)", chunkId);
         ImGui::BulletText("Zone: %s", zone ? areaTableFile.stringTable->GetString(zone->name).c_str() : "No Zone Name");
-        ImGui::BulletText("Map Object Placements: %u", chunk.mapObjectPlacements.size());
-        ImGui::BulletText("Complex Model Placements: %u", chunk.complexModelPlacements.size());
+        ImGui::BulletText("Map Object Placements: %u", chunk ? chunk->mapObjectPlacements.size() : 0);
+        ImGui::BulletText("Complex Model Placements: %u", chunk ? chunk->complexModelPlacements.size() : 0);
 
         ImGui::Spacing();
         ImGui::Spacing();
 
-        bool hasLiquid = chunk.liquidHeaders.size() > 0 ? chunk.liquidHeaders[cellId].packedData != 0 : false;
+        bool hasLiquid = chunk ? (chunk->liquidHeaders.size() > 0 ? chunk->liquidHeaders[cellId].packedData != 0 : false) : false;
         ImGui::Text("Selected Cell (%u)", cellId);
         ImGui::BulletText("Area: %s", area ? areaTableFile.stringTable->GetString(area->name).c_str() : "No Area Name");
-        ImGui::BulletText("Area Id: %u, Has Holes:%u, Has Liquid: %u", cell.areaId, cell.hole > 0, hasLiquid);
+        ImGui::BulletText("Area Id: %u, Has Holes: %u, Has Liquid: %u", cell ? cell->areaId : 0, cell ? cell->hole > 0 : 0, hasLiquid);
 
         ImGui::Spacing();
         ImGui::Spacing();
@@ -131,16 +153,18 @@ namespace Editor
         TextureSingleton& textureSingleton = registry->ctx<TextureSingleton>();
         for (u32 i = 0; i < 4; i++)
         {
-            Terrain::LayerData& layerData = cell.layers[i];
-            if (layerData.textureId != layerData.TextureIdInvalid)
+            if (cell)
             {
-                const std::string& texture = textureSingleton.textureHashToPath[layerData.textureId];
-                ImGui::BulletText("Texture %u: %s", i, texture.c_str());
+                Terrain::LayerData& layerData = cell->layers[i];
+                if (layerData.textureId != layerData.TextureIdInvalid)
+                {
+                    const std::string& texture = textureSingleton.textureHashToPath[layerData.textureId];
+                    ImGui::BulletText("Texture %u: %s", i, texture.c_str());
+                    continue;
+                }
             }
-            else
-            {
-                ImGui::BulletText("Texture %u: Unused", i);
-            }
+                
+            ImGui::BulletText("Texture %u: Unused", i);
         }
     }
 

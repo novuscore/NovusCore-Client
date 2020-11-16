@@ -75,9 +75,9 @@ namespace Terrain
     struct Placement
     {
         u32 nameID;
-        vec3 position;
-        vec3 rotation;
-        u16 scale;
+        vec3 position = vec3(17066.66602f, 0, 17066.66602f);
+        vec3 rotation = vec3(0, 0, 0);
+        u16 scale = 1024;
     };
 
     struct CellLiquidHeader

@@ -4,6 +4,7 @@
 #include <functional>
 
 #include <Containers/DynamicArray.h>
+#include <Memory/Allocator.h>
 
 #include "RenderStates.h"
 #include "RenderPassResources.h"
@@ -11,11 +12,6 @@
 #include "Descriptors/TextureDesc.h"
 #include "Descriptors/ImageDesc.h"
 #include "Descriptors/DepthImageDesc.h"
-
-namespace Memory
-{
-    class Allocator;
-}
 
 namespace Renderer
 {
@@ -27,6 +23,12 @@ namespace Renderer
     public:
         void InitializePipelineDesc(GraphicsPipelineDesc& desc);
         void InitializePipelineDesc(ComputePipelineDesc& desc);
+
+        template<typename T, typename... Args>
+        T* FrameNew(Args... args)
+        {
+            return Memory::Allocator::New<T>(_allocator, args...);
+        }
 
     private:
         RenderGraphResources(Memory::Allocator* allocator);
@@ -43,6 +45,8 @@ namespace Renderer
         RenderPassMutableResource GetMutableResource(DepthImageID id);
 
     private:
+        Memory::Allocator* _allocator = nullptr;
+
         DynamicArray<ImageID> _trackedImages;
         DynamicArray<TextureID> _trackedTextures;
         DynamicArray<DepthImageID> _trackedDepthImages;

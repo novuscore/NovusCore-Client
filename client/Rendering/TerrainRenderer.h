@@ -33,6 +33,11 @@ namespace Renderer
     class DescriptorSet;
 }
 
+namespace NDBC
+{
+    struct Map;
+}
+
 class Camera;
 class DebugRenderer;
 class MapObjectRenderer;
@@ -78,7 +83,7 @@ public:
 
     void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 
-    bool LoadMap(u32 mapInternalNameHash);
+    bool LoadMap(const NDBC::Map* map);
 
     const std::vector<Geometry::AABoundingBox>& GetBoundingBoxes() { return _cellBoundingBoxes; }
     MapObjectRenderer* GetMapObjectRenderer() { return _mapObjectRenderer; }

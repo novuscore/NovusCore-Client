@@ -42,24 +42,24 @@ namespace NDBC
 }
 
 struct MapSingleton;
-struct DBCSingleton;
+struct NDBCSingleton;
 class MapLoader
 {
 public:
     MapLoader() { }
 
     static bool Init(entt::registry* registry);
-    static bool LoadMap(entt::registry* registry, u32 mapInternalNameHash);
+    static bool LoadMap(entt::registry* registry, const NDBC::Map* map);
 
 private:
     static bool ExtractHeaderData(FileReader& reader, Terrain::MapHeader& header);
     static bool ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk, StringTable& stringTable);
 
-    static bool LoadMapDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
-    static bool LoadAreaTableDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
-    static bool LoadLightDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
-    static bool LoadLightParamsDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
-    static bool LoadLightIntBandDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
-    static bool LoadLightFloatBandDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
-    static bool LoadLightSkyboxDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton);
+    static bool LoadMapDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton);
+    static bool LoadAreaTableDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton);
+    static bool LoadLightDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton);
+    static bool LoadLightParamsDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton);
+    static bool LoadLightIntBandDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton);
+    static bool LoadLightFloatBandDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton);
+    static bool LoadLightSkyboxDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton);
 };

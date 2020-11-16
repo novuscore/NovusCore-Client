@@ -7,11 +7,12 @@ struct DrawCallData
     uint cullingDataID;
     uint16_t textureUnitOffset;
     uint16_t numTextureUnits;
+    uint renderPriority;
 };
 
 DrawCallData LoadDrawCallData(uint drawCallID)
 {
-    DrawCallData drawCallData = _drawCallDatas.Load<DrawCallData>(drawCallID * 12); // 12 = sizeof(DrawCallData)
+    DrawCallData drawCallData = _drawCallDatas.Load<DrawCallData>(drawCallID * 16); // 16 = sizeof(DrawCallData)
     
     return drawCallData;
 }

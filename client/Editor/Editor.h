@@ -1,6 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
 #include <Math/Geometry.h>
+#include "NDBC/NDBCEditorHandler.h"
 
 class Window;
 class Keybind;
@@ -27,6 +28,7 @@ namespace Editor
         Editor();
 
         void Update(f32 deltaTime);
+        void DrawImguiMenuBar();
 
     private:
         void HandleTerrainBoundingBox(DebugRenderer* debugRenderer);
@@ -37,5 +39,6 @@ namespace Editor
         bool OnMouseClickLeft(Window* window, std::shared_ptr<Keybind> keybind);
 
         SelectedBoundingBox _selectedBoundingBox;
+        NDBCEditorHandler _ndbcEditorHandler;
     };
 }

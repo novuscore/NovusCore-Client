@@ -26,9 +26,10 @@
 #include <robin_hood.h>
 #include "../../../Loaders/NDBC/NDBC.h"
 
-struct DBCSingleton
+struct NDBCSingleton
 {
-	DBCSingleton() {}
+	NDBCSingleton() {}
 
     robin_hood::unordered_map<u32, NDBC::File> nameHashToDBCFile;
+    std::vector<std::string> nDBCFilename;
 };

@@ -1,14 +1,21 @@
 #pragma once
 #include <NovusTypes.h>
-#include <Utils/ByteBuffer.h>
+#include <Utils/DynamicBytebuffer.h>
 #include <Containers/StringTable.h>
+#include <vector>
 
 namespace NDBC
 {
     constexpr i32 NDBC_TOKEN = 1313096259;
-    constexpr i32 NDBC_VERSION = 2;
+    constexpr i32 NDBC_VERSION = 3;
 
-    struct DBCHeader
+    struct NDBCColumn
+    {
+        std::string name;
+        u32 dataType; // 0 == I32, 1 == U32, 2 == F32
+    };
+
+    struct NDBCHeader
     {
         u32 token;
         u32 version;
@@ -16,9 +23,25 @@ namespace NDBC
 
     struct File
     {
-        DBCHeader header;
-        Bytebuffer* buffer;
+        NDBCHeader header;
+
+        std::vector<NDBCColumn> columns;
+        u32 numRows = 0;
+        size_t dataOffsetToRowData = 0;
+
+        DynamicBytebuffer* buffer;
         StringTable* stringTable;
+    };
+
+    struct TeleportLocation
+    {
+        u32 id;
+        u32 name;
+        i32 gameVersion;
+        u32 mapId;
+        vec3 position;
+        f32 yaw;
+        f32 pitch;
     };
 
     struct Map

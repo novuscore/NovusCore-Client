@@ -15,15 +15,16 @@ struct LightData
 
 float3 Lighting(float3 color, float3 vertexColor, float3 normal, bool isLit)
 {
-    /* For Indoor WMO Groups
-    
-    float nDotL = saturate(dot(normal, -normalize(_lightData.lightDir.xyz)));
+    // For Indoor WMO Groups
+    /*
+        float nDotL = saturate(dot(normal, -normalize(_lightData.lightDir.xyz)));
 
-    float3 lightColor = saturate((_lightData.lightColor.rgb * nDotL) + float3(0.003303f, 0.002263f, 0.001687f));// _lightData.ambientColor.rgb);
-    lightColor.rgb *= 0.5f;
-    lightColor.rgb += vertexColor.rgb;
-    lightColor.rgb = saturate(lightColor.rgb);
-    return color * (2.0f * lightColor);*/
+        float3 lightColor = saturate((_lightData.lightColor.rgb * nDotL) + float3(0.003303f, 0.002263f, 0.001687f));// _lightData.ambientColor.rgb);
+        lightColor.rgb *= 0.5f;
+        lightColor.rgb += vertexColor.rgb;
+        lightColor.rgb = saturate(lightColor.rgb);
+        return color * (2.0f * lightColor);
+    */
 
     float3 currColor;
     float3 lDiffuse = float3(0.0f, 0.0f, 0.0f);
@@ -47,9 +48,12 @@ float3 Lighting(float3 color, float3 vertexColor, float3 normal, bool isLit)
         accumlatedLight = float3(0.0f, 0.0f, 0.0f);
     }
 
-    /*float3 gammaDiffTerm = color * (currColor + lDiffuse);
-    float3 linearDiffTerm = (color * color) * accumlatedLight;
-    return sqrt(gammaDiffTerm * gammaDiffTerm + linearDiffTerm); */
+    // Experimental Gamma Correction
+    /*
+        float3 gammaDiffTerm = color * (currColor + lDiffuse);
+        float3 linearDiffTerm = (color * color) * accumlatedLight;
+        return sqrt(gammaDiffTerm * gammaDiffTerm + linearDiffTerm); 
+    */
     
     float3 gammaDiffTerm = color * (currColor + lDiffuse);
     return gammaDiffTerm;

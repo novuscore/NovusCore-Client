@@ -1,4 +1,5 @@
 #include "globalData.inc.hlsl"
+#include "cModel.inc.hlsl"
 
 struct Constants
 {
@@ -7,7 +8,7 @@ struct Constants
     uint maxDrawCount;
 };
 
-struct DrawCommand
+struct DrawCall
 {
     uint indexCount;
     uint instanceCount;
@@ -36,37 +37,20 @@ struct CullingData
     float sphereRadius;
 };
 
-struct InstanceLookupData
-{
-    uint16_t instanceID;
-    uint16_t materialParamID;
-    uint16_t cullingDataID;
-    uint16_t vertexColorTextureID0;
-    uint16_t vertexColorTextureID1;
-    uint16_t padding1;
-    uint vertexOffset;
-    uint vertexColor1Offset;
-    uint vertexColor2Offset;
-};
-
 struct InstanceData
 {
     float4x4 instanceMatrix;
 };
 
-[[vk::binding(0, PER_PASS)]] ByteAddressBuffer _argumentBuffer;
-[[vk::binding(1, PER_PASS)]] RWByteAddressBuffer _culledArgumentBuffer;
-[[vk::binding(2, PER_PASS)]] RWByteAddressBuffer _drawCountBuffer;
-
-[[vk::binding(3, PER_PASS)]] ByteAddressBuffer _cullingData;
-[[vk::binding(4, PER_PASS)]] ByteAddressBuffer _instanceLookup;
-[[vk::binding(5, PER_PASS)]] ByteAddressBuffer _instanceData;
-
-[[vk::binding(6, PER_PASS)]] ConstantBuffer<Constants> _constants;
+[[vk::binding(1, PER_PASS)]] RWByteAddressBuffer _drawCalls;
+[[vk::binding(2, PER_PASS)]] RWByteAddressBuffer _drawCount;
+[[vk::binding(3, PER_PASS)]] ByteAddressBuffer _instances;
+[[vk::binding(4, PER_PASS)]] ByteAddressBuffer _cullingDatas;
+[[vk::binding(5, PER_PASS)]] ConstantBuffer<Constants> _constants;
 
 CullingData LoadCullingData(uint instanceIndex)
 {
-    const PackedCullingData packed = _cullingData.Load<PackedCullingData>(instanceIndex * 16); // 16 = sizeof(PackedCullingData)
+    PackedCullingData packed = _cullingDatas.Load<PackedCullingData>(instanceIndex * 16); // 16 = sizeof(PackedCullingData)
     CullingData cullingData;
 
     cullingData.boundingBox.min.x = f16tof32(packed.data0);
@@ -86,7 +70,7 @@ InstanceData LoadInstanceData(uint instanceID)
 {
     InstanceData instanceData;
 
-    instanceData = _instanceData.Load<InstanceData>(instanceID * 64); // 64 = sizeof(InstanceData)
+    instanceData = _instances.Load<InstanceData>(instanceID * 64); // 64 = sizeof(InstanceData)
 
     return instanceData;
 }
@@ -147,15 +131,15 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         return;   
     }
     
-    const uint drawCommandIndex = dispatchThreadId.x;
+    // Load DrawCall
+    const uint drawCallIndex = dispatchThreadId.x;
+    DrawCall drawCall = _drawCalls.Load<DrawCall>(drawCallIndex * 20); // 20 = sizeof(DrawCall)
     
-    DrawCommand command = _argumentBuffer.Load<DrawCommand>(drawCommandIndex * 20); // 20 = sizeof(DrawCommand)
-    uint instanceID = command.firstInstance;
+    uint drawCallID = drawCall.firstInstance;
+    DrawCallData drawCallData = LoadDrawCallData(drawCallID);
     
-    const InstanceLookupData lookupData = _instanceLookup.Load<InstanceLookupData>(instanceID * 24); // 24 = sizeof(InstanceLookupData)
-    
-    const CullingData cullingData = LoadCullingData(lookupData.cullingDataID);
-    const InstanceData instanceData = LoadInstanceData(lookupData.instanceID);
+    const CullingData cullingData = LoadCullingData(drawCallData.cullingDataID);
+    const InstanceData instanceData = LoadInstanceData(drawCallData.instanceID);
     
     // Get center and extents
     float3 center = (cullingData.boundingBox.min + cullingData.boundingBox.max) * 0.5f;
@@ -175,13 +159,16 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     aabb.max = transformedCenter + transformedExtents;
     
     // Cull the AABB
-    if (!IsAABBInsideFrustum(_constants.frustumPlanes, aabb))
+    if (IsAABBInsideFrustum(_constants.frustumPlanes, aabb))
     {
+        // Increment drawcount
+        uint unnecessary;
+	    _drawCount.InterlockedAdd(0, 1, unnecessary);
+        
         return;
     }
     
-    uint outIndex;
-	_drawCountBuffer.InterlockedAdd(0, 1, outIndex);
-    
-	_culledArgumentBuffer.Store<DrawCommand>(outIndex * 20, command); // 20 = sizeof(DrawCommand)
+    // Disable DrawCall by settings its instanceCount to 0, the sorting will make sure it doesn't run by putting it at the end of the list of drawcalls
+    uint offset = (drawCallIndex * 20) + 4; // + 4 because that's the offset into the DrawCall for instanceCount
+    _drawCalls.Store(offset, 0);
 }

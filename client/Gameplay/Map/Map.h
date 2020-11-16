@@ -65,6 +65,9 @@ namespace Terrain
         robin_hood::unordered_map<u16, Chunk> chunks;
         robin_hood::unordered_map<u16, StringTable> stringTables;
 
+        bool IsLoadedMap() { return id != std::numeric_limits<u16>().max(); }
+        bool IsMapLoaded(u16 newId) { return id == newId; }
+
         /*f32 GetHeight(Vector2& pos);
         bool GetAdtIdFromWorldPosition(Vector2& pos, u16& adtId);*/
         void GetChunkPositionFromChunkId(u16 chunkId, u16& x, u16& y) const;

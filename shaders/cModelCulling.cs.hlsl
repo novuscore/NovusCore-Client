@@ -51,7 +51,7 @@ struct InstanceData
 
 CullingData LoadCullingData(uint instanceIndex)
 {
-    const PackedCullingData packed = _cullingDatas.Load<PackedCullingData>(instanceIndex * 16); // 16 = sizeof(PackedCullingData)
+    PackedCullingData packed = _cullingDatas.Load<PackedCullingData>(instanceIndex * 16); // 16 = sizeof(PackedCullingData)
     CullingData cullingData;
 
     cullingData.boundingBox.min.x = f16tof32(packed.data0);
@@ -137,7 +137,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     DrawCall drawCall = _drawCalls.Load<DrawCall>(drawCallIndex * 20); // 20 = sizeof(DrawCall)
     
     uint drawCallID = drawCall.firstInstance;
-    const DrawCallData drawCallData = LoadDrawCallData(drawCallID);
+    DrawCallData drawCallData = LoadDrawCallData(drawCallID);
     
     const CullingData cullingData = LoadCullingData(drawCallData.cullingDataID);
     const InstanceData instanceData = LoadInstanceData(drawCallData.instanceID);

@@ -45,7 +45,6 @@ public:
         RegisterCommand("quit"_h, &QuitCommand);
         RegisterCommand("ping"_h, &PingCommand);
         RegisterCommand("reload"_h, &ReloadCommand);
-        RegisterCommand("loadmap"_h, &LoadMapCommand);
     }
 
     void HandleCommand(EngineLoop& engineLoop, std::string& command)

@@ -8,7 +8,7 @@
 #include "../NDBC/NDBC.h"
 #include "../NDBC/NDBCLoader.h"
 #include "../../ECS/Components/Singletons/MapSingleton.h"
-#include "../../ECS/Components/Singletons/DBCSingleton.h"
+#include "../../ECS/Components/Singletons/NDBCSingleton.h"
 
 namespace fs = std::filesystem;
 
@@ -22,7 +22,7 @@ bool MapLoader::Init(entt::registry* registry)
     }
 
     MapSingleton& mapSingleton = registry->set<MapSingleton>();
-    DBCSingleton& dbcSingleton = registry->ctx<DBCSingleton>();
+    NDBCSingleton& ndbcSingleton = registry->ctx<NDBCSingleton>();
 
     if (mapSingleton.mapDBCEntries.size() != 0)
     {
@@ -30,51 +30,44 @@ bool MapLoader::Init(entt::registry* registry)
         return false;
     }
 
-    if (!LoadMapDBC(mapSingleton, dbcSingleton))
+    if (!LoadMapDBC(mapSingleton, ndbcSingleton))
         return false;
 
-    if (!LoadAreaTableDBC(mapSingleton, dbcSingleton))
+    if (!LoadAreaTableDBC(mapSingleton, ndbcSingleton))
         return false;
 
-    if (!LoadLightDBC(mapSingleton, dbcSingleton))
+    if (!LoadLightDBC(mapSingleton, ndbcSingleton))
         return false;
 
-    if (!LoadLightParamsDBC(mapSingleton, dbcSingleton))
+    if (!LoadLightParamsDBC(mapSingleton, ndbcSingleton))
         return false;
 
-    if (!LoadLightIntBandDBC(mapSingleton, dbcSingleton))
+    if (!LoadLightIntBandDBC(mapSingleton, ndbcSingleton))
         return false;
 
-    if (!LoadLightFloatBandDBC(mapSingleton, dbcSingleton))
+    if (!LoadLightFloatBandDBC(mapSingleton, ndbcSingleton))
         return false;
 
-    if (!LoadLightSkyboxDBC(mapSingleton, dbcSingleton))
+    if (!LoadLightSkyboxDBC(mapSingleton, ndbcSingleton))
         return false;
 
     return true;
 }
 
-bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
+bool MapLoader::LoadMap(entt::registry* registry, const NDBC::Map* map)
 {
     MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
-    DBCSingleton& dbcSingleton = registry->ctx<DBCSingleton>();
+    NDBCSingleton& ndbcSingleton = registry->ctx<NDBCSingleton>();
 
-    if (mapSingleton.loadedMapHash == mapInternalNameHash)
+    if (mapSingleton.currentMap.IsMapLoaded(map->id))
     {
+        NC_LOG_WARNING("Tried to Load Current Map (%s)", mapSingleton.currentMap.name.data());
         return false; // Don't reload the map we're on
     }
 
-    auto itr = mapSingleton.mapInternalNameToDBC.find(mapInternalNameHash);
-    if (itr == mapSingleton.mapInternalNameToDBC.end())
-    {
-        NC_LOG_ERROR("Tried to Load Map with no entry in Maps.ndbc");
-        return false;
-    }
-
-    const NDBC::File& mapFile = dbcSingleton.nameHashToDBCFile["Maps"_h];
-    const NDBC::Map* map = mapSingleton.mapInternalNameToDBC[mapInternalNameHash];
-
+    const NDBC::File& mapFile = ndbcSingleton.nameHashToDBCFile["Maps"_h];
     const std::string& mapInternalName = mapFile.stringTable->GetString(map->internalName);
+
     fs::path absolutePath = std::filesystem::absolute("Data/extracted/maps/" + mapInternalName);
     if (!fs::is_directory(absolutePath))
     {
@@ -103,7 +96,7 @@ bool MapLoader::LoadMap(entt::registry* registry, u32 mapInternalNameHash)
         FileReader mapHeaderFile(entry.path().string(), file.filename().string());
         if (!mapHeaderFile.Open())
         {
-            NC_LOG_ERROR("Failed to map (%s)", mapInternalName.c_str());
+            NC_LOG_ERROR("Failed to read map (%s)", mapInternalName.c_str());
             return false;
         }
 
@@ -325,12 +318,12 @@ bool MapLoader::ExtractChunkData(FileReader& reader, Terrain::Chunk& chunk, Stri
     return true;
 }
 
-bool MapLoader::LoadMapDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+bool MapLoader::LoadMapDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton)
 {
     // Load Maps.ndbc
     {
-        auto itr = dbcSingleton.nameHashToDBCFile.find("Maps"_h);
-        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        auto itr = ndbcSingleton.nameHashToDBCFile.find("Maps"_h);
+        if (itr == ndbcSingleton.nameHashToDBCFile.end())
         {
             NC_LOG_ERROR("Maps.ndbc has not been loaded, please check your data folder.");
             return false;
@@ -342,26 +335,35 @@ bool MapLoader::LoadMapDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleto
             return false;
         }
 
+        size_t numMaps = mapSingleton.mapDBCEntries.size();
+
+        mapSingleton.mapIdToDBC.reserve(numMaps);
+        mapSingleton.mapNameToDBC.reserve(numMaps);
+        mapSingleton.mapInternalNameToDBC.reserve(numMaps);
+        mapSingleton.mapNames.reserve(numMaps);
+
         for (NDBC::Map& map : mapSingleton.mapDBCEntries)
         {
+            const std::string& mapName = itr->second.stringTable->GetString(map.name);
             u32 mapNameHash = itr->second.stringTable->GetStringHash(map.name);
             u32 mapInternalNameHash = itr->second.stringTable->GetStringHash(map.internalName);
 
             mapSingleton.mapIdToDBC[map.id] = &map;
             mapSingleton.mapNameToDBC[mapNameHash] = &map;
             mapSingleton.mapInternalNameToDBC[mapInternalNameHash] = &map;
+            mapSingleton.mapNames.push_back(&mapName);
         }
     }
 
     return true;
 }
 
-bool MapLoader::LoadAreaTableDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+bool MapLoader::LoadAreaTableDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton)
 {
     // Load AreaTable.ndbc
     {
-        auto itr = dbcSingleton.nameHashToDBCFile.find("AreaTable"_h);
-        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        auto itr = ndbcSingleton.nameHashToDBCFile.find("AreaTable"_h);
+        if (itr == ndbcSingleton.nameHashToDBCFile.end())
         {
             NC_LOG_ERROR("AreaTable.ndbc has not been loaded, please check your data folder.");
             return false;
@@ -385,12 +387,12 @@ bool MapLoader::LoadAreaTableDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSi
     return true;
 }
 
-bool MapLoader::LoadLightDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+bool MapLoader::LoadLightDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton)
 {
     // Load Light.ndbc
     {
-        auto itr = dbcSingleton.nameHashToDBCFile.find("Light"_h);
-        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        auto itr = ndbcSingleton.nameHashToDBCFile.find("Light"_h);
+        if (itr == ndbcSingleton.nameHashToDBCFile.end())
         {
             NC_LOG_ERROR("Light.ndbc has not been loaded, please check your data folder.");
             return false;
@@ -419,12 +421,12 @@ bool MapLoader::LoadLightDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingle
     return true;
 }
 
-bool MapLoader::LoadLightParamsDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+bool MapLoader::LoadLightParamsDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton)
 {
     // Load LightParams.ndbc
     {
-        auto itr = dbcSingleton.nameHashToDBCFile.find("LightParams"_h);
-        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        auto itr = ndbcSingleton.nameHashToDBCFile.find("LightParams"_h);
+        if (itr == ndbcSingleton.nameHashToDBCFile.end())
         {
             NC_LOG_ERROR("LightParams.ndbc has not been loaded, please check your data folder.");
             return false;
@@ -445,12 +447,12 @@ bool MapLoader::LoadLightParamsDBC(MapSingleton& mapSingleton, DBCSingleton& dbc
     return true;
 }
 
-bool MapLoader::LoadLightIntBandDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+bool MapLoader::LoadLightIntBandDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton)
 {
     // Load LightIntBand.ndbc
     {
-        auto itr = dbcSingleton.nameHashToDBCFile.find("LightIntBand"_h);
-        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        auto itr = ndbcSingleton.nameHashToDBCFile.find("LightIntBand"_h);
+        if (itr == ndbcSingleton.nameHashToDBCFile.end())
         {
             NC_LOG_ERROR("LightIntBand.ndbc has not been loaded, please check your data folder.");
             return false;
@@ -471,12 +473,12 @@ bool MapLoader::LoadLightIntBandDBC(MapSingleton& mapSingleton, DBCSingleton& db
     return true;
 }
 
-bool MapLoader::LoadLightFloatBandDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+bool MapLoader::LoadLightFloatBandDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton)
 {
     // Load LightFloatBand.ndbc
     {
-        auto itr = dbcSingleton.nameHashToDBCFile.find("LightFloatBand"_h);
-        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        auto itr = ndbcSingleton.nameHashToDBCFile.find("LightFloatBand"_h);
+        if (itr == ndbcSingleton.nameHashToDBCFile.end())
         {
             NC_LOG_ERROR("LightFloatBand.ndbc has not been loaded, please check your data folder.");
             return false;
@@ -497,12 +499,12 @@ bool MapLoader::LoadLightFloatBandDBC(MapSingleton& mapSingleton, DBCSingleton& 
     return true;
 }
 
-bool MapLoader::LoadLightSkyboxDBC(MapSingleton& mapSingleton, DBCSingleton& dbcSingleton)
+bool MapLoader::LoadLightSkyboxDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSingleton)
 {
     // Load LightSkybox.ndbc
     {
-        auto itr = dbcSingleton.nameHashToDBCFile.find("LightSkybox"_h);
-        if (itr == dbcSingleton.nameHashToDBCFile.end())
+        auto itr = ndbcSingleton.nameHashToDBCFile.find("LightSkybox"_h);
+        if (itr == ndbcSingleton.nameHashToDBCFile.end())
         {
             NC_LOG_ERROR("LightSkybox.ndbc has not been loaded, please check your data folder.");
             return false;

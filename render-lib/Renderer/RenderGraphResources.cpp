@@ -4,7 +4,8 @@
 namespace Renderer
 {
 	RenderGraphResources::RenderGraphResources(Memory::Allocator* allocator)
-		: _trackedImages(allocator, 32)
+		: _allocator(allocator)
+        , _trackedImages(allocator, 32)
 		, _trackedTextures(allocator, 32)
 		, _trackedDepthImages(allocator, 32)
 	{

@@ -8,25 +8,25 @@
 #include "../NDBC/NDBC.h"
 #include "../NDBC/NDBCLoader.h"
 #include "../../ECS/Components/Singletons/DisplayInfoSingleton.h"
-#include "../../ECS/Components/Singletons/DBCSingleton.h"
+#include "../../ECS/Components/Singletons/NDBCSingleton.h"
 
 namespace fs = std::filesystem;
 
 bool DisplayInfoLoader::Init(entt::registry* registry)
 {
-    DBCSingleton& dbcSingleton = registry->ctx<DBCSingleton>();
+    NDBCSingleton& ndbcSingleton = registry->ctx<NDBCSingleton>();
     DisplayInfoSingleton& displayInfoSingleton = registry->set<DisplayInfoSingleton>();
 
-    if (!LoadCreatureModelDataDBC(dbcSingleton, displayInfoSingleton))
+    if (!LoadCreatureModelDataDBC(ndbcSingleton, displayInfoSingleton))
         return false;
 
-    if (!LoadCreatureDisplayInfoDBC(dbcSingleton, displayInfoSingleton))
+    if (!LoadCreatureDisplayInfoDBC(ndbcSingleton, displayInfoSingleton))
         return false;
 
     return true;
 }
 
-bool DisplayInfoLoader::LoadCreatureDisplayInfoDBC(DBCSingleton& dbcSingleton, DisplayInfoSingleton& displayInfoSingleton)
+bool DisplayInfoLoader::LoadCreatureDisplayInfoDBC(NDBCSingleton& ndbcSingleton, DisplayInfoSingleton& displayInfoSingleton)
 {
     if (displayInfoSingleton.creatureDisplayInfoDBCFiles.size() != 0)
     {
@@ -34,8 +34,8 @@ bool DisplayInfoLoader::LoadCreatureDisplayInfoDBC(DBCSingleton& dbcSingleton, D
         return false;
     }
 
-    auto itr = dbcSingleton.nameHashToDBCFile.find("CreatureDisplayInfo"_h);
-    if (itr == dbcSingleton.nameHashToDBCFile.end())
+    auto itr = ndbcSingleton.nameHashToDBCFile.find("CreatureDisplayInfo"_h);
+    if (itr == ndbcSingleton.nameHashToDBCFile.end())
     {
         NC_LOG_ERROR("CreatureDisplayInfo.ndbc has not been loaded, please check your data folder.");
         return false;
@@ -55,7 +55,7 @@ bool DisplayInfoLoader::LoadCreatureDisplayInfoDBC(DBCSingleton& dbcSingleton, D
     return true;
 }
 
-bool DisplayInfoLoader::LoadCreatureModelDataDBC(DBCSingleton& dbcSingleton, DisplayInfoSingleton& displayInfoSingleton)
+bool DisplayInfoLoader::LoadCreatureModelDataDBC(NDBCSingleton& ndbcSingleton, DisplayInfoSingleton& displayInfoSingleton)
 {
     if (displayInfoSingleton.creatureModelDataDBCFiles.size() != 0)
     {
@@ -63,8 +63,8 @@ bool DisplayInfoLoader::LoadCreatureModelDataDBC(DBCSingleton& dbcSingleton, Dis
         return false;
     }
 
-    auto itr = dbcSingleton.nameHashToDBCFile.find("CreatureModelData"_h);
-    if (itr == dbcSingleton.nameHashToDBCFile.end())
+    auto itr = ndbcSingleton.nameHashToDBCFile.find("CreatureModelData"_h);
+    if (itr == ndbcSingleton.nameHashToDBCFile.end())
     {
         NC_LOG_ERROR("CreatureModelData.ndbc has not been loaded, please check your data folder.");
         return false;

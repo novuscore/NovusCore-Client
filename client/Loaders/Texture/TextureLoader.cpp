@@ -1,43 +1,69 @@
 #include "TextureLoader.h"
 #include <Containers/StringTable.h>
 #include <filesystem>
+#include <execution>
 #include <entt.hpp>
 
 #include "../../ECS/Components/Singletons/TextureSingleton.h"
 
 namespace fs = std::filesystem;
 
+struct TexturePair
+{
+    u32 hash;
+    std::string path;
+};
+
 bool TextureLoader::Load(entt::registry* registry)
 {
     TextureSingleton& textureSingleton = registry->set<TextureSingleton>();
 
     fs::path relativeParentPath = "Data/extracted/Textures";
-    fs::path absolutePath = std::filesystem::absolute(relativeParentPath);
+    fs::path absolutePath = std::filesystem::absolute(relativeParentPath).make_preferred();
+
+    std::string absolutePathStr = absolutePath.string();
+    size_t subStrIndex = absolutePathStr.length() + 1; // + 1 here for folder seperator
+
     if (!fs::is_directory(absolutePath))
     {
         NC_LOG_ERROR("Failed to find Textures folder");
         return false;
     }
 
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(absolutePath))
+    static const fs::path fileExtension = ".dds";
+
+    std::vector<std::filesystem::path> paths;
+    moodycamel::ConcurrentQueue<TexturePair> texturePairs;
+
+    std::filesystem::recursive_directory_iterator dirpos { absolutePath };
+    std::copy(begin(dirpos), end(dirpos), std::back_inserter(paths));
+
+    std::for_each(std::execution::par, std::begin(paths), std::end(paths), [&subStrIndex, &relativeParentPath, &texturePairs](const std::filesystem::path& path)
     {
-        auto path = std::filesystem::path(entry.path());
+        if (!path.has_extension() || path.extension().compare(fileExtension) != 0) 
+            return;
 
-        if (fs::is_directory(path) || path.extension() != ".dds")
-            continue;
+        std::string texturePath = path.string().substr(subStrIndex);
 
-        fs::path relativePath = fs::relative(path, relativeParentPath);
-        std::string texturePath = relativePath.string();
+        TexturePair texturePair;
+        texturePair.path = texturePath;
+        texturePair.hash = StringUtils::fnv1a_32(texturePath.c_str(), texturePath.length());
 
-        u32 pathHash = StringUtils::fnv1a_32(texturePath.c_str(), texturePath.length());
+        texturePairs.enqueue(texturePair);
+    });
 
-        auto itr = textureSingleton.textureHashToPath.find(pathHash);
+    textureSingleton.textureHashToPath.reserve(texturePairs.size_approx());
+
+    TexturePair texturePair;
+    while (texturePairs.try_dequeue(texturePair))
+    {
+        auto itr = textureSingleton.textureHashToPath.find(texturePair.hash);
         if (itr != textureSingleton.textureHashToPath.end())
         {
-            NC_LOG_ERROR("Found duplicate texture hash (%u) Existing Texture Path: (%s), New Texture Path: (%s)", pathHash, itr->second.c_str(), texturePath.c_str());
+            NC_LOG_ERROR("Found duplicate texture hash (%u) for Path (%s)", texturePair.hash, texturePair.path.c_str()); // This error cannot be more specific when loading in parallel unless we copy more data.
         }
 
-        textureSingleton.textureHashToPath[pathHash] = (relativeParentPath / relativePath).string();
+        textureSingleton.textureHashToPath[texturePair.hash] = (relativeParentPath / texturePair.path).string();
     }
 
     NC_LOG_SUCCESS("Loaded Texture %u entries", textureSingleton.textureHashToPath.size());

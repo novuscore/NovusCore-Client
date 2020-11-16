@@ -103,6 +103,8 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
             GPU_SCOPED_PROFILER_ZONE(commandList, MapObjectPass);
 
             u32 drawCount = static_cast<u32>(_drawParameters.size());
+            if (drawCount == 0)
+                return;
 
             // -- Cull MapObjects --
             if (cullingEnabled)
@@ -225,6 +227,9 @@ void MapObjectRenderer::RegisterMapObjectsToBeLoaded(const Terrain::Chunk& chunk
 void MapObjectRenderer::ExecuteLoad()
 {
     size_t numMapObjectsToLoad = _mapObjectsToBeLoaded.size();
+
+    if (numMapObjectsToLoad == 0)
+        return;
 
     for (MapObjectToBeLoaded& mapObjectToBeLoaded : _mapObjectsToBeLoaded)
     {
@@ -585,6 +590,9 @@ bool MapObjectRenderer::LoadIndicesAndVertices(Bytebuffer& buffer, Mesh& mesh, L
         return false;
 
     // Vertex colors
+    mesh.baseVertexColor1Offset = numVertexColorSets > 0 ? static_cast<u32>(mapObject.vertexColors[0].size()) : std::numeric_limits<u32>().max();
+    mesh.baseVertexColor2Offset = numVertexColorSets > 1 ? static_cast<u32>(mapObject.vertexColors[1].size()) : std::numeric_limits<u32>().max();
+
     for (u32 i = 0; i < numVertexColorSets; i++)
     {
         // Read number of vertex colors
@@ -636,6 +644,8 @@ bool MapObjectRenderer::LoadRenderBatches(Bytebuffer& buffer, Mesh& mesh, Loaded
         RenderBatchOffsets& renderBatchOffsets = mapObject.renderBatchOffsets.emplace_back();
         renderBatchOffsets.baseVertexOffset = mesh.baseVertexOffset;
         renderBatchOffsets.baseIndexOffset = mesh.baseIndexOffset;
+        renderBatchOffsets.baseVertexColor1Offset = mesh.baseVertexColor1Offset;
+        renderBatchOffsets.baseVertexColor2Offset = mesh.baseVertexColor2Offset;
 
         u32 renderBatchIndex = renderBatchesSize + i;
         Terrain::RenderBatch& renderBatch = mapObject.renderBatches[renderBatchIndex];
@@ -700,6 +710,8 @@ void MapObjectRenderer::AddInstance(LoadedMapObject& mapObject, const Terrain::P
         instanceLookupData.vertexColorTextureID0 = static_cast<u16>(mapObject.vertexColorTextureIDs[0]);
         instanceLookupData.vertexColorTextureID1 = static_cast<u16>(mapObject.vertexColorTextureIDs[1]);
         instanceLookupData.vertexOffset = renderBatchOffsets.baseVertexOffset;
+        instanceLookupData.vertexColor1Offset = renderBatchOffsets.baseVertexColor1Offset;
+        instanceLookupData.vertexColor2Offset = renderBatchOffsets.baseVertexColor2Offset;
     }
 
     mapObject.instanceCount++;

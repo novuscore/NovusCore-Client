@@ -23,34 +23,27 @@
 */
 #pragma once
 #include <NovusTypes.h>
-#include <Utils/FileReader.h>
 #include <entity/fwd.hpp>
-#include <vector>
 
-class StringTable;
-namespace Terrain
+#include <Filesystem>
+namespace fs = std::filesystem;
+
+enum class ConfigSaveType
 {
-    struct Chunk;
-}
+    ALL,
+    CVAR,
+    UI
+};
 
-namespace NDBC
-{
-    struct File;
-    struct CreatureDisplayInfo;
-    struct CreatureModelData;
-}
-
-struct NDBCSingleton;
-struct DisplayInfoSingleton;
-
-class DisplayInfoLoader
+class ConfigLoader
 {
 public:
-    DisplayInfoLoader() { }
+    ConfigLoader() { }
 
     static bool Init(entt::registry* registry);
+    static bool Save(ConfigSaveType saveType);
 
-private:
-    static bool LoadCreatureModelDataDBC(NDBCSingleton& ndbcSingleton, DisplayInfoSingleton& displayInfoSingleton);
-    static bool LoadCreatureDisplayInfoDBC(NDBCSingleton& ndbcSingleton, DisplayInfoSingleton& displayInfoSingleton);
+    static const fs::path configFolderPath;
+    static const fs::path cvarConfigPath;
+    static const fs::path uiConfigPath;
 };

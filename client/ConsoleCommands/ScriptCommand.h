@@ -40,34 +40,3 @@ void ReloadCommand(EngineLoop& engineLoop, std::vector<std::string> subCommands)
 
     engineLoop.PassMessage(reloadMessage);
 }
-
-void LoadMapCommand(EngineLoop& engineLoop, std::vector<std::string> subCommands)
-{
-    size_t argSize = subCommands.size();
-    if (argSize == 0)
-        return;
-
-    std::string& mapInternalName = subCommands[0];
-    vec2 pos(0, 0);
-
-    if (argSize > 1)
-        pos.x = static_cast<f32>(std::stol(subCommands[1]));
-
-    if (argSize > 2)
-        pos.y = static_cast<f32>(std::stol(subCommands[2]));
-
-    pos *= 533.33f;
-    pos = 17066.66656f - pos;
-
-    u32 mapInternalNameHash = StringUtils::fnv1a_32(mapInternalName.c_str(), mapInternalName.size());
-
-    LoadMapInfo* loadMapInfo = new LoadMapInfo();
-    loadMapInfo->mapInternalNameHash = mapInternalNameHash;
-    loadMapInfo->x = pos.x;
-    loadMapInfo->y = pos.y;
-
-    Message loadMapMessage;
-    loadMapMessage.code = MSG_IN_LOAD_MAP;
-    loadMapMessage.object = loadMapInfo;
-    engineLoop.PassMessage(loadMapMessage);
-}
