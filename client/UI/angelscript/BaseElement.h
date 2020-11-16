@@ -62,6 +62,8 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("bool IsParentVisible()", asMETHOD(T, IsParentVisible)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetVisible(bool visible)", asMETHOD(T, SetVisible)); assert(r >= 0);
 
+            r = ScriptEngine::RegisterScriptClassFunction("void SetCollisionEnabled(bool enabled)", asMETHOD(T, SetCollisionEnabled)); assert(r >= 0);
+
             r = ScriptEngine::RegisterScriptClassFunction("void MarkDirty()", asMETHOD(T, MarkDirty)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void MarkSelfDirty()", asMETHOD(T, MarkSelfDirty)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void MarkBoundsDirty()", asMETHOD(T, MarkBoundsDirty)); assert(r >= 0);
