@@ -119,6 +119,9 @@ namespace UIScripting
         void MarkBoundsDirty();
 
     protected:
+        // Quick set up default children without doing all the checks and updates that SetParent() does. Used for elements like checkboxes, buttons & sliders.
+        void InternalAddChild(BaseElement* element);
+
         entt::entity _entityId;
         UI::ElementType _elementType;
     };

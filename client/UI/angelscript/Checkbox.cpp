@@ -7,10 +7,8 @@
 
 #include "../ECS/Components/Transform.h"
 #include "../ECS/Components/TransformEvents.h"
-#include "../ECS/Components/Relation.h"
 #include "../ECS/Components/Renderable.h"
 #include "../ECS/Components/Image.h"
-#include "../ECS/Components/SortKey.h"
 #include "../ECS/Components/Checkbox.h"
 #include "../Utils/EventUtils.h"
 
@@ -29,12 +27,9 @@ namespace UIScripting
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
 
         _checkPanel = Panel::CreatePanel(false);
-        auto [checkTransform, checkRelation, checkSortKey] = registry->get<UIComponent::Transform, UIComponent::Relation, UIComponent::SortKey>(_checkPanel->GetEntityId());
-        checkTransform.SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
-        checkRelation.parent = _entityId;
-        checkSortKey.data.depth++;
-
-        registry->get<UIComponent::Relation>(_entityId).children.push_back({ _checkPanel->GetEntityId(), _checkPanel->GetType() });
+        InternalAddChild(_checkPanel);
+        auto checkTransform = &registry->get<UIComponent::Transform>(_checkPanel->GetEntityId());
+        checkTransform->SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
     }
 
     void Checkbox::RegisterType()

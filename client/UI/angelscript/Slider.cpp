@@ -5,9 +5,7 @@
 
 #include "../ECS/Components/Transform.h"
 #include "../ECS/Components/TransformEvents.h"
-#include "../ECS/Components/Relation.h"
 #include "../ECS/Components/Image.h"
-#include "../ECS/Components/SortKey.h"
 #include "../ECS/Components/Renderable.h"
 #include "../ECS/Components/Slider.h"
 #include "../Utils/TransformUtils.h"
@@ -30,13 +28,9 @@ namespace UIScripting
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
 
         _handle = SliderHandle::CreateSliderHandle(this);
-        auto [handleTransform, handleRelation, handleSortKey] = registry->get<UIComponent::Transform, UIComponent::Relation, UIComponent::SortKey>(_handle->GetEntityId());
-        handleTransform.SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
-        handleTransform.localAnchor = vec2(0.5f, 0.5f);
-        handleRelation.parent = _entityId;
-        handleSortKey.data.depth++;
-
-        registry->get<UIComponent::Relation>(_entityId).children.push_back({ _handle->GetEntityId(), _handle->GetType() });
+        InternalAddChild(_handle);
+        auto handleTransform = &registry->get<UIComponent::Transform>(_handle->GetEntityId());
+        handleTransform->localAnchor = vec2(0.5f, 0.5f);
     }
 
     void Slider::RegisterType()

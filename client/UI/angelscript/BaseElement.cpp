@@ -14,6 +14,7 @@
 #include "../ECS/Components/Dirty.h"
 #include "../ECS/Components/BoundsDirty.h"
 #include "../ECS/Components/Destroy.h"
+#include "../ECS/Components/Root.h"
 
 #include "../Utils/ElementUtils.h"
 #include "../Utils/TransformUtils.h"
@@ -36,6 +37,7 @@ namespace UIScripting
 
         registry->emplace<UIComponent::Transform>(_entityId);
         registry->emplace<UIComponent::Relation>(_entityId);
+        registry->emplace<UIComponent::Root>(_entityId);
 
         UIComponent::SortKey* sortKey = &registry->emplace<UIComponent::SortKey>(_entityId);
         sortKey->data.entId = _entityId;
@@ -225,6 +227,7 @@ namespace UIScripting
             NC_LOG_ERROR("Tried calling SetParent() on Element(ID: %d, Type: %d) with a parent. You must call UnsetParent() first.", entt::to_integral(_entityId), _elementType)
             return;
         }
+        registry->remove<UIComponent::Root>(_entityId);
         relation->parent = parent->GetEntityId();
 
         auto [parentRelation, parentTransform, parentSortKey] = registry->get<UIComponent::Relation, UIComponent::Transform, UIComponent::SortKey>(relation->parent);
@@ -256,6 +259,7 @@ namespace UIScripting
             return;
 
         UIUtils::RemoveFromParent(registry, _entityId);
+        registry->emplace<UIComponent::Root>(_entityId);
     }
 
     bool BaseElement::GetCollisionIncludesChildren() const
@@ -315,9 +319,9 @@ namespace UIScripting
         collision->ToggleFlag(UI::CollisionFlags::COLLISION);
 
         if (enabled)
-            registry->emplace<UIComponent::Collision>(_entityId);
+            registry->emplace<UIComponent::Collidable>(_entityId);
         else
-            registry->remove<UIComponent::Collision>(_entityId);
+            registry->remove<UIComponent::Collidable>(_entityId);
     }
 
     void BaseElement::Destroy(bool destroyChildren)
@@ -351,5 +355,16 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         if (!registry->has<UIComponent::BoundsDirty>(_entityId))
             registry->emplace<UIComponent::BoundsDirty>(_entityId);
+    }
+
+    void BaseElement::InternalAddChild(BaseElement* element)
+    {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        auto [elementTransform, elementRelation, elementSortKey] = registry->get<UIComponent::Transform, UIComponent::Relation, UIComponent::SortKey>(element->GetEntityId());
+        elementRelation.parent = _entityId;
+        elementSortKey.data.depth++;
+        registry->remove<UIComponent::Root>(element->GetEntityId());
+
+        registry->get<UIComponent::Relation>(_entityId).children.push_back({ element->GetEntityId(), element->GetType() });
     }
 }

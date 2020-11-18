@@ -6,6 +6,8 @@
 
 #include "../../../Utils/ServiceLocator.h"
 #include "../Components/Transform.h"
+#include "../Components/Relation.h"
+#include "../Components/Collision.h"
 #include "../Components/Image.h"
 #include "../Components/Text.h"
 #include "../Components/InputField.h"
@@ -72,8 +74,8 @@ namespace UISystem
             });
         registry.destroy(deleteView.begin(), deleteView.end());
 
-        auto boundsUpdateView = registry.view<UIComponent::Transform, UIComponent::BoundsDirty>();
-        boundsUpdateView.each([&](entt::entity entityId, UIComponent::Transform& transform)
+        auto boundsUpdateView = registry.view<UIComponent::Transform, UIComponent::Collision, UIComponent::Relation, UIComponent::BoundsDirty>();
+        boundsUpdateView.each([&](entt::entity entityId, UIComponent::Transform& transform, UIComponent::Collision& collision, UIComponent::Relation& relation)
             {
                 UIUtils::Collision::UpdateBounds(&registry, entityId, true);
             });
