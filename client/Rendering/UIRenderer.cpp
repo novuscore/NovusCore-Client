@@ -25,6 +25,7 @@
 #include "../UI/ECS/Components/Visibility.h"
 #include "../UI/ECS/Components/Collision.h"
 #include "../UI/ECS/Components/Collidable.h"
+#include "../UI/ECS/Components/NotCulled.h"
 #include "../UI/ECS/Components/Dirty.h"
 #include "../UI/ECS/Components/BoundsDirty.h"
 #include "../UI/ECS/Components/InputField.h"
@@ -183,7 +184,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
             entt::registry* registry = ServiceLocator::GetUIRegistry();
-            auto renderGroup = registry->group<UIComponent::SortKey>(entt::get<UIComponent::Renderable, UIComponent::Visible>);
+            auto renderGroup = registry->group<UIComponent::SortKey>(entt::get<UIComponent::Renderable, UIComponent::Visible, UIComponent::NotCulled>);
             renderGroup.sort<UIComponent::SortKey>([](UIComponent::SortKey& first, UIComponent::SortKey& second) { return first.key < second.key; });
             renderGroup.each([this, &commandList, frameIndex, &registry, &activePipeline, &textPipeline, &imagePipeline](const auto entity, UIComponent::SortKey& sortKey, UIComponent::Renderable& renderable)
             {

@@ -2,5 +2,5 @@
 
 namespace UIComponent
 {
-    struct Root {};
+    struct NotCulled {};
 }
