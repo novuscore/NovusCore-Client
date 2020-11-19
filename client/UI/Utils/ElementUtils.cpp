@@ -21,7 +21,7 @@ namespace UIUtils
         std::vector<entt::entity> entityIds;
         entityIds.reserve(dataSingleton->entityToElement.size());
 
-        for (auto pair : dataSingleton->entityToElement)
+        for (auto& pair : dataSingleton->entityToElement)
         {
             entityIds.push_back(pair.first);
             delete pair.second;
@@ -68,7 +68,6 @@ namespace UIUtils
         childRelation.parent = entt::null;
         childTransform.anchorPosition = UIUtils::Transform::GetAnchorPositionOnScreen(childTransform.anchor);
 
-        auto itr = std::find_if(parentRelation.children.begin(), parentRelation.children.end(), [child](UI::UIChild& uiChild) { return uiChild.entId == child; });
-        parentRelation.children.erase(itr);
+        parentRelation.children.erase(std::remove_if(parentRelation.children.begin(), parentRelation.children.end(), [child](UI::UIChild& uiChild) { return uiChild.entId == child; }), parentRelation.children.end());
     }
 }

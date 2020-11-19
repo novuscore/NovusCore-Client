@@ -6,17 +6,25 @@
 
 namespace UIUtils::Sort
 {
-    void UpdateChildDepths(entt::registry* registry, entt::entity parent, UI::DepthLayer depthLayer, i16 modifier)
+    void UpdateChildDepths(entt::registry* registry, entt::entity parent)
     {
         ZoneScoped;
-        auto relation = &registry->get<UIComponent::Relation>(parent);
-        for (const UI::UIChild& child : relation->children)
-        {
-            UIComponent::SortKey* sortKey = &registry->get<UIComponent::SortKey>(child.entId);
-            sortKey->data.depth += modifier;
-            sortKey->data.depthLayer = depthLayer;
+        auto [parentRelation, parentSortKey] = registry->get<UIComponent::Relation, UIComponent::SortKey>(parent);
 
-            UpdateChildDepths(registry, child.entId, depthLayer, modifier);
+        printf("SortKey: %I64d\n", parentSortKey.key);
+
+        u16 subDepth = parentSortKey.data.subDepth + 1;
+        u16 childOrder = 0;
+        for (const UI::UIChild& child : parentRelation.children)
+        {
+            UIComponent::SortKey& sortKey = registry->get<UIComponent::SortKey>(child.entId);
+            sortKey.data.depthLayer = parentSortKey.data.depthLayer;
+            sortKey.data.depth = parentSortKey.data.depth;
+            sortKey.data.subDepth = subDepth;
+            sortKey.data.childOrder = childOrder++;
+
+
+            UpdateChildDepths(registry, child.entId);
         }
     }
 }

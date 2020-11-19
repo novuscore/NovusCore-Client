@@ -39,8 +39,7 @@ namespace UIScripting
         registry->emplace<UIComponent::Relation>(_entityId);
         registry->emplace<UIComponent::Root>(_entityId);
 
-        UIComponent::SortKey* sortKey = &registry->emplace<UIComponent::SortKey>(_entityId);
-        sortKey->data.entId = _entityId;
+        registry->emplace<UIComponent::SortKey>(_entityId);
         
         registry->emplace<UIComponent::Visibility>(_entityId);
         registry->emplace<UIComponent::Visible>(_entityId);
@@ -184,7 +183,7 @@ namespace UIScripting
         auto sortKey = &registry->get<UIComponent::SortKey>(_entityId);
         sortKey->data.depthLayer = layer;
         
-        UIUtils::Sort::UpdateChildDepths(registry, _entityId, layer, 0);
+        UIUtils::Sort::UpdateChildDepths(registry, _entityId);
     }
 
     u16 BaseElement::GetDepth() const
@@ -196,11 +195,9 @@ namespace UIScripting
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto sortKey = &registry->get<UIComponent::SortKey>(_entityId);
-
-        i16 difference = depth - sortKey->data.depth;
-        
         sortKey->data.depth = depth;
-        UIUtils::Sort::UpdateChildDepths(registry, _entityId, sortKey->data.depthLayer, difference);
+
+        UIUtils::Sort::UpdateChildDepths(registry, _entityId);
     }
 
     BaseElement* BaseElement::GetParent() const
@@ -240,13 +237,14 @@ namespace UIScripting
             transform.size = UIUtils::Transform::GetInnerSize(&parentTransform);
 
         // Keep relative offsets for all child depths, adding onto it how much we moved in depth.
-        i16 difference = parentSortKey.data.depth - sortKey.data.depth + 1;
-        sortKey.data.depth = parentSortKey.data.depth + 1;
         sortKey.data.depthLayer = parentSortKey.data.depthLayer;
+        sortKey.data.depth = parentSortKey.data.depth;
+        sortKey.data.subDepth = parentSortKey.data.subDepth + 1;
+        sortKey.data.childOrder = static_cast<u16>(parentRelation.children.size()) - 1;
 
         if (relation->children.size())
         {
-            UIUtils::Sort::UpdateChildDepths(registry, _entityId, sortKey.data.depthLayer, difference);
+            UIUtils::Sort::UpdateChildDepths(registry, _entityId);
             UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
         }
     }

@@ -10,7 +10,6 @@ namespace UIUtils::Sort
     *   registry: Pointer to UI Registry.
     *   transform: Transform from which to start update.
     *   modifer: amount to modify depth by.
-    *   THREAD-SAFE
     */
-    void UpdateChildDepths(entt::registry* registry, entt::entity parent, UI::DepthLayer depthLayer, i16 modifier);
+    void UpdateChildDepths(entt::registry* registry, entt::entity parent);
 };
