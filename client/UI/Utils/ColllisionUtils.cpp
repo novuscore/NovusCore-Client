@@ -11,8 +11,12 @@ namespace UIUtils::Collision
     {
         ZoneScoped;
         auto[collision, transform, relation] = registry->get<UIComponent::Collision, UIComponent::Transform, UIComponent::Relation>(entityId);
-        collision.minBound = UIUtils::Transform::GetMinBounds(&transform);
-        collision.maxBound = UIUtils::Transform::GetMaxBounds(&transform);
+
+        const hvec2 screenPosition = UIUtils::Transform::GetScreenPosition(&transform);
+        const hvec2 offset = transform.localAnchor * transform.size;
+
+        hvec2 minBound = screenPosition - offset;
+        hvec2 maxBound = minBound + transform.size;
 
         for (const UI::UIChild& child : relation.children)
         {
@@ -22,12 +26,15 @@ namespace UIUtils::Collision
             if (!collision.HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
                 continue;
 
-            if (childCollision->minBound.x < collision.minBound.x) { collision.minBound.x = childCollision->minBound.x; }
-            if (childCollision->minBound.y < collision.minBound.y) { collision.minBound.y = childCollision->minBound.y; }
+            if (childCollision->minBound.x < minBound.x) { minBound.x = childCollision->minBound.x; }
+            if (childCollision->minBound.y < minBound.y) { minBound.y = childCollision->minBound.y; }
 
-            if (childCollision->maxBound.x > collision.maxBound.x) { collision.maxBound.x = childCollision->maxBound.x; }
-            if (childCollision->maxBound.y > collision.maxBound.y) { collision.maxBound.y = childCollision->maxBound.y; }
+            if (childCollision->maxBound.x > maxBound.x) { maxBound.x = childCollision->maxBound.x; }
+            if (childCollision->maxBound.y > maxBound.y) { maxBound.y = childCollision->maxBound.y; }
         }
+
+        collision.minBound = minBound;
+        collision.maxBound = maxBound;
 
         if (!updateParent || relation.parent == entt::null)
             return;

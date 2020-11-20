@@ -21,10 +21,14 @@ namespace UISystem
         auto cullView = registry.view<UIComponent::Transform, UIComponent::Dirty>();
         std::vector<entt::entity> notCulled;
         notCulled.reserve(cullView.size());
+
         cullView.each([&](entt::entity entity, UIComponent::Transform& transform)
             {
-                vec2 minBounds = UIUtils::Transform::GetMinBounds(&transform);
-                vec2 maxBounds = UIUtils::Transform::GetMaxBounds(&transform);
+                const vec2 screenPosition = UIUtils::Transform::GetScreenPosition(&transform);
+                const vec2 offset = transform.localAnchor * transform.size;
+
+                const vec2 minBounds = screenPosition - offset;
+                const vec2 maxBounds = minBounds + vec2(transform.size);
 
                 if (maxBounds.x < 0 || maxBounds.y < 0 || minBounds.x > dataSingleton.UIRESOLUTION.x || minBounds.y > dataSingleton.UIRESOLUTION.y)
                     return;

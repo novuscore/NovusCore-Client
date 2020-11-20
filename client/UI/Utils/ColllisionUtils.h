@@ -11,14 +11,12 @@ namespace UIUtils::Collision
     *   registry: Pointer to UI Registry.
     *   entityId: entity to start update from.
     *   updateParent: Whether or not to shallow update parents after updating our own bounds.
-    *   NOT THREAD-SAFE.
     */
     void UpdateBounds(entt::registry* registry, entt::entity entityId, bool updateParent = true);
     /*
     *   Shallow update bounds by iterating over first-level children.
     *   registry: Pointer to UI Registry.
     *   entityId: entity to update bounds of.
-    *   NOT THREAD-SAFE.
     */
     void ShallowUpdateBounds(entt::registry* registry, entt::entity entityId);
 
