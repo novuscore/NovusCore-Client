@@ -180,10 +180,16 @@ namespace UIScripting
     void BaseElement::SetDepthLayer(const UI::DepthLayer layer)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
+        if (!registry->has<UIComponent::Root>(_entityId))
+        {
+            NC_LOG_WARNING("UI: Can't set depthLayer on non-root element.");
+            return;
+        }
+
         auto sortKey = &registry->get<UIComponent::SortKey>(_entityId);
         sortKey->data.depthLayer = layer;
-        
-        UIUtils::Sort::UpdateChildDepths(registry, _entityId);
+
+        UIUtils::Sort::MarkSortTreeDirty(registry, _entityId);
     }
 
     u16 BaseElement::GetDepth() const
@@ -193,11 +199,17 @@ namespace UIScripting
     }
     void BaseElement::SetDepth(const u16 depth)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        entt::registry* registry = ServiceLocator::GetUIRegistry(); 
+        if (!registry->has<UIComponent::Root>(_entityId))
+        {
+            NC_LOG_WARNING("UI: Can't set depth on non-root element.");
+            return;
+        }
+
         auto sortKey = &registry->get<UIComponent::SortKey>(_entityId);
         sortKey->data.depth = depth;
 
-        UIUtils::Sort::UpdateChildDepths(registry, _entityId);
+        UIUtils::Sort::MarkSortTreeDirty(registry, _entityId);
     }
 
     BaseElement* BaseElement::GetParent() const
@@ -239,14 +251,10 @@ namespace UIScripting
         // Keep relative offsets for all child depths, adding onto it how much we moved in depth.
         sortKey.data.depthLayer = parentSortKey.data.depthLayer;
         sortKey.data.depth = parentSortKey.data.depth;
-        sortKey.data.subDepth = parentSortKey.data.subDepth + 1;
-        sortKey.data.childOrder = static_cast<u16>(parentRelation.children.size()) - 1;
+        UIUtils::Sort::MarkSortTreeDirty(registry, parent->GetEntityId());
 
         if (relation->children.size())
-        {
-            UIUtils::Sort::UpdateChildDepths(registry, _entityId);
             UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
-        }
     }
     void BaseElement::UnsetParent()
     {

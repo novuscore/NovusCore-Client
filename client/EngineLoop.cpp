@@ -39,12 +39,18 @@
 
 // Systems
 #include "ECS/Systems/Network/ConnectionSystems.h"
-#include "UI/ECS/Systems/UpdateElementSystem.h"
 #include "ECS/Systems/Rendering/RenderModelSystem.h"
 #include "ECS/Systems/Physics/SimulateDebugCubeSystem.h"
 #include "ECS/Systems/MovementSystem.h"
 #include "ECS/Systems/AreaUpdateSystem.h"
 #include "ECS/Systems/DayNightSystem.h"
+
+#include "UI/ECS/Systems/ElementDeleteSystem.h"
+#include "UI/ECS/Systems/UpdateElementSystem.h"
+#include "UI/ECS/Systems/ElementBoundsSystem.h"
+#include "UI/ECS/Systems/ElementCullingSystem.h"
+#include "UI/ECS/Systems/ElementSortingSystem.h"
+#include "UI/ECS/Systems/ElementFinalSystem.h"
 
 // Utils
 #include "UI/Utils/ElementUtils.h"
@@ -428,6 +434,14 @@ void EngineLoop::SetupUpdateFramework()
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
 
+    // ElementDeleteSystem
+    tf::Task elementDeleteSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+        {
+            ZoneScopedNC("ElementDeleteSystem::Update", tracy::Color::Gainsboro)
+                UISystem::ElementDeleteSystem::Update(uiRegistry);
+            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+        });
+
     // UpdateElementSystem
     tf::Task updateElementSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
     {
@@ -435,6 +449,45 @@ void EngineLoop::SetupUpdateFramework()
             UISystem::UpdateElementSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
+    updateElementSystemTask.gather(elementDeleteSystemTask);
+
+    // ElementBoundsSystem
+    tf::Task elementBoundsSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+        {
+            ZoneScopedNC("ElementBoundsSystem::Update", tracy::Color::Gainsboro)
+                UISystem::ElementBoundsSystem::Update(uiRegistry);
+            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+        });
+    updateElementSystemTask.gather(elementDeleteSystemTask);
+
+    // ElementCullingSystem
+    tf::Task elementCullingSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+        {
+            ZoneScopedNC("ElementCullingSystem::Update", tracy::Color::Gainsboro)
+                UISystem::ElementCullingSystem::Update(uiRegistry);
+            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+        });
+    updateElementSystemTask.gather(elementDeleteSystemTask);
+    
+    // UpdateElementSystem
+    tf::Task elementSortingSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+        {
+            ZoneScopedNC("ElementSortingSystem::Update", tracy::Color::Gainsboro)
+                UISystem::ElementSortingSystem::Update(uiRegistry);
+            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+        });
+    updateElementSystemTask.gather(elementDeleteSystemTask);
+
+    // ElementFinalSystem
+    tf::Task elementFinalSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+        {
+            ZoneScopedNC("UpdateElementSystem::Update", tracy::Color::Gainsboro)
+                UISystem::ElementFinalSystem::Update(uiRegistry);
+            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+        });
+    elementFinalSystemTask.gather(updateElementSystemTask);
+    elementFinalSystemTask.gather(elementCullingSystemTask);
+    elementFinalSystemTask.gather(elementSortingSystemTask);
 
     // MovementSystem
     tf::Task movementSystemTask = framework.emplace([&gameRegistry]()
@@ -488,7 +541,7 @@ void EngineLoop::SetupUpdateFramework()
         gameRegistry.ctx<ScriptSingleton>().ExecuteTransactions();
         gameRegistry.ctx<ScriptSingleton>().ResetCompletedSystems();
     });
-    scriptSingletonTask.gather(updateElementSystemTask);
+    scriptSingletonTask.gather(elementFinalSystemTask);
     scriptSingletonTask.gather(renderModelSystemTask);
 }
 void EngineLoop::SetMessageHandler()

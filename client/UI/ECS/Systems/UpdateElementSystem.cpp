@@ -21,7 +21,6 @@
 #include "../../Utils/TransformUtils.h"
 #include "../../Utils/ColllisionUtils.h"
 #include "../../Utils/TextUtils.h"
-#include "../../angelscript/BaseElement.h"
 
 
 namespace UISystem
@@ -66,20 +65,6 @@ namespace UISystem
     {
         Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
         auto& dataSingleton = registry.ctx<UISingleton::UIDataSingleton>();
-
-        // Destroy elements queued for destruction.
-        auto deleteView = registry.view<UIComponent::Destroy>();
-        deleteView.each([&](entt::entity entityId) {
-            delete dataSingleton.entityToElement[entityId];
-            dataSingleton.entityToElement.erase(entityId);
-            });
-        registry.destroy(deleteView.begin(), deleteView.end());
-
-        auto boundsUpdateView = registry.view<UIComponent::Transform, UIComponent::Collision, UIComponent::Relation, UIComponent::BoundsDirty>();
-        boundsUpdateView.each([&](entt::entity entityId, UIComponent::Transform& transform, UIComponent::Collision& collision, UIComponent::Relation& relation)
-            {
-                UIUtils::Collision::UpdateBounds(&registry, entityId, true);
-            });
 
         auto inputFieldView = registry.view<UIComponent::Transform, UIComponent::InputField, UIComponent::Text, UIComponent::Dirty>();
         inputFieldView.each([&](const UIComponent::Transform& transform, const UIComponent::InputField& inputField, UIComponent::Text& text)
@@ -261,29 +246,5 @@ namespace UISystem
                 text.constantBuffer->Apply(0);
                 text.constantBuffer->Apply(1);
             });
-
-        {
-            ZoneScopedNC("UpdateElementSystem - Culling", tracy::Color::SkyBlue);
-            auto oldCulledView = registry.view<UIComponent::NotCulled, UIComponent::Dirty>();
-            registry.remove<UIComponent::NotCulled>(oldCulledView.begin(), oldCulledView.end());
-
-            auto cullView = registry.view<UIComponent::Transform, UIComponent::Dirty>();
-            std::vector<entt::entity> notCulled;
-            notCulled.reserve(cullView.size());
-            cullView.each([&](entt::entity entity, UIComponent::Transform& transform)
-                {
-                    vec2 minBounds = UIUtils::Transform::GetMinBounds(&transform);
-                    vec2 maxBounds = UIUtils::Transform::GetMaxBounds(&transform);
-
-                    if (maxBounds.x < 0 || maxBounds.y < 0 || minBounds.x > dataSingleton.UIRESOLUTION.x || minBounds.y > dataSingleton.UIRESOLUTION.y)
-                        return;
-
-                    notCulled.push_back(entity);
-                });
-            registry.insert<UIComponent::NotCulled>(notCulled.begin(), notCulled.end());
-        }
-
-        registry.clear<UIComponent::Dirty>();
-        registry.clear<UIComponent::BoundsDirty>();
     }
 }

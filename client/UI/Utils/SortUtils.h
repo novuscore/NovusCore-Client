@@ -11,5 +11,7 @@ namespace UIUtils::Sort
     *   transform: Transform from which to start update.
     *   modifer: amount to modify depth by.
     */
-    void UpdateChildDepths(entt::registry* registry, entt::entity parent);
+    void UpdateChildDepths(entt::registry* registry, entt::entity parent, u32& compoundDepth);
+
+    void MarkSortTreeDirty(entt::registry* registry, entt::entity entity);
 };
