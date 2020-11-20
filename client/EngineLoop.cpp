@@ -37,6 +37,9 @@
 #include "ECS/Components/Physics/Rigidbody.h"
 #include "ECS/Components/Rendering/DebugBox.h"
 
+#include "UI/ECS/Components/Transform.h"
+#include "UI/ECS/Components/NotCulled.h"
+
 // Systems
 #include "ECS/Systems/Network/ConnectionSystems.h"
 #include "ECS/Systems/Rendering/RenderModelSystem.h"
@@ -589,6 +592,13 @@ void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
                 ImGui::EndTabItem();
             }
 
+            if (ImGui::BeginTabItem("UI"))
+            {
+                ImGui::Spacing();
+                DrawUIStats();
+                ImGui::EndTabItem();
+            }
+
             if (ImGui::BeginTabItem("Memory"))
             {
                 ImGui::Spacing();
@@ -863,6 +873,19 @@ void EngineLoop::DrawPositionStats()
     ImGui::Text("Chunk Remainder : %f x, %f y", chunkRemainder.x, chunkRemainder.y);
     ImGui::Text("Cell  Remainder : %f x, %f y", cellRemainder.x, cellRemainder.y);
     ImGui::Text("Patch Remainder : %f x, %f y", patchRemainder.x, patchRemainder.y);
+}
+
+void EngineLoop::DrawUIStats()
+{
+    size_t count = ServiceLocator::GetUIRegistry()->size<UIComponent::Transform>();
+    size_t notCulled = ServiceLocator::GetUIRegistry()->size<UIComponent::NotCulled>();
+
+    ImGui::Text("Total Elements : %d", count);
+    ImGui::Text("Culled elements : %d", (count-notCulled));
+    
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Checkbox("Show Collision Bounds", reinterpret_cast<bool*>(CVarSystem::Get()->GetIntCVar(StringUtils::StringHash("ui.drawCollisionBounds"))));
 }
 
 void EngineLoop::DrawMemoryStats()

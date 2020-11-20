@@ -6,20 +6,12 @@
 
 #include "../../../Utils/ServiceLocator.h"
 #include "../Components/Transform.h"
-#include "../Components/Relation.h"
-#include "../Components/Collision.h"
 #include "../Components/Image.h"
 #include "../Components/Text.h"
 #include "../Components/InputField.h"
 #include "../Components/Dirty.h"
-#include "../Components/BoundsDirty.h"
-#include "../Components/Destroy.h"
-#include "../Components/Visible.h"
-#include "../Components/Collidable.h"
-#include "../Components/NotCulled.h"
 #include "../Components/Singletons/UIDataSingleton.h"
 #include "../../Utils/TransformUtils.h"
-#include "../../Utils/ColllisionUtils.h"
 #include "../../Utils/TextUtils.h"
 
 

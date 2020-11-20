@@ -96,6 +96,7 @@ private:
     void DrawEngineStats(struct EngineStatsSingleton* stats);
     void DrawMapStats();
     void DrawPositionStats();
+    void DrawUIStats();
     void DrawMemoryStats();
     void DrawImguiMenuBar();
 

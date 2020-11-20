@@ -15,21 +15,30 @@
 
 #include "../UI/ECS/Components/Singletons/UIDataSingleton.h"
 #include "../UI/ECS/Components/ElementInfo.h"
+#include "../UI/ECS/Components/Relation.h"
+#include "../UI/ECS/Components/Root.h"
 #include "../UI/ECS/Components/Transform.h"
 #include "../UI/ECS/Components/TransformEvents.h"
 #include "../UI/ECS/Components/SortKey.h"
+
 #include "../UI/ECS/Components/Renderable.h"
 #include "../UI/ECS/Components/Image.h"
 #include "../UI/ECS/Components/Text.h"
-#include "../UI/ECS/Components/Visible.h"
+
 #include "../UI/ECS/Components/Visibility.h"
+#include "../UI/ECS/Components/Visible.h"
 #include "../UI/ECS/Components/Collision.h"
 #include "../UI/ECS/Components/Collidable.h"
+
 #include "../UI/ECS/Components/NotCulled.h"
+
 #include "../UI/ECS/Components/Dirty.h"
 #include "../UI/ECS/Components/BoundsDirty.h"
+#include "../UI/ECS/Components/SortKeyDirty.h"
+
 #include "../UI/ECS/Components/InputField.h"
 #include "../UI/ECS/Components/Checkbox.h"
+#include "../UI/ECS/Components/Slider.h"
 
 #include "../UI/UIInputHandler.h"
 
@@ -39,60 +48,48 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRendere
 {
     CreatePermanentResources();
 
-    UIInput::RegisterCallbacks();
-
     entt::registry* registry = ServiceLocator::GetUIRegistry();
-    registry->prepare<UIComponent::ElementInfo>();
-    registry->prepare<UIComponent::Transform>();
-    registry->prepare<UIComponent::TransformEvents>();
-    registry->prepare<UIComponent::SortKey>();
-
-    registry->prepare<UIComponent::Renderable>();
-    registry->prepare<UIComponent::Image>();
-    registry->prepare<UIComponent::Text>();
-
-    registry->prepare<UIComponent::Collision>();
-    registry->prepare<UIComponent::Collidable>();
-    registry->prepare<UIComponent::Visibility>();
-    registry->prepare<UIComponent::Visible>();
-
-    registry->prepare<UIComponent::Dirty>();
-    registry->prepare<UIComponent::BoundsDirty>();
-
-    registry->prepare<UIComponent::InputField>();
-    registry->prepare<UIComponent::Checkbox>();
 
     // Register UI singletons.
     UISingleton::UIDataSingleton& dataSingleton = registry->set<UISingleton::UIDataSingleton>();
-
-    //Reserve component space
-    const int ENTITIES_TO_PREALLOCATE = 10000;
-    registry->reserve(ENTITIES_TO_PREALLOCATE);
-
-    registry->reserve<UIComponent::Transform>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::TransformEvents>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::SortKey>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Renderable>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Text>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Image>(ENTITIES_TO_PREALLOCATE);
-
-    registry->reserve<UIComponent::Collision>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Collidable>(ENTITIES_TO_PREALLOCATE);
-
-    registry->reserve<UIComponent::Visibility>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Visible>(ENTITIES_TO_PREALLOCATE);
-
-    registry->reserve<UIComponent::Dirty>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::BoundsDirty>(ENTITIES_TO_PREALLOCATE);
-
-    registry->reserve<UIComponent::InputField>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Checkbox>(ENTITIES_TO_PREALLOCATE);
 
     // Set up UI resolution. TODO Update when window size updates.
     i32 width, height;
     glfwGetWindowSize(ServiceLocator::GetWindow()->GetWindow(), &width, &height);
     f32 aspectRatio = (static_cast<f32>(width) / static_cast<f32>(height));
     dataSingleton.UIRESOLUTION = hvec2(dataSingleton.referenceHeight * aspectRatio, dataSingleton.referenceHeight);
+
+    //Reserve component space
+    const int ENTITIES_TO_PREALLOCATE = 10000;
+    registry->reserve(ENTITIES_TO_PREALLOCATE);
+
+    registry->reserve<UIComponent::ElementInfo>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Relation>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Root>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Transform>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::TransformEvents>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::SortKey>(ENTITIES_TO_PREALLOCATE);
+
+    registry->reserve<UIComponent::Renderable>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Text>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Image>(ENTITIES_TO_PREALLOCATE);
+
+    registry->reserve<UIComponent::Collision>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Collidable>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Visibility>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Visible>(ENTITIES_TO_PREALLOCATE);
+
+    registry->reserve<UIComponent::NotCulled>(ENTITIES_TO_PREALLOCATE);
+
+    registry->reserve<UIComponent::Dirty>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::BoundsDirty>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::SortKeyDirty>(ENTITIES_TO_PREALLOCATE);
+
+    registry->reserve<UIComponent::InputField>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Checkbox>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Slider>(ENTITIES_TO_PREALLOCATE);
+
+    UIInput::RegisterCallbacks();
 }
 
 void UIRenderer::Update(f32 deltaTime)
