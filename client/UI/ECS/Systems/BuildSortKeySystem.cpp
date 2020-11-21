@@ -1,4 +1,4 @@
-#include "ElementSortingSystem.h"
+#include "BuildSortKeySystem.h"
 #include <entity/registry.hpp>
 
 #include "../../../Utils/ServiceLocator.h"
@@ -10,7 +10,7 @@
 
 namespace UISystem
 {
-    void ElementSortingSystem::Update(entt::registry& registry)
+    void BuildSortKeySystem::Update(entt::registry& registry)
     {
         auto sortView = registry.view<UIComponent::Relation, UIComponent::SortKey, UIComponent::SortKeyDirty>();
         sortView.each([&](entt::entity entity, UIComponent::Relation& relation, UIComponent::SortKey& sortKey)

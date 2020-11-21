@@ -3,7 +3,7 @@
 
 namespace UISystem
 {
-    class ElementSortingSystem
+    class BuildSortKeySystem
     {
     public:
         static void Update(entt::registry& registry);

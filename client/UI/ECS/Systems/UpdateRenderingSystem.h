@@ -3,7 +3,13 @@
 
 namespace UISystem
 {
-    class ElementCullingSystem
+    struct UIVertex
+    {
+        vec2 pos;
+        vec2 uv;
+    };
+
+    class UpdateRenderingSystem
     {
     public:
         static void Update(entt::registry& registry);

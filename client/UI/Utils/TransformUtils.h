@@ -43,4 +43,6 @@ namespace UIUtils::Transform
     hvec2 GetAnchorPositionOnScreen(hvec2 anchorPosition);
 
     void UpdateChildTransforms(entt::registry* registry, entt::entity entity);
+
+    void UpdateChildPositions(entt::registry* registry, entt::entity entity);
 };

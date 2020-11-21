@@ -143,7 +143,7 @@ namespace UIInput
 
             UIUtils::MarkDirty(registry, dataSingleton.draggedWidget);
             UIUtils::MarkChildrenDirty(registry, dataSingleton.draggedWidget);
-            UIUtils::Transform::UpdateChildTransforms(registry, dataSingleton.draggedWidget);
+            UIUtils::Transform::UpdateChildPositions(registry, dataSingleton.draggedWidget);
             UIUtils::Collision::MarkBoundsDirty(registry, dataSingleton.draggedWidget);
         }
 

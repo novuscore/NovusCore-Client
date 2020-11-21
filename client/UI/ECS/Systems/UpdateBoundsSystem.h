@@ -3,7 +3,7 @@
 
 namespace UISystem
 {
-    class ElementFinalSystem
+    class UpdateBoundsSystem
     {
     public:
         static void Update(entt::registry& registry);

@@ -1,16 +1,16 @@
-#include "UpdateElementSystem.h"
+#include "UpdateRenderingSystem.h"
 #include <entity/registry.hpp>
 #include <tracy/Tracy.hpp>
 #include "../../render-lib/Renderer/Descriptors/ModelDesc.h"
 #include "../../render-lib/Renderer/Buffer.h"
 
 #include "../../../Utils/ServiceLocator.h"
+#include "../Components/Singletons/UIDataSingleton.h"
 #include "../Components/Transform.h"
 #include "../Components/Image.h"
 #include "../Components/Text.h"
 #include "../Components/InputField.h"
 #include "../Components/Dirty.h"
-#include "../Components/Singletons/UIDataSingleton.h"
 #include "../../Utils/TransformUtils.h"
 #include "../../Utils/TextUtils.h"
 
@@ -53,7 +53,7 @@ namespace UISystem
         lowerRight.uv = vec2(texCoords.right, texCoords.bottom);
     }
 
-    void UpdateElementSystem::Update(entt::registry& registry)
+    void UpdateRenderingSystem::Update(entt::registry& registry)
     {
         Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
         auto& dataSingleton = registry.ctx<UISingleton::UIDataSingleton>();
@@ -67,7 +67,7 @@ namespace UISystem
         auto imageView = registry.view<UIComponent::Transform, UIComponent::Image, UIComponent::Dirty>();
         imageView.each([&](UIComponent::Transform& transform, UIComponent::Image& image)
             {
-                ZoneScopedNC("UpdateElementSystem::Update::ImageView", tracy::Color::RoyalBlue);
+                ZoneScopedNC("UpdateRenderingSystem::Update::ImageView", tracy::Color::RoyalBlue);
                 if (image.style.texture.length() == 0)
                     return;
 
@@ -125,7 +125,7 @@ namespace UISystem
         auto textView = registry.view<UIComponent::Transform, UIComponent::Text, UIComponent::Dirty>();
         textView.each([&](UIComponent::Transform& transform, UIComponent::Text& text)
             {
-                ZoneScopedNC("UpdateElementSystem::Update::TextView", tracy::Color::SkyBlue);
+                ZoneScopedNC("UpdateRenderingSystem::Update::TextView", tracy::Color::SkyBlue);
                 if (text.style.fontPath.length() == 0)
                     return;
 

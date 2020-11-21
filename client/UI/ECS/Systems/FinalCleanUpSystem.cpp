@@ -1,4 +1,4 @@
-#include "ElementFinalSystem.h"
+#include "FinalCleanUpSystem.h"
 #include <entity/registry.hpp>
 
 #include "../Components/Dirty.h"
@@ -8,7 +8,7 @@
 
 namespace UISystem
 {
-    void ElementFinalSystem::Update(entt::registry& registry)
+    void FinalCleanUpSystem::Update(entt::registry& registry)
     {
         registry.clear<UIComponent::Dirty>();
         registry.clear<UIComponent::BoundsDirty>();

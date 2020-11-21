@@ -1,4 +1,4 @@
-#include "ElementCullingSystem.h"
+#include "UpdateCullingSystem.h"
 #include <entity/registry.hpp>
 
 #include "../Components/Singletons/UIDataSingleton.h"
@@ -11,7 +11,7 @@
 
 namespace UISystem
 {
-    void ElementCullingSystem::Update(entt::registry& registry)
+    void UpdateCullingSystem::Update(entt::registry& registry)
     {
         auto& dataSingleton = registry.ctx<UISingleton::UIDataSingleton>();
 

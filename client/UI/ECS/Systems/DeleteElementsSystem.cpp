@@ -1,4 +1,4 @@
-#include "ElementDeleteSystem.h"
+#include "DeleteElementsSystem.h"
 #include <entity/registry.hpp>
 
 #include "../Components/Singletons/UIDataSingleton.h"
@@ -7,7 +7,7 @@
 
 namespace UISystem
 {
-    void ElementDeleteSystem::Update(entt::registry& registry)
+    void DeleteElementsSystem::Update(entt::registry& registry)
     {
         auto& dataSingleton = registry.ctx<UISingleton::UIDataSingleton>();
 

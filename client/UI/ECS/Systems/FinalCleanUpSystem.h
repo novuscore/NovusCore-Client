@@ -3,7 +3,7 @@
 
 namespace UISystem
 {
-    class ElementDeleteSystem
+    class FinalCleanUpSystem
     {
     public:
         static void Update(entt::registry& registry);
