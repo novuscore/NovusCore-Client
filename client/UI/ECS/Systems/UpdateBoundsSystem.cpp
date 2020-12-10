@@ -14,8 +14,8 @@ namespace UISystem
     {
         auto boundsUpdateView = registry.view<UIComponent::Transform, UIComponent::Collision, UIComponent::Relation, UIComponent::BoundsDirty>();
         boundsUpdateView.each([&](entt::entity entityId, UIComponent::Transform& transform, UIComponent::Collision& collision, UIComponent::Relation& relation)
-            {
-                UIUtils::Collision::UpdateBounds(&registry, entityId, true);
-            });
+        {
+            UIUtils::Collision::UpdateBounds(&registry, entityId, true);
+        });
     }
 }

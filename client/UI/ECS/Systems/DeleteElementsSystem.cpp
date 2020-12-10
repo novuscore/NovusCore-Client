@@ -13,10 +13,11 @@ namespace UISystem
 
         // Destroy elements queued for destruction.
         auto deleteView = registry.view<UIComponent::Destroy>();
-        deleteView.each([&](entt::entity entityId) {
+        deleteView.each([&](entt::entity entityId) 
+        {
             delete dataSingleton.entityToElement[entityId];
             dataSingleton.entityToElement.erase(entityId);
-            });
+        });
         registry.destroy(deleteView.begin(), deleteView.end());
 
     }
