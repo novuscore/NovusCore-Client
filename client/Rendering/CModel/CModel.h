@@ -7,7 +7,7 @@
 namespace CModel
 {
     constexpr u32 COMPLEX_MODEL_TOKEN = 10;
-    constexpr u32 COMPLEX_MODEL_VERSION = 3;
+    constexpr u32 COMPLEX_MODEL_VERSION = 4;
 
     struct ComplexVertex
     {
@@ -141,15 +141,15 @@ namespace CModel
 
     struct CullingData
     {
-        hvec3 minBoundingBox = hvec3(static_cast<f16>(100000.0f));
-        hvec3 maxBoundingBox = hvec3(static_cast<f16>(-100000.0f));
+        hvec3 minBoundingBox = hvec3(static_cast<f16>(65535.0f));
+        hvec3 maxBoundingBox = hvec3(static_cast<f16>(-65535.0f));
         f32 boundingSphereRadius = 0.0f;
     }; // 16 bytes
 
     struct ComplexModel
     {
     public:
-        NovusTypeHeader header = NovusTypeHeader(10, 1);
+        NovusTypeHeader header = NovusTypeHeader(10, 4);
 
         char* name;
         ComplexModelFlag flags;

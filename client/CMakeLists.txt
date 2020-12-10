@@ -14,7 +14,7 @@ find_assign_files(${CLIENT_DEMO_FILES})
 
 include_directories(../../dep/glfw/include)
 
-add_compile_definitions(NOMINMAX _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS GLM_FORCE_LEFT_HANDED GLM_FORCE_DEPTH_ZERO_TO_ONE)
+add_compile_definitions(NOMINMAX _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS GLM_FORCE_DEPTH_ZERO_TO_ONE)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
 	asio::asio

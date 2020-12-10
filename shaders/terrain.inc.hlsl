@@ -6,8 +6,8 @@
 #define NUM_VERTICES_PER_CELL (145)
 #define NUM_VERTICES_PER_CELL_SIDE ()
 
-#define CHUNK_SIDE_SIZE (533.3333f)
-#define CELL_SIDE_SIZE (33.3333f)
+#define CHUNK_SIDE_SIZE (533.33333f)
+#define CELL_SIDE_SIZE (33.33333f)
 
 #define HALF_WORLD_SIZE (17066.66656f)
 
@@ -46,43 +46,32 @@ uint GetGlobalCellID(uint chunkID, uint cellID)
     return (chunkID * NUM_CELLS_PER_CHUNK) + cellID;
 }
 
-float2 GetCellPosition(uint chunkID, uint cellID)
+float2 GetChunkPosition(uint chunkID)
 {
     const uint chunkX = chunkID % NUM_CHUNKS_PER_MAP_SIDE;
     const uint chunkY = chunkID / NUM_CHUNKS_PER_MAP_SIDE;
 
-    const float2 chunkPos = (float2(chunkX, chunkY) * CHUNK_SIDE_SIZE) - HALF_WORLD_SIZE;
+    const float2 chunkPos = HALF_WORLD_SIZE - (float2(chunkX, chunkY) * CHUNK_SIDE_SIZE);
+    return -chunkPos;
+}
 
+float2 GetCellPosition(uint chunkID, uint cellID)
+{
     const uint cellX = cellID % NUM_CELLS_PER_CHUNK_SIDE;
     const uint cellY = cellID / NUM_CELLS_PER_CHUNK_SIDE;
 
+    const float2 chunkPos = GetChunkPosition(chunkID);
     const float2 cellPos = float2(cellX, cellY) * CELL_SIDE_SIZE;
 
-    return -(chunkPos + cellPos);
+    float2 pos = chunkPos + cellPos;
+    return float2(-pos.y, -pos.x);
 }
 
 AABB GetCellAABB(uint chunkID, uint cellID, float2 heightRange)
 {
-    const uint chunkPosX = chunkID % NUM_CHUNKS_PER_MAP_SIDE;
-    const uint chunkPosY = chunkID / NUM_CHUNKS_PER_MAP_SIDE;
-
-    float2 chunkOrigin;
-    chunkOrigin.x = -((chunkPosY) * CHUNK_SIDE_SIZE - HALF_WORLD_SIZE);
-    chunkOrigin.y = ((NUM_CHUNKS_PER_MAP_SIDE - chunkPosX) * CHUNK_SIDE_SIZE - HALF_WORLD_SIZE);
-
-    const uint cellX = cellID % NUM_CELLS_PER_CHUNK_SIDE;
-    const uint cellY = cellID / NUM_CELLS_PER_CHUNK_SIDE;
-
-    float3 aabb_min;
-    float3 aabb_max;
-
-    aabb_min.x = chunkOrigin.x - (cellY * CELL_SIDE_SIZE);
-    aabb_min.y = heightRange.x;
-    aabb_min.z = chunkOrigin.y - (cellX * CELL_SIDE_SIZE);
-
-    aabb_max.x = chunkOrigin.x - ((cellY + 1) * CELL_SIDE_SIZE);
-    aabb_max.y = heightRange.y;
-    aabb_max.z = chunkOrigin.y - ((cellX + 1) * CELL_SIDE_SIZE);
+    float2 pos = GetCellPosition(chunkID, cellID);
+    float3 aabb_min = float3(pos.x, pos.y, heightRange.x);
+    float3 aabb_max = float3(pos.x - CELL_SIDE_SIZE, pos.y - CELL_SIDE_SIZE, heightRange.y);
 
     AABB boundingBox;
     boundingBox.min = max(aabb_min, aabb_max);
@@ -100,7 +89,9 @@ float2 GetCellSpaceVertexPosition(uint vertexID)
     vertexX = vertexX - (8.5f * isOddRow);
     vertexY = vertexY + (0.5f * isOddRow);
 
-    return float2(vertexX, vertexY);
+    // We go from a 2D coordinate system where x is Positive East & y is Positive South
+    // we translate this into 3D where x is Positive North & y is Positive West
+    return float2(-vertexY, -vertexX);
 }
 
 bool IsHoleVertex(uint vertexId, uint hole)

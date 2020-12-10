@@ -29,7 +29,7 @@ void SimulateDebugCubeSystem::Init(entt::registry& registry)
 
         Transform& transform = registry.emplace<Transform>(entity);
         transform.position = camera->GetPosition();
-        transform.scale = vec3(0.5f, 2.f, 0.5f); // "Ish" scale for humans
+        transform.scale = vec3(0.5f, 0.5f, 2.f); // "Ish" scale for humans
         transform.isDirty = true;
 
         registry.emplace<Rigidbody>(entity);
@@ -54,7 +54,7 @@ void SimulateDebugCubeSystem::Update(entt::registry& registry, DebugRenderer* de
         Geometry::AABoundingBox box;
         box.min = transform.position;
         box.min.x -= transform.scale.x;
-        box.min.z -= transform.scale.z;
+        box.min.y -= transform.scale.y;
 
         box.max = transform.position + transform.scale;
 
@@ -77,7 +77,7 @@ void SimulateDebugCubeSystem::Update(entt::registry& registry, DebugRenderer* de
     {
         vec3 min = transform.position;
         min.x -= transform.scale.x;
-        min.z -= transform.scale.z;
+        min.y -= transform.scale.y;
         vec3 max = transform.position + transform.scale;
 
         u32 color = 0xff0000ff; // Red if it doesn't have a rigidbody

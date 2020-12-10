@@ -27,7 +27,7 @@
 namespace fs = std::filesystem;
 
 AutoCVar_Int CVAR_ComplexModelCullingEnabled("complexModels.cullEnable", "enable culling of complex models", 1, CVarFlags::EditCheckbox);
-AutoCVar_Int CVAR_ComplexModelSortingEnabled("complexModels.sortEnable", "enable sorting of transparent complex models", 1, CVarFlags::EditCheckbox);
+//AutoCVar_Int CVAR_ComplexModelSortingEnabled("complexModels.sortEnable", "enable sorting of transparent complex models", 1, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_ComplexModelLockCullingFrustum("complexModels.lockCullingFrustum", "lock frustrum for complex model culling", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_ComplexModelDrawBoundingBoxes("complexModels.drawBoundingBoxes", "draw bounding boxes for complex models", 0, CVarFlags::EditCheckbox);
 
@@ -52,44 +52,22 @@ void CModelRenderer::Update(f32 deltaTime)
     bool drawBoundingBoxes = CVAR_ComplexModelDrawBoundingBoxes.Get() == 1;
     if (drawBoundingBoxes)
     {
-        for (DrawCall& drawCall : _opaqueDrawCalls)
+        for (const Terrain::PlacementDetails& placementDetails : _complexModelPlacementDetails)
         {
-            DrawCallData& drawCallData = _opaqueDrawCallDatas[drawCall.firstInstance];
-            u32 instanceID = drawCallData.instanceID;
-            u32 cullingDataID = drawCallData.cullingDataID;
+            Instance& instance = _instances[placementDetails.instanceIndex];
+            LoadedComplexModel& loadedComplexModel = _loadedComplexModels[placementDetails.loadedIndex];
 
-            Instance& instance = _instances[instanceID];
-            CModel::CullingData& cullingData = _cullingDatas[cullingDataID];
+            // Particle Emitters have no culling data
+            if (loadedComplexModel.cullingDataID == std::numeric_limits<u32>().max())
+                continue;
 
-            vec3 center = (cullingData.minBoundingBox + cullingData.maxBoundingBox) * f16(0.5f);
-            vec3 extents = vec3(cullingData.maxBoundingBox) - center;
+            CModel::CullingData& cullingData = _cullingDatas[loadedComplexModel.cullingDataID];
 
-            // transform center
-            mat4x4& m = instance.instanceMatrix;
-            vec3 transformedCenter = vec3(m * vec4(center, 1.0f));
+            vec3 minBoundingBox = cullingData.minBoundingBox;
+            vec3 maxBoundingBox = cullingData.maxBoundingBox;
 
-            // Transform extents (take maximum)
-            glm::mat3x3 absMatrix = glm::mat3x3(glm::abs(vec3(m[0])), glm::abs(vec3(m[1])), glm::abs(vec3(m[2])));
-            vec3 transformedExtents = absMatrix * extents;
-
-            // Transform to min/max box representation
-            vec3 transformedMin = transformedCenter - transformedExtents;
-            vec3 transformedMax = transformedCenter + transformedExtents;
-
-            _debugRenderer->DrawAABB3D(transformedMin, transformedMax, 0xff00ffff);
-        }
-
-        for (DrawCall& drawCall : _transparentDrawCalls)
-        {
-            DrawCallData& drawCallData = _transparentDrawCallDatas[drawCall.firstInstance];
-            u32 instanceID = drawCallData.instanceID;
-            u32 cullingDataID = drawCallData.cullingDataID;
-
-            Instance& instance = _instances[instanceID];
-            CModel::CullingData& cullingData = _cullingDatas[cullingDataID];
-
-            vec3 center = (cullingData.minBoundingBox + cullingData.maxBoundingBox) * f16(0.5f);
-            vec3 extents = vec3(cullingData.maxBoundingBox) - center;
+            vec3 center = (minBoundingBox + maxBoundingBox) * 0.5f;
+            vec3 extents = maxBoundingBox - center;
 
             // transform center
             mat4x4& m = instance.instanceMatrix;
@@ -117,7 +95,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
     };
 
     const bool cullingEnabled = CVAR_ComplexModelCullingEnabled.Get();
-    const bool alphaSortEnabled = CVAR_ComplexModelSortingEnabled.Get();
+    const bool alphaSortEnabled = false; // CVAR_ComplexModelSortingEnabled.Get(); // TODO: Replace this crappy sort with one that doesn't kill the graphics driver when loading another map
     const bool lockFrustum = CVAR_ComplexModelLockCullingFrustum.Get();
 
     renderGraph->AddPass<CModelPassData>("CModel Pass", 
@@ -159,7 +137,6 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
             // Rasterizer state
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK; //Renderer::CullMode::CULL_MODE_BACK;
             pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
-
             // Render targets
             pipelineDesc.renderTargets[0] = data.mainColor;
             pipelineDesc.depthStencil = data.mainDepth;
@@ -258,7 +235,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
 
                     // Do culling
                     Renderer::ComputeShaderDesc shaderDesc;
-                    shaderDesc.path = "Data/shaders/cModelCullingAlpha.cs.hlsl.spv";
+                    shaderDesc.path = "Data/shaders/cModelCulling.cs.hlsl.spv"; // "Data/shaders/cModelCullingAlpha.cs.hlsl.spv"; // TODO: Replace this crappy sort with one that doesn't kill the graphics driver when loading another map
                     cullingPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
 
                     Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(cullingPipelineDesc);
@@ -421,8 +398,10 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
         });
 }
 
-void CModelRenderer::RegisterLoadFromChunk(const Terrain::Chunk& chunk, StringTable& stringTable)
+void CModelRenderer::RegisterLoadFromChunk(u16 chunkID, const Terrain::Chunk& chunk, StringTable& stringTable)
 {
+    _mapChunkToPlacementOffset[chunkID] = static_cast<u16>(_complexModelsToBeLoaded.size());
+
     for (const Terrain::Placement& placement : chunk.complexModelPlacements)
     {
         ComplexModelToBeLoaded& modelToBeLoaded = _complexModelsToBeLoaded.emplace_back();
@@ -459,6 +438,12 @@ void CModelRenderer::ExecuteLoad()
             modelID = it->second;
         }
 
+
+        // Add Placement Details (This is used to go from a placement to LoadedMapObject or InstanceData
+        Terrain::PlacementDetails& placementDetails = _complexModelPlacementDetails.emplace_back();
+        placementDetails.loadedIndex = modelID;
+        placementDetails.instanceIndex = static_cast<u32>(_instances.size());
+
         // Add placement as an instance
         AddInstance(_loadedComplexModels[modelID], *modelToBeLoaded.placement);
     }
@@ -469,6 +454,8 @@ void CModelRenderer::ExecuteLoad()
 
 void CModelRenderer::Clear()
 {
+    _mapChunkToPlacementOffset.clear();
+    _complexModelPlacementDetails.clear();
     _loadedComplexModels.clear();
     _nameHashToIndexMap.clear();
 
@@ -602,7 +589,7 @@ void CModelRenderer::CreatePermanentResources()
 
     /*ComplexModelToBeLoaded& modelToBeLoaded = _complexModelsToBeLoaded.emplace_back();
     modelToBeLoaded.placement = new Terrain::Placement();
-    modelToBeLoaded.name = new std::string("Environments/Stars/IceCrownCitadelSky.cmodel");
+    modelToBeLoaded.name = new std::string("World/SkillActivated/CONTAINERS/TreasureChest01.cmodel");
     modelToBeLoaded.nameHash = 1337;
     ExecuteLoad();*/
 }
@@ -610,7 +597,9 @@ void CModelRenderer::CreatePermanentResources()
 bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, LoadedComplexModel& complexModel)
 {
     const std::string& modelPath = *toBeLoaded.name;
-    
+
+    complexModel.debugName = modelPath;
+
     CModel::ComplexModel cModel;
     if (!LoadFile(modelPath, cModel))
         return false;
@@ -627,6 +616,7 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
 
     // Handle the CullingData
     size_t numCullingDataBeforeAdd = _cullingDatas.size();
+    complexModel.cullingDataID = static_cast<u32>(numCullingDataBeforeAdd);
 
     CModel::CullingData& cullingData = _cullingDatas.emplace_back();
     cullingData = cModel.cullingData;
@@ -976,15 +966,10 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
     Instance& instance = _instances.emplace_back();
 
     vec3 pos = placement.position;
-    pos = vec3(Terrain::MAP_HALF_SIZE - pos.x, pos.y, Terrain::MAP_HALF_SIZE - pos.z); // Go from [0 .. MAP_SIZE] to [-MAP_HALF_SIZE .. MAP_HALF_SIZE]
-    pos = vec3(pos.z, pos.y, pos.x); // Swizzle and invert x and z
-
     vec3 rot = glm::radians(placement.rotation);
-    rot = vec3(rot.z, -rot.y, rot.x);
-
     vec3 scale = vec3(placement.scale) / 1024.0f;
 
-    mat4x4 rotationMatrix = glm::eulerAngleXYZ(rot.x, rot.y, rot.z);
+    mat4x4 rotationMatrix = glm::eulerAngleZYX(rot.z, -rot.y, -rot.x);
     mat4x4 scaleMatrix = glm::scale(mat4x4(1.0f), scale);
 
     instance.instanceMatrix = glm::translate(mat4x4(1.0f), pos) * rotationMatrix * scaleMatrix;

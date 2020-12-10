@@ -2,106 +2,46 @@
 #include <NovusTypes.h>
 #include <glm/matrix.hpp>
 #include <glm/gtx/rotate_vector.hpp>
-
-enum class MovementFlags : u32
-{
-    NONE = 1 << 0,
-    FORWARD = 1 << 1,
-    BACKWARD = 1 << 2,
-    LEFT = 1 << 3,
-    RIGHT = 1 << 4,
-    GROUNDED = 1 << 5, // Special Flag to check if we are grounded
-
-    VERTICAL = FORWARD | BACKWARD,
-    HORIZONTAL = LEFT | RIGHT,
-    ALL = HORIZONTAL | VERTICAL
-};
-
-inline MovementFlags operator &(MovementFlags lhs, MovementFlags rhs)
-{
-    return static_cast<MovementFlags> (
-        static_cast<std::underlying_type<MovementFlags>::type>(lhs) &
-        static_cast<std::underlying_type<MovementFlags>::type>(rhs)
-        );
-}
-inline MovementFlags operator ^(MovementFlags lhs, MovementFlags rhs)
-{
-    return static_cast<MovementFlags> (
-        static_cast<std::underlying_type<MovementFlags>::type>(lhs) ^
-        static_cast<std::underlying_type<MovementFlags>::type>(rhs)
-        );
-}
-inline MovementFlags operator ~(MovementFlags rhs)
-{
-    return static_cast<MovementFlags> (
-        ~static_cast<std::underlying_type<MovementFlags>::type>(rhs)
-        );
-}
-inline MovementFlags& operator |=(MovementFlags& lhs, MovementFlags rhs)
-{
-    lhs = static_cast<MovementFlags> (
-        static_cast<std::underlying_type<MovementFlags>::type>(lhs) |
-        static_cast<std::underlying_type<MovementFlags>::type>(rhs)
-        );
-
-    return lhs;
-}
-inline MovementFlags& operator &=(MovementFlags& lhs, MovementFlags rhs)
-{
-    lhs = static_cast<MovementFlags> (
-        static_cast<std::underlying_type<MovementFlags>::type>(lhs) &
-        static_cast<std::underlying_type<MovementFlags>::type>(rhs)
-        );
-
-    return lhs;
-}
-inline MovementFlags& operator ^=(MovementFlags& lhs, MovementFlags rhs)
-{
-    lhs = static_cast<MovementFlags> (
-        static_cast<std::underlying_type<MovementFlags>::type>(lhs) ^
-        static_cast<std::underlying_type<MovementFlags>::type>(rhs)
-        );
-
-    return lhs;
-}
-
-struct MovementData
-{
-    MovementFlags flags;
-    f32 speed = 7.1111f;
-
-    inline void AddMoveFlag(MovementFlags flag)
-    {
-        flags |= flag;
-    }
-    inline void RemoveMoveFlag(MovementFlags flag)
-    {
-        flags &= ~flag;
-    }
-    inline bool HasMoveFlag(MovementFlags flag)
-    {
-        return (flags & flag) == flag;
-    }
-};
+#include <glm/gtx/euler_angles.hpp>
 
 struct Transform
 {
-    vec3 position = vec3(0, 0, 0);
-    vec3 velocityDirection = vec3(0, 0, 0);
-    vec3 velocity = vec3(0, 0, 0);
-    vec3 scale = vec3(1, 1, 1);
-    
+    vec3 position = vec3(0.f, 0.f, 0.f);
+    vec3 velocity = vec3(0.f, 0.f, 0.f);
+    vec3 scale = vec3(1.f, 1.f, 1.f);
+
+    f32 moveSpeed = 7.1111f;
+    f32 fallSpeed = 5.33f;
+    f32 fallAcceleration = 7.33f;
+
+    struct MovementFlags
+    {
+        union
+        {
+            struct
+            {
+                u8 FORWARD : 1;
+                u8 BACKWARD : 1;
+                u8 LEFT : 1;
+                u8 RIGHT : 1;
+                u8 GROUNDED : 1;
+            };
+
+            u16 value;
+        };
+
+    } movementFlags;
+
     // Rotation
     mat4x4 rotationMatrix;
     f32 yaw;
     f32 pitch;
 
     // Direction vectors
-    vec3 front = vec3(0, 0, 0);
-    vec3 up = vec3(0, 0, 0);
-    vec3 left = vec3(0, 0, 0);
+    vec3 front = vec3(0.f, 0.f, 0.f);
+    vec3 up = vec3(0.f, 0.f, 0.f);
+    vec3 left = vec3(0.f, 0.f, 0.f);
 
-    MovementData movementData;
     bool isDirty = true;
 
     vec3 GetRotation() const { return vec3(0, yaw, pitch); }
@@ -120,9 +60,18 @@ struct Transform
         return matrix;
     }
 
+    void UpdateRotationMatrix()
+    {
+        mat4x4 offsetPitchMatrix = glm::yawPitchRoll(0.0f, glm::radians(90.0f), 0.0f);
+        mat4x4 offsetYawMatrix = glm::yawPitchRoll(glm::radians(-90.0f), 0.0f, 0.0f);
+
+        rotationMatrix = offsetPitchMatrix * offsetYawMatrix * glm::yawPitchRoll(glm::radians(yaw), glm::radians(pitch), 0.0f);
+        UpdateVectors();
+    }
+
     void UpdateVectors()
     {
-        left = rotationMatrix[0];
+        left = -rotationMatrix[0];
         up = rotationMatrix[1];
         front = -rotationMatrix[2];
     }

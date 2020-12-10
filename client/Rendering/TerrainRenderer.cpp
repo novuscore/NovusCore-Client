@@ -121,7 +121,7 @@ void TerrainRenderer::Update(f32 deltaTime)
         if (!CVAR_HeightBoxLockPosition.Get())
         {
             vec4 position = vec4(camera->GetPosition(), 0);
-            position.y = Terrain::MapUtils::GetHeightFromWorldPosition(position);
+            position.z = Terrain::MapUtils::GetHeightFromWorldPosition(position);
 
             CVAR_HeightBoxPosition.Set(position);
         }
@@ -129,13 +129,13 @@ void TerrainRenderer::Update(f32 deltaTime)
         f32 halfSize = CVAR_HeightBoxScale.GetFloat();
         vec3 min = CVAR_HeightBoxPosition.Get();
         min.x -= halfSize;
-        min.z -= halfSize;
+        min.y -= halfSize;
 
         vec3 max = CVAR_HeightBoxPosition.Get();
         max.x += halfSize;
-        max.z += halfSize;
-
         max.y += halfSize;
+
+        max.z += halfSize;
 
         _debugRenderer->DrawAABB3D(min, max, 0xff00ff00);
     }
@@ -251,9 +251,9 @@ void TerrainRenderer::DebugRenderCellTriangles(const Camera* camera)
             f32 steepnessAngle = triangle.GetSteepnessAngle();
             u32 color = steepnessAngle <= 50 ? 0xff00ff00 : 0xff0000ff;
             // Offset Y slightly to not be directly drawn on top of the terrain
-            triangle.vert1.y += 0.05f;
-            triangle.vert2.y += 0.05f;
-            triangle.vert3.y += 0.05f;
+            triangle.vert1.z += 0.05f;
+            triangle.vert2.z += 0.05f;
+            triangle.vert3.z += 0.05f;
 
             _debugRenderer->DrawLine3D(triangle.vert1, triangle.vert2, color);
             _debugRenderer->DrawLine3D(triangle.vert2, triangle.vert3, color);
@@ -390,7 +390,6 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             // Rasterizer state
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
             pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
-
             // Render targets
             pipelineDesc.renderTargets[0] = data.mainColor;
 
@@ -710,6 +709,7 @@ void TerrainRenderer::ExecuteLoad()
     {
         LoadChunk(chunk);
     }
+
     _chunksToBeLoaded.clear();
 }
 
@@ -936,8 +936,8 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
         constexpr float halfWorldSize = 17066.66656f;
 
         vec2 chunkOrigin;
-        chunkOrigin.x = -((chunkPosY)*Terrain::MAP_CHUNK_SIZE - halfWorldSize);
-        chunkOrigin.y = ((Terrain::MAP_CHUNKS_PER_MAP_STRIDE - chunkPosX) * Terrain::MAP_CHUNK_SIZE - halfWorldSize);
+        chunkOrigin.x = halfWorldSize - (chunkPosX * Terrain::MAP_CHUNK_SIZE);
+        chunkOrigin.y = halfWorldSize - (chunkPosY * Terrain::MAP_CHUNK_SIZE);
 
         std::vector<TerrainCellHeightRange> heightRanges;
         heightRanges.reserve(Terrain::MAP_CELLS_PER_CHUNK);
@@ -953,13 +953,16 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
             vec3 min;
             vec3 max;
 
-            min.x = chunkOrigin.x - (cellY * Terrain::MAP_CELL_SIZE);
-            min.y = *minmax.first;
-            min.z = chunkOrigin.y - (cellX * Terrain::MAP_CELL_SIZE);
+            // The reason for the flip in X and Y here is because in 2D X is Left and Right, Y is Forward and Backward.
+            // In our 3D coordinate space X is Forward and Backwards, Y is Left and Right.
 
-            max.x = chunkOrigin.x - ((cellY + 1) * Terrain::MAP_CELL_SIZE);
-            max.y = *minmax.second;
-            max.z = chunkOrigin.y - ((cellX + 1) * Terrain::MAP_CELL_SIZE);
+            min.x = chunkOrigin.y - (cellY * Terrain::MAP_CELL_SIZE);
+            min.y = chunkOrigin.x - (cellX * Terrain::MAP_CELL_SIZE);
+            min.z = *minmax.first;
+
+            max.x = chunkOrigin.y - ((cellY + 1) * Terrain::MAP_CELL_SIZE);
+            max.y = chunkOrigin.x - ((cellX + 1) * Terrain::MAP_CELL_SIZE);
+            max.z = *minmax.second;
 
             Geometry::AABoundingBox boundingBox;
             boundingBox.min = glm::max(min, max);
@@ -998,8 +1001,8 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
         }
     }
 
-    _mapObjectRenderer->RegisterMapObjectsToBeLoaded(chunk, stringTable);
-    _complexModelRenderer->RegisterLoadFromChunk(chunk, stringTable);
+    _mapObjectRenderer->RegisterMapObjectsToBeLoaded(chunkID, chunk, stringTable);
+    _complexModelRenderer->RegisterLoadFromChunk(chunkID, chunk, stringTable);
 
     _loadedChunks.push_back(chunkID);
 }

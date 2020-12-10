@@ -7,7 +7,7 @@
 namespace NDBC
 {
     constexpr i32 NDBC_TOKEN = 1313096259;
-    constexpr i32 NDBC_VERSION = 3;
+    constexpr i32 NDBC_VERSION = 4;
 
     struct NDBCColumn
     {

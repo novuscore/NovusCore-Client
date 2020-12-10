@@ -81,7 +81,7 @@ Vertex UnpackVertex(const PackedVertex packedVertex)
     Vertex vertex;
     vertex.normal = UnpackNormal(normal);
     vertex.color = UnpackColor(color);
-    vertex.position.y = UnpackHalf(height);
+    vertex.position.z = UnpackHalf(height);
     
     return vertex;
 }
@@ -100,15 +100,9 @@ Vertex LoadVertex(uint chunkID, uint cellID, uint vertexBaseOffset, uint vertexI
 
     const float CELL_PRECISION = CELL_SIDE_SIZE / 8.0f;
 
-    vertex.position.x = -((-vertexPos.x) * CELL_PRECISION + cellPos.x);
-    vertex.position.z = (-vertexPos.y) * CELL_PRECISION + cellPos.y;
-    vertex.uv = vertexPos;
-
-    vertex.position = mul(float3x3(
-        0, 0, 1,
-        0, 1, 0,
-    -1, 0, 0
-    ), vertex.position);
+    vertex.position.x = vertexPos.x * CELL_PRECISION + cellPos.x;
+    vertex.position.y = vertexPos.y * CELL_PRECISION + cellPos.y;
+    vertex.uv = float2(-vertexPos.y, -vertexPos.x); // Negated to go from 3D coordinates to 2D
 
     return vertex;
 }

@@ -228,8 +228,8 @@ float4 Blend(uint16_t blendingMode, float4 previousColor, float4 color)
     else if (blendingMode == 2) // ALPHA
     {
         float3 blendedColor = color.rgb * color.a + previousColor.rgb * (1 - color.a);
-        color.rgb += blendedColor;
-        color.a = max(color.a, previousColor.a); // TODO: Check if this is actually needed
+        result.rgb += blendedColor;
+        result.a = max(color.a, previousColor.a); // TODO: Check if this is actually needed
     }
     else if (blendingMode == 3) // NO ALPHA ADD
     {

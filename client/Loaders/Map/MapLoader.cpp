@@ -406,13 +406,6 @@ bool MapLoader::LoadLightDBC(MapSingleton& mapSingleton, NDBCSingleton& ndbcSing
 
         for (NDBC::Light& light : mapSingleton.lightDBCEntries)
         {
-            // Fix world position for non default lights
-            if (light.position != vec3(0, 0, 0))
-            {
-                light.position.x = Terrain::MAP_HALF_SIZE - light.position.x;
-                light.position.z = Terrain::MAP_HALF_SIZE - light.position.z;
-            }
-
             mapSingleton.lightIdToDBC[light.id] = &light;
             mapSingleton.mapIdToLightDBC[light.mapId].push_back(&light);
         }

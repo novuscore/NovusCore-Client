@@ -23,6 +23,11 @@ namespace Renderer
     class DescriptorSet;
 }
 
+namespace Terrain
+{
+    struct PlacementDetails;
+}
+
 namespace NDBC
 {
     struct CreatureDisplayInfo;
@@ -38,6 +43,45 @@ constexpr u8 CMODEL_INVALID_TEXTURE_UNIT_INDEX = std::numeric_limits<u8>().max()
 class CModelRenderer
 {
 public:
+    struct DrawCall
+    {
+        u32 indexCount;
+        u32 instanceCount;
+        u32 firstIndex;
+        u32 vertexOffset;
+        u32 firstInstance;
+    };
+
+    struct DrawCallData
+    {
+        u32 instanceID;
+        u32 cullingDataID;
+        u16 textureUnitOffset;
+        u16 numTextureUnits;
+        u32 renderPriority;
+    };
+
+    struct LoadedComplexModel
+    {
+        std::string debugName = "";
+
+        u32 cullingDataID = std::numeric_limits<u32>().max();
+
+        u32 numOpaqueDrawCalls = 0;
+        std::vector<DrawCall> opaqueDrawCallTemplates;
+        std::vector<DrawCallData> opaqueDrawCallDataTemplates;
+
+        u32 numTransparentDrawCalls = 0;
+        std::vector<DrawCall> transparentDrawCallTemplates;
+        std::vector<DrawCallData> transparentDrawCallDataTemplates;
+    };
+
+    struct Instance
+    {
+        mat4x4 instanceMatrix;
+    };
+
+public:
     CModelRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer);
     ~CModelRenderer();
 
@@ -45,11 +89,17 @@ public:
 
     void AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 
-    void RegisterLoadFromChunk(const Terrain::Chunk& chunk, StringTable& stringTable);
+    void RegisterLoadFromChunk(u16 chunkID, const Terrain::Chunk& chunk, StringTable& stringTable);
     void ExecuteLoad();
 
     void Clear();
 
+    const std::vector<LoadedComplexModel>& GetLoadedComplexModels() { return _loadedComplexModels; }
+    const std::vector<Instance>& GetInstances() { return _instances; }
+    const std::vector<Terrain::PlacementDetails>& GetPlacementDetails() { return _complexModelPlacementDetails; }
+    const std::vector<CModel::CullingData>& GetCullingData() { return _cullingDatas; }
+
+    u32 GetChunkPlacementDetailsOffset(u16 chunkID) { return _mapChunkToPlacementOffset[chunkID]; }
     u32 GetNumLoadedCModels() { return static_cast<u32>(_loadedComplexModels.size()); }
     u32 GetNumCModelPlacements() { return static_cast<u32>(_instances.size()); }
 
@@ -59,11 +109,6 @@ private:
         const Terrain::Placement* placement = nullptr;
         const std::string* name = nullptr;
         u32 nameHash = 0;
-    };
-
-    struct Instance
-    {
-        mat4x4 instanceMatrix;
     };
 
     struct TextureUnit
@@ -99,37 +144,6 @@ private:
 
         Renderer::BufferID vertexBuffer;
         Renderer::BufferID textureUnitsBuffer;
-    };
-
-    struct DrawCall
-    {
-        u32 indexCount;
-        u32 instanceCount;
-        u32 firstIndex;
-        u32 vertexOffset;
-        u32 firstInstance;
-    };
-
-    struct DrawCallData
-    {
-        u32 instanceID;
-        u32 cullingDataID;
-        u16 textureUnitOffset;
-        u16 numTextureUnits;
-        u32 renderPriority;
-    };
-
-    struct LoadedComplexModel
-    {
-        std::string debugName = "";
-
-        u32 numOpaqueDrawCalls = 0;
-        std::vector<DrawCall> opaqueDrawCallTemplates;
-        std::vector<DrawCallData> opaqueDrawCallDataTemplates;
-
-        u32 numTransparentDrawCalls = 0;
-        std::vector<DrawCall> transparentDrawCallTemplates;
-        std::vector<DrawCallData> transparentDrawCallDataTemplates;
     };
 
     struct CullConstants
@@ -201,6 +215,10 @@ private:
     Renderer::DescriptorSet _cullingDescriptorSet;
     Renderer::DescriptorSet _sortingDescriptorSet;
     Renderer::DescriptorSet _passDescriptorSet;
+
+
+    robin_hood::unordered_map<u16, u32> _mapChunkToPlacementOffset;
+    std::vector<Terrain::PlacementDetails> _complexModelPlacementDetails;
 
     std::vector<ComplexModelToBeLoaded> _complexModelsToBeLoaded;
     std::vector<LoadedComplexModel> _loadedComplexModels;

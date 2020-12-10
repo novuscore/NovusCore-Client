@@ -34,42 +34,36 @@ bool IsAABBInsideFrustum(float4 frustum[6], AABB aabb)
     {
         const float4 plane = frustum[i];
 
-        float3 vmin, vmax;
+        float3 vmin;
 
         // X axis 
-        if (plane.x > 0) 
+        if (plane.x > 0)
         {
             vmin.x = aabb.min.x;
-            vmax.x = aabb.max.x;
         }
         else 
         {
             vmin.x = aabb.max.x;
-            vmax.x = aabb.min.x;
         }
 
         // Y axis 
-        if (plane.y > 0) 
+        if (plane.y > 0)
         {
             vmin.y = aabb.min.y;
-            vmax.y = aabb.max.y;
         }
         else 
         {
             vmin.y = aabb.max.y;
-            vmax.y = aabb.min.y;
         }
 
         // Z axis 
         if (plane.z > 0)
         {
             vmin.z = aabb.min.z;
-            vmax.z = aabb.max.z;
         }
         else
         {
             vmin.z = aabb.max.z;
-            vmax.z = aabb.min.z;
         }
 
         if (dot(plane.xyz, vmin) + plane.w <= 0)

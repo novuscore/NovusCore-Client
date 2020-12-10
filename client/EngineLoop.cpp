@@ -244,8 +244,8 @@ void EngineLoop::Run()
     localplayerSingleton.entity = _updateFramework.gameRegistry.create();
     Transform& transform = _updateFramework.gameRegistry.emplace<Transform>(localplayerSingleton.entity);
 
-    transform.position = vec3(-9321.f, 108.11f, 50.f);
-    transform.scale = vec3(0.5f, 2.f, 0.5f); // "Ish" scale for humans
+    transform.position = vec3(-9249.f, 87.f, 79.f);
+    transform.scale = vec3(0.5f, 0.5f, 2.f); // "Ish" scale for humans
 
     _updateFramework.gameRegistry.emplace<DebugBox>(localplayerSingleton.entity);
     //Model& model = EntityUtils::CreateModelComponent(_updateFramework.gameRegistry, localplayerSingleton.entity, "Data/models/Cube.novusmodel");

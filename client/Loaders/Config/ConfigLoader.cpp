@@ -2,7 +2,7 @@
 #include "../../Utils/ServiceLocator.h"
 #include "../../ECS/Components/Singletons/ConfigSingleton.h"
 
-#include <CVar/CVarSystem.h>
+#include <CVar/CVarSystemPrivate.h>
 #include <entt.hpp>
 
 const fs::path ConfigLoader::configFolderPath = fs::path("Data/configs").make_preferred();
@@ -37,8 +37,8 @@ bool ConfigLoader::Init(entt::registry* registry)
             CVarSystem* cvarSystem = CVarSystem::Get();
 
             json& config = cvarConfig.GetConfig();
-            cvarSystem->LoadCVarsFromJson(config);
-            cvarSystem->LoadCVarsIntoJson(config);
+            CVarSystemImpl::Get()->LoadCVarsFromJson(config);
+            CVarSystemImpl::Get()->LoadCVarsIntoJson(config);
         }
 
         loadingFailed |= !didLoadOrCreate;
@@ -77,7 +77,7 @@ bool ConfigLoader::Save(ConfigSaveType saveType)
     if (savingAll || saveType == ConfigSaveType::CVAR)
     {
         json& config = configSingleton.cvarJsonConfig.GetConfig();
-        CVarSystem::Get()->LoadCVarsIntoJson(config);
+        CVarSystemImpl::Get()->LoadCVarsIntoJson(config);
         savingFailed |= !configSingleton.cvarJsonConfig.Save(cvarConfigPath);
     }
 

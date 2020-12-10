@@ -46,12 +46,18 @@ namespace Terrain
     struct MapHeader
     {
         u32 token = 1313685840; // UTF8 -> Binary -> Decimal for "nmap"
-        u32 version = 1;
+        u32 version = 2;
 
         MapDetailFlag flags;
 
         std::string mapObjectName = "";
         Placement mapObjectPlacement;
+    };
+
+    struct PlacementDetails
+    {
+        u32 loadedIndex = 0;
+        u32 instanceIndex = 0;
     };
 
     struct Map

@@ -48,11 +48,8 @@ namespace Terrain
             // This is translated to remap positions [-17066 .. 17066] to [0 ..  34132]
             // This is because we want the Chunk Pos to be between [0 .. 64] and not [-32 .. 32]
 
-            // We have to flip "X" and "Z" here. (Using minus below we negate the axis)
-            // Wow: (North <- South, West <- East, Up) RH
-            // Novus: (West -> East, Up, North <- South) LH
-
-            return vec2(Terrain::MAP_HALF_SIZE - position.z, Terrain::MAP_HALF_SIZE - position.x);;
+            // We have to flip "X" and "Y" here due to 3D -> 2D
+            return vec2(Terrain::MAP_HALF_SIZE - position.y, Terrain::MAP_HALF_SIZE - position.x);
         }
 
         inline vec2 GetChunkFromAdtPosition(const vec2& adtPosition)
@@ -232,34 +229,34 @@ namespace Terrain
             
             ivec3 vertexIds = GetVertexIDsFromPatchPos(patchPos, patchRemainder, b, c);
 
-            // X, Y here maps to our Z, X
             vec2 chunkWorldPos = glm::floor(chunkPos) * Terrain::MAP_CHUNK_SIZE;
             vec2 cellWorldPos = glm::floor(cellPos) * Terrain::MAP_CELL_SIZE;
             vec2 patchWorldPos = glm::floor(patchPos) * Terrain::MAP_PATCH_SIZE;
 
             // Below we subtract Terrain::MAP_HALF_SIZE to go from ADT Coordinate back to World Space
+            // X, Y here maps to our Y, X
+            f32 y = chunkWorldPos.x + cellWorldPos.x + patchWorldPos.x;
             f32 x = chunkWorldPos.y + cellWorldPos.y + patchWorldPos.y;
-            f32 z = chunkWorldPos.x + cellWorldPos.x + patchWorldPos.x;
 
             // Calculate Vertex A
             {
                 triangle.vert1.x = Terrain::MAP_HALF_SIZE - (x + a.y);
-                triangle.vert1.y = currentChunk.cells[cellId].heightData[vertexIds.x];
-                triangle.vert1.z = Terrain::MAP_HALF_SIZE - (z + a.x);
+                triangle.vert1.y = Terrain::MAP_HALF_SIZE - (y + a.x);
+                triangle.vert1.z = currentChunk.cells[cellId].heightData[vertexIds.x];
             }
 
             // Calculate Vertex B
             {
                 triangle.vert2.x = Terrain::MAP_HALF_SIZE - (x + b.y);
-                triangle.vert2.y = currentChunk.cells[cellId].heightData[vertexIds.y];
-                triangle.vert2.z = Terrain::MAP_HALF_SIZE - (z + b.x);
+                triangle.vert2.y = Terrain::MAP_HALF_SIZE - (y + b.x);
+                triangle.vert2.z = currentChunk.cells[cellId].heightData[vertexIds.y];
             }
 
             // Calculate Vertex C
             {
                 triangle.vert3.x = Terrain::MAP_HALF_SIZE - (x + c.y);
-                triangle.vert3.y = currentChunk.cells[cellId].heightData[vertexIds.z];
-                triangle.vert3.z = Terrain::MAP_HALF_SIZE - (z + c.x);
+                triangle.vert3.y = Terrain::MAP_HALF_SIZE - (y + c.x);
+                triangle.vert3.z = currentChunk.cells[cellId].heightData[vertexIds.z];
             }
 
             height = GetHeightFromVertexIds(vertexIds, &currentChunk.cells[cellId].heightData[0], a, b, c, patchRemainder * Terrain::MAP_PATCH_SIZE);
@@ -325,36 +322,36 @@ namespace Terrain
 
                         ivec3 vertexIds = GetVertexIDsFromPatchPos(vec2(x, y), remainder, b, c);
 
-                        // X, Y here maps to our Z, X
+                        // X, Y here maps to our Y, X
                         vec2 chunkWorldPos = glm::floor(chunkPos) * Terrain::MAP_CHUNK_SIZE;
                         vec2 cellWorldPos = glm::floor(cellPos) * Terrain::MAP_CELL_SIZE;
                         vec2 patchWorldPos = glm::floor(vec2(x, y)) * Terrain::MAP_PATCH_SIZE;
 
                         // Below we subtract Terrain::MAP_HALF_SIZE to go from ADT Coordinate back to World Space
+                        f32 y = chunkWorldPos.x + cellWorldPos.x + patchWorldPos.x;
                         f32 x = chunkWorldPos.y + cellWorldPos.y + patchWorldPos.y;
-                        f32 z = chunkWorldPos.x + cellWorldPos.x + patchWorldPos.x;
 
                         Geometry::Triangle& triangle = triangles.emplace_back();
 
                         // Calculate Vertex A
                         {
                             triangle.vert1.x = Terrain::MAP_HALF_SIZE - (x + a.y);
-                            triangle.vert1.y = currentChunk.cells[cellId].heightData[vertexIds.x];
-                            triangle.vert1.z = Terrain::MAP_HALF_SIZE - (z + a.x);
+                            triangle.vert1.y = Terrain::MAP_HALF_SIZE - (y + a.x);
+                            triangle.vert1.z = currentChunk.cells[cellId].heightData[vertexIds.x];
                         }
 
                         // Calculate Vertex B
                         {
                             triangle.vert2.x = Terrain::MAP_HALF_SIZE - (x + b.y);
-                            triangle.vert2.y = currentChunk.cells[cellId].heightData[vertexIds.y];
-                            triangle.vert2.z = Terrain::MAP_HALF_SIZE - (z + b.x);
+                            triangle.vert2.y = Terrain::MAP_HALF_SIZE - (y + b.x);
+                            triangle.vert2.z = currentChunk.cells[cellId].heightData[vertexIds.y];
                         }
 
                         // Calculate Vertex C
                         {
                             triangle.vert3.x = Terrain::MAP_HALF_SIZE - (x + c.y);
-                            triangle.vert3.y = currentChunk.cells[cellId].heightData[vertexIds.z];
-                            triangle.vert3.z = Terrain::MAP_HALF_SIZE - (z + c.x);
+                            triangle.vert3.y = Terrain::MAP_HALF_SIZE - (y + c.x);
+                            triangle.vert3.z = currentChunk.cells[cellId].heightData[vertexIds.z];
                         }
                     }
                 }

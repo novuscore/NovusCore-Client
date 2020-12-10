@@ -70,7 +70,7 @@ void Camera::UpdateCameraVectors()
 {
     _left = -_rotationMatrix[0];
     _up = _rotationMatrix[1];
-    _front = _rotationMatrix[2];
+    _front = -_rotationMatrix[2];
 }
 
 void Camera::UpdateFrustumPlanes(const mat4x4& m)

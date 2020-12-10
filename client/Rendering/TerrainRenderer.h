@@ -87,6 +87,7 @@ public:
 
     const std::vector<Geometry::AABoundingBox>& GetBoundingBoxes() { return _cellBoundingBoxes; }
     MapObjectRenderer* GetMapObjectRenderer() { return _mapObjectRenderer; }
+    CModelRenderer* GetComplexModelRenderer() { return _complexModelRenderer; }
 private:
     void CreatePermanentResources();
 

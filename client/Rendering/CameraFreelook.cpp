@@ -67,6 +67,7 @@ void CameraFreeLook::Init()
     {
         if (!IsActive())
             return;
+
         if (_captureMouse)
         {
             vec2 mousePosition = vec2(xPos, yPos);
@@ -74,8 +75,14 @@ void CameraFreeLook::Init()
             {
                 vec2 deltaPosition = _prevMousePosition - mousePosition;
 
-                _yaw -= deltaPosition.x * _mouseSensitivity;
-                _pitch = Math::Clamp(_pitch - (deltaPosition.y * _mouseSensitivity), -89.0f, 89.0f);
+                _yaw += deltaPosition.x * _mouseSensitivity;
+
+                if (_yaw > 360)
+                    _yaw -= 360;
+                else if (_yaw < 0)
+                    _yaw += 360;
+
+                _pitch = Math::Clamp(_pitch + (deltaPosition.y * _mouseSensitivity), -89.0f, 89.0f);
             }
             else
                 _captureMouseHasMoved = true;
@@ -89,7 +96,7 @@ void CameraFreeLook::Init()
         if (!IsActive())
             return false;
 
-        f32 newSpeed = CVAR_CameraSpeed.GetFloat() + 10.0f;
+        f32 newSpeed = CVAR_CameraSpeed.GetFloat() + 7.1111f;
         CVAR_CameraSpeed.Set(newSpeed);
         return true;
     });
@@ -98,7 +105,7 @@ void CameraFreeLook::Init()
         if (!IsActive())
             return false;
 
-        f32 newSpeed = CVAR_CameraSpeed.GetFloat() - 10.0f;
+        f32 newSpeed = CVAR_CameraSpeed.GetFloat() - 7.1111f;
         newSpeed = glm::max(newSpeed, 7.1111f);
         CVAR_CameraSpeed.Set(newSpeed);
         return true;
@@ -120,8 +127,6 @@ void CameraFreeLook::Init()
         LoadFromFile("freelook.cameradata");
         return true;
     });
-
-    UpdateCameraVectors();
 }
 
 void CameraFreeLook::Enabled()
@@ -170,7 +175,10 @@ void CameraFreeLook::Update(f32 deltaTime, float fovInDegrees, float aspectRatio
     }
 
     // Compute matrices
-    _rotationMatrix = glm::yawPitchRoll(glm::radians(_yaw), glm::radians(_pitch), 0.0f);
+    mat4x4 offsetPitchMatrix = glm::yawPitchRoll(0.0f, glm::radians(90.0f), 0.0f);
+    mat4x4 offsetYawMatrix = glm::yawPitchRoll(glm::radians(-90.0f), 0.0f, 0.0f);
+
+    _rotationMatrix = offsetPitchMatrix * offsetYawMatrix * glm::yawPitchRoll(glm::radians(_yaw), glm::radians(_pitch), 0.0f);
     const mat4x4 cameraMatrix = glm::translate(mat4x4(1.0f), _position) * _rotationMatrix;
     _viewMatrix = glm::inverse(cameraMatrix);
 

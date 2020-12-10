@@ -20,7 +20,7 @@ struct CameraSaveData
     f32 movement;
 };
 
-constexpr vec3 worldUp = vec3(0, 1, 0);
+constexpr vec3 worldUp = vec3(0, 0, 1);
 
 class Window;
 class Camera
@@ -66,7 +66,7 @@ public:
     f32 GetYaw() { return _yaw; }
     void SetPitch(f32 value) { _pitch = value; }
     f32 GetPitch() { return _pitch; }
-    vec3 GetRotation() const { return vec3(0, _yaw, _pitch); }
+    vec3 GetRotation() const { return vec3(0.0f, _pitch, _yaw); }
 
     void SetMouseCaptured(bool state) { _captureMouse = state; }
     bool IsMouseCaptured() const { return _captureMouse; }

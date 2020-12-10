@@ -27,7 +27,7 @@
 namespace Terrain
 {
     constexpr i32 MAP_OBJECT_TOKEN = 7236975; // UTF8 -> Binary -> Decimal for "nmo"
-    constexpr i32 MAP_OBJECT_VERSION = 4;
+    constexpr i32 MAP_OBJECT_VERSION = 5;
 
     struct TriangleData
     {

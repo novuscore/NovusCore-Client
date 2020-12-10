@@ -33,9 +33,9 @@ struct MapSingleton
 
     Terrain::Map currentMap;
 
-	vec3 ambientLight = vec3(0.0f, 0.0f, 0.0f);
-	vec3 diffuseLight = vec3(0.0f, 0.0f, 0.0f);
-	vec3 lightDirection = vec3(0.0f, 0.0f, 0.0f);
+	vec3 ambientLight = vec3(0.380392164f, 0.509803891f, 0.635294139f);
+	vec3 diffuseLight = vec3(0.113725491f, 0.235294104f, 0.329411745f);
+	vec3 lightDirection = vec3(-0.595154941f, -0.595155120f, -0.539982319f);
 
 	robin_hood::unordered_map<u32, NDBC::Map*> mapIdToDBC;
 	robin_hood::unordered_map<u32, NDBC::Map*> mapNameToDBC;
