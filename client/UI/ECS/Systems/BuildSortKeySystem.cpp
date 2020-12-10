@@ -14,12 +14,12 @@ namespace UISystem
     {
         auto sortView = registry.view<UIComponent::Relation, UIComponent::SortKey, UIComponent::SortKeyDirty>();
         sortView.each([&](entt::entity entity, UIComponent::Relation& relation, UIComponent::SortKey& sortKey)
-            {
-                sortKey.data.compoundDepth = 0;
+        {
+            sortKey.data.compoundDepth = 0;
 
-                u32 compoundDepth = 1;
-                UIUtils::Sort::UpdateChildDepths(&registry, entity, compoundDepth);
-            });
+            u32 compoundDepth = 1;
+            UIUtils::Sort::UpdateChildDepths(&registry, entity, compoundDepth);
+        });
 
     }
 }
