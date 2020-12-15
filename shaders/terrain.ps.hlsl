@@ -22,6 +22,7 @@ struct PSInput
 struct PSOutput
 {
     float4 color : SV_Target0;
+    uint objectID : SV_Target1;
 };
 
 CellData LoadCellData(uint globalCellID)
@@ -99,5 +100,9 @@ PSOutput main(PSInput input)
     color.rgb = Lighting(color.rgb, float3(0.0f, 0.0f, 0.0f), normal, true);
 
     output.color = saturate(color);
+
+    // 4 most significant bits are used as a type identifier, remaining bits are packedChunkCellID
+    output.objectID = uint(ObjectType::Terrain) << 28;
+    output.objectID += input.packedChunkCellID;
     return output;
 }

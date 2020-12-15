@@ -175,7 +175,7 @@ void MovementSystem::Update(entt::registry& registry)
         {
             localplayerSingleton.movementProperties.canChangeDirection = true;
             transform.velocity = vec3(0.f, 0.f, 0.f);
-            transform.fallSpeed = 5.33f;
+            transform.fallSpeed = 19.5f;
 
             // Clip to Terrain
             {
@@ -191,7 +191,10 @@ void MovementSystem::Update(entt::registry& registry)
 
             if (isJumping)
             {
-                transform.velocity += transform.up * 4.33f;
+                transform.velocity += transform.up * 8.f;
+
+                // Ensure we can only manipulate direction of the jump if we did not produce a direction when we initially jumped
+                localplayerSingleton.movementProperties.canChangeDirection = moveAlongVerticalAxis == 0 && moveAlongHorizontalAxis == 0;
             }
         }
         else

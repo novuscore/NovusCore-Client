@@ -16,6 +16,7 @@ struct InstanceLookupData
     uint vertexOffset;
     uint vertexColor1Offset;
     uint vertexColor2Offset;
+    uint loadedObjectID;
 };
 
 struct InstanceData
@@ -55,6 +56,7 @@ struct VSOutput
     float4 color1 : TEXCOORD2;
     float4 uv01 : TEXCOORD3;
     uint materialParamID : TEXCOORD4;
+    uint instanceLookupID : TEXCOORD5;
 };
 
 InstanceData LoadInstanceData(uint instanceID)
@@ -166,7 +168,7 @@ VSOutput main(VSInput input)
 {
     VSOutput output;
 
-    InstanceLookupData lookupData = _instanceLookup.Load<InstanceLookupData>(input.instanceID * 24); // 24 = sizeof(InstanceLookupData)
+    InstanceLookupData lookupData = _instanceLookup.Load<InstanceLookupData>(input.instanceID * 28); // 28 = sizeof(InstanceLookupData)
     
     uint instanceID = lookupData.instanceID;
     uint vertexColorTextureID0 = lookupData.vertexColorTextureID0;
@@ -187,6 +189,7 @@ VSOutput main(VSInput input)
     output.color1 = vertex.color1;
 
     output.uv01 = vertex.uv;
+    output.instanceLookupID = input.instanceID;
 
     return output;
 }

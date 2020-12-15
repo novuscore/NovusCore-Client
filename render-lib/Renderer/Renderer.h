@@ -44,6 +44,7 @@ namespace Renderer
 
         // Creation
         virtual BufferID CreateBuffer(BufferDesc& desc) = 0;
+        virtual BufferID CreateTemporaryBuffer(BufferDesc& desc, u32 framesLifetime) = 0;
         virtual void QueueDestroyBuffer(BufferID buffer) = 0;
 
         virtual ImageID CreateImage(ImageDesc& desc) = 0;
@@ -62,8 +63,6 @@ namespace Renderer
 
         virtual TextureID CreateDataTexture(DataTextureDesc& desc) = 0;
         virtual TextureID CreateDataTextureIntoArray(DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) = 0;
-        
-        virtual DescriptorSetBackend* CreateDescriptorSetBackend() = 0;
 
         // Loading
         virtual ModelID LoadModel(ModelDesc& desc) = 0;
@@ -103,7 +102,7 @@ namespace Renderer
         virtual void SetVertexBuffer(CommandListID commandListID, u32 slot, BufferID bufferID) = 0;
         virtual void SetIndexBuffer(CommandListID commandListID, BufferID bufferID, IndexFormat indexFormat) = 0;
         virtual void SetBuffer(CommandListID commandListID, u32 slot, BufferID buffer) = 0;
-        virtual void BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex) = 0;
+        virtual void BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors) = 0;
         virtual void MarkFrameStart(CommandListID commandListID, u32 frameIndex) = 0;
         virtual void BeginTrace(CommandListID commandListID, const tracy::SourceLocationData* sourceLocation) = 0;
         virtual void EndTrace(CommandListID commandListID) = 0;
@@ -111,6 +110,7 @@ namespace Renderer
         virtual void AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) = 0;
         virtual void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
         virtual void PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer) = 0;
+        virtual void ImageBarrier(CommandListID commandListID, ImageID image) = 0;
         virtual void PushConstant(CommandListID commandListID, void* data, u32 offset, u32 size) = 0;
         virtual void FillBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, u32 data) = 0;
 

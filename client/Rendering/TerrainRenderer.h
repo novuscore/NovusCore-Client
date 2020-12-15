@@ -81,13 +81,12 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
+    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 
     bool LoadMap(const NDBC::Map* map);
 
     const std::vector<Geometry::AABoundingBox>& GetBoundingBoxes() { return _cellBoundingBoxes; }
     MapObjectRenderer* GetMapObjectRenderer() { return _mapObjectRenderer; }
-    CModelRenderer* GetComplexModelRenderer() { return _complexModelRenderer; }
 private:
     void CreatePermanentResources();
 

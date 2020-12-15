@@ -25,6 +25,7 @@
 #include "CopyBuffer.h"
 #include "FillBuffer.h"
 #include "PipelineBarrier.h"
+#include "ImageBarrier.h"
 #include "DrawImgui.h"
 #include "PushConstant.h"
 
@@ -62,6 +63,7 @@ namespace Renderer
         const BackendDispatchFunction CopyBuffer::DISPATCH_FUNCTION = &BackendDispatch::CopyBuffer;
         const BackendDispatchFunction FillBuffer::DISPATCH_FUNCTION = &BackendDispatch::FillBuffer;
         const BackendDispatchFunction PipelineBarrier::DISPATCH_FUNCTION = &BackendDispatch::PipelineBarrier;
+        const BackendDispatchFunction ImageBarrier::DISPATCH_FUNCTION = &BackendDispatch::ImageBarrier;
         const BackendDispatchFunction DrawImgui::DISPATCH_FUNCTION = &BackendDispatch::DrawImgui;
         const BackendDispatchFunction PushConstant::DISPATCH_FUNCTION = &BackendDispatch::PushConstant;
     }

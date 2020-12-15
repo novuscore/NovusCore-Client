@@ -11,7 +11,7 @@ struct Transform
     vec3 scale = vec3(1.f, 1.f, 1.f);
 
     f32 moveSpeed = 7.1111f;
-    f32 fallSpeed = 5.33f;
+    f32 fallSpeed = 19.5f;
     f32 fallAcceleration = 7.33f;
 
     struct MovementFlags

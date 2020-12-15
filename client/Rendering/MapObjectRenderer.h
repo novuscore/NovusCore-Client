@@ -93,6 +93,7 @@ class MapObjectRenderer
 public:
     struct LoadedMapObject
     {
+        u32 objectID;
         std::string debugName = "";
 
         std::vector<u32> drawParameterIDs;
@@ -118,6 +119,20 @@ public:
         std::vector<Terrain::CullingData> cullingData;
     };
 
+    struct InstanceLookupData
+    {
+        u16 instanceID;
+        u16 materialParamID;
+        u16 cullingDataID;
+        u16 vertexColorTextureID0 = 0;
+        u16 vertexColorTextureID1 = 0;
+        u16 padding1;
+        u32 vertexOffset;
+        u32 vertexColor1Offset;
+        u32 vertexColor2Offset;
+        u32 loadedObjectID;
+    };
+
     struct InstanceData
     {
         mat4x4 instanceMatrix;
@@ -128,7 +143,7 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
+    void AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 
     void RegisterMapObjectToBeLoaded(const std::string& mapObjectName, const Terrain::Placement& mapObjectPlacement);
     void RegisterMapObjectsToBeLoaded(u16 chunkID, const Terrain::Chunk& chunk, StringTable& stringTable);
@@ -139,6 +154,7 @@ public:
     const std::vector<LoadedMapObject>& GetLoadedMapObjects() { return _loadedMapObjects; }
     const std::vector<InstanceData>& GetInstances() { return _instances; }
     const std::vector<Terrain::PlacementDetails>& GetPlacementDetails() { return _mapObjectPlacementDetails; }
+    const std::vector<InstanceLookupData>& GetInstanceLookupData() { return _instanceLookupData; }
 
     u32 GetChunkPlacementDetailsOffset(u16 chunkID) { return _mapChunkToPlacementOffset[chunkID]; }
     u32 GetNumLoadedMapObjects() { return static_cast<u32>(_loadedMapObjects.size()); }
@@ -166,19 +182,6 @@ private:
         f16 alphaTestVal = f16(-1.0f);//1.0f / 255.0f;//1.0f / 16.0f;//1.0f / 255.0f;
         u16 materialType = 0;
         u16 unlit = 0;
-    };
-
-    struct InstanceLookupData
-    {
-        u16 instanceID;
-        u16 materialParamID;
-        u16 cullingDataID;
-        u16 vertexColorTextureID0 = 0;
-        u16 vertexColorTextureID1 = 0;
-        u16 padding1;
-        u32 vertexOffset;
-        u32 vertexColor1Offset;
-        u32 vertexColor2Offset;
     };
 
     struct MeshData
@@ -232,7 +235,8 @@ private:
     Renderer::BufferID _cullingDataBuffer = Renderer::BufferID::Invalid();
 
     Renderer::TextureArrayID _mapObjectTextures;
-    
+
+    robin_hood::unordered_map<u32, u8> _uniqueIdCounter;
     robin_hood::unordered_map<u16, u32> _mapChunkToPlacementOffset;
     std::vector<Terrain::PlacementDetails> _mapObjectPlacementDetails;
 

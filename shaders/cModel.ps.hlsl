@@ -5,12 +5,12 @@
 [[vk::binding(4, PER_PASS)]] SamplerState _sampler;
 [[vk::binding(5, PER_PASS)]] Texture2D<float4> _textures[4096];
 
-struct TextureUnitIndices
+struct Constants
 {
-    uint16_t packedIndices[4]; // 8 indices packed into 4 uint16s
+    uint isTransparent;
 };
 
-[[vk::push_constant]] TextureUnitIndices textureUnitIndices;
+[[vk::push_constant]] Constants _constants;
 
 struct TextureUnit
 {
@@ -29,6 +29,7 @@ struct PSInput
 struct PSOutput
 {
     float4 color : SV_Target0;
+    uint objectID : SV_Target1;
 };
 
 TextureUnit LoadTextureUnit(uint textureUnitIndex)
@@ -265,6 +266,7 @@ PSOutput main(PSInput input)
     float4 color = float4(0, 0, 0, 0);
     float3 specular = float3(0, 0, 0);
     bool isUnlit = false;
+    bool isTransparent = _constants.isTransparent;
 
     for (uint textureUnitIndex = drawCallData.textureUnitOffset; textureUnitIndex < drawCallData.textureUnitOffset + drawCallData.numTextureUnits; textureUnitIndex++)
     {
@@ -300,5 +302,10 @@ PSOutput main(PSInput input)
 
     PSOutput output;
     output.color = saturate(color);
+
+    // 4 most significant bits are used as a type identifier, remaining bits are drawCallID
+    uint objectType = (uint(ObjectType::ComplexModelOpaque) * !isTransparent) + (uint(ObjectType::ComplexModelTransparent) * isTransparent);
+    output.objectID = objectType << 28;
+    output.objectID += input.drawCallID;
     return output;
 }

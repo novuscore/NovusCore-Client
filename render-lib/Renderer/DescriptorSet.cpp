@@ -79,6 +79,31 @@ namespace Renderer
         boundDescriptor.textureArrayID = textureArrayID;
     }
 
+    void DescriptorSet::Bind(const std::string& name, ImageID imageID)
+    {
+        u32 nameHash = StringUtils::fnv1a_32(name.c_str(), name.size());
+        Bind(nameHash, imageID);
+    }
+
+    void DescriptorSet::Bind(u32 nameHash, ImageID imageID)
+    {
+        for (u32 i = 0; i < _boundDescriptors.size(); i++)
+        {
+            if (nameHash == _boundDescriptors[i].nameHash)
+            {
+                _boundDescriptors[i].descriptorType = DescriptorType::DESCRIPTOR_TYPE_IMAGE;
+                _boundDescriptors[i].imageID = imageID;
+                return;
+            }
+        }
+
+        u32 newIndex = static_cast<u32>(_boundDescriptors.size());
+        Descriptor& boundDescriptor = _boundDescriptors.emplace_back();
+        boundDescriptor.nameHash = nameHash;
+        boundDescriptor.descriptorType = DESCRIPTOR_TYPE_IMAGE;
+        boundDescriptor.imageID = imageID;
+    }
+
     void DescriptorSet::Bind(const std::string& name, BufferID buffer)
     {
         u32 nameHash = StringUtils::fnv1a_32(name.c_str(), name.size());

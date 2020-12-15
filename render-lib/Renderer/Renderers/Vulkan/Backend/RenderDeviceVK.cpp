@@ -41,7 +41,8 @@ namespace Renderer
             "VK_KHR_maintenance1",
             "VK_KHR_maintenance3",
             "VK_EXT_descriptor_indexing",
-            "VK_KHR_draw_indirect_count"
+            "VK_KHR_draw_indirect_count",
+            "VK_KHR_shader_subgroup_extended_types"
         };
 
         struct ImguiContext
@@ -397,10 +398,15 @@ namespace Renderer
                 queueCreateInfo.pQueuePriorities = &queuePriority;
                 queueCreateInfos.push_back(queueCreateInfo);
             }
+            
+            VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR shaderSubgroupFeatures = {};
+            shaderSubgroupFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES_KHR;
+            shaderSubgroupFeatures.shaderSubgroupExtendedTypes = true;
 
             VkPhysicalDeviceDescriptorIndexingFeaturesEXT descriptorIndexingFeatures = {};
             descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
             descriptorIndexingFeatures.runtimeDescriptorArray = true;
+            descriptorIndexingFeatures.pNext = &shaderSubgroupFeatures;
 
             VkPhysicalDeviceFeatures2 deviceFeatures = {};
             deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -411,6 +417,7 @@ namespace Renderer
             deviceFeatures.features.shaderInt64 = VK_TRUE;
             deviceFeatures.features.multiDrawIndirect = VK_TRUE;
             deviceFeatures.features.drawIndirectFirstInstance = VK_TRUE;
+            deviceFeatures.features.independentBlend = VK_TRUE;
             deviceFeatures.pNext = &descriptorIndexingFeatures;
 
             VkDeviceCreateInfo createInfo = {};
@@ -1288,6 +1295,13 @@ namespace Renderer
             imageBarrier.subresourceRange.baseMipLevel = 0;
             imageBarrier.subresourceRange.levelCount = numMipLevels;
             imageBarrier.subresourceRange.layerCount = numLayers;
+
+            // TODO: Fix this
+            if (oldLayout == VkImageLayout::VK_IMAGE_LAYOUT_GENERAL && newLayout == VkImageLayout::VK_IMAGE_LAYOUT_GENERAL)
+            {
+                imageBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+                imageBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            }
 
             VkPipelineStageFlagBits srcFlags = VkPipelineStageFlagBits::VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
             VkPipelineStageFlagBits dstFlags = VkPipelineStageFlagBits::VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;

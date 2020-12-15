@@ -1,18 +1,17 @@
 #pragma once
 #include <NovusTypes.h>
-#include "../DescriptorSet.h"
+#include <Renderer/BackendDispatch.h>
+#include <Renderer/Descriptors/ImageDesc.h>
 
 namespace Renderer
 {
     namespace Commands
     {
-        struct BindDescriptorSet
+        struct ImageBarrier
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
 
-            DescriptorSetSlot slot;
-            Descriptor* descriptors;
-            u32 numDescriptors;
+            ImageID image = ImageID::Invalid();
         };
     }
 }

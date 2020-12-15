@@ -7,6 +7,7 @@
 #include "../Rendering/MapObjectRenderer.h"
 #include "../Rendering/CModelRenderer.h"
 #include "../Rendering/DebugRenderer.h"
+#include "../Rendering/PixelQuery.h"
 #include "../Rendering/CameraFreelook.h"
 #include "../ECS/Components/Singletons/NDBCSingleton.h"
 #include "../ECS/Components/Singletons/MapSingleton.h"
@@ -15,6 +16,7 @@
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
 #include <entt.hpp>
+#include <tracy/Tracy.hpp>
 
 #include <glm/gtx/matrix_decompose.hpp>
 #include <imgui/imgui.h>
@@ -25,10 +27,6 @@ namespace Editor
 {
     AutoCVar_Int CVAR_EditorEnabled("editor.Enable", "enable editor mode for the client", 1, CVarFlags::EditCheckbox);
 
-    AutoCVar_Int CVAR_EditorRayEnabled("editor.ray.Enable", "enable ray for debugging screen to world", 0, CVarFlags::EditCheckbox);
-    AutoCVar_VecFloat CVAR_EditorRayStartPosition("editor.ray.StartPosition", "", vec4(0, 0, 0, 0), CVarFlags::Noedit);
-    AutoCVar_VecFloat CVAR_EditorRayEndPosition("editor.ray.EndPosition", "", vec4(0, 0, 0, 0), CVarFlags::Noedit);
-
     Editor::Editor()
     {
         InputManager* inputManager = ServiceLocator::GetInputManager();
@@ -37,70 +35,255 @@ namespace Editor
 
     void Editor::Update(f32 deltaTime)
     {
+        ZoneScoped;
+
+        entt::registry* registry = ServiceLocator::GetGameRegistry();
+        MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
+
         ClientRenderer* clientRenderer = ServiceLocator::GetClientRenderer();
         DebugRenderer* debugRenderer = clientRenderer->GetDebugRenderer();
 
-        if (CVAR_EditorRayEnabled.Get())
+        if (ImGui::Begin("Inspector Info"))
         {
-            debugRenderer->DrawLine3D(CVAR_EditorRayStartPosition.Get(), CVAR_EditorRayEndPosition.Get(), 0x00FF00FF);
-        }
+            PixelQuery* pixelQuery = clientRenderer->GetPixelQuery();
 
-        if (ImGui::Begin("Editor Info"))
-        {
-            if (_selectedBoundingBox.type != SelectedBoundingBoxType::NONE)
+            bool hasQueryToken = _queriedToken != 0;
+            bool hasActiveToken = _activeToken != 0;
+            bool hasNewSelection = false;
+
+            if (hasQueryToken)
             {
-                if (_selectedBoundingBox.type == SelectedBoundingBoxType::TERRAIN)
+                PixelQuery::PixelData pixelData;
+                if (pixelQuery->GetQueryResult(_queriedToken, pixelData))
                 {
-                    HandleTerrainBoundingBox(debugRenderer);
+                    // Here we free the currently active token (If set)
+                    if (hasActiveToken)
+                    {
+                        pixelQuery->FreeToken(_activeToken);
+                        _activeToken = 0;
+                    }
+
+                    if (pixelData.type == QueryObjectType::None)
+                    {
+                        pixelQuery->FreeToken(_queriedToken);
+                        _queriedToken = 0;
+                    }
+                    else
+                    {
+                        _activeToken = _queriedToken;
+                        _queriedToken = 0;
+
+                        hasActiveToken = true;
+                        hasNewSelection = true;
+                    }
                 }
-                else if (_selectedBoundingBox.type == SelectedBoundingBoxType::MAP_OBJECT)
-                {
-
-                    ClientRenderer* clientRenderer = ServiceLocator::GetClientRenderer();
-                    TerrainRenderer* terrainRenderer = clientRenderer->GetTerrainRenderer();
-                    MapObjectRenderer* mapObjectRenderer = terrainRenderer->GetMapObjectRenderer();
-                    const std::vector<Terrain::PlacementDetails>& mapObjectPlacementDetails = mapObjectRenderer->GetPlacementDetails();
-                    const std::vector<MapObjectRenderer::LoadedMapObject>& loadedMapObjects = mapObjectRenderer->GetLoadedMapObjects();
-
-                    const Terrain::PlacementDetails& placementDetails = mapObjectPlacementDetails[_selectedMapObjectData.placementDetailsIndex];
-                    const MapObjectRenderer::LoadedMapObject& loadedMapObject = loadedMapObjects[placementDetails.loadedIndex];
-                    const mat4x4& instanceMatrix = mapObjectRenderer->GetInstances()[placementDetails.instanceIndex].instanceMatrix;
-
-                    glm::vec3 scale;
-                    glm::quat rotation;
-                    glm::vec3 translation;
-                    glm::vec3 skew;
-                    glm::vec4 perspective;
-                    glm::decompose(instanceMatrix, scale, rotation, translation, skew, perspective);
-
-                    glm::vec3 euler = glm::eulerAngles(rotation);
-                    glm::vec3 eulerAsDeg = glm::degrees(euler);
-
-                    ImGui::Text("Map Object");
-                    ImGui::Text("Model: %s", loadedMapObject.debugName.c_str());
-                    ImGui::Text("Position: X: %.2f, Y: %.2f, Z: %.2f", translation.x, translation.y, translation.z);
-                    ImGui::Text("Scale: X: %.2f, Y: %.2f, Z: %.2f", scale.x, scale.y, scale.z);
-                    ImGui::Text("Rotation: X: %.2f, Y: %.2f, Z: %.2f", eulerAsDeg.x, eulerAsDeg.y, eulerAsDeg.z);
-                }
-                else if (_selectedBoundingBox.type == SelectedBoundingBoxType::COMPLEX_MODEL)
-                {
-
-                    ImGui::Text("COMPLEX MODEL");
-                }
-
-                debugRenderer->DrawAABB3D(_selectedBoundingBox.aabb.min, _selectedBoundingBox.aabb.max, 0xFFFF00FF);
             }
-            else
+
+            PixelQuery::PixelData pixelData;
+            if (hasActiveToken)
+            {
+                if (pixelQuery->GetQueryResult(_activeToken, pixelData))
+                {
+                    if (pixelData.type == QueryObjectType::Terrain)
+                    {
+                        if (hasNewSelection) 
+                        {
+                            constexpr float halfWorldSize = 17066.66656f;
+
+                            const u32 packedChunkCellID = pixelData.value;
+                            u32 cellID = packedChunkCellID & 0xffff;
+                            u32 chunkID = packedChunkCellID >> 16;
+
+                            const Terrain::Chunk& chunk = mapSingleton.currentMap.chunks[chunkID];
+                            const Terrain::Cell& cell = chunk.cells[cellID];
+                            const auto heightMinMax = std::minmax_element(cell.heightData, cell.heightData + Terrain::MAP_CELL_TOTAL_GRID_SIZE);
+
+                            const u32 chunkX = chunkID % Terrain::MAP_CHUNKS_PER_MAP_STRIDE;
+                            const u32 chunkY = chunkID / Terrain::MAP_CHUNKS_PER_MAP_STRIDE;
+
+                            const u16 cellX = cellID % Terrain::MAP_CELLS_PER_CHUNK_SIDE;
+                            const u16 cellY = cellID / Terrain::MAP_CELLS_PER_CHUNK_SIDE;
+
+                            vec2 chunkOrigin;
+                            chunkOrigin.x = halfWorldSize - (chunkX * Terrain::MAP_CHUNK_SIZE);
+                            chunkOrigin.y = halfWorldSize - (chunkY * Terrain::MAP_CHUNK_SIZE);
+
+                            vec3 min;
+                            vec3 max;
+
+                            // The reason for the flip in X and Y here is because in 2D X is Left and Right, Y is Forward and Backward.
+                            // In our 3D coordinate space X is Forward and Backwards, Y is Left and Right.
+
+                            min.x = chunkOrigin.y - (cellY * Terrain::MAP_CELL_SIZE);
+                            min.y = chunkOrigin.x - (cellX * Terrain::MAP_CELL_SIZE);
+                            min.z = *heightMinMax.first + 0.1f;
+
+                            max.x = chunkOrigin.y - ((cellY + 1) * Terrain::MAP_CELL_SIZE);
+                            max.y = chunkOrigin.x - ((cellX + 1) * Terrain::MAP_CELL_SIZE);
+                            max.z = *heightMinMax.second + 0.1f;
+
+                            _selectedTerrainData.boundingBox.min = glm::max(min, max);
+                            _selectedTerrainData.boundingBox.max = glm::min(min, max);
+
+                            vec3 center = (_selectedTerrainData.boundingBox.min + _selectedTerrainData.boundingBox.max) / vec3(2.0f, 2.0f, 2.0f);
+                            _selectedTerrainData.triangles.clear();
+                            _selectedTerrainData.triangles = Terrain::MapUtils::GetCellTrianglesFromWorldPosition(center);
+
+                            for (auto& triangle : _selectedTerrainData.triangles)
+                            {
+                                // Offset Y slightly to not be directly drawn on top of the terrain
+                                triangle.vert1.z += 0.1f;
+                                triangle.vert2.z += 0.1f;
+                                triangle.vert3.z += 0.1f;
+                            }
+
+                            _selectedTerrainData.chunkWorldPos.x = Terrain::MAP_HALF_SIZE - (chunkY * Terrain::MAP_CHUNK_SIZE);
+                            _selectedTerrainData.chunkWorldPos.y = Terrain::MAP_HALF_SIZE - (chunkX * Terrain::MAP_CHUNK_SIZE);
+                            _selectedTerrainData.chunkId = chunkID;
+                            _selectedTerrainData.cellId = cellID;
+
+                            auto itr = mapSingleton.currentMap.chunks.find(_selectedTerrainData.chunkId);
+                            if (itr == mapSingleton.currentMap.chunks.end())
+                                return;
+
+                            _selectedTerrainData.chunk = &itr->second;
+                            _selectedTerrainData.cell = &_selectedTerrainData.chunk->cells[_selectedTerrainData.cellId];
+
+                            _selectedTerrainData.zone = _selectedTerrainData.cell ? mapSingleton.areaIdToDBC[_selectedTerrainData.cell->areaId] : nullptr;
+                            _selectedTerrainData.area = nullptr;
+
+                            if (_selectedTerrainData.zone && _selectedTerrainData.zone->parentId)
+                            {
+                                _selectedTerrainData.area = _selectedTerrainData.zone;
+                                _selectedTerrainData.zone = mapSingleton.areaIdToDBC[_selectedTerrainData.area->parentId];
+                            }
+                        }
+
+                        TerrainSelectionDrawImGui();
+
+                        debugRenderer->DrawAABB3D(_selectedTerrainData.boundingBox.min, _selectedTerrainData.boundingBox.max, 0xFF0000FF);
+                        for (auto& triangle : _selectedTerrainData.triangles)
+                        {
+                            f32 steepnessAngle = triangle.GetSteepnessAngle();
+                            u32 color = steepnessAngle <= 50 ? 0xff00ff00 : 0xff0000ff;
+
+                            debugRenderer->DrawLine3D(triangle.vert1, triangle.vert2, color);
+                            debugRenderer->DrawLine3D(triangle.vert2, triangle.vert3, color);
+                            debugRenderer->DrawLine3D(triangle.vert3, triangle.vert1, color);
+                        }
+                    }
+                    else if (pixelData.type == QueryObjectType::MapObject)
+                    {
+                        if (hasNewSelection)
+                        {
+                            _selectedMapObjectData.instanceLookupDataID = pixelData.value;
+
+                            ClientRenderer* clientRenderer = ServiceLocator::GetClientRenderer();
+                            TerrainRenderer* terrainRenderer = clientRenderer->GetTerrainRenderer();
+                            MapObjectRenderer* mapObjectRenderer = terrainRenderer->GetMapObjectRenderer();
+
+                            const std::vector<MapObjectRenderer::InstanceLookupData>& instanceLookupDatas = mapObjectRenderer->GetInstanceLookupData();
+                            const std::vector<MapObjectRenderer::LoadedMapObject>& loadedMapObjects = mapObjectRenderer->GetLoadedMapObjects();
+
+                            const MapObjectRenderer::InstanceLookupData& instanceLookupData = instanceLookupDatas[_selectedMapObjectData.instanceLookupDataID];
+                            const MapObjectRenderer::LoadedMapObject& loadedMapObject = loadedMapObjects[instanceLookupData.loadedObjectID];
+                            const mat4x4& instanceMatrix = mapObjectRenderer->GetInstances()[instanceLookupData.instanceID].instanceMatrix;
+
+                            Geometry::AABoundingBox mapObjectAABB;
+                            mapObjectAABB.min = vec3(Terrain::MAP_SIZE, Terrain::MAP_SIZE, Terrain::MAP_SIZE);
+                            mapObjectAABB.max = vec3(-Terrain::MAP_SIZE, -Terrain::MAP_SIZE, -Terrain::MAP_SIZE);
+
+                            for (const Terrain::CullingData& cullingData : loadedMapObject.cullingData)
+                            {
+                                vec3 minBoundingBox = cullingData.minBoundingBox;
+                                vec3 maxBoundingBox = cullingData.maxBoundingBox;
+
+                                for (u32 j = 0; j < 3; j++)
+                                {
+                                    if (minBoundingBox[j] < mapObjectAABB.min[j])
+                                        mapObjectAABB.min[j] = minBoundingBox[j];
+
+                                    if (maxBoundingBox[j] > mapObjectAABB.max[j])
+                                        mapObjectAABB.max[j] = maxBoundingBox[j];
+                                }
+                            }
+
+                            vec3 minBoundingBox = mapObjectAABB.min;
+                            vec3 maxBoundingBox = mapObjectAABB.max;
+
+                            vec3 center = (minBoundingBox + maxBoundingBox) * 0.5f;
+                            vec3 extents = maxBoundingBox - center;
+
+                            // transform center
+                            vec3 transformedCenter = vec3(instanceMatrix * vec4(center, 1.0f));
+
+                            // Transform extents (take maximum)
+                            glm::mat3x3 absMatrix = glm::mat3x3(glm::abs(vec3(instanceMatrix[0])), glm::abs(vec3(instanceMatrix[1])), glm::abs(vec3(instanceMatrix[2])));
+                            vec3 transformedExtents = absMatrix * extents;
+
+                            // Transform to min/max box representation
+                            _selectedMapObjectData.boundingBox.min = transformedCenter - transformedExtents;
+                            _selectedMapObjectData.boundingBox.max = transformedCenter + transformedExtents;
+                        }
+
+                        MapObjectSelectionDrawImGui();
+                        debugRenderer->DrawAABB3D(_selectedMapObjectData.boundingBox.min, _selectedMapObjectData.boundingBox.max, 0xFF0000FF);
+                    }
+                    else if (pixelData.type == QueryObjectType::ComplexModelOpaque || pixelData.type == QueryObjectType::ComplexModelTransparent)
+                    {
+                        if (hasNewSelection)
+                        {
+                            ClientRenderer* clientRenderer = ServiceLocator::GetClientRenderer();
+                            CModelRenderer* cModelRenderer = clientRenderer->GetCModelRenderer();
+
+                            bool isOpaque = pixelData.type == QueryObjectType::ComplexModelOpaque;
+
+                            const std::vector<CModelRenderer::DrawCallData>& drawCallDatas = isOpaque ? cModelRenderer->GetOpaqueDrawCallData() : cModelRenderer->GetTransparentDrawCallData();
+                            const CModelRenderer::DrawCallData& drawCallData = drawCallDatas[pixelData.value];
+
+                            _selectedComplexModelData.isOpaque = isOpaque;
+                            _selectedComplexModelData.drawCallDataID = pixelData.value;
+                            _selectedComplexModelData.instanceID = drawCallData.instanceID;
+
+                            const mat4x4& instanceMatrix = cModelRenderer->GetInstances()[drawCallData.instanceID].instanceMatrix;
+                            const CModel::CullingData& cullingData = cModelRenderer->GetCullingData()[drawCallData.cullingDataID];
+                            vec3 minBoundingBox = cullingData.minBoundingBox;
+                            vec3 maxBoundingBox = cullingData.maxBoundingBox;
+
+                            vec3 center = (minBoundingBox + maxBoundingBox) * 0.5f;
+                            vec3 extents = maxBoundingBox - center;
+
+                            // transform center
+                            vec3 transformedCenter = vec3(instanceMatrix * vec4(center, 1.0f));
+
+                            // Transform extents (take maximum)
+                            glm::mat3x3 absMatrix = glm::mat3x3(glm::abs(vec3(instanceMatrix[0])), glm::abs(vec3(instanceMatrix[1])), glm::abs(vec3(instanceMatrix[2])));
+                            vec3 transformedExtents = absMatrix * extents;
+
+                            // Transform to min/max box representation
+                            _selectedComplexModelData.boundingBox.min = transformedCenter - transformedExtents;
+                            _selectedComplexModelData.boundingBox.max = transformedCenter + transformedExtents;
+                        }
+
+                        ComplexModelSelectionDrawImGui();
+                        debugRenderer->DrawAABB3D(_selectedComplexModelData.boundingBox.min, _selectedComplexModelData.boundingBox.max, 0xFF0000FF);
+                    }
+                }
+            }
+
+            if (pixelData.type == QueryObjectType::None)
             {
                 ImGui::TextWrapped("Welcome to the editor window. In the editor window you can see information about what you are currently viewing. To start viewing, click on a map tile, map object or complex model.");
             }
+            else
+            {
+                ImGui::Spacing();
+                ImGui::Spacing();
+                ImGui::TextWrapped("You can clear your selection by using 'Shift + Mouse Left'");
+            }
 
-            ImGui::Spacing();
-            ImGui::Spacing();
-            ImGui::TextWrapped("You can clear your selection by using 'Shift + Mouse Left'");
+            ImGui::End();
         }
-
-        ImGui::End();
 
         _ndbcEditorHandler.Draw();
     }
@@ -115,60 +298,13 @@ namespace Editor
         }
     }
 
-    void Editor::HandleTerrainBoundingBox(DebugRenderer* debugRenderer)
+    void Editor::TerrainSelectionDrawImGui()
     {
         entt::registry* registry = ServiceLocator::GetGameRegistry();
         MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
 
-        if (!_selectedObjectDataInitialized)
-        {
-            _selectedObjectDataInitialized = true;
-            _selectedTerrainData.center = (_selectedBoundingBox.aabb.min + _selectedBoundingBox.aabb.max) / vec3(2.0f, 2.0f, 2.0f);
-
-            _selectedTerrainData.adtCoords = Terrain::MapUtils::WorldPositionToADTCoordinates(_selectedTerrainData.center);
-            _selectedTerrainData.chunkCoords = Terrain::MapUtils::GetChunkFromAdtPosition(_selectedTerrainData.adtCoords);
-
-            vec2 chunkCoordsFloored = glm::floor(_selectedTerrainData.chunkCoords);
-            vec2 chunkRemainder = _selectedTerrainData.chunkCoords - chunkCoordsFloored;
-
-            _selectedTerrainData.chunkWorldPos.x = Terrain::MAP_HALF_SIZE - (chunkCoordsFloored.y * Terrain::MAP_CHUNK_SIZE);
-            _selectedTerrainData.chunkWorldPos.y = Terrain::MAP_HALF_SIZE - (chunkCoordsFloored.x * Terrain::MAP_CHUNK_SIZE);
-            _selectedTerrainData.chunkId = Terrain::MapUtils::GetChunkIdFromChunkPos(_selectedTerrainData.chunkCoords);
-
-            _selectedTerrainData.cellCoords = (chunkRemainder * Terrain::MAP_CHUNK_SIZE) / Terrain::MAP_CELL_SIZE;
-            _selectedTerrainData.cellId = Terrain::MapUtils::GetCellIdFromCellPos(_selectedTerrainData.cellCoords);
-
-            auto itr = mapSingleton.currentMap.chunks.find(_selectedTerrainData.chunkId);
-            if (itr == mapSingleton.currentMap.chunks.end())
-                return;
-
-            _selectedTerrainData.chunk = &itr->second;
-            _selectedTerrainData.cell = &_selectedTerrainData.chunk->cells[_selectedTerrainData.cellId];
-
-            _selectedTerrainData.zone = _selectedTerrainData.cell ? mapSingleton.areaIdToDBC[_selectedTerrainData.cell->areaId] : nullptr;
-            _selectedTerrainData.area = nullptr;
-            
-            if (_selectedTerrainData.zone && _selectedTerrainData.zone->parentId)
-            {
-                _selectedTerrainData.area = _selectedTerrainData.zone;
-                _selectedTerrainData.zone = mapSingleton.areaIdToDBC[_selectedTerrainData.area->parentId];
-            }
-        }
-
         NDBCSingleton& ndbcSingleton = registry->ctx<NDBCSingleton>();
         const NDBC::File& areaTableFile = ndbcSingleton.nameHashToDBCFile["AreaTable"_h];
-
-        // Draw AABB of current Chunk
-        {
-            if (_selectedTerrainData.chunk)
-            {
-                Geometry::AABoundingBox chunkAABB;
-                chunkAABB.min = vec3(_selectedTerrainData.chunkWorldPos.x, _selectedTerrainData.chunkWorldPos.y, _selectedTerrainData.chunk->heightHeader.gridMinHeight);
-                chunkAABB.max = vec3(_selectedTerrainData.chunkWorldPos.x - Terrain::MAP_CHUNK_SIZE, _selectedTerrainData.chunkWorldPos.y - Terrain::MAP_CHUNK_SIZE, _selectedTerrainData.chunk->heightHeader.gridMaxHeight);
-
-                debugRenderer->DrawAABB3D(chunkAABB.min, chunkAABB.max, 0xFF0000FF);
-            }
-        }
 
         Terrain::Chunk* chunk = _selectedTerrainData.chunk;
         Terrain::Cell* cell = _selectedTerrainData.cell;
@@ -219,175 +355,62 @@ namespace Editor
         }
     }
 
-    bool Editor::IsRayIntersectingComplexModel(const vec3& rayOrigin, const vec3& oneOverRayDir, f32& outTime)
-    {
-        entt::registry* registry = ServiceLocator::GetGameRegistry();
-        MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
-
-        ClientRenderer* clientRenderer = ServiceLocator::GetClientRenderer();
-        TerrainRenderer* terrainRenderer = clientRenderer->GetTerrainRenderer();
-        CModelRenderer* cmodelRenderer = terrainRenderer->GetComplexModelRenderer();
-
-        vec3 aabbCenter = (_selectedBoundingBox.aabb.min + _selectedBoundingBox.aabb.max) / vec3(2.0f, 2.0f, 2.0f);
-        vec2 adtCoords = Terrain::MapUtils::WorldPositionToADTCoordinates(aabbCenter);
-        vec2 chunkCoords = Terrain::MapUtils::GetChunkFromAdtPosition(adtCoords);
-        u32 chunkId = Terrain::MapUtils::GetChunkIdFromChunkPos(chunkCoords);
-
-        const Terrain::Chunk& chunk = mapSingleton.currentMap.chunks[chunkId];
-        u32 numPlacementsOnChunk = static_cast<u32>(chunk.complexModelPlacements.size());
-        u32 chunkMapPlacementDetailsOffset = cmodelRenderer->GetChunkPlacementDetailsOffset(chunkId);
-        const std::vector<Terrain::PlacementDetails>& complexModelPlacementDetails = cmodelRenderer->GetPlacementDetails();
-
-        const std::vector<Terrain::PlacementDetails>& complexPlacementDetails = cmodelRenderer->GetPlacementDetails();
-        const std::vector<CModelRenderer::Instance>& complexModelInstances = cmodelRenderer->GetInstances();
-        const std::vector<CModelRenderer::LoadedComplexModel>& loadedComplexModels = cmodelRenderer->GetLoadedComplexModels();
-        const std::vector<CModel::CullingData>& complexModelCullingDatas = cmodelRenderer->GetCullingData();
-
-        bool didIntersectAtleastOnce = false;
-
-        for (u32 i = 0; i < complexPlacementDetails.size(); i++)
-        {
-            const Terrain::PlacementDetails& placementDetails = complexPlacementDetails[i];
-
-            const CModelRenderer::Instance& instance = complexModelInstances[placementDetails.instanceIndex];
-            const CModelRenderer::LoadedComplexModel& loadedComplexModel = loadedComplexModels[placementDetails.loadedIndex];
-
-            // Particle Emitters have no culling data
-            if (loadedComplexModel.cullingDataID == std::numeric_limits<u32>().max())
-                continue;
-
-            const CModel::CullingData& cullingData = complexModelCullingDatas[loadedComplexModel.cullingDataID];
-
-            vec3 minBoundingBox = cullingData.minBoundingBox;
-            vec3 maxBoundingBox = cullingData.maxBoundingBox;
-
-            vec3 center = (minBoundingBox + maxBoundingBox) * 0.5f;
-            vec3 extents = maxBoundingBox - center;
-
-            // transform center
-            const mat4x4& m = instance.instanceMatrix;
-            vec3 transformedCenter = vec3(m * vec4(center, 1.0f));
-
-            // Transform extents (take maximum)
-            glm::mat3x3 absMatrix = glm::mat3x3(glm::abs(vec3(m[0])), glm::abs(vec3(m[1])), glm::abs(vec3(m[2])));
-            vec3 transformedExtents = absMatrix * extents;
-
-            // Transform to min/max box representation
-            Geometry::AABoundingBox aabb;
-            aabb.min = transformedCenter - transformedExtents;
-            aabb.max = transformedCenter + transformedExtents;
-
-            f32 t = 0;
-            if (IsRayIntersectingAABB(rayOrigin, oneOverRayDir, aabb, t))
-            {
-                if (t >= 0.0f && t < outTime)
-                {
-                    outTime = t;
-                    _boundingBoxComplexModel = aabb;
-                    _selectedComplexModelData.placementDetailsIndex = i;
-
-                    didIntersectAtleastOnce = true;
-                }
-            }
-        }
-
-        return didIntersectAtleastOnce;
-    }
-    bool Editor::IsRayIntersectingMapObject(const vec3& rayOrigin, const vec3& oneOverRayDir, f32& outTime)
+    void Editor::MapObjectSelectionDrawImGui()
     {
         ClientRenderer* clientRenderer = ServiceLocator::GetClientRenderer();
         TerrainRenderer* terrainRenderer = clientRenderer->GetTerrainRenderer();
         MapObjectRenderer* mapObjectRenderer = terrainRenderer->GetMapObjectRenderer();
 
-        const std::vector<Terrain::PlacementDetails>& mapObjectPlacementDetails = mapObjectRenderer->GetPlacementDetails();
-        const std::vector<MapObjectRenderer::InstanceData>& mapObjectInstanceDatas = mapObjectRenderer->GetInstances();
+        const std::vector<MapObjectRenderer::InstanceLookupData>& instanceLookupDatas = mapObjectRenderer->GetInstanceLookupData();
         const std::vector<MapObjectRenderer::LoadedMapObject>& loadedMapObjects = mapObjectRenderer->GetLoadedMapObjects();
 
-        bool didIntersectAtleastOnce = false;
+        const MapObjectRenderer::InstanceLookupData& instanceLookupData = instanceLookupDatas[_selectedMapObjectData.instanceLookupDataID];
+        const MapObjectRenderer::LoadedMapObject& loadedMapObject = loadedMapObjects[instanceLookupData.loadedObjectID];
+        const mat4x4& instanceMatrix = mapObjectRenderer->GetInstances()[instanceLookupData.instanceID].instanceMatrix;
 
-        for (u32 i = 0; i < mapObjectPlacementDetails.size(); i++)
-        {
-            const Terrain::PlacementDetails& placementDetails = mapObjectPlacementDetails[i];
+        glm::vec3 scale;
+        glm::quat rotation;
+        glm::vec3 translation;
+        glm::vec3 skew;
+        glm::vec4 perspective;
+        glm::decompose(instanceMatrix, scale, rotation, translation, skew, perspective);
 
-            const MapObjectRenderer::InstanceData& instanceData = mapObjectInstanceDatas[placementDetails.instanceIndex];
-            const MapObjectRenderer::LoadedMapObject& loadedMapObject = loadedMapObjects[placementDetails.loadedIndex];
+        glm::vec3 euler = glm::eulerAngles(rotation);
+        glm::vec3 eulerAsDeg = glm::degrees(euler);
 
-            const mat4x4& m = instanceData.instanceMatrix;
-            glm::mat3x3 absMatrix = glm::mat3x3(glm::abs(vec3(m[0])), glm::abs(vec3(m[1])), glm::abs(vec3(m[2])));
-
-            Geometry::AABoundingBox mapObjectAABB;
-            mapObjectAABB.min = vec3(Terrain::MAP_SIZE, Terrain::MAP_SIZE, Terrain::MAP_SIZE);
-            mapObjectAABB.max = vec3(-Terrain::MAP_SIZE, -Terrain::MAP_SIZE, -Terrain::MAP_SIZE);
-
-            for (const Terrain::CullingData& cullingData : loadedMapObject.cullingData)
-            {
-                vec3 minBoundingBox = cullingData.minBoundingBox;
-                vec3 maxBoundingBox = cullingData.maxBoundingBox;
-
-                vec3 center = (minBoundingBox + maxBoundingBox) * 0.5f;
-                vec3 extents = maxBoundingBox - center;
-
-                // transform center
-                vec3 transformedCenter = vec3(m * vec4(center, 1.0f));
-                vec3 transformedExtents = absMatrix * extents;
-
-                // Transform to min/max box representation
-                Geometry::AABoundingBox aabb;
-                aabb.min = transformedCenter - transformedExtents;
-                aabb.max = transformedCenter + transformedExtents;
-
-                for (u32 j = 0; j < 3; j++)
-                {
-                    if (aabb.min[j] < mapObjectAABB.min[j])
-                        mapObjectAABB.min[j] = aabb.min[j];
-
-                    if (aabb.max[j] > mapObjectAABB.max[j])
-                        mapObjectAABB.max[j] = aabb.max[j];
-                }
-            }
-
-            f32 t = 0;
-            if (IsRayIntersectingAABB(rayOrigin, oneOverRayDir, mapObjectAABB, t))
-            {
-                if (t >= 0.0f && t < outTime)
-                {
-                    outTime = t;
-                    _boundingBoxMapObject = mapObjectAABB;
-                    _selectedMapObjectData.placementDetailsIndex = i;
-
-                    didIntersectAtleastOnce = true;
-                }
-            }
-        }
-
-        return didIntersectAtleastOnce;
+        ImGui::Text("Map Object");
+        ImGui::Text("Model: %s", loadedMapObject.debugName.c_str());
+        ImGui::Text("Position: X: %.2f, Y: %.2f, Z: %.2f", translation.x, translation.y, translation.z);
+        ImGui::Text("Scale: X: %.2f, Y: %.2f, Z: %.2f", scale.x, scale.y, scale.z);
+        ImGui::Text("Rotation: X: %.2f, Y: %.2f, Z: %.2f", eulerAsDeg.x, eulerAsDeg.y, eulerAsDeg.z);
     }
-    bool Editor::IsRayIntersectingTerrain(const vec3& rayOrigin, const vec3& oneOverRayDir, f32& outTime)
+
+    void Editor::ComplexModelSelectionDrawImGui()
     {
         ClientRenderer* clientRenderer = ServiceLocator::GetClientRenderer();
-        TerrainRenderer* terrainRenderer = clientRenderer->GetTerrainRenderer();
+        CModelRenderer* cModelRenderer = clientRenderer->GetCModelRenderer();
 
-        std::vector<Geometry::AABoundingBox> terrainBoundingBoxes = terrainRenderer->GetBoundingBoxes();
+        u32 loadedObjectIndex = cModelRenderer->GetModelIndexByDrawCallDataIndex(_selectedComplexModelData.drawCallDataID, _selectedComplexModelData.isOpaque);
+        const CModelRenderer::LoadedComplexModel& loadedComplexModel = cModelRenderer->GetLoadedComplexModels()[loadedObjectIndex];
+        const mat4x4& instanceMatrix = cModelRenderer->GetInstances()[_selectedComplexModelData.instanceID].instanceMatrix;
 
-        bool didIntersectAtleastOne = false;
+        glm::vec3 scale;
+        glm::quat rotation;
+        glm::vec3 translation;
+        glm::vec3 skew;
+        glm::vec4 perspective;
+        glm::decompose(instanceMatrix, scale, rotation, translation, skew, perspective);
 
-        f32 t = 0;
-        for (Geometry::AABoundingBox& boundingBox : terrainBoundingBoxes)
-        {
-            if (IsRayIntersectingAABB(rayOrigin, oneOverRayDir, boundingBox, t))
-            {
-                if (t >= 0.0f && t < outTime)
-                {
-                    outTime = t;
-                    _boundingBoxTerrain = boundingBox;
+        glm::vec3 euler = glm::eulerAngles(rotation);
+        glm::vec3 eulerAsDeg = glm::degrees(euler);
 
-                    didIntersectAtleastOne = true;
-                }
-            }
-        }
-
-        return didIntersectAtleastOne;
+        ImGui::Text("Complex Model");
+        ImGui::Text("Model: %s", loadedComplexModel.debugName.c_str());
+        ImGui::Text("Position: X: %.2f, Y: %.2f, Z: %.2f", translation.x, translation.y, translation.z);
+        ImGui::Text("Scale: X: %.2f, Y: %.2f, Z: %.2f", scale.x, scale.y, scale.z);
+        ImGui::Text("Rotation: X: %.2f, Y: %.2f, Z: %.2f", eulerAsDeg.x, eulerAsDeg.y, eulerAsDeg.z);
     }
+
     bool Editor::IsRayIntersectingAABB(const vec3& rayOrigin, const vec3& oneOverRayDir, const Geometry::AABoundingBox& aabb, f32& t)
     {
         f32 t1 = (aabb.min.x - rayOrigin.x) * oneOverRayDir.x;
@@ -425,101 +448,44 @@ namespace Editor
         if (ImGui::GetCurrentContext()->HoveredWindow)
             return false;
 
-        // Shift Click clears selection
-        if (keybind->currentModifierMask & KEYBIND_MOD_SHIFT)
-        {
-            if (CVAR_EditorRayEnabled.Get())
-            {
-                CVAR_EditorRayStartPosition.Set(vec4(0, 0, 0, 0));
-                CVAR_EditorRayEndPosition.Set(vec4(0, 0, 0, 0));
-            }
-
-            _selectedBoundingBox.type = SelectedBoundingBoxType::NONE;
-            return false;
-        }
+        ZoneScoped;
 
         ClientRenderer* clientRenderer = ServiceLocator::GetClientRenderer();
         InputManager* inputManager = ServiceLocator::GetInputManager();
-        hvec2 mousePosition = inputManager->GetMousePosition();
+        PixelQuery* pixelQuery = clientRenderer->GetPixelQuery();
 
-        f32 mousePosX = Math::Map(mousePosition.x, 0, static_cast<f32>(clientRenderer->WIDTH), -1, 1);
-        f32 mousePosY = -Math::Map(mousePosition.y, 0, static_cast<f32>(clientRenderer->HEIGHT), -1, 1);
-
-        const mat4x4 m = glm::inverse(camera->GetViewProjectionMatrix());
-
-        const vec3 start = DebugRenderer::UnProject(vec3(mousePosX, mousePosY, 1.0f), m);
-        const vec3 end = DebugRenderer::UnProject(vec3(mousePosX, mousePosY, 0.0f), m);
-        const vec3 dir = glm::normalize(end - start);
-        const vec3 dirFrac = vec3(1.0f, 1.0f, 1.0f) / dir;
-
-        if (CVAR_EditorRayEnabled.Get())
+        if (_queriedToken != 0)
         {
-            CVAR_EditorRayStartPosition.Set(vec4(start, 0));
-            CVAR_EditorRayEndPosition.Set(vec4(end, 0));
+            pixelQuery->FreeToken(_queriedToken);
+            _queriedToken = 0;
         }
 
-        std::vector<f32> rayIntersectionTimes = { 100000.0f, 100000.0f, 100000.0f };
-
-        bool didRayIntersectTerrain = IsRayIntersectingTerrain(start, dirFrac, rayIntersectionTimes[0]);
-        bool didRayIntersectMapObject = IsRayIntersectingMapObject(start, dirFrac, rayIntersectionTimes[1]);
-        bool didRayIntersectComplexModel = IsRayIntersectingComplexModel(start, dirFrac, rayIntersectionTimes[2]);
-
-        bool didRayIntersect = didRayIntersectTerrain || didRayIntersectMapObject || didRayIntersectComplexModel;
-
-        if (didRayIntersect)
+        // Shift Click clears selection
+        if (keybind->currentModifierMask & KEYBIND_MOD_SHIFT)
         {
-            // Figure out which one to select
+            if (_activeToken != 0)
             {
-                // Rules to help make selecting Map Objects & Complex Models easier (Later we will use the GPU for Pixel Perfect Accuracy, so this is just temporary)
-                if (didRayIntersectTerrain && (didRayIntersectMapObject || didRayIntersectComplexModel))
-                    rayIntersectionTimes[0] = 100000.0f;
-
-                f32 minimumTimeToIntersect = 100000.0f;
-                u32 index = std::numeric_limits<u32>().max();
-
-                for (u32 i = 0; i < rayIntersectionTimes.size(); i++)
-                {
-                    f32 rayIntersectionTime = rayIntersectionTimes[i];
-                    if (rayIntersectionTime < minimumTimeToIntersect)
-                    {
-                        minimumTimeToIntersect = rayIntersectionTime;
-                        index = i;
-                    }
-                }
-
-                switch (index)
-                {
-                    case 0: // Terrain
-                    {
-                        _selectedBoundingBox.type = SelectedBoundingBoxType::TERRAIN;
-                        _selectedBoundingBox.aabb = _boundingBoxTerrain;
-                        break;
-                    }
-
-                    case 1: // Map Object
-                    {
-                        _selectedBoundingBox.type = SelectedBoundingBoxType::MAP_OBJECT;
-                        _selectedBoundingBox.aabb = _boundingBoxMapObject;
-                        break;
-                    }
-
-                    case 2: // Complex Model
-                    {
-                        _selectedBoundingBox.type = SelectedBoundingBoxType::COMPLEX_MODEL;
-                        _selectedBoundingBox.aabb = _boundingBoxComplexModel;
-                        break;
-                    }
-
-                    default:
-                    {
-                        break;
-                    }
-                }
+                pixelQuery->FreeToken(_activeToken);
+                _activeToken = 0;
             }
 
-            _selectedObjectDataInitialized = false;
+            return false;
         }
 
-        return didRayIntersect;
+        hvec2 mousePosition = inputManager->GetMousePosition();
+        u32 mousePosX = static_cast<u32>(mousePosition.x);
+        u32 mousePosY = static_cast<u32>(mousePosition.y);
+
+        // Check if we need to free the previous _queriedToken
+        {
+            if (_queriedToken != 0)
+            {
+                pixelQuery->FreeToken(_queriedToken);
+                _queriedToken = 0;
+            }
+        }
+
+        _queriedToken = pixelQuery->PerformQuery(uvec2(mousePosX, mousePosY));
+        return true;
     }
 }

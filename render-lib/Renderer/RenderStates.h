@@ -504,6 +504,7 @@ namespace Renderer
         ComputeWriteToVertexShaderRead,
         ComputeWriteToPixelShaderRead,
         ComputeWriteToComputeShaderRead,
+        ComputeWriteToTransferSrc,
         AllCommands,
     };
 

@@ -69,7 +69,7 @@ void AreaUpdateSystem::Update(entt::registry& registry)
         {
             const vec3& lightPosition = light->position;
 
-            // LightPosition of (0,0,0) and fallOff of (0,0) means default, override!
+            // LightPosition of (0,0,0) means default, override!
             if (lightPosition == vec3(0, 0, 0))
             {
                 defaultLight = light;

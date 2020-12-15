@@ -47,6 +47,7 @@ struct InstanceLookupData
     uint vertexOffset;
     uint vertexColor1Offset;
     uint vertexColor2Offset;
+    uint loadedObjectID;
 };
 
 struct InstanceData
@@ -152,7 +153,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     DrawCommand command = _argumentBuffer.Load<DrawCommand>(drawCommandIndex * 20); // 20 = sizeof(DrawCommand)
     uint instanceID = command.firstInstance;
     
-    const InstanceLookupData lookupData = _instanceLookup.Load<InstanceLookupData>(instanceID * 24); // 24 = sizeof(InstanceLookupData)
+    const InstanceLookupData lookupData = _instanceLookup.Load<InstanceLookupData>(instanceID * 28); // 28 = sizeof(InstanceLookupData)
     
     const CullingData cullingData = LoadCullingData(lookupData.cullingDataID);
     const InstanceData instanceData = LoadInstanceData(lookupData.instanceID);
@@ -167,7 +168,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     
     // Transform extents (take maximum)
     const float3x3 absMatrix = float3x3(abs(m[0].xyz), abs(m[1].xyz), abs(m[2].xyz));
-    float3 transformedExtents =  mul(extents, absMatrix);
+    float3 transformedExtents = mul(extents, absMatrix);
     
     // Transform to min/max AABB representation
     AABB aabb;

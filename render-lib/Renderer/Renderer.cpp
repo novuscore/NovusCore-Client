@@ -13,9 +13,4 @@ namespace Renderer
 
         return renderGraph;
     }
-
-    DescriptorSetBackend* Renderer::CreateDescriptorSetBackend()
-    {
-        return nullptr;
-    }
 }

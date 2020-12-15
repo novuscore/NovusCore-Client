@@ -92,6 +92,7 @@ namespace Renderer
         void FillBuffer(BufferID dstBuffer, u64 dstBufferOffset, u64 size, u32 data);
 
         void PipelineBarrier(PipelineBarrierType type, BufferID buffer);
+        void ImageBarrier(ImageID image);
 
         void DrawImgui();
 

@@ -63,6 +63,7 @@ public:
 
     struct LoadedComplexModel
     {
+        u32 objectID;
         std::string debugName = "";
 
         u32 cullingDataID = std::numeric_limits<u32>().max();
@@ -87,13 +88,15 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
+    void AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 
     void RegisterLoadFromChunk(u16 chunkID, const Terrain::Chunk& chunk, StringTable& stringTable);
     void ExecuteLoad();
 
     void Clear();
 
+    const std::vector<DrawCallData>& GetOpaqueDrawCallData() { return _opaqueDrawCallDatas; }
+    const std::vector<DrawCallData>& GetTransparentDrawCallData() { return _transparentDrawCallDatas; }
     const std::vector<LoadedComplexModel>& GetLoadedComplexModels() { return _loadedComplexModels; }
     const std::vector<Instance>& GetInstances() { return _instances; }
     const std::vector<Terrain::PlacementDetails>& GetPlacementDetails() { return _complexModelPlacementDetails; }
@@ -102,6 +105,17 @@ public:
     u32 GetChunkPlacementDetailsOffset(u16 chunkID) { return _mapChunkToPlacementOffset[chunkID]; }
     u32 GetNumLoadedCModels() { return static_cast<u32>(_loadedComplexModels.size()); }
     u32 GetNumCModelPlacements() { return static_cast<u32>(_instances.size()); }
+    u32 GetModelIndexByDrawCallDataIndex(u32 index, bool isOpaque)
+    {
+        u32 modelIndex = std::numeric_limits<u32>().max();
+
+        if (isOpaque)
+            modelIndex = _opaqueDrawCallDataIndexToLoadedModelIndex[index];
+        else
+            modelIndex = _transparentDrawCallDataIndexToLoadedModelIndex[index];
+
+        return modelIndex;
+    }
 
 private:
     struct ComplexModelToBeLoaded
@@ -151,52 +165,10 @@ private:
         vec4 frustumPlanes[6];
         vec3 cameraPos;
         u32 maxDrawCount;
-    };
-
-    struct SortConstants
-    {
-        vec3 referencePosition;
-        u32 level;
-        u32 levelMask;
-        u32 width;
-        u32 height;
-    };
-
-    struct SortParams
-    {
-        vec3 refPosition;
-        u32 level;
-        u32 levelMask;
-        u32 width;
-        u32 height;
-        u32 dispatchX;
-        u32 dispatchY;
-        u32 dispatchZ;
-    };
-
-    struct TransposeConstants
-    {
-        u32 level;
-        u32 levelMask;
-        u32 width;
-        u32 height;
-    };
-
-    struct TransposeParams
-    {
-        u32 level;
-        u32 levelMask;
-        u32 width;
-        u32 height;
-        u32 dispatchX;
-        u32 dispatchY;
-        u32 dispatchZ;
+        bool shouldPrepareSort = false;
     };
 
 private:
-    void SortDrawCalls(Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const SortParams& sortParams);
-    void TransposeDrawCalls(Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const TransposeParams& transposeParams);
-
     void CreatePermanentResources();
 
     bool LoadComplexModel(ComplexModelToBeLoaded& complexModelToBeLoaded, LoadedComplexModel& complexModel);
@@ -216,13 +188,15 @@ private:
     Renderer::DescriptorSet _sortingDescriptorSet;
     Renderer::DescriptorSet _passDescriptorSet;
 
-
+    robin_hood::unordered_map<u32, u8> _uniqueIdCounter;
     robin_hood::unordered_map<u16, u32> _mapChunkToPlacementOffset;
     std::vector<Terrain::PlacementDetails> _complexModelPlacementDetails;
 
     std::vector<ComplexModelToBeLoaded> _complexModelsToBeLoaded;
     std::vector<LoadedComplexModel> _loadedComplexModels;
     robin_hood::unordered_map<u32, u32> _nameHashToIndexMap;
+    robin_hood::unordered_map<u32, u32> _opaqueDrawCallDataIndexToLoadedModelIndex;
+    robin_hood::unordered_map<u32, u32> _transparentDrawCallDataIndexToLoadedModelIndex;
 
     std::vector<CModel::ComplexVertex> _vertices;
     std::vector<u16> _indices;
@@ -242,18 +216,21 @@ private:
     Renderer::BufferID _instanceBuffer;
     Renderer::BufferID _cullingDataBuffer;
 
-    Renderer::Buffer<CullConstants>* _opaqueCullConstantBuffer;
     Renderer::BufferID _opaqueDrawCallBuffer;
     Renderer::BufferID _opaqueCulledDrawCallBuffer;
     Renderer::BufferID _opaqueDrawCallDataBuffer;
     Renderer::BufferID _opaqueDrawCountBuffer;
 
-    Renderer::Buffer<CullConstants>* _transparentCullConstantBuffer;
     Renderer::BufferID _transparentDrawCallBuffer;
     Renderer::BufferID _transparentCulledDrawCallBuffer;
-    Renderer::BufferID _transparentCulledDrawCallBuffer2;
+    Renderer::BufferID _transparentSortedCulledDrawCallBuffer;
     Renderer::BufferID _transparentDrawCallDataBuffer;
     Renderer::BufferID _transparentDrawCountBuffer;
+
+    Renderer::BufferID _transparentSortKeys;
+    Renderer::BufferID _transparentSortValues;
+
+    CullConstants _cullConstants;
 
     Renderer::TextureArrayID _cModelTextures;
 

@@ -26,11 +26,13 @@ struct PSInput
     float4 color1 : TEXCOORD2;
     float4 uv01 : TEXCOORD3;
     uint materialParamID : TEXCOORD4;
+    uint instanceLookupID : TEXCOORD5;
 };
 
 struct PSOutput
 {
     float4 color : SV_Target0;
+    uint objectID : SV_Target1;
 };
 
 MaterialParam LoadMaterialParam(uint materialParamID)
@@ -117,6 +119,9 @@ PSOutput main(PSInput input)
 
         output.color = float4(Lighting(matDiffuse, input.color0.rgb, normal, isLit), 1.0f);
     }
-    
+
+    // 4 most significant bits are used as a type identifier, remaining bits are instanceLookupID
+    output.objectID = uint(ObjectType::MapObject) << 28;
+    output.objectID += input.instanceLookupID;
     return output;
 }

@@ -331,6 +331,7 @@ void UIRenderer::CreatePermanentResources()
     samplerDesc.shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_PIXEL;
 
     _linearSampler = _renderer->CreateSampler(samplerDesc);
+    _passDescriptorSet.Bind("_sampler"_h, _linearSampler);
 
     // Index buffer
     static const u32 indexBufferSize = sizeof(u16) * 6;
@@ -372,11 +373,4 @@ void UIRenderer::CreatePermanentResources()
     emptyBorderDesc.data = new u8[4]{ 0, 0, 0, 0 };
     
     _emptyBorder = _renderer->CreateDataTexture(emptyBorderDesc);
-
-    // Create descriptor sets
-    _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
-    _passDescriptorSet.Bind("_sampler"_h, _linearSampler);
-
-    _drawImageDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
-    _drawTextDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
 }

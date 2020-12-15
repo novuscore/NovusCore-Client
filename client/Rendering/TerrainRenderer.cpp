@@ -251,9 +251,9 @@ void TerrainRenderer::DebugRenderCellTriangles(const Camera* camera)
             f32 steepnessAngle = triangle.GetSteepnessAngle();
             u32 color = steepnessAngle <= 50 ? 0xff00ff00 : 0xff0000ff;
             // Offset Y slightly to not be directly drawn on top of the terrain
-            triangle.vert1.z += 0.05f;
-            triangle.vert2.z += 0.05f;
-            triangle.vert3.z += 0.05f;
+            triangle.vert1.z += 0.1f;
+            triangle.vert2.z += 0.1f;
+            triangle.vert3.z += 0.1f;
 
             _debugRenderer->DrawLine3D(triangle.vert1, triangle.vert2, color);
             _debugRenderer->DrawLine3D(triangle.vert2, triangle.vert3, color);
@@ -262,13 +262,14 @@ void TerrainRenderer::DebugRenderCellTriangles(const Camera* camera)
     }
 }
 
-void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
 {
     // Terrain Pass
     {
         struct TerrainPassData
         {
             Renderer::RenderPassMutableResource mainColor;
+            Renderer::RenderPassMutableResource mainObject;
             Renderer::RenderPassMutableResource mainDepth;
         };
 
@@ -279,7 +280,8 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
         renderGraph->AddPass<TerrainPassData>("Terrain Pass",
             [=](TerrainPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
-            data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+            data.mainColor = builder.Write(colorTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+            data.mainObject = builder.Write(objectTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
             data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
 
             return true; // Return true from setup to enable this pass, return false to disable it
@@ -392,6 +394,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
             // Render targets
             pipelineDesc.renderTargets[0] = data.mainColor;
+            pipelineDesc.renderTargets[1] = data.mainObject;
 
             pipelineDesc.depthStencil = data.mainDepth;
 
@@ -440,7 +443,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
     }
 
     // Subrenderers
-    _mapObjectRenderer->AddMapObjectPass(renderGraph, globalDescriptorSet, renderTarget, depthTarget, frameIndex);
+    _mapObjectRenderer->AddMapObjectPass(renderGraph, globalDescriptorSet, colorTarget, objectTarget, depthTarget, frameIndex);
     //_waterRenderer->AddWaterPass(renderGraph, globalDescriptorSet, renderTarget, depthTarget, frameIndex);
 }
 
@@ -454,11 +457,13 @@ void TerrainRenderer::CreatePermanentResources()
     textureColorArrayDesc.size = 4096;
 
     _terrainColorTextureArray = _renderer->CreateTextureArray(textureColorArrayDesc);
+    _passDescriptorSet.Bind("_terrainColorTextures"_h, _terrainColorTextureArray);
 
     Renderer::TextureArrayDesc textureAlphaArrayDesc;
     textureAlphaArrayDesc.size = Terrain::MAP_CHUNKS_PER_MAP;
 
     _terrainAlphaTextureArray = _renderer->CreateTextureArray(textureAlphaArrayDesc);
+    _passDescriptorSet.Bind("_terrainAlphaTextures"_h, _terrainAlphaTextureArray);
 
     // Create and load a 1x1 pixel RGBA8 unorm texture with zero'ed data so we can use textureArray[0] as "invalid" textures, sampling it will return 0.0f on all channels
     Renderer::DataTextureDesc zeroColorTexture;
@@ -484,6 +489,7 @@ void TerrainRenderer::CreatePermanentResources()
     alphaSamplerDesc.shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_PIXEL;
 
     _alphaSampler = _renderer->CreateSampler(alphaSamplerDesc);
+    _passDescriptorSet.Bind("_alphaSampler"_h, _alphaSampler);
 
     Renderer::SamplerDesc colorSamplerDesc;
     colorSamplerDesc.enabled = true;
@@ -494,15 +500,7 @@ void TerrainRenderer::CreatePermanentResources()
     colorSamplerDesc.shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_PIXEL;
 
     _colorSampler = _renderer->CreateSampler(colorSamplerDesc);
-
-    // Descriptor sets
-    _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
-    _passDescriptorSet.Bind("_alphaSampler"_h, _alphaSampler);
     _passDescriptorSet.Bind("_colorSampler"_h, _colorSampler);
-    _passDescriptorSet.Bind("_terrainColorTextures"_h, _terrainColorTextureArray);
-    _passDescriptorSet.Bind("_terrainAlphaTextures"_h, _terrainAlphaTextureArray);
-
-    _drawDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
 
     // Culling constant buffer
     _cullingConstantBuffer = new Renderer::Buffer<CullingConstants>(_renderer, "CullingConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);

@@ -31,6 +31,7 @@ class TerrainRenderer;
 class CModelRenderer;
 class InputManager;
 class DebugRenderer;
+class PixelQuery;
 
 class ClientRenderer
 {
@@ -42,12 +43,13 @@ public:
     void Render();
 
     u8 GetFrameIndex() { return _frameIndex; }
-    UIRenderer* GetUIRenderer() { return _uiRenderer; }
 
     void InitImgui();
+    UIRenderer* GetUIRenderer() { return _uiRenderer; }
     TerrainRenderer* GetTerrainRenderer() { return _terrainRenderer; }
     CModelRenderer* GetCModelRenderer() { return _cModelRenderer; }
     DebugRenderer* GetDebugRenderer() { return _debugRenderer; }
+    PixelQuery* GetPixelQuery() { return _pixelQuery; }
 
     size_t GetVRAMUsage();
     size_t GetVRAMBudget();
@@ -67,6 +69,7 @@ private:
 
     // Permanent resources
     Renderer::ImageID _mainColor;
+    Renderer::ImageID _objectIDs;
 
     Renderer::DepthImageID _mainDepth;
 
@@ -89,6 +92,8 @@ private:
     UIRenderer* _uiRenderer;
     TerrainRenderer* _terrainRenderer;
     CModelRenderer* _cModelRenderer;
+
+    PixelQuery* _pixelQuery;
 
     bool _isMinimized = false;
 };

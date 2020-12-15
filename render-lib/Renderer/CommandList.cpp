@@ -30,6 +30,7 @@
 #include "Commands/CopyBuffer.h"
 #include "Commands/FillBuffer.h"
 #include "Commands/PipelineBarrier.h"
+#include "Commands/ImageBarrier.h"
 #include "Commands/DrawImgui.h"
 #include "Commands/PushConstant.h"
 
@@ -104,7 +105,7 @@ namespace Renderer
         Commands::EndTrace* command = AddCommand<Commands::EndTrace>();
 
 #if COMMANDLIST_DEBUG_IMMEDIATE_MODE
-        Commands::BeginTrace::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
+        Commands::EndTrace::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
 #endif
     }
 
@@ -187,7 +188,6 @@ namespace Renderer
         memcpy(command->descriptors, descriptors.data(), sizeof(Descriptor) * numDescriptors);
 
         command->numDescriptors = static_cast<u32>(numDescriptors);
-        command->frameIndex = frameIndex;
 
 #if COMMANDLIST_DEBUG_IMMEDIATE_MODE
         Commands::BindDescriptorSet::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
@@ -449,6 +449,17 @@ namespace Renderer
 
 #if COMMANDLIST_DEBUG_IMMEDIATE_MODE
         Commands::PipelineBarrier::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
+#endif
+    }
+
+    void CommandList::ImageBarrier(ImageID image)
+    {
+        assert(image != ImageID::Invalid());
+        Commands::ImageBarrier* command = AddCommand<Commands::ImageBarrier>();
+        command->image = image;
+
+#if COMMANDLIST_DEBUG_IMMEDIATE_MODE
+        Commands::ImageBarrier::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
 #endif
     }
 

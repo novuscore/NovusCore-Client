@@ -2,6 +2,7 @@
 #include "DebugRenderer.h"
 #include "../Utils/ServiceLocator.h"
 #include "../Rendering/CModel/CModel.h"
+#include "SortUtils.h"
 
 #include <filesystem>
 #include <GLFW/glfw3.h>
@@ -22,12 +23,11 @@
 #include "Camera.h"
 #include "../Gameplay/Map/Map.h"
 #include "CVar/CVarSystem.h"
-#include <tracy/TracyVulkan.hpp>
 
 namespace fs = std::filesystem;
 
 AutoCVar_Int CVAR_ComplexModelCullingEnabled("complexModels.cullEnable", "enable culling of complex models", 1, CVarFlags::EditCheckbox);
-//AutoCVar_Int CVAR_ComplexModelSortingEnabled("complexModels.sortEnable", "enable sorting of transparent complex models", 1, CVarFlags::EditCheckbox);
+AutoCVar_Int CVAR_ComplexModelSortingEnabled("complexModels.sortEnable", "enable sorting of transparent complex models", 1, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_ComplexModelLockCullingFrustum("complexModels.lockCullingFrustum", "lock frustrum for complex model culling", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_ComplexModelDrawBoundingBoxes("complexModels.drawBoundingBoxes", "draw bounding boxes for complex models", 0, CVarFlags::EditCheckbox);
 
@@ -86,316 +86,346 @@ void CModelRenderer::Update(f32 deltaTime)
     }
 }
 
-void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
 {
     struct CModelPassData
     {
         Renderer::RenderPassMutableResource mainColor;
+        Renderer::RenderPassMutableResource mainObject;
         Renderer::RenderPassMutableResource mainDepth;
     };
 
     const bool cullingEnabled = CVAR_ComplexModelCullingEnabled.Get();
-    const bool alphaSortEnabled = false; // CVAR_ComplexModelSortingEnabled.Get(); // TODO: Replace this crappy sort with one that doesn't kill the graphics driver when loading another map
+    const bool alphaSortEnabled = CVAR_ComplexModelSortingEnabled.Get();
     const bool lockFrustum = CVAR_ComplexModelLockCullingFrustum.Get();
 
-    renderGraph->AddPass<CModelPassData>("CModel Pass", 
+    renderGraph->AddPass<CModelPassData>("CModel Pass",
         [=](CModelPassData& data, Renderer::RenderGraphBuilder& builder)
-        {
-            data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-            data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+    {
+        data.mainColor = builder.Write(colorTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+        data.mainObject = builder.Write(objectTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+        data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
 
-            return true; // Return true from setup to enable this pass, return false to disable it
-        },
+        return true; // Return true from setup to enable this pass, return false to disable it
+    },
         [=](CModelPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList)
+    {
+        GPU_SCOPED_PROFILER_ZONE(commandList, CModelPass);
+
+        Renderer::ComputePipelineDesc cullingPipelineDesc;
+        resources.InitializePipelineDesc(cullingPipelineDesc);
+
+        Renderer::ComputeShaderDesc shaderDesc;
+        shaderDesc.path = "Data/shaders/cModelCulling.cs.hlsl.spv";
+        cullingPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
+
+        Renderer::GraphicsPipelineDesc pipelineDesc;
+        resources.InitializePipelineDesc(pipelineDesc);
+
+        // Shaders
+        Renderer::VertexShaderDesc vertexShaderDesc;
+        vertexShaderDesc.path = "Data/shaders/cModel.vs.hlsl.spv";
+        pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
+
+        Renderer::PixelShaderDesc pixelShaderDesc;
+        pixelShaderDesc.path = "Data/shaders/cModel.ps.hlsl.spv";
+        pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
+
+        // Depth state
+        pipelineDesc.states.depthStencilState.depthEnable = true;
+        pipelineDesc.states.depthStencilState.depthWriteEnable = true;
+        pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_GREATER;
+
+        // Rasterizer state
+        pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
+        pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
+        // Render targets
+        pipelineDesc.renderTargets[0] = data.mainColor;
+        pipelineDesc.renderTargets[1] = data.mainObject;
+        pipelineDesc.depthStencil = data.mainDepth;
+
+        struct Constants
         {
-            GPU_SCOPED_PROFILER_ZONE(commandList, NM2Pass);
+            u32 isTransparent;
+        };
 
-            Renderer::ComputePipelineDesc cullingPipelineDesc;
-            resources.InitializePipelineDesc(cullingPipelineDesc);
+        if (cullingEnabled && !lockFrustum)
+        {
+            Camera* camera = ServiceLocator::GetCamera();
+            memcpy(_cullConstants.frustumPlanes, camera->GetFrustumPlanes(), sizeof(vec4[6]));
+            _cullConstants.cameraPos = camera->GetPosition();
+        }
 
-            Renderer::ComputeShaderDesc shaderDesc;
-            shaderDesc.path = "Data/shaders/cModelCulling.cs.hlsl.spv";
-            cullingPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
+        // Set Opaque Pipeline
+        u32 numOpaqueDrawCalls = static_cast<u32>(_opaqueDrawCalls.size());
+        if (numOpaqueDrawCalls > 0)
+        {
+            commandList.PushMarker("Opaque " + std::to_string(numOpaqueDrawCalls), Color::White);
 
-            Renderer::GraphicsPipelineDesc pipelineDesc;
-            resources.InitializePipelineDesc(pipelineDesc);
-
-            // Shaders
-            Renderer::VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "Data/shaders/cModel.vs.hlsl.spv";
-            pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
-
-            Renderer::PixelShaderDesc pixelShaderDesc;
-            pixelShaderDesc.path = "Data/shaders/cModel.ps.hlsl.spv";
-            pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
-
-            // Depth state
-            pipelineDesc.states.depthStencilState.depthEnable = true;
-            pipelineDesc.states.depthStencilState.depthWriteEnable = true;
-            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_GREATER;
-
-            // Rasterizer state
-            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK; //Renderer::CullMode::CULL_MODE_BACK;
-            pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
-            // Render targets
-            pipelineDesc.renderTargets[0] = data.mainColor;
-            pipelineDesc.depthStencil = data.mainDepth;
-
-            // Set Opaque Pipeline
-            u32 numOpaqueDrawCalls = static_cast<u32>(_opaqueDrawCalls.size());
-            if (numOpaqueDrawCalls > 0)
+            // Cull
+            if (cullingEnabled)
             {
-                commandList.PushMarker("Opaque " + std::to_string(numOpaqueDrawCalls), Color::White);
+                // Reset the counter
+                commandList.FillBuffer(_opaqueDrawCountBuffer, 0, 4, 0);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _opaqueDrawCountBuffer);
 
-                // Cull
-                if (cullingEnabled)
-                {
-                    // Reset the counter
-                    commandList.FillBuffer(_opaqueDrawCountBuffer, 0, 4, 0);
-                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _opaqueDrawCountBuffer);
-
-                    // Do culling
-                    Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(cullingPipelineDesc);
-                    commandList.BeginPipeline(pipeline);
-
-                    if (!lockFrustum)
-                    {
-                        Camera* camera = ServiceLocator::GetCamera();
-                        memcpy(_opaqueCullConstantBuffer->resource.frustumPlanes, camera->GetFrustumPlanes(), sizeof(vec4[6]));
-                        _opaqueCullConstantBuffer->resource.cameraPos = camera->GetPosition();
-                        _opaqueCullConstantBuffer->resource.maxDrawCount = numOpaqueDrawCalls;
-                        _opaqueCullConstantBuffer->Apply(frameIndex);
-                    }
-
-                    _cullingDescriptorSet.Bind("_drawCallDatas", _opaqueDrawCallDataBuffer);
-                    _cullingDescriptorSet.Bind("_drawCalls", _opaqueDrawCallBuffer);
-                    _cullingDescriptorSet.Bind("_culledDrawCalls", _opaqueCulledDrawCallBuffer);
-                    _cullingDescriptorSet.Bind("_drawCount", _opaqueDrawCountBuffer);
-                    _cullingDescriptorSet.Bind("_instances", _instanceBuffer);
-                    _cullingDescriptorSet.Bind("_cullingDatas", _cullingDataBuffer);
-                    _cullingDescriptorSet.Bind("_constants", _opaqueCullConstantBuffer->GetBuffer(frameIndex));
-                    
-                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingDescriptorSet, frameIndex);
-                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
-
-                    commandList.Dispatch((numOpaqueDrawCalls + 31) / 32, 1, 1);
-
-                    commandList.EndPipeline(pipeline);
-
-                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _opaqueCulledDrawCallBuffer);
-                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _opaqueDrawCountBuffer);
-                }
-                else
-                {
-                    // Reset the counter
-                    commandList.FillBuffer(_opaqueDrawCountBuffer, 0, 4, numOpaqueDrawCalls);
-                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _opaqueDrawCountBuffer);
-                }
-
-                // Draw
-                Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+                // Do culling
+                Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(cullingPipelineDesc);
                 commandList.BeginPipeline(pipeline);
 
+                // Make a framelocal copy of our cull constants
+                CullConstants* cullConstants = resources.FrameNew<CullConstants>();
+                memcpy(cullConstants, &_cullConstants, sizeof(CullConstants));
+                cullConstants->maxDrawCount = numOpaqueDrawCalls;
+                cullConstants->shouldPrepareSort = false;
+
+                commandList.PushConstant(cullConstants, 0, sizeof(CullConstants));
+
+                _cullingDescriptorSet.Bind("_drawCallDatas", _opaqueDrawCallDataBuffer);
+                _cullingDescriptorSet.Bind("_drawCalls", _opaqueDrawCallBuffer);
+                _cullingDescriptorSet.Bind("_culledDrawCalls", _opaqueCulledDrawCallBuffer);
+                _cullingDescriptorSet.Bind("_drawCount", _opaqueDrawCountBuffer);
+                _cullingDescriptorSet.Bind("_instances", _instanceBuffer);
+                _cullingDescriptorSet.Bind("_cullingDatas", _cullingDataBuffer);
+
+                // These two are not actually used by the culling shader unless shouldPrepareSort is enabled, but they need to be bound to avoid validation errors...
+                _cullingDescriptorSet.Bind("_sortKeys", _transparentSortKeys);
+                _cullingDescriptorSet.Bind("_sortValues", _transparentSortValues);
+
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingDescriptorSet, frameIndex);
                 commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
 
-                _passDescriptorSet.Bind("_drawCallDatas", _opaqueDrawCallDataBuffer);
-                _passDescriptorSet.Bind("_vertices", _vertexBuffer);
-                _passDescriptorSet.Bind("_textures", _cModelTextures);
-                _passDescriptorSet.Bind("_textureUnits", _textureUnitBuffer);
-                _passDescriptorSet.Bind("_instances", _instanceBuffer);
-                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
-
-                commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
-
-                Renderer::BufferID argumentBuffer = (cullingEnabled) ? _opaqueCulledDrawCallBuffer : _opaqueDrawCallBuffer;
-                commandList.DrawIndexedIndirectCount(argumentBuffer, 0, _opaqueDrawCountBuffer, 0, numOpaqueDrawCalls);
+                commandList.Dispatch((numOpaqueDrawCalls + 31) / 32, 1, 1);
 
                 commandList.EndPipeline(pipeline);
-                commandList.PopMarker();
+
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _opaqueCulledDrawCallBuffer);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _opaqueDrawCountBuffer);
+            }
+            else
+            {
+                // Reset the counter
+                commandList.FillBuffer(_opaqueDrawCountBuffer, 0, 4, numOpaqueDrawCalls);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _opaqueDrawCountBuffer);
             }
 
-            // Set Transparent Pipeline
-            u32 numTransparentDrawCalls = static_cast<u32>(_transparentDrawCalls.size());
-            if (numTransparentDrawCalls > 0)
+            // Draw
+            Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+            commandList.BeginPipeline(pipeline);
+
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+
+            _passDescriptorSet.Bind("_drawCallDatas", _opaqueDrawCallDataBuffer);
+            _passDescriptorSet.Bind("_vertices", _vertexBuffer);
+            _passDescriptorSet.Bind("_textures", _cModelTextures);
+            _passDescriptorSet.Bind("_textureUnits", _textureUnitBuffer);
+            _passDescriptorSet.Bind("_instances", _instanceBuffer);
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
+
+            Constants* constants = resources.FrameNew<Constants>();
+            constants->isTransparent = false;
+            commandList.PushConstant(constants, 0, sizeof(Constants));
+
+            commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
+
+            Renderer::BufferID argumentBuffer = (cullingEnabled) ? _opaqueCulledDrawCallBuffer : _opaqueDrawCallBuffer;
+            commandList.DrawIndexedIndirectCount(argumentBuffer, 0, _opaqueDrawCountBuffer, 0, numOpaqueDrawCalls);
+
+            commandList.EndPipeline(pipeline);
+            commandList.PopMarker();
+        }
+
+        // Set Transparent Pipeline
+        u32 numTransparentDrawCalls = static_cast<u32>(_transparentDrawCalls.size());
+        if (numTransparentDrawCalls > 0)
+        {
+            commandList.PushMarker("Transparent " + std::to_string(numTransparentDrawCalls), Color::White);
+
+            // Copy _transparentDrawCallBuffer into _transparentCulledDrawCallBuffer
+            u32 copySize = numTransparentDrawCalls * sizeof(DrawCall);
+            commandList.CopyBuffer(_transparentCulledDrawCallBuffer, 0, _transparentDrawCallBuffer, 0, copySize);
+
+            // Cull
+            if (cullingEnabled)
             {
-                commandList.PushMarker("Transparent " + std::to_string(numTransparentDrawCalls), Color::White);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentCulledDrawCallBuffer);
 
-                // Copy _transparentDrawCallBuffer into _transparentCulledDrawCallBuffer
-                u32 copySize = numTransparentDrawCalls * sizeof(DrawCall);
-                commandList.CopyBuffer(_transparentCulledDrawCallBuffer, 0, _transparentDrawCallBuffer, 0, copySize);
+                // Reset the counter
+                commandList.FillBuffer(_transparentDrawCountBuffer, 0, 4, 0);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentDrawCountBuffer);
 
-                // Cull
-                if (cullingEnabled)
+                // Do culling
+                Renderer::ComputeShaderDesc shaderDesc;
+                shaderDesc.path = "Data/shaders/cModelCulling.cs.hlsl.spv";
+                cullingPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
+
+                Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(cullingPipelineDesc);
+                commandList.BeginPipeline(pipeline);
+
+                // Make a framelocal copy of our cull constants
+                CullConstants* cullConstants = resources.FrameNew<CullConstants>();
+                memcpy(cullConstants, &_cullConstants, sizeof(CullConstants));
+                cullConstants->maxDrawCount = numTransparentDrawCalls;
+                cullConstants->shouldPrepareSort = alphaSortEnabled;
+
+                commandList.PushConstant(cullConstants, 0, sizeof(CullConstants));
+
+                _cullingDescriptorSet.Bind("_drawCallDatas", _transparentDrawCallDataBuffer);
+                _cullingDescriptorSet.Bind("_drawCalls", _transparentDrawCallBuffer);
+                _cullingDescriptorSet.Bind("_culledDrawCalls", _transparentCulledDrawCallBuffer);
+                _cullingDescriptorSet.Bind("_drawCount", _transparentDrawCountBuffer);
+                _cullingDescriptorSet.Bind("_instances", _instanceBuffer);
+                _cullingDescriptorSet.Bind("_cullingDatas", _cullingDataBuffer);
+
+                _cullingDescriptorSet.Bind("_sortKeys", _transparentSortKeys);
+                _cullingDescriptorSet.Bind("_sortValues", _transparentSortValues);
+
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingDescriptorSet, frameIndex);
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+
+                commandList.Dispatch((numTransparentDrawCalls + 31) / 32, 1, 1);
+
+                commandList.EndPipeline(pipeline);
+            }
+            else
+            {
+                // Reset the counter
+                commandList.FillBuffer(_transparentDrawCountBuffer, 0, 4, numTransparentDrawCalls);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _transparentDrawCountBuffer);
+            }
+
+            // Sort, but only if we cull since that prepares the sorting buffers
+            if (alphaSortEnabled && cullingEnabled)
+            {
+                commandList.PushMarker("Sort", Color::White);
+
+                // First we sort our list of keys and values
                 {
-                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentCulledDrawCallBuffer);
+                    // Barriers
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _transparentDrawCountBuffer);
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToTransferSrc, _transparentSortKeys);
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToTransferSrc, _transparentSortValues);
 
-                    // Reset the counter
-                    commandList.FillBuffer(_transparentDrawCountBuffer, 0, 4, 0);
-                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentDrawCountBuffer);
+                    SortUtils::SortIndirectCountParams sortParams;
+                    sortParams.maxNumKeys = numTransparentDrawCalls;
+                    sortParams.maxThreadGroups = 800; // I am not sure why this is set to 800, but the sample code used this value so I'll go with it
 
-                    // Do culling
+                    sortParams.numKeysBuffer = _transparentDrawCountBuffer;
+                    sortParams.keysBuffer = _transparentSortKeys;
+                    sortParams.valuesBuffer = _transparentSortValues;
+
+                    SortUtils::SortIndirectCount(_renderer, resources, commandList, frameIndex, sortParams);
+                }
+
+                // Then we apply it to our drawcalls
+                {
+                    commandList.PushMarker("ApplySort", Color::White);
+
+                    // Barriers
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _transparentCulledDrawCallBuffer);
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentSortKeys);
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentSortValues);
+
                     Renderer::ComputeShaderDesc shaderDesc;
-                    shaderDesc.path = "Data/shaders/cModelCulling.cs.hlsl.spv"; // "Data/shaders/cModelCullingAlpha.cs.hlsl.spv"; // TODO: Replace this crappy sort with one that doesn't kill the graphics driver when loading another map
-                    cullingPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
+                    shaderDesc.path = "Data/shaders/cModelApplySort.cs.hlsl.spv";
+                    Renderer::ComputePipelineDesc pipelineDesc;
+                    pipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
 
-                    Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(cullingPipelineDesc);
+                    Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(pipelineDesc);
                     commandList.BeginPipeline(pipeline);
 
-                    if (!lockFrustum)
+                    struct ApplySortConstants
                     {
-                        Camera* camera = ServiceLocator::GetCamera();
-                        memcpy(_transparentCullConstantBuffer->resource.frustumPlanes, camera->GetFrustumPlanes(), sizeof(vec4[6]));
-                        _transparentCullConstantBuffer->resource.cameraPos = camera->GetPosition();
-                        _transparentCullConstantBuffer->resource.maxDrawCount = numTransparentDrawCalls;
-                        _transparentCullConstantBuffer->Apply(frameIndex);
-                    }
+                        u32 maxDrawCount;
+                    };
 
-                    _cullingDescriptorSet.Bind("_drawCallDatas", _transparentDrawCallDataBuffer);
-                    _cullingDescriptorSet.Bind("_drawCalls", _transparentCulledDrawCallBuffer);
-                    _cullingDescriptorSet.Bind("_drawCount", _transparentDrawCountBuffer);
-                    _cullingDescriptorSet.Bind("_instances", _instanceBuffer);
-                    _cullingDescriptorSet.Bind("_cullingDatas", _cullingDataBuffer);
-                    _cullingDescriptorSet.Bind("_constants", _transparentCullConstantBuffer->GetBuffer(frameIndex));
+                    ApplySortConstants* applySortConstants = resources.FrameNew<ApplySortConstants>();
+                    applySortConstants->maxDrawCount = numTransparentDrawCalls;
 
-                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingDescriptorSet, frameIndex);
-                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+                    commandList.PushConstant(applySortConstants, 0, sizeof(ApplySortConstants));
+
+                    _sortingDescriptorSet.Bind("_sortKeys", _transparentSortKeys);
+                    _sortingDescriptorSet.Bind("_sortValues", _transparentSortValues);
+                    _sortingDescriptorSet.Bind("_culledDrawCount", _transparentDrawCountBuffer);
+                    _sortingDescriptorSet.Bind("_culledDrawCalls", _transparentCulledDrawCallBuffer);
+                    _sortingDescriptorSet.Bind("_sortedCulledDrawCalls", _transparentSortedCulledDrawCallBuffer);
+                    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_sortingDescriptorSet, frameIndex);
 
                     commandList.Dispatch((numTransparentDrawCalls + 31) / 32, 1, 1);
 
                     commandList.EndPipeline(pipeline);
-                }
-                else
-                {
-                    // Reset the counter
-                    commandList.FillBuffer(_transparentDrawCountBuffer, 0, 4, numTransparentDrawCalls);
-                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _transparentDrawCountBuffer);
-                }
 
-                // Sort
-                if (alphaSortEnabled)
-                {
-                    commandList.PushMarker("Sort", Color::White);
+                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _transparentSortedCulledDrawCallBuffer);
 
-                    // Barriers if needed
-                    if (cullingEnabled)
-                    {
-                        commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _transparentCulledDrawCallBuffer);
-                    }
-                    else
-                    {
-                        commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentCulledDrawCallBuffer);
-                    }
-
-                    const u32 width = MATRIX_WIDTH;
-                    const u32 height = (numTransparentDrawCalls + MATRIX_WIDTH - 1) / MATRIX_WIDTH;
-                    
-                    Camera* camera = ServiceLocator::GetCamera();
-                    vec3 cameraPosition = camera->GetPosition();
-                    u32 numElements = numTransparentDrawCalls;
-                    u32 numElementGroups = (numElements + BITONIC_BLOCK_SIZE - 1) / BITONIC_BLOCK_SIZE;
-                    
-                    for (u32 level = 2; level <= BITONIC_BLOCK_SIZE; level = level * 2)
-                    {
-                        SortParams sortParams;
-                        sortParams.refPosition = cameraPosition;
-                        sortParams.level = level;
-                        sortParams.levelMask = level;
-                        sortParams.width = width;
-                        sortParams.height = height;
-                        sortParams.dispatchX = 1;
-                        sortParams.dispatchY = numElementGroups;
-                        sortParams.dispatchZ = 1;
-                        
-                        SortDrawCalls(resources, commandList, frameIndex, sortParams);
-                    }
-                    
-                    // Then sort the rows and columns for the levels bigger than the block size
-                    // Transpose. Sort the Columns. Transpose. Sort the Rows
-                    for (u32 level = (BITONIC_BLOCK_SIZE * 2); level <= numElements; level = level * 2)
-                    {
-                        SortParams sortParams;
-                        sortParams.refPosition = cameraPosition;
-                        sortParams.level = level;
-                        sortParams.levelMask = level;
-                        sortParams.width = width;
-                        sortParams.height = height;
-                        sortParams.dispatchX = 1;
-                        sortParams.dispatchY = numElementGroups;
-                        sortParams.dispatchZ = 1;
-                        
-                        {
-                            TransposeParams transposeParams;
-                            transposeParams.level = level / BITONIC_BLOCK_SIZE;
-                            transposeParams.levelMask = (level & ~numElements) / BITONIC_BLOCK_SIZE;
-                            transposeParams.height = width;
-                            transposeParams.width = height;
-                            transposeParams.dispatchX = (height + TRANSPOSE_BLOCK_SIZE - 1) / TRANSPOSE_BLOCK_SIZE;
-                            transposeParams.dispatchY = width / TRANSPOSE_BLOCK_SIZE;
-                            transposeParams.dispatchZ = 1;
-                            
-                            TransposeDrawCalls(resources, commandList, frameIndex, transposeParams);
-                        }
-                        
-                        SortDrawCalls(resources, commandList, frameIndex, sortParams);
-                        
-                        {
-                            TransposeParams transposeParams;
-                            transposeParams.level = BITONIC_BLOCK_SIZE;
-                            transposeParams.levelMask = level;
-                            transposeParams.height = width;
-                            transposeParams.width = height;
-                            transposeParams.dispatchX = (height + TRANSPOSE_BLOCK_SIZE - 1) / TRANSPOSE_BLOCK_SIZE;
-                            transposeParams.dispatchY = width / TRANSPOSE_BLOCK_SIZE;
-                            transposeParams.dispatchZ = 1;
-                            
-                            TransposeDrawCalls(resources, commandList, frameIndex, transposeParams);
-                        }
-                        
-                        SortDrawCalls(resources, commandList, frameIndex, sortParams);
-                    }
                     commandList.PopMarker();
                 }
 
-                // Draw
-                if (cullingEnabled || alphaSortEnabled)
+
+                commandList.PopMarker();
+            }
+
+            // Decide which drawcallBuffer to use and add barriers
+            Renderer::BufferID drawCallBuffer;
+            if (cullingEnabled)
+            {
+                if (alphaSortEnabled)
                 {
-                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _transparentCulledDrawCallBuffer);
-                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _transparentDrawCountBuffer);
+                    drawCallBuffer = _transparentSortedCulledDrawCallBuffer;
                 }
                 else
                 {
-                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _transparentCulledDrawCallBuffer);
-                    commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _transparentDrawCountBuffer);
+                    drawCallBuffer = _transparentCulledDrawCallBuffer;
                 }
-
-                pipelineDesc.states.depthStencilState.depthWriteEnable = false;
-                pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;
-                pipelineDesc.states.blendState.renderTargets[0].blendOp = Renderer::BlendOp::BLEND_OP_ADD;
-                //pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::BLEND_MODE_SRC_ALPHA;
-                //pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::BLEND_MODE_INV_SRC_ALPHA;
-                pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::BLEND_MODE_SRC_ALPHA;
-                pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::BLEND_MODE_ONE;
-
-                Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
-                commandList.BeginPipeline(pipeline);
-
-                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
-
-                _passDescriptorSet.Bind("_drawCallDatas", _transparentDrawCallDataBuffer);
-                _passDescriptorSet.Bind("_vertices", _vertexBuffer);
-                _passDescriptorSet.Bind("_textures", _cModelTextures);
-                _passDescriptorSet.Bind("_textureUnits", _textureUnitBuffer);
-                _passDescriptorSet.Bind("_instances", _instanceBuffer);
-                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
-
-                commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
-
-                commandList.DrawIndexedIndirect(_transparentCulledDrawCallBuffer, 0, numTransparentDrawCalls);
-
-                commandList.EndPipeline(pipeline);
-                commandList.PopMarker();
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, drawCallBuffer);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _transparentDrawCountBuffer);
             }
-        });
+            else
+            {
+                drawCallBuffer = _transparentCulledDrawCallBuffer;
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _transparentCulledDrawCallBuffer);
+                commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _transparentDrawCountBuffer);
+            }
+
+            // Draw
+            pipelineDesc.states.depthStencilState.depthWriteEnable = false;
+
+            // ColorTarget
+            pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;
+            pipelineDesc.states.blendState.renderTargets[0].blendOp = Renderer::BlendOp::BLEND_OP_ADD;
+            pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::BLEND_MODE_SRC_ALPHA;
+            pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::BLEND_MODE_ONE;
+
+            Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+            commandList.BeginPipeline(pipeline);
+
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+
+            _passDescriptorSet.Bind("_drawCallDatas", _transparentDrawCallDataBuffer);
+            _passDescriptorSet.Bind("_vertices", _vertexBuffer);
+            _passDescriptorSet.Bind("_textures", _cModelTextures);
+            _passDescriptorSet.Bind("_textureUnits", _textureUnitBuffer);
+            _passDescriptorSet.Bind("_instances", _instanceBuffer);
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
+
+            Constants* constants = resources.FrameNew<Constants>();
+            constants->isTransparent = true;
+            commandList.PushConstant(constants, 0, sizeof(Constants));
+
+            commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
+
+            if (cullingEnabled)
+            {
+                commandList.DrawIndexedIndirectCount(drawCallBuffer, 0, _transparentDrawCountBuffer, 0, numTransparentDrawCalls);
+            }
+            else
+            {
+                commandList.DrawIndexedIndirect(drawCallBuffer, 0, numTransparentDrawCalls);
+            }
+
+            commandList.EndPipeline(pipeline);
+            commandList.PopMarker();
+        }
+    });
 }
 
 void CModelRenderer::RegisterLoadFromChunk(u16 chunkID, const Terrain::Chunk& chunk, StringTable& stringTable)
@@ -404,10 +434,14 @@ void CModelRenderer::RegisterLoadFromChunk(u16 chunkID, const Terrain::Chunk& ch
 
     for (const Terrain::Placement& placement : chunk.complexModelPlacements)
     {
-        ComplexModelToBeLoaded& modelToBeLoaded = _complexModelsToBeLoaded.emplace_back();
-        modelToBeLoaded.placement = &placement;
-        modelToBeLoaded.name = &stringTable.GetString(placement.nameID);
-        modelToBeLoaded.nameHash = stringTable.GetStringHash(placement.nameID);
+        u32 uniqueID = placement.uniqueID;
+        if (_uniqueIdCounter[uniqueID]++ == 0)
+        {
+            ComplexModelToBeLoaded& modelToBeLoaded = _complexModelsToBeLoaded.emplace_back();
+            modelToBeLoaded.placement = &placement;
+            modelToBeLoaded.name = &stringTable.GetString(placement.nameID);
+            modelToBeLoaded.nameHash = stringTable.GetStringHash(placement.nameID);
+        }
     }
 }
 
@@ -429,6 +463,7 @@ void CModelRenderer::ExecuteLoad()
         {
             modelID = static_cast<u32>(_loadedComplexModels.size());
             LoadedComplexModel& complexModel = _loadedComplexModels.emplace_back();
+            complexModel.objectID = modelID;
             LoadComplexModel(modelToBeLoaded, complexModel);
 
             _nameHashToIndexMap[modelToBeLoaded.nameHash] = modelID;
@@ -454,10 +489,13 @@ void CModelRenderer::ExecuteLoad()
 
 void CModelRenderer::Clear()
 {
+    _uniqueIdCounter.clear();
     _mapChunkToPlacementOffset.clear();
     _complexModelPlacementDetails.clear();
     _loadedComplexModels.clear();
     _nameHashToIndexMap.clear();
+    _opaqueDrawCallDataIndexToLoadedModelIndex.clear();
+    _transparentDrawCallDataIndexToLoadedModelIndex.clear();
 
     _vertices.clear();
     _indices.clear();
@@ -474,76 +512,6 @@ void CModelRenderer::Clear()
     _renderer->UnloadTexturesInArray(_cModelTextures, 0);
 }
 
-void CModelRenderer::SortDrawCalls(Renderer::RenderGraphResources& resources, Renderer::CommandList & commandList, u32 frameIndex, const SortParams & sortParams)
-{
-    commandList.PushMarker("Sort " + std::to_string(sortParams.level), Color::White);
-    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _transparentCulledDrawCallBuffer);
-    
-    Renderer::ComputePipelineDesc pipelineDesc;
-    resources.InitializePipelineDesc(pipelineDesc);
-    
-    Renderer::ComputeShaderDesc shaderDesc;
-    shaderDesc.path = "Data/shaders/cModelSorting.cs.hlsl.spv";
-    pipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
-    
-    Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(pipelineDesc);
-    commandList.BeginPipeline(pipeline);
-    
-    SortConstants* constants = resources.FrameNew<SortConstants>();
-    constants->referencePosition = sortParams.refPosition;
-    constants->level = sortParams.level;
-    constants->levelMask = sortParams.levelMask;
-    constants->width = sortParams.width;
-    constants->height = sortParams.height;
-    commandList.PushConstant(constants, 0, sizeof(SortConstants));
-    
-    _sortingDescriptorSet.Bind("_drawCallDatas", _transparentDrawCallDataBuffer);
-    _sortingDescriptorSet.Bind("_drawCalls", _transparentCulledDrawCallBuffer);
-    _sortingDescriptorSet.Bind("_input", _transparentCulledDrawCallBuffer2);
-    _sortingDescriptorSet.Bind("_instances", _instanceBuffer);
-    
-    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_sortingDescriptorSet, frameIndex);
-    
-    commandList.Dispatch(sortParams.dispatchX, sortParams.dispatchY, sortParams.dispatchZ);
-    
-    commandList.EndPipeline(pipeline);
-    commandList.PopMarker();
-}
-
-void CModelRenderer::TransposeDrawCalls(Renderer::RenderGraphResources & resources, Renderer::CommandList & commandList, u32 frameIndex, const TransposeParams & transposeParams)
- {
-    commandList.PushMarker("Transpose " + std::to_string(transposeParams.level), Color::White);
-    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _transparentCulledDrawCallBuffer);
-    commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _transparentCulledDrawCallBuffer2);
-    
-    Renderer::ComputePipelineDesc pipelineDesc;
-    resources.InitializePipelineDesc(pipelineDesc);
-    
-    Renderer::ComputeShaderDesc shaderDesc;
-    shaderDesc.path = "Data/shaders/cModelTransposing.cs.hlsl.spv";
-    pipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
-    
-    Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(pipelineDesc);
-    commandList.BeginPipeline(pipeline);
-    
-    TransposeConstants* constants = resources.FrameNew<TransposeConstants>();
-    constants->level = transposeParams.level;
-    constants->levelMask = transposeParams.levelMask;
-    constants->width = transposeParams.width;
-    constants->height = transposeParams.height;
-    commandList.PushConstant(constants, 0, sizeof(SortConstants));
-    
-    _sortingDescriptorSet.Bind("_drawCalls", _transparentCulledDrawCallBuffer);
-    _sortingDescriptorSet.Bind("_input", _transparentCulledDrawCallBuffer2);
-    
-    commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_sortingDescriptorSet, frameIndex);
-    
-    commandList.Dispatch(transposeParams.dispatchX, transposeParams.dispatchY, transposeParams.dispatchZ);
-    
-    commandList.EndPipeline(pipeline);
-    commandList.PopMarker();
-}
-
 void CModelRenderer::CreatePermanentResources()
 {
     Renderer::TextureArrayDesc textureArrayDesc;
@@ -553,21 +521,14 @@ void CModelRenderer::CreatePermanentResources()
 
     Renderer::SamplerDesc samplerDesc;
     samplerDesc.enabled = true;
-    samplerDesc.filter = Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_MIP_LINEAR;//Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+    samplerDesc.filter = Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_MIP_LINEAR;
     samplerDesc.addressU = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
     samplerDesc.addressV = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
     samplerDesc.addressW = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_CLAMP;
     samplerDesc.shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_PIXEL;
 
     _sampler = _renderer->CreateSampler(samplerDesc);
-
-    _cullingDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
-
-    _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
     _passDescriptorSet.Bind("_sampler", _sampler);
-
-    _opaqueCullConstantBuffer = new Renderer::Buffer<CullConstants>(_renderer, "CModelOpaqueCullingConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
-    _transparentCullConstantBuffer = new Renderer::Buffer<CullConstants>(_renderer, "CModelTransparentCullingConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
     // Create OpaqueDrawCountBuffer
     {
@@ -644,7 +605,8 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
         // For each renderbatch we want to create a template DrawCall and DrawCallData inside of the LoadedComplexModel
         DrawCall& drawCallTemplate = drawCallTemplates.emplace_back();
         DrawCallData& drawCallDataTemplate = drawCallDataTemplates.emplace_back();
-        
+        drawCallDataTemplate.cullingDataID = complexModel.cullingDataID;
+
         drawCallTemplate.instanceCount = 1;
         drawCallTemplate.vertexOffset = static_cast<u32>(numVerticesBeforeAdd);
 
@@ -669,7 +631,7 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
 
             CModel::ComplexTextureUnit& complexTextureUnit = renderBatch.textureUnits[j];
             CModel::ComplexMaterial& complexMaterial = cModel.materials[complexTextureUnit.materialIndex];
-            
+
             bool isProjectedTexture = (static_cast<u8>(complexTextureUnit.flags) & static_cast<u8>(CModel::ComplexTextureUnitFlag::PROJECTED_TEXTURE)) != 0;
             u16 materialFlag = *reinterpret_cast<u16*>(&complexMaterial.flags) << 1;
             u16 blendingMode = complexMaterial.blendingMode << 11;
@@ -952,7 +914,7 @@ bool CModelRenderer::IsRenderBatchTransparent(const CModel::ComplexRenderBatch& 
     if (renderBatch.textureUnits.size() > 0)
     {
         const CModel::ComplexMaterial& complexMaterial = cModel.materials[renderBatch.textureUnits[0].materialIndex];
-        
+
         return complexMaterial.blendingMode != 0 && complexMaterial.blendingMode != 1;
     }
 
@@ -984,15 +946,19 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
         DrawCall& drawCall = _opaqueDrawCalls.emplace_back();
         DrawCallData& drawCallData = _opaqueDrawCallDatas.emplace_back();
 
+        _opaqueDrawCallDataIndexToLoadedModelIndex[static_cast<u32>(numOpaqueDrawCallsBeforeAdd) + i] = complexModel.objectID;
+
         // Copy data from the templates
         drawCall.firstIndex = drawCallTemplate.firstIndex;
         drawCall.indexCount = drawCallTemplate.indexCount;
         drawCall.instanceCount = drawCallTemplate.instanceCount;
         drawCall.vertexOffset = drawCallTemplate.vertexOffset;
 
+        drawCallData.cullingDataID = drawCallDataTemplate.cullingDataID;
         drawCallData.textureUnitOffset = drawCallDataTemplate.textureUnitOffset;
         drawCallData.numTextureUnits = drawCallDataTemplate.numTextureUnits;
-        
+        drawCallData.renderPriority = drawCallDataTemplate.renderPriority;
+
         // Fill in the data that shouldn't be templated
         drawCall.firstInstance = static_cast<u32>(numOpaqueDrawCallsBeforeAdd + i); // This is used in the shader to retrieve the DrawCallData
         drawCallData.instanceID = static_cast<u32>(numInstancesBeforeAdd);
@@ -1007,6 +973,7 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
 
         DrawCall& drawCall = _transparentDrawCalls.emplace_back();
         DrawCallData& drawCallData = _transparentDrawCallDatas.emplace_back();
+        _transparentDrawCallDataIndexToLoadedModelIndex[static_cast<u32>(numTransparentDrawCallsBeforeAdd) + i] = complexModel.objectID;
 
         // Copy data from the templates
         drawCall.firstIndex = drawCallTemplate.firstIndex;
@@ -1014,25 +981,15 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
         drawCall.instanceCount = drawCallTemplate.instanceCount;
         drawCall.vertexOffset = drawCallTemplate.vertexOffset;
 
+        drawCallData.cullingDataID = drawCallDataTemplate.cullingDataID;
         drawCallData.textureUnitOffset = drawCallDataTemplate.textureUnitOffset;
         drawCallData.numTextureUnits = drawCallDataTemplate.numTextureUnits;
+        drawCallData.renderPriority = drawCallDataTemplate.renderPriority;
 
         // Fill in the data that shouldn't be templated
         drawCall.firstInstance = static_cast<u32>(numTransparentDrawCallsBeforeAdd + i); // This is used in the shader to retrieve the DrawCallData
         drawCallData.instanceID = static_cast<u32>(numInstancesBeforeAdd);
     }
-}
-
-int RoundUp(int numToRound, int multiple)
-{
-    if (multiple == 0)
-        return numToRound;
-
-    int remainder = numToRound % multiple;
-    if (remainder == 0)
-        return numToRound;
-
-    return numToRound + multiple - remainder;
 }
 
 void CModelRenderer::CreateBuffers()
@@ -1208,6 +1165,7 @@ void CModelRenderer::CreateBuffers()
             desc.size = sizeof(DrawCall) * _opaqueDrawCalls.size();
             desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
             _opaqueDrawCallBuffer = _renderer->CreateBuffer(desc);
+            desc.name = "CModelOpaqueCullDrawCallBuffer";
             _opaqueCulledDrawCallBuffer = _renderer->CreateBuffer(desc);
 
             // Create staging buffer
@@ -1273,29 +1231,28 @@ void CModelRenderer::CreateBuffers()
         _renderer->QueueDestroyBuffer(_transparentCulledDrawCallBuffer);
     }
 
-    // Destroy TransparentCulledDrawCall2 buffer
-    if (_transparentCulledDrawCallBuffer2 != Renderer::BufferID::Invalid())
+    // Destroy TransparentSortedCulledDrawCall buffer
+    if (_transparentSortedCulledDrawCallBuffer != Renderer::BufferID::Invalid())
     {
-        _renderer->QueueDestroyBuffer(_transparentCulledDrawCallBuffer2);
+        _renderer->QueueDestroyBuffer(_transparentSortedCulledDrawCallBuffer);
     }
 
     if (_transparentDrawCalls.size() > 0)
     {
-        // Create TransparentDrawCall and TransparentCulledDrawCall buffer
+        // Create TransparentDrawCall, TransparentCulledDrawCall and TransparentSortedCulledDrawCall buffer
         {
-            u32 numDrawCalls = static_cast<u32>(_transparentDrawCalls.size());
-            u32 numPaddedDrawCalls = RoundUp(numDrawCalls, BITONIC_BLOCK_SIZE); // To sort we need to have our drawcalls be a multiple of BITONIC_BLOCK_SIZE
+            u32 size = sizeof(DrawCall) * static_cast<u32>(_transparentDrawCalls.size());
 
-            u32 actualSize = sizeof(DrawCall) * numDrawCalls;
-            u32 paddedSize = sizeof(DrawCall) * numPaddedDrawCalls;
-            
             Renderer::BufferDesc desc;
-            desc.name = "CModelAlphaDrawCallBuffer";
-            desc.size = paddedSize;
+            desc.name = "CModelAlphaCullDrawCalls";
+            desc.size = size;
             desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
             _transparentCulledDrawCallBuffer = _renderer->CreateBuffer(desc);
-            _transparentCulledDrawCallBuffer2 = _renderer->CreateBuffer(desc);
 
+            desc.name = "CModelAlphaSortCullDrawCalls";
+            _transparentSortedCulledDrawCallBuffer = _renderer->CreateBuffer(desc);
+
+            desc.name = "CModelAlphaDrawCalls";
             desc.usage |= Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
             _transparentDrawCallBuffer = _renderer->CreateBuffer(desc);
 
@@ -1306,10 +1263,9 @@ void CModelRenderer::CreateBuffers()
 
             Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
 
-            // Upload to staging buffer
+            // Upload to staging buffers
             void* dst = _renderer->MapBuffer(stagingBuffer);
-            memset(dst, 0, paddedSize);
-            memcpy(dst, _transparentDrawCalls.data(), actualSize);
+            memcpy(dst, _transparentDrawCalls.data(), size);
             _renderer->UnmapBuffer(stagingBuffer);
 
             // Copy from staging buffer to buffer
@@ -1348,6 +1304,36 @@ void CModelRenderer::CreateBuffers()
             _renderer->QueueDestroyBuffer(stagingBuffer);
             // Copy from staging buffer to buffer
             _renderer->CopyBuffer(_transparentDrawCallDataBuffer, 0, stagingBuffer, 0, desc.size);
+        }
+
+        // Destroy sort keys buffer
+        if (_transparentSortKeys != Renderer::BufferID::Invalid())
+        {
+            _renderer->QueueDestroyBuffer(_transparentSortKeys);
+        }
+
+        // Destroy sort values buffer
+        if (_transparentSortValues != Renderer::BufferID::Invalid())
+        {
+            _renderer->QueueDestroyBuffer(_transparentSortValues);
+        }
+
+        // Create transparent sort keys/values buffer
+        {
+            u32 numDrawCalls = static_cast<u32>(_transparentDrawCalls.size());
+            u32 keysSize = sizeof(u64) * numDrawCalls;
+            u32 valuesSize = sizeof(u32) * numDrawCalls;
+
+            Renderer::BufferDesc desc;
+            desc.name = "CModelAlphaSortKeys";
+            desc.size = keysSize;
+            desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_SOURCE | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+
+            _transparentSortKeys = _renderer->CreateBuffer(desc);
+
+            desc.name = "CModelAlphaSortValues";
+            desc.size = valuesSize;
+            _transparentSortValues = _renderer->CreateBuffer(desc);
         }
     }
 }

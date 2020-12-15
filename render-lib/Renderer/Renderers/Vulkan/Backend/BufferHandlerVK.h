@@ -7,6 +7,7 @@
 #include "vulkan/vulkan_core.h"
 
 #include <vector>
+#include <queue>
 
 namespace Renderer
 {
@@ -22,11 +23,14 @@ namespace Renderer
 
             void Init(RenderDeviceVK* device);
 
+            void OnFrameStart();
+
             VkBuffer GetBuffer(BufferID bufferID) const;
             VkDeviceSize GetBufferSize(BufferID bufferID) const;
             VmaAllocation GetBufferAllocation(BufferID bufferID) const;
 
             BufferID CreateBuffer(BufferDesc& desc);
+            BufferID CreateTemporaryBuffer(BufferDesc& desc, u32 framesLifetime);
             void DestroyBuffer(BufferID bufferID);
 
         private:
@@ -42,15 +46,16 @@ namespace Renderer
                 VkDeviceSize size;
             };
 
-            struct Index {
-                u32 next;
+            struct TemporaryBuffer
+            {
+                BufferID bufferID;
+                u32 framesLifetimeLeft;
             };
 
-            u32 _bufferCount;
-            Buffer* _buffers = nullptr;
-            Index* _indices = nullptr;
-            u32 _freelistEnqueue;
-            u32 _freelistDequeue;
+            std::vector<Buffer> _buffers;
+            std::queue<BufferID> _returnedBufferIDs;
+
+            std::vector<TemporaryBuffer> _temporaryBuffers;
 
             friend class RendererVK;
         };

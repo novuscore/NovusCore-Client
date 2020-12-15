@@ -20,18 +20,13 @@ namespace NDBC
 
 namespace Editor
 {
-    enum class SelectedBoundingBoxType
+    enum QueryObjectType
     {
-        NONE,
-        TERRAIN,
-        MAP_OBJECT,
-        COMPLEX_MODEL
-    };
-
-    struct SelectedBoundingBox
-    {
-        SelectedBoundingBoxType type = SelectedBoundingBoxType::NONE;
-        Geometry::AABoundingBox aabb;
+        None = 0,
+        Terrain,
+        MapObject,
+        ComplexModelOpaque,
+        ComplexModelTransparent
     };
 
     class Editor
@@ -43,27 +38,23 @@ namespace Editor
         void DrawImguiMenuBar();
 
     private:
-        void HandleTerrainBoundingBox(DebugRenderer* debugRenderer);
+        void TerrainSelectionDrawImGui();
+        void MapObjectSelectionDrawImGui();
+        void ComplexModelSelectionDrawImGui();
 
-        bool IsRayIntersectingComplexModel(const vec3& rayOrigin, const vec3& oneOverRayDir, f32& outTime);
-        bool IsRayIntersectingMapObject(const vec3& rayOrigin, const vec3& oneOverRayDir, f32& outTime);
-        bool IsRayIntersectingTerrain(const vec3& rayOrigin, const vec3& oneOverRayDir, f32& outTime);
         bool IsRayIntersectingAABB(const vec3& rayOrigin, const vec3& oneOverRayDir, const Geometry::AABoundingBox& boundingBox, f32& t);
         bool OnMouseClickLeft(Window* window, std::shared_ptr<Keybind> keybind);
 
-        SelectedBoundingBox _selectedBoundingBox;
-        Geometry::AABoundingBox _boundingBoxTerrain;
-        Geometry::AABoundingBox _boundingBoxMapObject;
-        Geometry::AABoundingBox _boundingBoxComplexModel;
         NDBCEditorHandler _ndbcEditorHandler;
-
-
     private:
+        u32 _activeToken = 0;
+        u32 _queriedToken = 0;
         bool _selectedObjectDataInitialized = false;
 
         struct SelectedTerrainData
         {
-            vec3 center;
+            Geometry::AABoundingBox boundingBox;
+            std::vector<Geometry::Triangle> triangles;
 
             vec2 adtCoords;
             vec2 chunkCoords;
@@ -82,12 +73,16 @@ namespace Editor
 
         struct SelectedMapObjectData
         {
-            u32 placementDetailsIndex;
+            Geometry::AABoundingBox boundingBox;
+            u32 instanceLookupDataID;
         } _selectedMapObjectData;
 
         struct SelectedComplexModelData
         {
-            u32 placementDetailsIndex;
+            Geometry::AABoundingBox boundingBox;
+            u32 drawCallDataID;
+            u32 instanceID;
+            bool isOpaque;
         } _selectedComplexModelData;
     };
 }

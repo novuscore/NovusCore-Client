@@ -51,6 +51,7 @@ namespace Renderer
         static void FillBuffer(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void PipelineBarrier(Renderer* renderer, CommandListID commandList, const void* data);
+        static void ImageBarrier(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void DrawImgui(Renderer* renderer, CommandListID commandList, const void* data);
 

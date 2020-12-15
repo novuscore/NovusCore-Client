@@ -3,6 +3,7 @@
 #include "TerrainRenderer.h"
 #include "CModelRenderer.h"
 #include "DebugRenderer.h"
+#include "PixelQuery.h"
 #include "CameraFreelook.h"
 #include "../Utils/ServiceLocator.h"
 #include "../ECS/Components/Singletons/MapSingleton.h"
@@ -95,6 +96,7 @@ ClientRenderer::ClientRenderer()
     _uiRenderer = new UIRenderer(_renderer, _debugRenderer);
     _cModelRenderer = new CModelRenderer(_renderer, _debugRenderer);
     _terrainRenderer = new TerrainRenderer(_renderer, _debugRenderer, _cModelRenderer);
+    _pixelQuery = new PixelQuery(_renderer);
 
     ServiceLocator::SetClientRenderer(this);
 }
@@ -111,6 +113,7 @@ void ClientRenderer::Update(f32 deltaTime)
 
     _terrainRenderer->Update(deltaTime);
     _cModelRenderer->Update(deltaTime);
+    _pixelQuery->Update(deltaTime);
     _uiRenderer->Update(deltaTime);
 
     _debugRenderer->DrawLine3D(vec3(0.0f, 0.0f, 0.0f), vec3(100.0f, 0.0f, 0.0f), 0xff0000ff);
@@ -306,6 +309,7 @@ void ClientRenderer::Render()
 
             // Clear mainColor TODO: This should be handled by the parameter in Setup, and it should definitely not act on ImageID and DepthImageID
             commandList.Clear(_mainColor, Color(135.0f/255.0f, 206.0f/255.0f, 250.0f/255.0f, 1));
+            commandList.Clear(_objectIDs, Color(0.0f, 0.0f, 0.0f, 0.0f));
 
             // Set pipeline
             Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
@@ -337,9 +341,11 @@ void ClientRenderer::Render()
         });
     }
 
-    _terrainRenderer->AddTerrainPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
+    _terrainRenderer->AddTerrainPass(&renderGraph, &_globalDescriptorSet, _mainColor, _objectIDs, _mainDepth, _frameIndex);
 
-    _cModelRenderer->AddComplexModelPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
+    _cModelRenderer->AddComplexModelPass(&renderGraph, &_globalDescriptorSet, _mainColor, _objectIDs, _mainDepth, _frameIndex);
+
+    _pixelQuery->AddPixelQueryPass(&renderGraph, _mainColor, _objectIDs, _mainDepth, _frameIndex);
     
     _debugRenderer->Add3DPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
 
@@ -406,6 +412,16 @@ void ClientRenderer::CreatePermanentResources()
 
     _mainColor = _renderer->CreateImage(mainColorDesc);
 
+    // Object ID rendertarget
+    Renderer::ImageDesc objectIDsDesc;
+    objectIDsDesc.debugName = "ObjectIDs";
+    objectIDsDesc.dimensions = vec2(1.0f, 1.0f);
+    objectIDsDesc.dimensionType = Renderer::ImageDimensionType::DIMENSION_SCALE;
+    objectIDsDesc.format = Renderer::IMAGE_FORMAT_R32_UINT;
+    objectIDsDesc.sampleCount = Renderer::SAMPLE_COUNT_1;
+
+    _objectIDs = _renderer->CreateImage(objectIDsDesc);
+
     // Main depth rendertarget
     Renderer::DepthImageDesc mainDepthDesc;
     mainDepthDesc.debugName = "MainDepth";
@@ -437,20 +453,13 @@ void ClientRenderer::CreatePermanentResources()
     samplerDesc.shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_PIXEL;
 
     _linearSampler = _renderer->CreateSampler(samplerDesc);
+    _passDescriptorSet.Bind("_sampler"_h, _linearSampler);
 
     // View Constant Buffer (for camera data)
     _viewConstantBuffer = new Renderer::Buffer<ViewConstantBuffer>(_renderer, "ViewConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
     // Light Constant Buffer
     _lightConstantBuffer = new Renderer::Buffer<LightConstantBuffer>(_renderer, "LightConstantBufffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
-
-    // Create descriptor sets
-    _globalDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
-
-    _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
-    _passDescriptorSet.Bind("_sampler"_h, _linearSampler);
-
-    _drawDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
 
     // Frame allocator, this is a fast allocator for data that is only needed this frame
     _frameAllocator = new Memory::StackAllocator(FRAME_ALLOCATOR_SIZE);

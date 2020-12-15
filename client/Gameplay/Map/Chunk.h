@@ -37,7 +37,7 @@
 namespace Terrain
 {
     constexpr i32 MAP_CHUNK_TOKEN = 1128812107; // UTF8 -> Binary -> Decimal for "chnk"
-    constexpr i32 MAP_CHUNK_VERSION = 5;
+    constexpr i32 MAP_CHUNK_VERSION = 6;
     constexpr u16 MAP_CHUNK_ID_INVALID = std::numeric_limits<u16>().max();
 
     constexpr u32 MAP_CHUNKS_PER_MAP_STRIDE = 64;
@@ -74,6 +74,7 @@ namespace Terrain
 
     struct Placement
     {
+        u32 uniqueID;
         u32 nameID;
         vec3 position = vec3(0, 0, 0);
         vec3 rotation = vec3(0, 0, 0);

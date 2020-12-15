@@ -77,13 +77,14 @@ void MapObjectRenderer::Update(f32 deltaTime)
     }
 }
 
-void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
 {
     // Map Object Pass
     {
         struct MapObjectPassData
         {
             Renderer::RenderPassMutableResource mainColor;
+            Renderer::RenderPassMutableResource mainObject;
             Renderer::RenderPassMutableResource mainDepth;
         };
 
@@ -93,7 +94,8 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
         renderGraph->AddPass<MapObjectPassData>("MapObject Pass",
             [=](MapObjectPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
-            data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+            data.mainColor = builder.Write(colorTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+            data.mainObject = builder.Write(objectTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
             data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
 
             return true; // Return true from setup to enable this pass, return false to disable it
@@ -185,6 +187,7 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
 
             // Render targets
             pipelineDesc.renderTargets[0] = data.mainColor;
+            pipelineDesc.renderTargets[1] = data.mainObject;
 
             pipelineDesc.depthStencil = data.mainDepth;
 
@@ -207,10 +210,14 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
 
 void MapObjectRenderer::RegisterMapObjectToBeLoaded(const std::string& mapObjectName, const Terrain::Placement& mapObjectPlacement)
 {
-    MapObjectToBeLoaded& mapObjectToBeLoaded = _mapObjectsToBeLoaded.emplace_back();
-    mapObjectToBeLoaded.placement = &mapObjectPlacement;
-    mapObjectToBeLoaded.nmorName = &mapObjectName;
-    mapObjectToBeLoaded.nmorNameHash = StringUtils::fnv1a_32(mapObjectName.c_str(), mapObjectName.length());
+    u32 uniqueID = mapObjectPlacement.uniqueID;
+    if (_uniqueIdCounter[uniqueID]++ == 0)
+    {
+        MapObjectToBeLoaded& mapObjectToBeLoaded = _mapObjectsToBeLoaded.emplace_back();
+        mapObjectToBeLoaded.placement = &mapObjectPlacement;
+        mapObjectToBeLoaded.nmorName = &mapObjectName;
+        mapObjectToBeLoaded.nmorNameHash = StringUtils::fnv1a_32(mapObjectName.c_str(), mapObjectName.length());
+    }
 }
 
 void MapObjectRenderer::RegisterMapObjectsToBeLoaded(u16 chunkID, const Terrain::Chunk& chunk, StringTable& stringTable)
@@ -221,10 +228,14 @@ void MapObjectRenderer::RegisterMapObjectsToBeLoaded(u16 chunkID, const Terrain:
     {
         const Terrain::Placement& mapObjectPlacement = chunk.mapObjectPlacements[i];
 
-        MapObjectToBeLoaded& mapObjectToBeLoaded = _mapObjectsToBeLoaded.emplace_back();
-        mapObjectToBeLoaded.placement = &mapObjectPlacement;
-        mapObjectToBeLoaded.nmorName = &stringTable.GetString(mapObjectPlacement.nameID);
-        mapObjectToBeLoaded.nmorNameHash = stringTable.GetStringHash(mapObjectPlacement.nameID);
+        u32 uniqueID = mapObjectPlacement.uniqueID;
+        if (_uniqueIdCounter[uniqueID]++ == 0)
+        {
+            MapObjectToBeLoaded& mapObjectToBeLoaded = _mapObjectsToBeLoaded.emplace_back();
+            mapObjectToBeLoaded.placement = &mapObjectPlacement;
+            mapObjectToBeLoaded.nmorName = &stringTable.GetString(mapObjectPlacement.nameID);
+            mapObjectToBeLoaded.nmorNameHash = stringTable.GetStringHash(mapObjectPlacement.nameID);
+        }
     }
 }
 
@@ -246,6 +257,7 @@ void MapObjectRenderer::ExecuteLoad()
         {
             mapObjectID = static_cast<u32>(_loadedMapObjects.size());
             LoadedMapObject& mapObject = _loadedMapObjects.emplace_back();
+            mapObject.objectID = mapObjectID;
             if (!LoadMapObject(mapObjectToBeLoaded, mapObject))
             {
                 _loadedMapObjects.pop_back();
@@ -274,6 +286,7 @@ void MapObjectRenderer::ExecuteLoad()
 
 void MapObjectRenderer::Clear()
 {
+    _uniqueIdCounter.clear();
     _mapChunkToPlacementOffset.clear();
     _mapObjectPlacementDetails.clear();
     _loadedMapObjects.clear();
@@ -711,6 +724,7 @@ void MapObjectRenderer::AddInstance(LoadedMapObject& mapObject, const Terrain::P
         drawParameters.instanceCount = 1;
 
         InstanceLookupData& instanceLookupData = _instanceLookupData.emplace_back();
+        instanceLookupData.loadedObjectID = mapObject.objectID;
         instanceLookupData.instanceID = instanceID;
         instanceLookupData.materialParamID = mapObject.materialParameterIDs[i];
         instanceLookupData.cullingDataID = mapObject.baseCullingDataOffset;

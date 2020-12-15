@@ -28,6 +28,7 @@
 #include "Commands/CopyBuffer.h"
 #include "Commands/FillBuffer.h"
 #include "Commands/PipelineBarrier.h"
+#include "Commands/ImageBarrier.h"
 #include "Commands/DrawImgui.h"
 #include "Commands/PushConstant.h"
 
@@ -167,7 +168,7 @@ namespace Renderer
     {
         ZoneScopedC(tracy::Color::Red3);
         const Commands::BindDescriptorSet* actualData = static_cast<const Commands::BindDescriptorSet*>(data);
-        renderer->BindDescriptorSet(commandList, actualData->slot, actualData->descriptors, actualData->numDescriptors, actualData->frameIndex);
+        renderer->BindDescriptorSet(commandList, actualData->slot, actualData->descriptors, actualData->numDescriptors);
     }
 
     void BackendDispatch::SetScissorRect(Renderer* renderer, CommandListID commandList, const void* data)
@@ -238,6 +239,13 @@ namespace Renderer
         ZoneScopedC(tracy::Color::Red3);
         const Commands::PipelineBarrier* actualData = static_cast<const Commands::PipelineBarrier*>(data);
         renderer->PipelineBarrier(commandList, actualData->barrierType, actualData->buffer);
+    }
+
+    void BackendDispatch::ImageBarrier(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::ImageBarrier* actualData = static_cast<const Commands::ImageBarrier*>(data);
+        renderer->ImageBarrier(commandList, actualData->image);
     }
 
     void BackendDispatch::DrawImgui(Renderer* renderer, CommandListID commandList, const void* data)

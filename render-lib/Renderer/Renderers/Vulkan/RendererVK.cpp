@@ -17,7 +17,6 @@
 #include "Backend/SemaphoreHandlerVK.h"
 #include "Backend/SwapChainVK.h"
 #include "Backend/DebugMarkerUtilVK.h"
-#include "Backend/DescriptorSetBackendVK.h"
 #include "Backend/DescriptorSetBuilderVK.h"
 #include "Backend/FormatConverterVK.h"
 
@@ -89,6 +88,11 @@ namespace Renderer
         return _bufferHandler->CreateBuffer(desc);
     }
 
+    BufferID RendererVK::CreateTemporaryBuffer(BufferDesc& desc, u32 framesLifetime)
+    {
+        return _bufferHandler->CreateTemporaryBuffer(desc, framesLifetime);
+    }
+
     void RendererVK::QueueDestroyBuffer(BufferID buffer)
     {
         _destroyLists[_destroyListIndex].buffers.push_back(buffer);
@@ -147,11 +151,6 @@ namespace Renderer
     TextureID RendererVK::CreateDataTextureIntoArray(DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex)
     {
         return _textureHandler->CreateDataTextureIntoArray(desc, textureArray, arrayIndex);
-    }
-
-    DescriptorSetBackend* RendererVK::CreateDescriptorSetBackend()
-    {
-        return new Backend::DescriptorSetBackendVK();
     }
 
     ModelID RendererVK::LoadModel(ModelDesc& desc)
@@ -225,6 +224,7 @@ namespace Renderer
         }
 
         _commandListHandler->ResetCommandBuffers();
+        _bufferHandler->OnFrameStart();
 
         vmaSetCurrentFrameIndex(_device->_allocator, frameIndex);
         vmaGetBudget(_device->_allocator, sBudgets);
@@ -603,7 +603,7 @@ namespace Renderer
         return false;
     }
 
-    void RendererVK::BindDescriptor(Backend::DescriptorSetBuilderVK* builder, void* imageInfosArraysVoid, Descriptor& descriptor, u32 frameIndex)
+    void RendererVK::BindDescriptor(Backend::DescriptorSetBuilderVK* builder, void* imageInfosArraysVoid, Descriptor& descriptor)
     {
         std::vector<std::vector<VkDescriptorImageInfo>>& imageInfosArrays = *static_cast<std::vector<std::vector<VkDescriptorImageInfo>>*>(imageInfosArraysVoid);
 
@@ -666,6 +666,14 @@ namespace Renderer
             
             builder->BindImageArray(descriptor.nameHash, imageInfos.data(), static_cast<i32>(imageInfos.size()));
         }
+        else if (descriptor.descriptorType == DescriptorType::DESCRIPTOR_TYPE_IMAGE)
+        {
+            VkDescriptorImageInfo imageInfo = {};
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            imageInfo.imageView = _imageHandler->GetColorView(descriptor.imageID);
+
+            builder->BindImage(descriptor.nameHash, imageInfo);
+        }
         else if (descriptor.descriptorType == DescriptorType::DESCRIPTOR_TYPE_BUFFER)
         {
             VkDescriptorBufferInfo bufferInfo = {};
@@ -693,7 +701,7 @@ namespace Renderer
         destroyList.buffers.clear();
     }
 
-    void RendererVK::BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors, u32 frameIndex)
+    void RendererVK::BindDescriptorSet(CommandListID commandListID, DescriptorSetSlot slot, Descriptor* descriptors, u32 numDescriptors)
     {
         ZoneScopedNC("RendererVK::BindDescriptorSet", tracy::Color::Red3);
 
@@ -712,7 +720,7 @@ namespace Renderer
             {
                 ZoneScopedNC("BindDescriptor", tracy::Color::Red3);
                 Descriptor& descriptor = descriptors[i];
-                BindDescriptor(builder, &imageInfosArrays, descriptor, frameIndex);
+                BindDescriptor(builder, &imageInfosArrays, descriptor);
             }
 
             VkDescriptorSet descriptorSet = builder->BuildDescriptor(static_cast<i32>(slot), Backend::DescriptorLifetime::PerFrame);
@@ -733,7 +741,7 @@ namespace Renderer
             {
                 ZoneScopedNC("BindDescriptor", tracy::Color::Red3);
                 Descriptor& descriptor = descriptors[i];
-                BindDescriptor(builder, &imageInfosArrays, descriptor, frameIndex);
+                BindDescriptor(builder, &imageInfosArrays, descriptor);
             }
 
             VkDescriptorSet descriptorSet = builder->BuildDescriptor(static_cast<i32>(slot), Backend::DescriptorLifetime::PerFrame);
@@ -878,7 +886,7 @@ namespace Renderer
             srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
             dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
             bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-            bufferBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_UNIFORM_READ_BIT;
             break;
 
         case PipelineBarrierType::ComputeWriteToIndirectArguments:
@@ -895,15 +903,31 @@ namespace Renderer
             bufferBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
             break;
 
+        case PipelineBarrierType::ComputeWriteToTransferSrc:
+            srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            bufferBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            break;
+
         case PipelineBarrierType::AllCommands:
             srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
             dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-            bufferBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            bufferBarrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+            bufferBarrier.srcAccessMask = VK_ACCESS_FLAG_BITS_MAX_ENUM;;
+            bufferBarrier.dstAccessMask = VK_ACCESS_FLAG_BITS_MAX_ENUM;;
             break;
         }
 
         vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &bufferBarrier, 0, nullptr);
+    }
+
+    void RendererVK::ImageBarrier(CommandListID commandListID, ImageID image)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+        const VkImage& vkImage = _imageHandler->GetImage(image);
+        const ImageDesc& imageDesc = _imageHandler->GetImageDesc(image);
+
+        _device->TransitionImageLayout(commandBuffer, vkImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, imageDesc.depth, 1);
     }
 
     void RendererVK::PushConstant(CommandListID commandListID, void* data, u32 offset, u32 size)
@@ -1104,7 +1128,9 @@ namespace Renderer
     void* RendererVK::MapBuffer(BufferID buffer)
     {
         void* mappedMemory;
-        if (vmaMapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(buffer), &mappedMemory) != VK_SUCCESS)
+
+        VkResult result = vmaMapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(buffer), &mappedMemory);
+        if (result != VK_SUCCESS)
         {
             NC_LOG_ERROR("vmaMapMemory failed!\n");
             return nullptr;

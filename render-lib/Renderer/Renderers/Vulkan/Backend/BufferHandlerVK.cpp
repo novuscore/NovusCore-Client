@@ -4,60 +4,65 @@
 
 #include "vulkan/vulkan.h"
 
-constexpr size_t MaxBufferCount = 65535;
-
-static_assert(MaxBufferCount <= std::numeric_limits<Renderer::BufferID::type>::max(), "Too many buffers to fit inside BufferID");
-
 namespace Renderer
 {
     namespace Backend
     {
         BufferHandlerVK::BufferHandlerVK()
         {
-            _buffers = new Buffer[MaxBufferCount];
-            _indices = new Index[MaxBufferCount];
-
-            _bufferCount = 0;
-
-            for (unsigned i = 0; i < MaxBufferCount; ++i) 
-            {
-                _indices[i].next = i + 1;
-            }
-
-            _freelistDequeue = 0;
-            _freelistEnqueue = MaxBufferCount - 1;
         }
 
         BufferHandlerVK::~BufferHandlerVK()
         {
-            assert(_bufferCount == 0);
-
-            delete[] _buffers;
-            delete[] _indices;
         }
 
         BufferID BufferHandlerVK::AcquireNewBufferID() 
         {
-            assert(_bufferCount < MaxBufferCount);
-            ++_bufferCount;
+            BufferID bufferID;
 
-            BufferID bufferID = BufferID((BufferID::type)_freelistDequeue);
-            const Index& in = _indices[_freelistDequeue];
-            _freelistDequeue = in.next;
+            // Check if we have returned bufferIDs to use
+            if (_returnedBufferIDs.size() > 0)
+            {
+                bufferID = _returnedBufferIDs.front();
+                _returnedBufferIDs.pop();
+            }
+            else
+            {
+                // Else create a new one
+                bufferID = BufferID(static_cast<BufferID::type>(_buffers.size()));
+                _buffers.emplace_back();
+            }
+
             return bufferID;
         }
 
         void BufferHandlerVK::ReturnBufferID(BufferID bufferID)
         {
-            _indices[_freelistEnqueue].next = (BufferID::type)bufferID;
-            _freelistEnqueue = (BufferID::type)bufferID;
-
-            --_bufferCount;
+            _returnedBufferIDs.push(bufferID);
         }
 
         void BufferHandlerVK::Init(RenderDeviceVK* device)
         {
             _device = device;
+        }
+
+        void BufferHandlerVK::OnFrameStart()
+        {
+            i64 numBuffers = static_cast<i64>(_temporaryBuffers.size());
+
+            if (numBuffers > 0)
+            {
+                for (i64 i = numBuffers - 1; i >= 0; i--)
+                {
+                    TemporaryBuffer& buffer = _temporaryBuffers[i];
+
+                    if (--buffer.framesLifetimeLeft == 0)
+                    {
+                        DestroyBuffer(buffer.bufferID);
+                        _temporaryBuffers.erase(_temporaryBuffers.begin() + i);
+                    }
+                }
+            }
         }
 
         VkBuffer BufferHandlerVK::GetBuffer(BufferID bufferID) const
@@ -149,6 +154,15 @@ namespace Renderer
             DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)buffer.buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, desc.name.c_str());
 
             return bufferID;
+        }
+
+        BufferID BufferHandlerVK::CreateTemporaryBuffer(BufferDesc& desc, u32 framesLifetime)
+        {
+            TemporaryBuffer& temporaryBuffer = _temporaryBuffers.emplace_back();
+            temporaryBuffer.bufferID = CreateBuffer(desc);
+            temporaryBuffer.framesLifetimeLeft = framesLifetime;
+
+            return temporaryBuffer.bufferID;
         }
 
         void BufferHandlerVK::DestroyBuffer(BufferID bufferID)

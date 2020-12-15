@@ -167,8 +167,6 @@ void WaterRenderer::CreatePermanentResources()
     samplerDesc.maxAnisotropy = 8;
 
     _sampler = _renderer->CreateSampler(samplerDesc);
-
-    _passDescriptorSet.SetBackend(_renderer->CreateDescriptorSetBackend());
     _passDescriptorSet.Bind("_sampler", _sampler);
 
     // For now we ignore water vertex data and render it all as planes
