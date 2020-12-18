@@ -17,40 +17,29 @@
 
 namespace UISystem
 {
-    void CalculateVertices(const vec2& pos, const vec2& size, const UI::FBox& texCoords, std::vector<UISystem::UIVertex>& vertices)
+    void CalculateVertices(const vec2& pos, const vec2& size, const UI::FBox& texCoords, std::array<UISystem::UIVertex, 4>& vertices)
     {
         const UISingleton::UIDataSingleton& dataSingleton = ServiceLocator::GetUIRegistry()->ctx<UISingleton::UIDataSingleton>();
-        vertices.clear();
-        vertices.reserve(4);
-
+        
         vec2 upperLeftPos = vec2(pos.x, pos.y);
         vec2 upperRightPos = vec2(pos.x + size.x, pos.y);
         vec2 lowerLeftPos = vec2(pos.x, pos.y + size.y);
         vec2 lowerRightPos = vec2(pos.x + size.x, pos.y + size.y);
 
         // UV space
-        // TODO: Do scaling depending on rendertargets actual size instead of assuming 1080p (which is our reference resolution)
         upperLeftPos /= dataSingleton.UIRESOLUTION;
         upperRightPos /= dataSingleton.UIRESOLUTION;
         lowerLeftPos /= dataSingleton.UIRESOLUTION;
         lowerRightPos /= dataSingleton.UIRESOLUTION;
 
-        // UI Vertices
-        UISystem::UIVertex& upperLeft = vertices.emplace_back();
-        upperLeft.pos = vec2(upperLeftPos.x, 1.0f - upperLeftPos.y);
-        upperLeft.uv = vec2(texCoords.left, texCoords.top);
+        // UI Vertices. (Pos, UV)
+        vertices[0] = { vec2(upperLeftPos.x, 1.0f - upperLeftPos.y),    vec2(texCoords.left, texCoords.top)     };
 
-        UISystem::UIVertex& upperRight = vertices.emplace_back();
-        upperRight.pos = vec2(upperRightPos.x, 1.0f - upperRightPos.y);
-        upperRight.uv = vec2(texCoords.right, texCoords.top);
+        vertices[1] = { vec2(upperRightPos.x, 1.0f - upperRightPos.y),  vec2(texCoords.right, texCoords.top)    };
 
-        UISystem::UIVertex& lowerLeft = vertices.emplace_back();
-        lowerLeft.pos = vec2(lowerLeftPos.x, 1.0f - lowerLeftPos.y);
-        lowerLeft.uv = vec2(texCoords.left, texCoords.bottom);
-
-        UISystem::UIVertex& lowerRight = vertices.emplace_back();
-        lowerRight.pos = vec2(lowerRightPos.x, 1.0f - lowerRightPos.y);
-        lowerRight.uv = vec2(texCoords.right, texCoords.bottom);
+        vertices[2] = { vec2(lowerLeftPos.x, 1.0f - lowerLeftPos.y),    vec2(texCoords.left, texCoords.bottom)  };
+        
+        vertices[3] = { vec2(lowerRightPos.x, 1.0f - lowerRightPos.y),  vec2(texCoords.right, texCoords.bottom) };
     }
 
     void UpdateRenderingSystem::Update(entt::registry& registry)
@@ -101,18 +90,15 @@ namespace UISystem
             const vec2& size = transform.size;
             const UI::FBox& texCoords = image.style.texCoord;
 
-            std::vector<UISystem::UIVertex> vertices;
+            std::array<UISystem::UIVertex, 4> vertices;
             CalculateVertices(pos, size, texCoords, vertices);
 
-            static const u32 bufferSize = sizeof(UISystem::UIVertex) * 4; // 4 vertices per image
+            constexpr u32 bufferSize = sizeof(UISystem::UIVertex) * 4; // 4 vertices per image
 
             if (image.vertexBufferID == Renderer::BufferID::Invalid())
             {
-                Renderer::BufferDesc desc;
-                desc.name = "ImageVertices";
+                Renderer::BufferDesc desc { "ImageVertices", Renderer::BufferUsage::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly };
                 desc.size = bufferSize;
-                desc.usage = Renderer::BufferUsage::BUFFER_USAGE_UNIFORM_BUFFER;
-                desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
                 image.vertexBufferID = renderer->CreateBuffer(desc);
             }
@@ -136,12 +122,11 @@ namespace UISystem
 
             std::vector<f32> lineWidths;
             std::vector<size_t> lineBreakPoints;
-            size_t finalCharacter = UIUtils::Text::CalculateLineWidthsAndBreaks(&text, transform.size.x, transform.size.y, lineWidths, lineBreakPoints);
-
-            size_t textLengthWithoutSpaces = std::count_if(text.text.begin() + text.pushback, text.text.end() - (text.text.length() - finalCharacter), [](char c) { return !std::isspace(c); });
+            const size_t finalCharacter = UIUtils::Text::CalculateLineWidthsAndBreaks(&text, transform.size.x, transform.size.y, lineWidths, lineBreakPoints);
+            const size_t textLengthWithoutSpaces = std::count_if(text.text.begin() + text.pushback, text.text.end() - (text.text.length() - finalCharacter), [](char c) { return !std::isspace(c); });
 
             // If textLengthWithoutSpaces is bigger than the amount of glyphs we allocated in our buffer we need to reallocate the buffer
-            static const u32 perGlyphVertexSize = sizeof(UISystem::UIVertex) * 4; // 4 vertices per glyph
+            constexpr u32 perGlyphVertexSize = sizeof(UISystem::UIVertex) * 4; // 4 vertices per glyph
             if (textLengthWithoutSpaces > text.vertexBufferGlyphCount)
             {
                 if (text.vertexBufferID != Renderer::BufferID::Invalid())
@@ -153,19 +138,13 @@ namespace UISystem
                     renderer->QueueDestroyBuffer(text.textureIDBufferID);
                 }
 
-                Renderer::BufferDesc vertexBufferDesc;
-                vertexBufferDesc.name = "TextView";
+                Renderer::BufferDesc vertexBufferDesc { "TextView", Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER, Renderer::BufferCPUAccess::WriteOnly };
                 vertexBufferDesc.size = textLengthWithoutSpaces * perGlyphVertexSize;
-                vertexBufferDesc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER;
-                vertexBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
                 text.vertexBufferID = renderer->CreateBuffer(vertexBufferDesc);
 
-                Renderer::BufferDesc textureIDBufferDesc;
-                textureIDBufferDesc.name = "TexturesIDs";
+                Renderer::BufferDesc textureIDBufferDesc { "TexturesIDs", Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER, Renderer::BufferCPUAccess::WriteOnly };
                 textureIDBufferDesc.size = textLengthWithoutSpaces * sizeof(u32); // 1 u32 per glyph
-                textureIDBufferDesc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER;
-                textureIDBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
                 text.textureIDBufferID = renderer->CreateBuffer(textureIDBufferDesc);
 
@@ -175,13 +154,11 @@ namespace UISystem
 
             if (textLengthWithoutSpaces > 0)
             {
-                vec2 alignment = UIUtils::Text::GetAlignment(&text);
+                const vec2 alignment = UIUtils::Text::GetAlignment(&text);
                 vec2 currentPosition = UIUtils::Transform::GetAnchorPositionInElement(&transform, alignment);
-                f32 startX = currentPosition.x;
+                const f32 startX = currentPosition.x;
                 currentPosition.x -= lineWidths[0] * alignment.x;
                 currentPosition.y += text.style.fontSize * (1 - alignment.y) * lineWidths.size();
-
-                std::vector<UISystem::UIVertex> vertices;
 
                 UISystem::UIVertex* baseVertices = reinterpret_cast<UISystem::UIVertex*>(renderer->MapBuffer(text.vertexBufferID));
                 u32* baseTextureID = reinterpret_cast<u32*>(renderer->MapBuffer(text.textureIDBufferID));
@@ -211,9 +188,9 @@ namespace UISystem
                     const Renderer::FontChar& fontChar = text.font->GetChar(character);
                     const vec2& pos = currentPosition + vec2(fontChar.xOffset, fontChar.yOffset);
                     const vec2& size = vec2(fontChar.width, fontChar.height);
-                    UI::FBox texCoords{ 0.f, 1.f, 1.f, 0.f };
+                    constexpr UI::FBox texCoords{ 0.f, 1.f, 1.f, 0.f };
 
-                    vertices.clear();
+                    std::array<UISystem::UIVertex, 4> vertices;
                     CalculateVertices(pos, size, texCoords, vertices);
 
                     UISystem::UIVertex* dst = &baseVertices[glyph * 4]; // 4 vertices per glyph
