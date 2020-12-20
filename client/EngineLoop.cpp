@@ -29,6 +29,7 @@
 
 #include "UI/ECS/Components/Transform.h"
 #include "UI/ECS/Components/NotCulled.h"
+#include "UI/ECS/Components/ElementInfo.h"
 #include "UI/ECS/Components/Singletons/UIDataSingleton.h"
 
 // Systems
@@ -867,21 +868,34 @@ void EngineLoop::DrawUIStats()
 {
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     auto dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();
+
+    auto DisplayElementInfo = [&](char* elementName, entt::entity entId)
+    {
+        if (entId == entt::null)
+            ImGui::Text("%s Element : Id: None, Type: None", elementName);
+        else
+            ImGui::Text("%s Element : Id: %s, Type: %s",
+                elementName,
+                std::to_string(entt::to_integral(entId)).c_str(),
+                UI::GetElementTypeAsString(registry->get<UIComponent::ElementInfo>(entId).type).c_str()
+            );
+    };
+
+    DisplayElementInfo("Focused", dataSingleton->focusedElement);
+    DisplayElementInfo("Dragged", dataSingleton->draggedElement);
+    DisplayElementInfo("Hovered", dataSingleton->hoveredElement);
+    ImGui::Spacing();
+    ImGui::Spacing();
+
     size_t count = registry->size<UIComponent::Transform>();
     size_t notCulled = registry->size<UIComponent::NotCulled>();
     bool* drawCollisionBounds = reinterpret_cast<bool*>(CVarSystem::Get()->GetIntCVar("ui.drawCollisionBounds"));
 
     ImGui::Text("Total Elements : %d", count);
     ImGui::Text("Culled elements : %d", (count-notCulled));
+    ImGui::Text("UI Resolution : (%.0f, %.0f)", static_cast<f32>(dataSingleton->UIRESOLUTION.x), static_cast<f32>(dataSingleton->UIRESOLUTION.y));
     ImGui::Spacing();
 
-    ImGui::Text("Focused Element : %d", entt::to_integral(dataSingleton->focusedElement));
-    ImGui::Text("Dragged Element : %d", entt::to_integral(dataSingleton->draggedElement));
-    ImGui::Text("Hovered Element : %d", entt::to_integral(dataSingleton->hoveredElement));
-    ImGui::Spacing();
-
-    ImGui::Text("UI Resolution : %f, %f", dataSingleton->UIRESOLUTION.x, dataSingleton->UIRESOLUTION.y);
-    ImGui::Spacing();
     ImGui::Checkbox("Show Collision Bounds", drawCollisionBounds);
 }
 void EngineLoop::DrawMemoryStats()

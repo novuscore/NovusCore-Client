@@ -81,6 +81,10 @@ void WaterRenderer::AddWaterPass(Renderer::RenderGraph* renderGraph, Renderer::D
     const auto execute = [=](WaterPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList)
     {
         GPU_SCOPED_PROFILER_ZONE(commandList, WaterPass);
+        
+        size_t numDrawCalls = _drawCalls.size();
+        if (numDrawCalls == 0)
+            return;
 
         Renderer::GraphicsPipelineDesc pipelineDesc;
         resources.InitializePipelineDesc(pipelineDesc);
@@ -328,7 +332,11 @@ bool WaterRenderer::RegisterChunksToBeLoaded(const std::vector<u16>& chunkIDs)
 }
 
 void WaterRenderer::ExecuteLoad()
-{
+{    
+    size_t numDrawCalls = _drawCalls.size();
+    if (numDrawCalls == 0)
+        return;
+
     // -- Create DrawCall Buffer --
     {
         if (_drawCallsBuffer != Renderer::BufferID::Invalid())

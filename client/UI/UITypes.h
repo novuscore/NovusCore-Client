@@ -17,6 +17,32 @@ namespace UI
         UITYPE_INPUTFIELD
     };
 
+    static std::string GetElementTypeAsString(ElementType type)
+    {
+        switch (type)
+        {
+        case ElementType::UITYPE_NONE:
+            return "None";
+        case ElementType::UITYPE_PANEL:
+            return "Panel";
+        case ElementType::UITYPE_BUTTON:
+            return "Button";
+        case ElementType::UITYPE_CHECKBOX:
+            return "Checkbox";
+        case ElementType::UITYPE_SLIDER:
+            return "Slider";
+        case ElementType::UITYPE_SLIDERHANDLE:
+            return "Slider Handle";
+        case ElementType::UITYPE_LABEL:
+            return "Label";
+        case ElementType::UITYPE_INPUTFIELD:
+            return "Inputfield";
+        default:
+            assert(false);
+            return "Unimplemented";
+        }
+    }
+
     enum class DepthLayer : u16
     {
         WORLD,
