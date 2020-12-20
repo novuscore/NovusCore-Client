@@ -14,7 +14,6 @@ AutoCVar_Float CVAR_DayNightTimeMultiplier("DayNight.timeMultiplier", "Controls 
 void DayNightSystem::Init(entt::registry& registry)
 {
     DayNightSingleton& dayNightSingleton = registry.set<DayNightSingleton>();
-
     SetInitialState(registry, dayNightSingleton.initialState);
 }
 

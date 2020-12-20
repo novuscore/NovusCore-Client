@@ -35,6 +35,7 @@
 #include <entt.hpp>
 #include "ServiceLocator.h"
 #include "../Gameplay/Map/Chunk.h"
+
 #include "../ECS/Components/Singletons/MapSingleton.h"
 
 namespace Terrain
@@ -42,6 +43,135 @@ namespace Terrain
     namespace MapUtils
     {
         constexpr f32 f32MaxValue = 3.40282346638528859812e+38F;
+
+        bool LoadMap(entt::registry* registry, const NDBC::Map* map);
+
+        inline vec2 GetChunkPosition(u32 chunkID)
+        {
+            const u32 chunkX = chunkID % Terrain::MAP_CHUNKS_PER_MAP_STRIDE;
+            const u32 chunkY = chunkID / Terrain::MAP_CHUNKS_PER_MAP_STRIDE;
+
+            const vec2 chunkPos = MAP_HALF_SIZE - (vec2(chunkX, chunkY) * Terrain::MAP_CHUNK_SIZE);
+            return -chunkPos;
+        }
+
+        inline vec2 GetCellPosition(u32 chunkID, u32 cellID)
+        {
+            const u32 cellX = cellID % Terrain::MAP_CELLS_PER_CHUNK_SIDE;
+            const u32 cellY = cellID / Terrain::MAP_CELLS_PER_CHUNK_SIDE;
+
+            const vec2 chunkPos = GetChunkPosition(chunkID);
+            const vec2 cellPos = vec2(cellX, cellY) * Terrain::MAP_CELL_SIZE;
+
+            vec2 pos = chunkPos + cellPos;
+            return vec2(-pos.y, -pos.x);
+        }
+
+        inline vec2 GetCellPosition(vec2 chunkPos, u32 cellID)
+        {
+            const u32 cellX = cellID % Terrain::MAP_CELLS_PER_CHUNK_SIDE;
+            const u32 cellY = cellID / Terrain::MAP_CELLS_PER_CHUNK_SIDE;
+
+            const vec2 cellPos = vec2(cellX, cellY) * Terrain::MAP_CELL_SIZE;
+
+            vec2 pos = chunkPos + cellPos;
+            return vec2(-pos.y, -pos.x);
+        }
+
+        inline void AlignCellBorders(Terrain::Chunk& chunk)
+        {
+            for (u32 cellID = 0; cellID < Terrain::MAP_CELLS_PER_CHUNK; cellID++)
+            {
+                Terrain::Cell& currentCell = chunk.cells[cellID];
+
+                u16 chunkX = cellID % Terrain::MAP_CELLS_PER_CHUNK_SIDE;
+                u16 chunkY = cellID / Terrain::MAP_CELLS_PER_CHUNK_SIDE;
+
+                u16 aboveCellID = cellID - Terrain::MAP_CELLS_PER_CHUNK_SIDE;
+                u16 leftCellID = cellID - 1;
+
+                bool hasCellAbove = chunkY > 0;
+                bool hasCellLeft = chunkX > 0;
+
+                if (hasCellAbove)
+                {
+                    Terrain::Cell& aboveCell = chunk.cells[aboveCellID];
+
+                    // Avoid fixing the very first height value within the cell grid (This is handled by "hasChunkLeft"
+                    for (u32 currentHeightID = 1; currentHeightID < Terrain::MAP_CELL_OUTER_GRID_STRIDE; currentHeightID++)
+                    {
+                        u32 aboveHeightID = currentHeightID + (Terrain::MAP_CELL_TOTAL_GRID_SIZE - Terrain::MAP_CELL_OUTER_GRID_STRIDE);
+                        currentCell.heightData[currentHeightID] = aboveCell.heightData[aboveHeightID];
+                    }
+                }
+
+                if (hasCellLeft)
+                {
+                    Terrain::Cell& leftCell = chunk.cells[leftCellID];
+
+                    for (u32 currentHeightID = 0; currentHeightID < Terrain::MAP_CELL_TOTAL_GRID_SIZE; currentHeightID += Terrain::MAP_CELL_TOTAL_GRID_STRIDE)
+                    {
+                        u32 aboveHeightID = currentHeightID + (Terrain::MAP_CELL_OUTER_GRID_STRIDE - 1);
+                        currentCell.heightData[currentHeightID] = leftCell.heightData[aboveHeightID];
+                    }
+                }
+            }
+        }
+
+        inline void AlignChunkBorders(Terrain::Map& map)
+        {
+            for (auto& chunkItr : map.chunks)
+            {
+                const u16& chunkID = chunkItr.first;
+                Terrain::Chunk& chunk = chunkItr.second;
+
+                u16 chunkX = chunkID % Terrain::MAP_CHUNKS_PER_MAP_STRIDE;
+                u16 chunkY = chunkID / Terrain::MAP_CHUNKS_PER_MAP_STRIDE;
+
+                u16 chunkAboveID = chunkID - Terrain::MAP_CHUNKS_PER_MAP_STRIDE;
+                u16 chunkLeftID = chunkID - 1;
+
+                bool hasChunkAbove = map.chunks.find(chunkAboveID) != map.chunks.end();
+                bool hasChunkLeft = map.chunks.find(chunkLeftID) != map.chunks.end();
+
+                if (hasChunkAbove)
+                {
+                    Terrain::Chunk& chunkAbove = map.chunks[chunkAboveID];
+                    u32 aboveStartCellID = Terrain::MAP_CELLS_PER_CHUNK - Terrain::MAP_CELLS_PER_CHUNK_SIDE;
+
+                    for (u32 i = 0; i < Terrain::MAP_CELLS_PER_CHUNK_SIDE; i++)
+                    {
+                        Terrain::Cell& currentCell = chunk.cells[i];
+                        Terrain::Cell& aboveCell = chunkAbove.cells[aboveStartCellID + i];
+
+                        // Avoid fixing the very first height value within the cell grid (This is handled by "hasChunkLeft"
+                        for (u32 currentHeightID = 1; currentHeightID < Terrain::MAP_CELL_OUTER_GRID_STRIDE; currentHeightID++)
+                        {
+                            u32 aboveHeightID = currentHeightID + (Terrain::MAP_CELL_TOTAL_GRID_SIZE - Terrain::MAP_CELL_OUTER_GRID_STRIDE);
+                            currentCell.heightData[currentHeightID] = aboveCell.heightData[aboveHeightID];
+                        }
+                    }
+                }
+
+                if (hasChunkLeft)
+                {
+                    Terrain::Chunk& chunkLeft = map.chunks[chunkLeftID];
+                    u32 leftStartCellID = Terrain::MAP_CELLS_PER_CHUNK_SIDE - 1;
+
+                    for (u32 i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i += Terrain::MAP_CELLS_PER_CHUNK_SIDE)
+                    {
+                        Terrain::Cell& currentCell = chunk.cells[i];
+                        Terrain::Cell& leftCell = chunkLeft.cells[leftStartCellID + i];
+
+                        for (u32 currentHeightID = 0; currentHeightID < Terrain::MAP_CELL_TOTAL_GRID_SIZE; currentHeightID += Terrain::MAP_CELL_TOTAL_GRID_STRIDE)
+                        {
+                            u32 aboveHeightID = currentHeightID + (Terrain::MAP_CELL_OUTER_GRID_STRIDE - 1);
+                            currentCell.heightData[currentHeightID] = leftCell.heightData[aboveHeightID];
+                        }
+                    }
+                }
+            }
+        }
 
         inline vec2 WorldPositionToADTCoordinates(const vec3& position)
         {
@@ -208,7 +338,7 @@ namespace Terrain
             vec2 chunkRemainder = chunkPos - glm::floor(chunkPos);
             u32 chunkId = GetChunkIdFromChunkPos(chunkPos);
 
-            Terrain::Map& currentMap = mapSingleton.currentMap;
+            Terrain::Map& currentMap = mapSingleton.GetCurrentMap();
             auto chunkItr = currentMap.chunks.find(chunkId);
             if (chunkItr == currentMap.chunks.end())
                 return false;
@@ -276,7 +406,7 @@ namespace Terrain
             vec2 chunkRemainder = chunkPos - glm::floor(chunkPos);
             u32 chunkId = GetChunkIdFromChunkPos(chunkPos);
 
-            Terrain::Map& currentMap = mapSingleton.currentMap;
+            Terrain::Map& currentMap = mapSingleton.GetCurrentMap();
             auto chunkItr = currentMap.chunks.find(chunkId);
             if (chunkItr == currentMap.chunks.end())
                 return triangles;
@@ -371,7 +501,7 @@ namespace Terrain
             vec2 chunkRemainder = chunkPos - glm::floor(chunkPos);
             u32 chunkId = GetChunkIdFromChunkPos(chunkPos);
 
-            Terrain::Map& currentMap = mapSingleton.currentMap;
+            Terrain::Map& currentMap = mapSingleton.GetCurrentMap();
             auto chunkItr = currentMap.chunks.find(chunkId);
             if (chunkItr == currentMap.chunks.end())
                 return false;

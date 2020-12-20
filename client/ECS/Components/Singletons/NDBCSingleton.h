@@ -30,6 +30,55 @@ struct NDBCSingleton
 {
 	NDBCSingleton() {}
 
-    robin_hood::unordered_map<u32, NDBC::File> nameHashToDBCFile;
-    std::vector<std::string> nDBCFilename;
+	NDBC::File& AddNDBCFile(std::string name, size_t size)
+	{
+		StringUtils::StringHash stringHash = name;
+		_loadedNDBCFileNames.push_back(name);
+
+		NDBC::File& file = _nameHashToDBCFile[stringHash];
+		file.GetBuffer() = new DynamicBytebuffer(size);
+		file.GetStringTable() = new StringTable();
+
+		return file;
+	}
+
+	bool RemoveNDBCFile(std::string name)
+	{
+		StringUtils::StringHash stringHash = name;
+
+		auto& dbcFileItr = _nameHashToDBCFile.find(stringHash);
+		if (dbcFileItr == _nameHashToDBCFile.end())
+			return false;
+
+		NDBC::File& file = dbcFileItr->second;
+
+		delete file.GetBuffer();
+		delete file.GetStringTable();
+
+		for (std::vector<std::string>::iterator fileNameItr = _loadedNDBCFileNames.begin(); fileNameItr != _loadedNDBCFileNames.end(); fileNameItr++)
+		{
+			if (name == *fileNameItr)
+			{
+				_loadedNDBCFileNames.erase(fileNameItr);
+				break;
+			}
+		}
+
+		return true;
+	}
+
+	NDBC::File* GetNDBCFile(StringUtils::StringHash nameHash)
+	{
+		auto& itr = _nameHashToDBCFile.find(nameHash);
+		if (itr == _nameHashToDBCFile.end())
+			return nullptr;
+
+		return &itr->second;
+	}
+
+	const std::vector<std::string>& GetLoadedNDBCFileNames() { return _loadedNDBCFileNames; }
+
+private:
+    robin_hood::unordered_map<u32, NDBC::File> _nameHashToDBCFile;
+	std::vector<std::string> _loadedNDBCFileNames;
 };

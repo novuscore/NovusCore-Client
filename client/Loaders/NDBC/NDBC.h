@@ -3,6 +3,7 @@
 #include <Utils/DynamicBytebuffer.h>
 #include <Containers/StringTable.h>
 #include <vector>
+#include <robin_hood.h>
 
 namespace NDBC
 {
@@ -17,20 +18,64 @@ namespace NDBC
 
     struct NDBCHeader
     {
-        u32 token;
-        u32 version;
+        u32 token = NDBC::NDBC_TOKEN;
+        u32 version = NDBC::NDBC_VERSION;
     };
 
     struct File
     {
-        NDBCHeader header;
+    public:
+        template<typename NDBCStruct>
+        NDBCStruct* GetFirstRow()
+        {
+            return reinterpret_cast<NDBCStruct*>(&_buffer->GetDataPointer()[_bufferOffsetToRowData]);
+        }
 
-        std::vector<NDBCColumn> columns;
-        u32 numRows = 0;
-        size_t dataOffsetToRowData = 0;
+        template<typename NDBCStruct>
+        NDBCStruct* GetRowByIndex(u32 index)
+        {
+            return &reinterpret_cast<NDBCStruct*>(&_buffer->GetDataPointer()[_bufferOffsetToRowData])[index];
+        }
 
-        DynamicBytebuffer* buffer;
-        StringTable* stringTable;
+        template<typename NDBCStruct>
+        NDBCStruct* GetRowById(u32 id)
+        {
+            auto& itr = _rowIdToRow.find(id);
+            if (itr == _rowIdToRow.end())
+                return nullptr;
+
+            return reinterpret_cast<NDBCStruct*>(itr->second);
+        }
+
+        NDBCHeader& GetHeader() { return _header; }
+        std::vector<NDBCColumn>& GetColumns() { return _columns; }
+
+        u32 GetNumRows() { return _numRows; }
+        void SetNumRows(u32 numRows) { _numRows = numRows; }
+
+        u32 GetRowSize() { return _rowSize; }
+        void SetRowSize(u32 rowSize) { _rowSize = rowSize; }
+
+        size_t GetBufferOffsetToRowData() { return _bufferOffsetToRowData; }
+        void SetBufferOffsetToRowData(size_t bufferOffsetToRowData) { _bufferOffsetToRowData = bufferOffsetToRowData; }
+
+        DynamicBytebuffer*& GetBuffer() { return _buffer; }
+        StringTable*& GetStringTable() { return _stringTable; }
+
+        robin_hood::unordered_map<u32, void*>& GetRowIdToRowMap() { return _rowIdToRow; }
+
+    private:
+        NDBCHeader _header;
+        std::vector<NDBCColumn> _columns;
+
+        u32 _numRows = 0;
+        u32 _rowSize = 0;
+        size_t _bufferOffsetToRowData = 0;
+
+        DynamicBytebuffer* _buffer = nullptr;
+        StringTable* _stringTable = nullptr;
+
+        robin_hood::unordered_map<u32, void*> _rowIdToRow;
     };
 
     struct TeleportLocation
@@ -247,5 +292,33 @@ namespace NDBC
         f32 missileCollisionRadius;
         f32 missileCollisionPush;
         f32 missileCollisionRaise;
+    };
+
+    struct LiquidType
+    {
+        u32 id;
+        u32 name;
+        u32 flags;
+        u32 type;
+        u32 soundEntriesId;
+        u32 spellId;
+        f32 maxDarkenDepth;
+        f32 fogDarkenIntensity;
+        f32 ambDarkenIntensity;
+        f32 dirDarkenIntensity;
+        u32 lightId;
+        f32 particleScale;
+        u32 particleMovement;
+        u32 particleTextureSlots;
+        u32 liquidMaterialId;
+
+        // TODO: Not reading everything
+    };
+
+    struct LiquidMaterial
+    {
+        u32 id;
+        u32 liquidVertexFormat;
+        u32 flags;
     };
 }

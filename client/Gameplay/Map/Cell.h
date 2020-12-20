@@ -45,9 +45,9 @@ namespace Terrain
     constexpr u16 MAP_CELL_TOTAL_GRID_STRIDE = MAP_CELL_OUTER_GRID_STRIDE + MAP_CELL_INNER_GRID_STRIDE;
     constexpr u16 MAP_CELL_TOTAL_GRID_SIZE = MAP_CELL_OUTER_GRID_SIZE + MAP_CELL_INNER_GRID_SIZE;
 
-    constexpr f32 MAP_CELL_SIZE = 33.3333f; // yards
+    constexpr f32 MAP_CELL_SIZE = 33.33333f; // yards
     constexpr f32 MAP_CELL_HALF_SIZE = MAP_CELL_SIZE / 2.0f; // yards
-    constexpr f32 MAP_PATCH_SIZE = 4.1666625f; // yards
+    constexpr f32 MAP_PATCH_SIZE = MAP_CELL_SIZE / 8.0f; // yards
     constexpr f32 MAP_PATCH_HALF_SIZE = MAP_PATCH_SIZE / 2.0f; // yards
 
 #pragma pack(push, 1)

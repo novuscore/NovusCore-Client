@@ -33,6 +33,9 @@ public:
     virtual void Disabled() = 0;
     virtual void Update(f32 deltaTime, float fovInDegrees, float aspectRatioWH) = 0;
 
+    void SetWindow(Window* window) { _window = window; }
+    Window* GetWindow() { return _window; }
+
     void SetActive(bool state) { _active = state; }
     bool IsActive() { return _active; }
 

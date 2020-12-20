@@ -8,7 +8,7 @@ namespace fs = std::filesystem;
 AutoCVar_Float CVAR_CameraNearClip("camera.nearClip", "Sets the near clip of the camera", 1.0f);
 AutoCVar_Float CVAR_CameraFarClip("camera.farClip", "Sets the far clip of the camera", 100000.0f);
 
-Camera::Camera(bool isActive) : _active(isActive), _window(ServiceLocator::GetWindow()) { }
+Camera::Camera(bool isActive) : _active(isActive), _window(nullptr) { }
 
 bool Camera::LoadFromFile(std::string filename)
 {

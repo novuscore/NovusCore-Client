@@ -23,7 +23,6 @@ void CameraOrbital::Init()
 
         _distance = glm::clamp(_distance - yPos, 5.f, 30.f);
     });
-
     inputManager->RegisterMousePositionCallback("CameraOrbital MouseLook", [this, inputManager](Window* window, f32 xPos, f32 yPos)
     {
         if (!IsActive())

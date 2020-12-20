@@ -45,38 +45,43 @@ private:
     bool RegisterChunksToBeLoaded(const std::vector<u16>& chunkIDs);
     void ExecuteLoad();
     
-    struct Instance
+    struct Constants
     {
-        mat4x4 instanceMatrix;
+        f32 currentTime = 0;
     };
 
-    static const u32 MAX_INSTANCES = 100000;
-    struct LoadedWater
+    struct DrawCall
     {
-        std::string debugName = "";
-
-        u32 numInstances = 0;
-        Renderer::BufferID instanceBuffer; // One per instance
+        u32 indexCount;
+        u32 instanceCount;
+        u32 firstIndex;
+        u32 vertexOffset;
+        u32 firstInstance;
     };
 
-    struct ChunkToBeLoaded
+    struct DrawCallData
     {
-        mat4x4 instanceMatrix;
-        f16 vertexHeightValues[4] = { static_cast<f16>(0), static_cast<f16>(0), static_cast<f16>(0), static_cast<f16>(0) };
+        u32 textureStartIndex;
+        u32 textureCount;
     };
 
     Renderer::Renderer* _renderer;
 
     Renderer::SamplerID _sampler;
     Renderer::DescriptorSet _passDescriptorSet;
-    Renderer::DescriptorSet _meshDescriptorSet;
 
+    Renderer::BufferID _drawCallsBuffer;
+    Renderer::BufferID _drawCallDatasBuffer;
     Renderer::BufferID _vertexBuffer;
     Renderer::BufferID _indexBuffer;
 
-    u32 _textureIndex = 0;
     Renderer::TextureArrayID _waterTextures;
 
-    std::vector<LoadedWater> _loadedWater;
-    std::vector<ChunkToBeLoaded> _chunksToBeLoaded;
+    std::vector<DrawCall> _drawCalls;
+    std::vector<DrawCallData> _drawCallDatas;
+
+    std::vector<vec4> _vertices;
+    std::vector<u16> _indices;
+
+    Constants _constants;
 };

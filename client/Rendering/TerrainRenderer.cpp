@@ -9,6 +9,9 @@
 
 #include "../ECS/Components/Singletons/MapSingleton.h"
 #include "../ECS/Components/Singletons/TextureSingleton.h"
+#include "../ECS/Components/Singletons/ConfigSingleton.h"
+
+#include "CameraFreelook.h"
 
 #include <Renderer/Renderer.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -20,7 +23,6 @@
 #include <tracy/Tracy.hpp>
 
 #include "Camera.h"
-#include "../Loaders/Map/MapLoader.h"
 #include "CVar/CVarSystem.h"
 
 #define USE_PACKED_HEIGHT_RANGE 1
@@ -66,40 +68,6 @@ TerrainRenderer::TerrainRenderer(Renderer::Renderer* renderer, DebugRenderer* de
     _mapObjectRenderer = new MapObjectRenderer(renderer, debugRenderer); // Needs to be created before CreatePermanentResources
     _waterRenderer = new WaterRenderer(renderer); // Needs to be created before CreatePermanentResources
     CreatePermanentResources();
-
-    ServiceLocator::GetInputManager()->RegisterKeybind("ToggleCulling", GLFW_KEY_F2, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
-    {
-        CVAR_CullingEnabled.Toggle();
-        return true;
-    });
-
-    ServiceLocator::GetInputManager()->RegisterKeybind("ToggleGPUCulling", GLFW_KEY_F3, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
-    {
-        CVAR_GPUCullingEnabled.Toggle();
-        return true;
-    });
-
-    ServiceLocator::GetInputManager()->RegisterKeybind("ToggleLockCullingFrustum", GLFW_KEY_F5, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
-    {
-        CVAR_LockCullingFrustum.Toggle();
-        return true;
-    });
-
-    ServiceLocator::GetInputManager()->RegisterKeybind("ToggleLockDebugPosition", GLFW_KEY_F6, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
-    {
-        CVAR_HeightBoxLockPosition.Toggle();
-        return true;
-    });
-    ServiceLocator::GetInputManager()->RegisterKeybind("DecreaseDebugPositionScale", GLFW_KEY_F7, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
-    {
-        CVAR_HeightBoxScale.Set(CVAR_HeightBoxScale.Get() - 0.1f);
-        return true;
-    });
-    ServiceLocator::GetInputManager()->RegisterKeybind("IncreaseDebugPositionScale", GLFW_KEY_F8, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [this](Window* window, std::shared_ptr<Keybind> keybind)
-    {
-            CVAR_HeightBoxScale.Set(CVAR_HeightBoxScale.Get() + 0.1f);
-        return true;
-    });
 }
 
 TerrainRenderer::~TerrainRenderer()
@@ -152,7 +120,7 @@ void TerrainRenderer::Update(f32 deltaTime)
 
     // Subrenderers
     _mapObjectRenderer->Update(deltaTime);
-    //_waterRenderer->Update(deltaTime);
+    _waterRenderer->Update(deltaTime);
 }
 
 __forceinline bool IsInsideFrustum(const vec4* planes, const Geometry::AABoundingBox& boundingBox)
@@ -291,10 +259,12 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             entt::registry* registry = ServiceLocator::GetGameRegistry();
             MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
 
-            if (!mapSingleton.currentMap.IsLoadedMap())
+            Terrain::Map& currentMap = mapSingleton.GetCurrentMap();
+
+            if (!currentMap.IsLoadedMap())
                 return;
 
-            if (mapSingleton.currentMap.header.flags.UseMapObjectInsteadOfTerrain)
+            if (currentMap.header.flags.UseMapObjectInsteadOfTerrain)
                 return;
 
             GPU_SCOPED_PROFILER_ZONE(commandList, TerrainPass);
@@ -443,8 +413,8 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
     }
 
     // Subrenderers
-    _mapObjectRenderer->AddMapObjectPass(renderGraph, globalDescriptorSet, colorTarget, objectTarget, depthTarget, frameIndex);
-    //_waterRenderer->AddWaterPass(renderGraph, globalDescriptorSet, renderTarget, depthTarget, frameIndex);
+    _mapObjectRenderer->AddMapObjectPass(renderGraph, globalDescriptorSet, colorTarget, objectTarget, depthTarget, frameIndex); 
+    _waterRenderer->AddWaterPass(renderGraph, globalDescriptorSet, colorTarget, depthTarget, frameIndex);
 }
 
 void TerrainRenderer::CreatePermanentResources()
@@ -576,6 +546,24 @@ void TerrainRenderer::CreatePermanentResources()
 
         _renderer->UnmapBuffer(indexUploadBuffer);
         _renderer->CopyBuffer(_cellIndexBuffer, 0, indexUploadBuffer, 0, indexUploadBufferDesc.size);
+    }
+
+    // Check if we should load a default map specified by Config
+    {
+        ConfigSingleton& configSingleton = registry->ctx<ConfigSingleton>();
+        const std::string& defaultMap = configSingleton.uiConfig.GetDefaultMap();
+
+        if (defaultMap.length() != 0)
+        {
+            u32 defaultMapHash = StringUtils::fnv1a_32(defaultMap.c_str(), defaultMap.length());
+            const NDBC::Map* defaultMap = mapSingleton.GetMapByNameHash(defaultMapHash);
+            if (defaultMap != nullptr)
+            {
+                CameraFreeLook* cameraFreeLook = ServiceLocator::GetCameraFreeLook();
+                cameraFreeLook->LoadFromFile("freelook.cameradata");
+                LoadMap(defaultMap);
+            }
+        }
     }
 }
 
@@ -716,15 +704,17 @@ bool TerrainRenderer::LoadMap(const NDBC::Map* map)
     entt::registry* registry = ServiceLocator::GetGameRegistry();
     MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
 
-    if (!MapLoader::LoadMap(registry, map))
+    if (!Terrain::MapUtils::LoadMap(registry, map))
         return false;
+
+    Terrain::Map& currentMap = mapSingleton.GetCurrentMap();
 
     // Clear Terrain, WMOs and Water
     _loadedChunks.clear();
     _cellBoundingBoxes.clear();
     _mapObjectRenderer->Clear();
     _complexModelRenderer->Clear();
-    //_waterRenderer->Clear();
+    _waterRenderer->Clear();
 
     // Unload everything but the first texture in our color array
     _renderer->UnloadTexturesInArray(_terrainColorTextureArray, 1);
@@ -733,13 +723,13 @@ bool TerrainRenderer::LoadMap(const NDBC::Map* map)
 
     
     // Register Map Object to be loaded
-    if (mapSingleton.currentMap.header.flags.UseMapObjectInsteadOfTerrain)
+    if (currentMap.header.flags.UseMapObjectInsteadOfTerrain)
     {
-        _mapObjectRenderer->RegisterMapObjectToBeLoaded(mapSingleton.currentMap.header.mapObjectName, mapSingleton.currentMap.header.mapObjectPlacement);
+        _mapObjectRenderer->RegisterMapObjectToBeLoaded(currentMap.header.mapObjectName, currentMap.header.mapObjectPlacement);
     }
     else
     {
-        RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(32, 32), 32); // Load everything
+        RegisterChunksToBeLoaded(currentMap, ivec2(32, 32), 32); // Load everything
         //RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(31, 49), 1); // Goldshire
         //RegisterChunksToBeLoaded(map, ivec2(40, 32), 8); // Razor Hill
         //RegisterChunksToBeLoaded(map, ivec2(22, 25), 8); // Borean Tundra
@@ -781,7 +771,7 @@ bool TerrainRenderer::LoadMap(const NDBC::Map* map)
     _complexModelRenderer->ExecuteLoad();
 
     // Load Water
-    //_waterRenderer->LoadWater(_loadedChunks);
+    _waterRenderer->LoadWater(_loadedChunks);
 
     return true;
 }

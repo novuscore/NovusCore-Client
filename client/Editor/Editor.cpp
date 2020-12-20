@@ -39,6 +39,7 @@ namespace Editor
 
         entt::registry* registry = ServiceLocator::GetGameRegistry();
         MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
+        NDBCSingleton& ndbcSingleton = registry->ctx<NDBCSingleton>();
 
         ClientRenderer* clientRenderer = ServiceLocator::GetClientRenderer();
         DebugRenderer* debugRenderer = clientRenderer->GetDebugRenderer();
@@ -88,14 +89,14 @@ namespace Editor
                     {
                         if (hasNewSelection) 
                         {
-                            constexpr float halfWorldSize = 17066.66656f;
+                            NDBC::File* areaTableFile = ndbcSingleton.GetNDBCFile("AreaTable"_h);
 
                             const u32 packedChunkCellID = pixelData.value;
                             u32 cellID = packedChunkCellID & 0xffff;
                             u32 chunkID = packedChunkCellID >> 16;
 
-                            const Terrain::Chunk& chunk = mapSingleton.currentMap.chunks[chunkID];
-                            const Terrain::Cell& cell = chunk.cells[cellID];
+                            Terrain::Chunk* chunk = mapSingleton.GetCurrentMap().GetChunkById(chunkID);
+                            const Terrain::Cell& cell = chunk->cells[cellID];
                             const auto heightMinMax = std::minmax_element(cell.heightData, cell.heightData + Terrain::MAP_CELL_TOTAL_GRID_SIZE);
 
                             const u32 chunkX = chunkID % Terrain::MAP_CHUNKS_PER_MAP_STRIDE;
@@ -105,8 +106,8 @@ namespace Editor
                             const u16 cellY = cellID / Terrain::MAP_CELLS_PER_CHUNK_SIDE;
 
                             vec2 chunkOrigin;
-                            chunkOrigin.x = halfWorldSize - (chunkX * Terrain::MAP_CHUNK_SIZE);
-                            chunkOrigin.y = halfWorldSize - (chunkY * Terrain::MAP_CHUNK_SIZE);
+                            chunkOrigin.x = Terrain::MAP_HALF_SIZE - (chunkX * Terrain::MAP_CHUNK_SIZE);
+                            chunkOrigin.y = Terrain::MAP_HALF_SIZE - (chunkY * Terrain::MAP_CHUNK_SIZE);
 
                             vec3 min;
                             vec3 max;
@@ -142,20 +143,17 @@ namespace Editor
                             _selectedTerrainData.chunkId = chunkID;
                             _selectedTerrainData.cellId = cellID;
 
-                            auto itr = mapSingleton.currentMap.chunks.find(_selectedTerrainData.chunkId);
-                            if (itr == mapSingleton.currentMap.chunks.end())
-                                return;
-
-                            _selectedTerrainData.chunk = &itr->second;
+                            _selectedTerrainData.chunk = chunk;
                             _selectedTerrainData.cell = &_selectedTerrainData.chunk->cells[_selectedTerrainData.cellId];
 
-                            _selectedTerrainData.zone = _selectedTerrainData.cell ? mapSingleton.areaIdToDBC[_selectedTerrainData.cell->areaId] : nullptr;
+                            
+                            _selectedTerrainData.zone = _selectedTerrainData.cell ? areaTableFile->GetRowById<NDBC::AreaTable>(_selectedTerrainData.cell->areaId) : nullptr;
                             _selectedTerrainData.area = nullptr;
 
                             if (_selectedTerrainData.zone && _selectedTerrainData.zone->parentId)
                             {
                                 _selectedTerrainData.area = _selectedTerrainData.zone;
-                                _selectedTerrainData.zone = mapSingleton.areaIdToDBC[_selectedTerrainData.area->parentId];
+                                _selectedTerrainData.zone = areaTableFile->GetRowById<NDBC::AreaTable>(_selectedTerrainData.area->parentId);
                             }
                         }
 
@@ -281,9 +279,8 @@ namespace Editor
                 ImGui::Spacing();
                 ImGui::TextWrapped("You can clear your selection by using 'Shift + Mouse Left'");
             }
-
-            ImGui::End();
         }
+        ImGui::End();
 
         _ndbcEditorHandler.Draw();
     }
@@ -304,7 +301,7 @@ namespace Editor
         MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
 
         NDBCSingleton& ndbcSingleton = registry->ctx<NDBCSingleton>();
-        const NDBC::File& areaTableFile = ndbcSingleton.nameHashToDBCFile["AreaTable"_h];
+        NDBC::File* areaTableFile = ndbcSingleton.GetNDBCFile("AreaTable"_h);
 
         Terrain::Chunk* chunk = _selectedTerrainData.chunk;
         Terrain::Cell* cell = _selectedTerrainData.cell;
@@ -318,20 +315,20 @@ namespace Editor
         if (zone && zone->parentId)
         {
             area = zone;
-            zone = mapSingleton.areaIdToDBC[area->parentId];
+            zone = areaTableFile->GetRowById<NDBC::AreaTable>(area->parentId);
         }
 
         ImGui::Text("Selected Chunk (%u)", _selectedTerrainData.chunkId);
-        ImGui::BulletText("Zone: %s", zone ? areaTableFile.stringTable->GetString(zone->name).c_str() : "No Zone Name");
+        ImGui::BulletText("Zone: %s", zone ? areaTableFile->GetStringTable()->GetString(zone->name).c_str() : "No Zone Name");
         ImGui::BulletText("Map Object Placements: %u", chunk->mapObjectPlacements.size());
         ImGui::BulletText("Complex Model Placements: %u", chunk->complexModelPlacements.size());
 
         ImGui::Spacing();
         ImGui::Spacing();
 
-        bool hasLiquid = chunk->liquidHeaders.size() > 0 ? chunk->liquidHeaders[_selectedTerrainData.cellId].packedData != 0 : false;
+        bool hasLiquid = false;// chunk->liquidHeaders.size() > 0 ? chunk->liquidHeaders[_selectedTerrainData.cellId].packedData != 0 : false;
         ImGui::Text("Selected Cell (%u)", _selectedTerrainData.cellId);
-        ImGui::BulletText("Area: %s", area ? areaTableFile.stringTable->GetString(area->name).c_str() : "No Area Name");
+        ImGui::BulletText("Area: %s", area ? areaTableFile->GetStringTable()->GetString(area->name).c_str() : "No Area Name");
         ImGui::BulletText("Area Id: %u, Has Holes: %u, Has Liquid: %u", cell->areaId, cell->hole > 0, hasLiquid);
 
         ImGui::Spacing();

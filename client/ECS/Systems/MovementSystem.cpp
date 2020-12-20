@@ -8,8 +8,9 @@
 #include "../../Utils/MapUtils.h"
 #include "../../Rendering/CameraOrbital.h"
 #include "../Components/Singletons/TimeSingleton.h"
-#include "../Components/Network/ConnectionSingleton.h"
 #include "../Components/Singletons/LocalplayerSingleton.h"
+#include "../Components/Network/ConnectionSingleton.h"
+#include "../Components/Rendering/DebugBox.h"
 #include "../Components/Transform.h"
 
 #include <glm/gtx/rotate_vector.hpp>
@@ -20,6 +21,12 @@
 void MovementSystem::Init(entt::registry& registry)
 {
     InputManager* inputManager = ServiceLocator::GetInputManager();
+
+    inputManager->RegisterKeybind("MovementSystem Forward", GLFW_KEY_W, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
+    inputManager->RegisterKeybind("MovementSystem Backward", GLFW_KEY_S, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
+    inputManager->RegisterKeybind("MovementSystem Left", GLFW_KEY_A, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
+    inputManager->RegisterKeybind("MovementSystem Right", GLFW_KEY_D, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
+    inputManager->RegisterKeybind("MovementSystem Jump", GLFW_KEY_SPACE, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
 
     inputManager->RegisterKeybind("MovementSystem Increase Speed", GLFW_KEY_PAGE_UP, KEYBIND_ACTION_PRESS, KEYBIND_MOD_ANY, [](Window* window, std::shared_ptr<Keybind> keybind)
     {
@@ -71,14 +78,17 @@ void MovementSystem::Init(entt::registry& registry)
         return true;
     });
 
-    LocalplayerSingleton& localplayerSingleton = registry.ctx<LocalplayerSingleton>();
-    if (localplayerSingleton.entity != entt::null)
-    {
-        Transform& transform = registry.get<Transform>(localplayerSingleton.entity);
+    LocalplayerSingleton& localplayerSingleton = registry.set<LocalplayerSingleton>();
+    localplayerSingleton.movementProperties.canJump = true;
+    localplayerSingleton.movementProperties.canChangeDirection = true;
 
-        localplayerSingleton.movementProperties.canJump = true;
-        localplayerSingleton.movementProperties.canChangeDirection = true;
-    }
+    // This allows us to move around in the world "offline" (The server will automatically override this when connecting
+    localplayerSingleton.entity = registry.create();
+
+    registry.emplace<DebugBox>(localplayerSingleton.entity);
+    Transform& transform = registry.emplace<Transform>(localplayerSingleton.entity);
+    transform.position = vec3(-9249.f, 87.f, 79.f);
+    transform.scale = vec3(0.5f, 0.5f, 2.f); // "Ish" scale for humans
 }
 
 void MovementSystem::Update(entt::registry& registry)
@@ -125,11 +135,11 @@ void MovementSystem::Update(entt::registry& registry)
         i8 moveAlongHorizontalAxis = 0;
         bool isMoving = false;
 
-        moveAlongVerticalAxis += inputManager->IsKeyPressed("Move Forward"_h);
-        moveAlongVerticalAxis -= inputManager->IsKeyPressed("Move Backward"_h);
+        moveAlongVerticalAxis += inputManager->IsKeyPressed("MovementSystem Forward"_h);
+        moveAlongVerticalAxis -= inputManager->IsKeyPressed("MovementSystem Backward"_h);
 
-        moveAlongHorizontalAxis += inputManager->IsKeyPressed("Move Left"_h);
-        moveAlongHorizontalAxis -= inputManager->IsKeyPressed("Move Right"_h);
+        moveAlongHorizontalAxis += inputManager->IsKeyPressed("MovementSystem Left"_h);
+        moveAlongHorizontalAxis -= inputManager->IsKeyPressed("MovementSystem Right"_h);
 
         isMoving = moveAlongVerticalAxis + moveAlongHorizontalAxis;
 
@@ -158,7 +168,7 @@ void MovementSystem::Update(entt::registry& registry)
             }
 
             // JUMP
-            bool isPressingJump = inputManager->IsKeyPressed("Move Jump"_h);
+            bool isPressingJump = inputManager->IsKeyPressed("MovementSystem Jump"_h);
             isJumping = isPressingJump && localplayerSingleton.movementProperties.canJump;
 
             // This ensures we have to stop pressing "Move Jump" and press it again to jump

@@ -505,7 +505,7 @@ namespace Renderer
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 
-        _commandListHandler->SetBoundComputePipeline(commandListID, pipelineID);
+        _commandListHandler->SetBoundComputePipeline(commandListID, ComputePipelineID::Invalid());
     }
 
     void RendererVK::SetScissorRect(CommandListID commandListID, ScissorRect scissorRect)

@@ -31,35 +31,96 @@ struct MapSingleton
 {
     MapSingleton() {}
 
-    Terrain::Map currentMap;
+	Terrain::Map& GetCurrentMap() { return _currentMap; }
 
-	vec3 ambientLight = vec3(0.380392164f, 0.509803891f, 0.635294139f);
-	vec3 diffuseLight = vec3(0.113725491f, 0.235294104f, 0.329411745f);
-	vec3 lightDirection = vec3(-0.595154941f, -0.595155120f, -0.539982319f);
+	vec3 GetAmbientLight() { return _ambientLight; }
+	void SetAmbientLight(vec3 ambientLight) { _ambientLight = ambientLight; }
 
-	robin_hood::unordered_map<u32, NDBC::Map*> mapIdToDBC;
-	robin_hood::unordered_map<u32, NDBC::Map*> mapNameToDBC;
-	robin_hood::unordered_map<u32, NDBC::Map*> mapInternalNameToDBC;
-	std::vector<const std::string*> mapNames;
-	std::vector<NDBC::Map> mapDBCEntries;
+	vec3 GetDiffuseLight() { return _diffuseLight; }
+	void SetDiffuseLight(vec3 diffuseLight) { _diffuseLight = diffuseLight; }
 
-	robin_hood::unordered_map<u32, NDBC::AreaTable*> areaIdToDBC;
-	robin_hood::unordered_map<u32, NDBC::AreaTable*> areaNameToDBC;
-	std::vector<NDBC::AreaTable> areaTableDBCEntries;
+	vec3 GetLightDirection() { return _lightDirection; }
+	void SetLightDirection(vec3 lightDirection) { _lightDirection = lightDirection; }
+	
+	std::vector<const std::string*>& GetMapNames() { return _mapNames; }
+	NDBC::Map* GetMapByNameHash(u32 mapNameHash)
+	{
+		auto& itr = _mapNameHashToDBC.find(mapNameHash);
+		if (itr == _mapNameHashToDBC.end())
+			return nullptr;
 
-	robin_hood::unordered_map<u32, NDBC::Light*> lightIdToDBC;
-	robin_hood::unordered_map<u32, std::vector<NDBC::Light*>> mapIdToLightDBC;
-	std::vector<NDBC::Light> lightDBCEntries;
+		return itr->second;
+	}
+	NDBC::Map* GetMapByInternalNameHash(u32 mapInternalNameHash)
+	{
+		auto& itr = _mapInternalNameHashToDBC.find(mapInternalNameHash);
+		if (itr == _mapInternalNameHashToDBC.end())
+			return nullptr;
 
-	robin_hood::unordered_map<u32, NDBC::LightParams*> lightParamsIdToDBC;
-	std::vector<NDBC::LightParams> lightParamsDBCEntries;
+		return itr->second;
+	}
+	NDBC::AreaTable* GetAreaTableByNameHash(u32 areaTableNameHash)
+	{
+		auto& itr = _areaNameHashToDBC.find(areaTableNameHash);
+		if (itr == _areaNameHashToDBC.end())
+			return nullptr;
 
-	robin_hood::unordered_map<u32, NDBC::LightIntBand*> lightIntBandIdToDBC;
-	std::vector<NDBC::LightIntBand> lightIntBandDBCEntries;
+		return itr->second;
+	}
+	std::vector<NDBC::Light*>* GetLightsByMapId(u32 mapId)
+	{
+		auto& itr = _mapIdToLightDBC.find(mapId);
+		if (itr == _mapIdToLightDBC.end())
+			return nullptr;
 
-	robin_hood::unordered_map<u32, NDBC::LightFloatBand*> lightFloatBandIdToDBC;
-	std::vector<NDBC::LightFloatBand> lightFloatBandDBCEntries;
+		return &itr->second;
+	}
 
-	robin_hood::unordered_map<u32, NDBC::LightSkybox*> lightSkyboxIdToDBC;
-	std::vector<NDBC::LightSkybox> lightSkyboxDBCEntries;
+// NDBC Helper Functions
+public:
+	void ClearNDBCs()
+	{
+		// Map.ndbc
+		_mapNameHashToDBC.clear();
+		_mapInternalNameHashToDBC.clear();
+		_mapNames.clear();
+
+		// AreaTable.ndbc
+		_areaNameHashToDBC.clear();
+
+		// Light.ndbc
+		_mapIdToLightDBC.clear();
+	}
+
+	void AddMapNDBC(NDBC::File* mapsNDBC, NDBC::Map* map)
+	{
+		const std::string& mapName = mapsNDBC->GetStringTable()->GetString(map->name);
+		u32 mapNameHash = mapsNDBC->GetStringTable()->GetStringHash(map->name);
+		u32 mapInternalNameHash = mapsNDBC->GetStringTable()->GetStringHash(map->internalName);
+
+		_mapNameHashToDBC[mapNameHash] = map;
+		_mapInternalNameHashToDBC[mapInternalNameHash] = map;
+		_mapNames.push_back(&mapName);
+	}
+	void AddAreaTableNDBC(NDBC::File* areaTableNDBC, NDBC::AreaTable* areaTable)
+	{
+		u32 areaNameHash = areaTableNDBC->GetStringTable()->GetStringHash(areaTable->name);
+		_areaNameHashToDBC[areaNameHash] = areaTable;
+	}
+	void AddLightNDBC(NDBC::Light* light)
+	{
+		_mapIdToLightDBC[light->mapId].push_back(light);
+	}
+
+private:
+	Terrain::Map _currentMap;
+	vec3 _ambientLight = vec3(0.380392164f, 0.509803891f, 0.635294139f);
+	vec3 _diffuseLight = vec3(0.113725491f, 0.235294104f, 0.329411745f);
+	vec3 _lightDirection = vec3(-0.595154941f, -0.595155120f, -0.539982319f);
+
+	std::vector<const std::string*> _mapNames;
+	robin_hood::unordered_map<u32, NDBC::Map*> _mapNameHashToDBC;
+	robin_hood::unordered_map<u32, NDBC::Map*> _mapInternalNameHashToDBC;
+	robin_hood::unordered_map<u32, NDBC::AreaTable*> _areaNameHashToDBC;
+	robin_hood::unordered_map<u32, std::vector<NDBC::Light*>> _mapIdToLightDBC;
 };

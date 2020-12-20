@@ -1,12 +1,11 @@
 #include "globalData.inc.hlsl"
 
-struct TextureParam
+struct Constants
 {
-    uint textureID;
+    float currentTime;
 };
 
-[[vk::push_constant]] TextureParam textureParam;
-
+[[vk::push_constant]] Constants _constants;
 [[vk::binding(2, PER_PASS)]] SamplerState _sampler;
 [[vk::binding(3, PER_PASS)]] Texture2D<float4> _textures[128];
 
@@ -26,8 +25,7 @@ PSOutput main(PSInput input)
     PSOutput output;
 
     float4 color = float4(0.8314f, 0.9451f, 1.0f, 1.f);
-    uint textureOffset = (textureParam.textureID) % 30;
-    float4 texture1 = _textures[textureOffset].Sample(_sampler, input.uv);
+    float4 texture1 = _textures[input.textureOffset].Sample(_sampler, input.uv);
 
     // Apply Lighting
     //float3 normal = float3(0.f, 1.f, 0.f);//normalize(input.normal);
@@ -39,8 +37,5 @@ PSOutput main(PSInput input)
     color.a *= texture1.a;
 
     output.color = color;
-
-    //output.color = float4(textureOffset / 30.0f, 0, 0, 1);
-
     return output;
 }

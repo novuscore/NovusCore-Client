@@ -11,6 +11,7 @@ public:
 
     std::shared_ptr<NetworkClient> authConnection;
     std::shared_ptr<NetworkClient> gameConnection;
+
     moodycamel::ConcurrentQueue<std::shared_ptr<NetworkPacket>> authPacketQueue;
     moodycamel::ConcurrentQueue<std::shared_ptr<NetworkPacket>> gamePacketQueue;
 };

@@ -1,7 +1,12 @@
 #include "ScriptHandler.h"
+#include <entt.hpp>
 
 #include <Utils/DebugHandler.h>
 #include <Utils/Timer.h>
+
+#include "../ECS/Components/Singletons/ScriptSingleton.h"
+#include "../ECS/Components/Singletons/DataStorageSingleton.h"
+#include "../ECS/Components/Singletons/SceneManagerSingleton.h"
 
 // Angelscript Addons
 #include "Addons/scriptarray/scriptarray.h"
@@ -10,10 +15,9 @@
 
 #include "ScriptEngine.h"
 #include "Classes/Player.h"
+#include <CVar/CVarSystem.h>
 
-// NovusCore functions
-
-// NovusCore hooks
+AutoCVar_String CVAR_ScriptPath("script.path", "path to the scripting folder", "./Data/scripts");
 
 namespace fs = std::filesystem;
 std::string ScriptHandler::_scriptFolder = "";
@@ -26,6 +30,16 @@ void ScriptHandler::ReloadScripts()
     {
         LoadScriptDirectory(_scriptFolder);
     }
+}
+
+void ScriptHandler::Init(entt::registry& registry)
+{
+    registry.set<DataStorageSingleton>();
+    registry.set<SceneManagerSingleton>();
+    registry.set<ScriptSingleton>();
+
+    std::string scriptPath = CVAR_ScriptPath.Get();
+    LoadScriptDirectory(scriptPath);
 }
 
 void ScriptHandler::LoadScriptDirectory(std::string& scriptFolder)

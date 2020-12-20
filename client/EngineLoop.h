@@ -48,14 +48,6 @@ struct FrameworkRegistryPair
     tf::Taskflow taskflow;
 };
 
-class NetworkClient;
-struct NetworkPair
-{
-    std::shared_ptr<NetworkClient> authSocket;
-    std::shared_ptr<NetworkClient> gameSocket;
-    std::shared_ptr<asio::io_service> asioService;
-};
-
 class ClientRenderer;
 class EngineLoop
 {
@@ -83,14 +75,17 @@ public:
     }
 
 private:
+    bool Init();
     void Run();
     void RunIoService();
+    void Cleanup();
+
     bool Update(f32 deltaTime);
     void UpdateSystems();
     void Render();
 
     void SetupUpdateFramework();
-    void SetMessageHandler();
+    void SetupMessageHandler();
 
     void ImguiNewFrame();
     void DrawEngineStats(struct EngineStatsSingleton* stats);
@@ -101,6 +96,7 @@ private:
     void DrawImguiMenuBar();
 
 private:
+    bool _isInitialized = false;
     bool _isRunning = false;
 
     moodycamel::ConcurrentQueue<Message> _inputQueue;
@@ -109,5 +105,5 @@ private:
 
     ClientRenderer* _clientRenderer;
     Editor::Editor* _editor;
-    NetworkPair _network;
+    std::shared_ptr<asio::io_service> _asioService;
 };

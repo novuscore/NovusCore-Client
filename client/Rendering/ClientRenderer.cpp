@@ -147,9 +147,9 @@ void ClientRenderer::Render()
 
     if (!CVAR_LightLockEnabled.Get())
     {
-        _lightConstantBuffer->resource.ambientColor = vec4(mapSingleton.ambientLight, 1.0f);
-        _lightConstantBuffer->resource.lightColor = vec4(mapSingleton.diffuseLight, 1.0f);
-        _lightConstantBuffer->resource.lightDir = vec4(mapSingleton.lightDirection, 1.0f);
+        _lightConstantBuffer->resource.ambientColor = vec4(mapSingleton.GetAmbientLight(), 1.0f);
+        _lightConstantBuffer->resource.lightColor = vec4(mapSingleton.GetDiffuseLight(), 1.0f);
+        _lightConstantBuffer->resource.lightDir = vec4(mapSingleton.GetLightDirection(), 1.0f);
         _lightConstantBuffer->Apply(_frameIndex);
     }
 

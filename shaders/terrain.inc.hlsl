@@ -4,12 +4,13 @@
 
 #define NUM_INDICES_PER_CELL (768)
 #define NUM_VERTICES_PER_CELL (145)
-#define NUM_VERTICES_PER_CELL_SIDE ()
 
 #define CHUNK_SIDE_SIZE (533.33333f)
 #define CELL_SIDE_SIZE (33.33333f)
+#define PATCH_SIDE_SIZE (CELL_SIDE_SIZE / 8.0f)
 
-#define HALF_WORLD_SIZE (17066.66656f)
+#define MAP_SIZE (CHUNK_SIDE_SIZE * NUM_CHUNKS_PER_MAP_SIDE)
+#define MAP_HALF_SIZE (MAP_SIZE / 2.0f)
 
 struct PackedCellData
 {
@@ -51,7 +52,7 @@ float2 GetChunkPosition(uint chunkID)
     const uint chunkX = chunkID % NUM_CHUNKS_PER_MAP_SIDE;
     const uint chunkY = chunkID / NUM_CHUNKS_PER_MAP_SIDE;
 
-    const float2 chunkPos = HALF_WORLD_SIZE - (float2(chunkX, chunkY) * CHUNK_SIDE_SIZE);
+    const float2 chunkPos = MAP_HALF_SIZE - (float2(chunkX, chunkY) * CHUNK_SIDE_SIZE);
     return -chunkPos;
 }
 

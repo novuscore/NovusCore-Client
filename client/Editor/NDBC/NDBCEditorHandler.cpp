@@ -8,9 +8,9 @@
 #include <imgui/imgui_internal.h>
 #include "imgui/misc/cpp/imgui_stdlib.h"
 
-AutoCVar_Int CVAR_NDBCEditorEnabled("editor.editors.ndbc.Enable", "enable the ndbc editor window", 0, CVarFlags::EditCheckbox);
-AutoCVar_Int CVAR_NDBCEditorIsCreating("editor.editors.ndbc.IsCreating", "enable the ndbc creator window", 0, CVarFlags::EditCheckbox);
-AutoCVar_Int CVAR_NDBCEditorIsEditingHeader("editor.editors.ndbc.IsEditingHeader", "enable the ndbc editing header window", 0, CVarFlags::EditCheckbox);
+AutoCVar_Int CVAR_NDBCEditorEnabled("editor.editors.ndbc.Enable", "enable the ndbc editor window", 0, CVarFlags::Noedit);
+AutoCVar_Int CVAR_NDBCEditorIsCreating("editor.editors.ndbc.IsCreating", "enable the ndbc creator window", 0, CVarFlags::Noedit);
+AutoCVar_Int CVAR_NDBCEditorIsEditingHeader("editor.editors.ndbc.IsEditingHeader", "enable the ndbc editing header window", 0, CVarFlags::Noedit);
 
 void NDBCEditorHandler::DrawImGuiMenuBar()
 {
@@ -33,15 +33,17 @@ void NDBCEditorHandler::Draw()
             DrawMenuBar();
             DrawPopups();
 
-            if (_selectedNDBC == nullptr && ndbcSingleton.nDBCFilename.size() > 0)
-                _selectedNDBC = ndbcSingleton.nDBCFilename[0].data();
+            const std::vector<std::string>& ndbcFileNames = ndbcSingleton.GetLoadedNDBCFileNames();
+
+            if (_selectedNDBC == nullptr && ndbcFileNames.size() > 0)
+                _selectedNDBC = ndbcFileNames[0].c_str();
 
             {
                 if (ImGui::BeginCombo("NDBC File", _selectedNDBC)) // The second parameter is the label previewed before opening the combo.
                 {
-                    for (std::string& nDBCFilename : ndbcSingleton.nDBCFilename)
+                    for (const std::string& nDBCFilename : ndbcFileNames)
                     {
-                        char* fileName = nDBCFilename.data();
+                        const char* fileName = nDBCFilename.c_str();
                         bool isSelected = _selectedNDBC == fileName;
 
                         if (ImGui::Selectable(nDBCFilename.c_str(), &isSelected))
@@ -86,23 +88,15 @@ bool NDBCEditorHandler::CreateNewNDBC(const std::string name, const u32 numColum
     NDBCSingleton& ndbcSingleton = registry->ctx<NDBCSingleton>();
 
     u32 ndbcNameHash = StringUtils::fnv1a_32(name.data(), name.length());
-    auto itr = ndbcSingleton.nameHashToDBCFile.find(ndbcNameHash);
-    if (itr != ndbcSingleton.nameHashToDBCFile.end())
+    NDBC::File* existingFile = ndbcSingleton.GetNDBCFile(ndbcNameHash);
+    if (existingFile)
         return false;
 
-    ndbcSingleton.nameHashToDBCFile[ndbcNameHash] = NDBC::File();
-    NDBC::File& file = ndbcSingleton.nameHashToDBCFile[ndbcNameHash];
+    NDBC::File& file = ndbcSingleton.AddNDBCFile(name, 1 * 1024 * 1024); // Default to 1 MB of space for new NDBCs
 
     // Setup NDBC File
     {
-        file.buffer = new DynamicBytebuffer(1 * 1024 * 1024); // Default to 1 MB of space for new NDBCs
-        file.stringTable = new StringTable();
-
-        NDBC::NDBCHeader& header = file.header;
-        header.token = NDBC::NDBC_TOKEN;
-        header.version = NDBC::NDBC_VERSION;
-
-        std::vector<NDBC::NDBCColumn>& columns = file.columns;
+        std::vector<NDBC::NDBCColumn>& columns = file.GetColumns();
         columns.resize(numColumns);
 
         for (u32 i = 0; i < numColumns; i++)
@@ -114,11 +108,10 @@ bool NDBCEditorHandler::CreateNewNDBC(const std::string name, const u32 numColum
             column.dataType = tempColumn.type;
         }
 
-        file.numRows = 0;
+        file.SetNumRows(0);
     }
 
-    ndbcSingleton.nDBCFilename.push_back(name);
-    _selectedNDBC = ndbcSingleton.nDBCFilename.back().data();
+    _selectedNDBC = ndbcSingleton.GetLoadedNDBCFileNames().back().data();
 
     SaveSelectedNDBC();
 
@@ -145,47 +138,13 @@ bool NDBCEditorHandler::DeleteSelectedNDBC()
     if (!fs::remove(outputPath))
         return false;
 
-    // Handle NDBC File
-    {
-        auto itr = ndbcSingleton.nameHashToDBCFile.find(ndbcNameHash);
-        if (itr != ndbcSingleton.nameHashToDBCFile.end())
-        {
-            NDBC::File& ndbcFile = ndbcSingleton.nameHashToDBCFile[ndbcNameHash];
-            if (ndbcFile.buffer)
-                delete ndbcFile.buffer;
+    const std::vector<std::string>& loadedNDBCFileNames = ndbcSingleton.GetLoadedNDBCFileNames();
+    u32 numNDBCNames = static_cast<u32>(loadedNDBCFileNames.size());
 
-            if (ndbcFile.stringTable)
-                delete ndbcFile.stringTable;
+    ndbcSingleton.RemoveNDBCFile(ndbcName);
 
-            ndbcSingleton.nameHashToDBCFile.erase(ndbcNameHash);
-        }
-    }
-
-    // Handle NDBC Name
-    {
-        u32 numNDBCNames = static_cast<u32>(ndbcSingleton.nDBCFilename.size());
-
-        u32 index = 0;
-        for (u32 i = 0; i < numNDBCNames; i++)
-        {
-            std::string& ndbc = ndbcSingleton.nDBCFilename[i];
-            if (ndbc.data() == _selectedNDBC)
-            {
-                index = i;
-                break;
-            }
-        }
-
-        ndbcSingleton.nDBCFilename.erase(ndbcSingleton.nDBCFilename.begin() + index);
-
-        if (index == numNDBCNames - 1)
-            index -= 1;
-
-        if (numNDBCNames == 1)
-            _selectedNDBC = nullptr;
-        else
-            _selectedNDBC = ndbcSingleton.nDBCFilename[index].data();
-    }
+    if (_selectedNDBC == nullptr && numNDBCNames > 1)
+        _selectedNDBC = loadedNDBCFileNames.back().data();
 
     return true;
 }
@@ -206,40 +165,44 @@ bool NDBCEditorHandler::SaveSelectedNDBC()
 
     std::ofstream output(outputPath, std::ofstream::out | std::ofstream::binary);
     {
-        NDBC::File& file = ndbcSingleton.nameHashToDBCFile[ndbcNameHash];
-        DynamicBytebuffer* buffer = new DynamicBytebuffer(file.buffer->size);
+        NDBC::File* file = ndbcSingleton.GetNDBCFile(ndbcNameHash);
 
-        buffer->Put<NDBC::NDBCHeader>(file.header);
+        DynamicBytebuffer*& fileBuffer = file->GetBuffer();
+        DynamicBytebuffer* buffer = new DynamicBytebuffer(fileBuffer->size);
+        std::vector<NDBC::NDBCColumn>& columns = file->GetColumns();
 
-        u32 numColumns = static_cast<u32>(file.columns.size());
+        buffer->Put<NDBC::NDBCHeader>(file->GetHeader());
+
+
+        u32 numColumns = static_cast<u32>(columns.size());
         buffer->Put<u32>(numColumns);
 
         if (numColumns > 0)
         {
-            for (u32 i = 0; i < file.columns.size(); i++)
+            for (u32 i = 0; i < columns.size(); i++)
             {
-                NDBC::NDBCColumn& column = file.columns[i];
+                NDBC::NDBCColumn& column = columns[i];
                 buffer->PutString(column.name.c_str());
                 buffer->PutU32(column.dataType);
             }
         }
 
         // Write numRows, Rows and Stringtable
-        u32 numRows = file.numRows;
+        u32 numRows = file->GetNumRows();
         buffer->Put<u32>(numRows);
 
         if (numRows > 0)
         {
-            size_t dataOffsetInOldBuffer = file.dataOffsetToRowData;
+            size_t dataOffsetInOldBuffer = file->GetBufferOffsetToRowData();
             u32 dataSize = (numColumns * 4) * numRows; // We always 4 byte align the columns which mean we can predict
 
-            file.dataOffsetToRowData = buffer->writtenData;
-            buffer->PutBytes(&file.buffer->GetDataPointer()[dataOffsetInOldBuffer], dataSize);
+            file->SetBufferOffsetToRowData(buffer->writtenData);
+            buffer->PutBytes(&fileBuffer->GetDataPointer()[dataOffsetInOldBuffer], dataSize);
         }
 
         // Save StringTable "TODO: When we copy the Dynamic ByteBuffer we want to serialize the stringtable into the buffer and then do a single write into output
         
-        if (!file.stringTable->Serialize(buffer)) 
+        if (!file->GetStringTable()->Serialize(buffer))
         {
             NC_LOG_ERROR("Failed to write StringTable during NDBCEditorHandler::SaveSelectedNDBC() for %s", _selectedNDBC);
             return false;
@@ -248,8 +211,8 @@ bool NDBCEditorHandler::SaveSelectedNDBC()
         output.write(reinterpret_cast<char const*>(buffer->GetDataPointer()), buffer->writtenData);
         output.close();
 
-        delete file.buffer;
-        file.buffer = buffer;
+        delete fileBuffer;
+        fileBuffer = buffer;
     }
 
     return true;
@@ -408,19 +371,20 @@ void NDBCEditorHandler::DrawPopups()
             NDBCSingleton& ndbcSingleton = registry->ctx<NDBCSingleton>();
 
             u32 dbcNameHash = StringUtils::fnv1a_32(_selectedNDBC, strlen(_selectedNDBC));
-            NDBC::File& file = ndbcSingleton.nameHashToDBCFile[dbcNameHash];
+            NDBC::File* file = ndbcSingleton.GetNDBCFile(dbcNameHash);
+            std::vector<NDBC::NDBCColumn>& columns = file->GetColumns();
 
             ImGui::Text("Columns");
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
             ImGui::Columns(2);
             ImGui::Separator();
 
-            for (i32 i = 0; i < file.columns.size(); i++)
+            for (i32 i = 0; i < columns.size(); i++)
             {
                 ImGui::PushID(i);
                 ImGui::AlignTextToFramePadding();
 
-                NDBC::NDBCColumn& column = file.columns[i];
+                NDBC::NDBCColumn& column = columns[i];
 
                 if (column.name.length() == 0)
                 {
@@ -476,9 +440,11 @@ void NDBCEditorHandler::DrawDefaultLayout()
     NDBCSingleton& ndbcSingleton = registry->ctx<NDBCSingleton>();
 
     u32 dbcNameHash = StringUtils::fnv1a_32(_selectedNDBC, strlen(_selectedNDBC));
-    NDBC::File& file = ndbcSingleton.nameHashToDBCFile[dbcNameHash];
+    NDBC::File* file = ndbcSingleton.GetNDBCFile(dbcNameHash);
+    DynamicBytebuffer*& fileBuffer = file->GetBuffer();
+    std::vector<NDBC::NDBCColumn>& columns = file->GetColumns();
 
-    u32 numColumns = static_cast<u32>(file.columns.size());
+    u32 numColumns = static_cast<u32>(columns.size());
 
     //ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
     ImGui::Columns(numColumns);
@@ -487,7 +453,7 @@ void NDBCEditorHandler::DrawDefaultLayout()
     for (u32 i = 0; i < numColumns; i++)
     {
         //ImGui::AlignTextToFramePadding();
-        NDBC::NDBCColumn& column = file.columns[i];
+        NDBC::NDBCColumn& column = columns[i];
 
         if (column.name.length() == 0)
             column.name = "Column " + std::to_string(i + 1);
@@ -497,7 +463,7 @@ void NDBCEditorHandler::DrawDefaultLayout()
     }
 
     u32 strideInBytes = numColumns * 4;
-    for (u32 i = 0; i < file.numRows; i++)
+    for (u32 i = 0; i < file->GetNumRows(); i++)
     {
         u32 rowOffset = i * strideInBytes;
 
@@ -508,17 +474,17 @@ void NDBCEditorHandler::DrawDefaultLayout()
             ImGui::PushID(j + i * numColumns);
             //ImGui::AlignTextToFramePadding();
 
-            NDBC::NDBCColumn& column = file.columns[j];
+            NDBC::NDBCColumn& column = columns[j];
 
             bool isFloat = column.dataType == 2;
             if (isFloat)
             {
-                f32* value = reinterpret_cast<f32*>(&file.buffer->GetDataPointer()[file.dataOffsetToRowData + finalOffset]);
+                f32* value = reinterpret_cast<f32*>(&fileBuffer->GetDataPointer()[file->GetBufferOffsetToRowData() + finalOffset]);
                 ImGui::InputFloat("", value);
             }
             else
             {
-                i32* value = reinterpret_cast<i32*>(&file.buffer->GetDataPointer()[file.dataOffsetToRowData + finalOffset]);
+                i32* value = reinterpret_cast<i32*>(&fileBuffer->GetDataPointer()[file->GetBufferOffsetToRowData() + finalOffset]);
                 ImGui::InputInt("", value);
             }
 

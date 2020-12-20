@@ -6,7 +6,7 @@ namespace NDBC
     struct Light;
 }
 
-constexpr f32 AreaUpdateTimeToUpdate = 0.100f;
+constexpr f32 AreaUpdateTimeToUpdate = 1 / 30.0f;
 struct AreaUpdateSingleton
 {
     u16 zoneId;

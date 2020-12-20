@@ -23,8 +23,11 @@ void AreaUpdateSystem::Update(entt::registry& registry)
     {
         areaUpdateSingleton.updateTimer -= AreaUpdateTimeToUpdate;
 
+        NDBCSingleton& ndbcSingleton = registry.ctx<NDBCSingleton>();
         MapSingleton& mapSingleton = registry.ctx<MapSingleton>();
-        if (mapSingleton.currentMap.id == std::numeric_limits<u16>().max())
+        Terrain::Map& currentMap = mapSingleton.GetCurrentMap();
+
+        if (!currentMap.IsLoadedMap())
             return;
 
         Camera* camera = ServiceLocator::GetCamera();
@@ -34,116 +37,128 @@ void AreaUpdateSystem::Update(entt::registry& registry)
         u16 cellId = 0;
         GetChunkIdAndCellIdFromPosition(position, chunkId, cellId);
 
-        NDBCSingleton& ndbcSingleton = registry.ctx<NDBCSingleton>();
+        NDBC::File* areaTableNDBC = ndbcSingleton.GetNDBCFile("AreaTable");
+        NDBC::File* lightNDBC = ndbcSingleton.GetNDBCFile("Light");
 
-        auto itr = mapSingleton.currentMap.chunks.find(chunkId);
+        const Terrain::Chunk* chunk = currentMap.GetChunkById(chunkId);
+        const Terrain::Cell* cell = nullptr;
 
-        bool hasChunk = itr != mapSingleton.currentMap.chunks.end();
-        Terrain::Cell* cell = hasChunk ? &itr->second.cells[cellId] : nullptr;
-
-        const NDBC::AreaTable* zone = cell ? mapSingleton.areaIdToDBC[cell->areaId] : nullptr;
+        const NDBC::AreaTable* zone = nullptr;
         const NDBC::AreaTable* area = nullptr;
+        
+        u32 zoneId = 0;
+        u32 areaId = 0;
 
-        if (zone && zone->parentId)
+        if (chunk != nullptr)
         {
-            area = zone;
-            zone = mapSingleton.areaIdToDBC[area->parentId];
+            cell = &chunk->cells[cellId];
+            if (cell != nullptr)
+            {
+                zone = areaTableNDBC->GetRowById<NDBC::AreaTable>(cell->areaId); 
+                
+                if (zone)
+                {
+                    if (zone->parentId)
+                    {
+                        area = zone;
+                        zone = areaTableNDBC->GetRowById<NDBC::AreaTable>(area->parentId);
+
+                        areaId = area->id;
+                    }
+
+                    zoneId = zone->id;
+                }
+            }
         }
 
-        areaUpdateSingleton.zoneId = zone ? zone->id : 0;
-        areaUpdateSingleton.areaId = area ? area->id : 0;
+        areaUpdateSingleton.zoneId = zoneId;
+        areaUpdateSingleton.areaId = areaId;
 
         // Eastern Kingdoms light is default (Can be overriden see below)
-        NDBC::Light* defaultLight = mapSingleton.lightIdToDBC[1];
+        NDBC::Light* defaultLight = lightNDBC->GetRowById<NDBC::Light>(1);
+        AreaUpdateLightColorData finalColorData = GetLightColorData(ndbcSingleton, mapSingleton, defaultLight);
 
         // Get Lights
-        std::vector<NDBC::Light*>& lights = mapSingleton.mapIdToLightDBC[mapSingleton.currentMap.id];
 
-        std::vector<AreaUpdateLightData> innerRadiusLights;
-        innerRadiusLights.reserve(4);
-
-        std::vector<AreaUpdateLightData> outerRadiusLights;
-        outerRadiusLights.reserve(4);
-
-        for (NDBC::Light* light : lights)
+        std::vector<NDBC::Light*>* lights = mapSingleton.GetLightsByMapId(currentMap.id);
+        if (lights)
         {
-            const vec3& lightPosition = light->position;
+            std::vector<AreaUpdateLightData> innerRadiusLights;
+            innerRadiusLights.reserve(4);
 
-            // LightPosition of (0,0,0) means default, override!
-            if (lightPosition == vec3(0, 0, 0))
-            {
-                defaultLight = light;
-                continue;
-            }
+            std::vector<AreaUpdateLightData> outerRadiusLights;
+            outerRadiusLights.reserve(4);
 
-            f32 distanceToLight = glm::distance(position, lightPosition);
-            if (distanceToLight < light->fallOff.x)
+            for (NDBC::Light* light : *lights)
             {
-                AreaUpdateLightData& lightData = innerRadiusLights.emplace_back();
-                lightData.light = light;
-                lightData.distance = distanceToLight;
-            }
-            else if (distanceToLight < light->fallOff.y)
-            {
-                AreaUpdateLightData& lightData = outerRadiusLights.emplace_back();
-                lightData.light = light;
-                lightData.distance = distanceToLight;
-            }
-        }
+                const vec3& lightPosition = light->position;
 
-        AreaUpdateLightColorData finalColorData;
-
-        i32 forceUseDefaultLight = *CVarSystem::Get()->GetIntCVar("lights.useDefault");
-        if (forceUseDefaultLight)
-        {
-            finalColorData = GetLightColorData(mapSingleton, defaultLight);
-        }
-        else
-        {
-            size_t numInnerLights = innerRadiusLights.size();
-            size_t numOuterLights = outerRadiusLights.size();
-            if (numInnerLights)
-            {
-                if (numInnerLights > 1)
+                // LightPosition of (0,0,0) means default, override!
+                if (lightPosition == vec3(0, 0, 0))
                 {
-                    // Sort Inner Radius Lights by distance
-                    std::sort(innerRadiusLights.begin(), innerRadiusLights.end(), [](AreaUpdateLightData a, AreaUpdateLightData b) { return a.distance < b.distance; });
+                    defaultLight = light;
+                    continue;
                 }
 
-                NDBC::Light* light = innerRadiusLights[0].light;
-                finalColorData = GetLightColorData(mapSingleton, light);
-            }
-            else if (numOuterLights)
-            {
-                // Sort Outer Radius Lights by distance
-                std::sort(outerRadiusLights.begin(), outerRadiusLights.end(), [](AreaUpdateLightData a, AreaUpdateLightData b) { return a.distance > b.distance; });
-
-                AreaUpdateLightColorData lightColor = GetLightColorData(mapSingleton, defaultLight);
-
-                for (AreaUpdateLightData& lightData : outerRadiusLights)
+                f32 distanceToLight = glm::distance(position, lightPosition);
+                if (distanceToLight < light->fallOff.x)
                 {
-                    NDBC::Light* light = lightData.light;
-
-                    AreaUpdateLightColorData outerColorData = GetLightColorData(mapSingleton, light);
-
-                    f32 lengthOfFallOff = light->fallOff.y - light->fallOff.x;
-                    f32 val = (light->fallOff.y - lightData.distance) / lengthOfFallOff;
-
-                    lightColor.ambientColor = glm::mix(lightColor.ambientColor, outerColorData.ambientColor, val);
-                    lightColor.diffuseColor = glm::mix(lightColor.diffuseColor, outerColorData.diffuseColor, val);
+                    AreaUpdateLightData& lightData = innerRadiusLights.emplace_back();
+                    lightData.light = light;
+                    lightData.distance = distanceToLight;
                 }
-
-                finalColorData.ambientColor = lightColor.ambientColor;
-                finalColorData.diffuseColor = lightColor.diffuseColor;
+                else if (distanceToLight < light->fallOff.y)
+                {
+                    AreaUpdateLightData& lightData = outerRadiusLights.emplace_back();
+                    lightData.light = light;
+                    lightData.distance = distanceToLight;
+                }
             }
-            else
+
+            i32 forceUseDefaultLight = *CVarSystem::Get()->GetIntCVar("lights.useDefault");
+            if (!forceUseDefaultLight)
             {
-                finalColorData = GetLightColorData(mapSingleton, defaultLight);
+                size_t numInnerLights = innerRadiusLights.size();
+                size_t numOuterLights = outerRadiusLights.size();
+                if (numInnerLights)
+                {
+                    if (numInnerLights > 1)
+                    {
+                        // Sort Inner Radius Lights by distance
+                        std::sort(innerRadiusLights.begin(), innerRadiusLights.end(), [](AreaUpdateLightData a, AreaUpdateLightData b) { return a.distance < b.distance; });
+                    }
+
+                    NDBC::Light* light = innerRadiusLights[0].light;
+                    finalColorData = GetLightColorData(ndbcSingleton, mapSingleton, light);
+                }
+                else if (numOuterLights)
+                {
+                    // Sort Outer Radius Lights by distance
+                    std::sort(outerRadiusLights.begin(), outerRadiusLights.end(), [](AreaUpdateLightData a, AreaUpdateLightData b) { return a.distance > b.distance; });
+
+                    AreaUpdateLightColorData lightColor = GetLightColorData(ndbcSingleton, mapSingleton, defaultLight);
+
+                    for (AreaUpdateLightData& lightData : outerRadiusLights)
+                    {
+                        NDBC::Light* light = lightData.light;
+
+                        AreaUpdateLightColorData outerColorData = GetLightColorData(ndbcSingleton, mapSingleton, light);
+
+                        f32 lengthOfFallOff = light->fallOff.y - light->fallOff.x;
+                        f32 val = (light->fallOff.y - lightData.distance) / lengthOfFallOff;
+
+                        lightColor.ambientColor = glm::mix(lightColor.ambientColor, outerColorData.ambientColor, val);
+                        lightColor.diffuseColor = glm::mix(lightColor.diffuseColor, outerColorData.diffuseColor, val);
+                    }
+
+                    finalColorData.ambientColor = lightColor.ambientColor;
+                    finalColorData.diffuseColor = lightColor.diffuseColor;
+                }
             }
         }
 
-        mapSingleton.ambientLight = finalColorData.ambientColor;
-        mapSingleton.diffuseLight = finalColorData.diffuseColor;
+        mapSingleton.SetAmbientLight(finalColorData.ambientColor);
+        mapSingleton.SetDiffuseLight(finalColorData.diffuseColor);
 
         // Get Light Direction
         {
@@ -193,7 +208,7 @@ void AreaUpdateSystem::Update(entt::registry& registry)
             f32 lightDirZ = cosPhi;
 
             // Can also try (X, Z, -Y)
-            mapSingleton.lightDirection = vec3(lightDirX, lightDirY, lightDirZ);
+            mapSingleton.SetLightDirection(vec3(lightDirX, lightDirY, lightDirZ));
         }
     }
 }
@@ -214,16 +229,19 @@ void AreaUpdateSystem::GetChunkIdAndCellIdFromPosition(const vec3& position, u16
     inCellId = cellId;
 }
 
-AreaUpdateLightColorData AreaUpdateSystem::GetLightColorData(MapSingleton& mapSingleton, const NDBC::Light* light)
+AreaUpdateLightColorData AreaUpdateSystem::GetLightColorData(NDBCSingleton& ndbcSingleton, MapSingleton& mapSingleton, const NDBC::Light* light)
 {
     entt::registry* registry = ServiceLocator::GetGameRegistry();
     DayNightSingleton& dayNightSingleton = registry->ctx<DayNightSingleton>();
+    NDBC::File* lightParamNDBC = ndbcSingleton.GetNDBCFile("LightParams"_h);
+    NDBC::File* lightIntBandNDBC = ndbcSingleton.GetNDBCFile("LightIntBand"_h);
+    NDBC::File* lightFloatBandNDBC = ndbcSingleton.GetNDBCFile("LightFloatBand"_h);
 
     u32 timeInSeconds = static_cast<u32>(dayNightSingleton.seconds);
 
     AreaUpdateLightColorData colorData;
 
-    NDBC::LightParams* lightParams = mapSingleton.lightParamsIdToDBC[light->paramClearId];
+    NDBC::LightParams* lightParams = lightParamNDBC->GetRowById<NDBC::LightParams>(light->paramClearId);
 
     u32 lightIntBandStartId = lightParams->id * 18 - 17;
     u32 lightFloatBandStartId = lightParams->id * 6 - 5;
@@ -233,7 +251,7 @@ AreaUpdateLightColorData AreaUpdateSystem::GetLightColorData(MapSingleton& mapSi
 
     // Get Ambient Light
     {
-        NDBC::LightIntBand* lightIntBand = mapSingleton.lightIntBandIdToDBC[lightIntBandStartId];
+        NDBC::LightIntBand* lightIntBand = lightIntBandNDBC->GetRowByIndex<NDBC::LightIntBand>(lightIntBandStartId);
         vec3 color = vec3(0.0f, 0.0f, 0.0f);
 
         if (lightIntBand->timeValues[0] < timeInSeconds)
@@ -280,7 +298,7 @@ AreaUpdateLightColorData AreaUpdateSystem::GetLightColorData(MapSingleton& mapSi
 
     // Get Diffuse Light
     {
-        NDBC::LightIntBand* lightIntBand = mapSingleton.lightIntBandIdToDBC[lightIntBandStartId + 1];
+        NDBC::LightIntBand* lightIntBand = lightIntBandNDBC->GetRowByIndex<NDBC::LightIntBand>(lightIntBandStartId + 1);
         vec3 color = vec3(0.0f, 0.0f, 0.0f);
 
         if (lightIntBand->timeValues[0] < timeInSeconds)

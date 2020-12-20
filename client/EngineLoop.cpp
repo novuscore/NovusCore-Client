@@ -1,13 +1,10 @@
 #include "EngineLoop.h"
-#include <Utils/Timer.h>
-#include "Utils/ServiceLocator.h"
-#include "Utils/EntityUtils.h"
-#include "Utils/MapUtils.h"
-#include <SceneManager.h>
 #include <Networking/InputQueue.h>
 #include <Networking/MessageHandler.h>
-#include <Renderer/Renderer.h>
 #include <Memory/MemoryTracker.h>
+
+#include <SceneManager.h>
+#include <Renderer/Renderer.h>
 #include "Rendering/ClientRenderer.h"
 #include "Rendering/TerrainRenderer.h"
 #include "Rendering/MapObjectRenderer.h"
@@ -15,22 +12,15 @@
 #include "Rendering/CameraFreelook.h"
 #include "Rendering/CameraOrbital.h"
 #include "Editor/Editor.h"
-#include "Loaders/Config/ConfigLoader.h"
-#include "Loaders/Texture/TextureLoader.h"
-#include "Loaders/Map/MapLoader.h"
-#include "Loaders/NDBC/NDBCLoader.h"
-#include "Loaders/DisplayInfo/DisplayInfoLoader.h"
+
+// Loaders
+#include "Loaders/LoaderSystem.h"
 
 // Component Singletons
 #include "ECS/Components/Singletons/TimeSingleton.h"
 #include "ECS/Components/Singletons/StatsSingleton.h"
 #include "ECS/Components/Singletons/ScriptSingleton.h"
-#include "ECS/Components/Singletons/DataStorageSingleton.h"
-#include "ECS/Components/Singletons/SceneManagerSingleton.h"
-#include "ECS/Components/Singletons/LocalplayerSingleton.h"
 #include "ECS/Components/Singletons/ConfigSingleton.h"
-#include "ECS/Components/Network/ConnectionSingleton.h"
-#include "ECS/Components/Network/AuthenticationSingleton.h"
 
 // Components
 #include "ECS/Components/Transform.h"
@@ -56,23 +46,25 @@
 #include "UI/ECS/Systems/FinalCleanUpSystem.h"
 
 // Utils
+#include <Utils/Timer.h>
+#include "Utils/ServiceLocator.h"
+#include "Utils/MapUtils.h"
+#include "Utils/NetworkUtils.h"
 #include "UI/Utils/ElementUtils.h"
 
 // Handlers
+#include "Scripting/ScriptHandler.h"
 #include "Network/Handlers/AuthSocket/AuthHandlers.h"
 #include "Network/Handlers/GameSocket/GameHandlers.h"
-#include "Scripting/ScriptHandler.h"
 
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
 #include <tracy/Tracy.hpp>
 
 #include "imgui/imgui.h"
-#include "imgui/imgui_internal.h"
 #include "imgui/imgui_impl_vulkan.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/misc/cpp/imgui_stdlib.h"
-
 #include "imgui/implot.h"
 
 #include "CVar/CVarSystem.h"
@@ -82,9 +74,7 @@ AutoCVar_Int CVAR_FramerateTarget("framerate.target", "target framerate", 60);
 
 EngineLoop::EngineLoop() : _isRunning(false), _inputQueue(256), _outputQueue(256)
 {
-    _network.asioService = std::make_shared<asio::io_service>(2);
-    _network.authSocket = std::make_shared<NetworkClient>(new asio::ip::tcp::socket(*_network.asioService.get()));
-    _network.gameSocket = std::make_shared<NetworkClient>(new asio::ip::tcp::socket(*_network.asioService.get()));
+    _asioService = std::make_shared<asio::io_service>(2);
 }
 
 EngineLoop::~EngineLoop()
@@ -118,6 +108,8 @@ void EngineLoop::Stop()
 
 void EngineLoop::Abort()
 {
+    Cleanup();
+
     Message exitMessage;
     exitMessage.code = MSG_OUT_EXIT_CONFIRM;
     _outputQueue.enqueue(exitMessage);
@@ -133,139 +125,114 @@ bool EngineLoop::TryGetMessage(Message& message)
     return _outputQueue.try_dequeue(message);
 }
 
-void EngineLoop::Run()
+bool EngineLoop::Init()
 {
-    _isRunning = true;
+    assert(_isInitialized == false);
 
     _updateFramework.gameRegistry.create();
     _updateFramework.uiRegistry.create();
     SetupUpdateFramework();
 
+    LoaderSystem* loaderSystem = LoaderSystem::Get();
+    loaderSystem->Init();
+
     bool failedToLoad = false;
-    failedToLoad |= !ConfigLoader::Init(&_updateFramework.gameRegistry);
-    failedToLoad |= !TextureLoader::Load(&_updateFramework.gameRegistry);
-    failedToLoad |= !NDBCLoader::Load(&_updateFramework.gameRegistry);
-    failedToLoad |= !DisplayInfoLoader::Init(&_updateFramework.gameRegistry);
-    failedToLoad |= !MapLoader::Init(&_updateFramework.gameRegistry);
+    for (Loader* loader : loaderSystem->GetLoaders())
+    {
+        failedToLoad |= !loader->Init();
+
+        if (failedToLoad)
+            break;
+    }
 
     if (failedToLoad)
+        return false;
+
+    // Create Cameras (Must happen before ClientRenderer is created)
+    CameraFreeLook* cameraFreeLook = new CameraFreeLook();
+    CameraOrbital* cameraOrbital = new CameraOrbital();
+    ServiceLocator::SetCameraFreeLook(cameraFreeLook);
+    ServiceLocator::SetCameraOrbital(cameraOrbital);
+
+    _clientRenderer = new ClientRenderer();
+    _editor = new Editor::Editor();
+
+    // Initialize Cameras (Must happen after ClientRenderer is created)
+    {
+        Window* mainWindow = ServiceLocator::GetWindow();
+        cameraFreeLook->SetWindow(mainWindow);
+        cameraOrbital->SetWindow(mainWindow);
+
+        cameraFreeLook->Init();
+        cameraOrbital->Init();
+
+        // Bind Switch Camera Key
+        InputManager* inputManager = ServiceLocator::GetInputManager();
+        inputManager->RegisterKeybind("Switch Camera Mode", GLFW_KEY_C, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE, [this, cameraFreeLook, cameraOrbital](Window* window, std::shared_ptr<Keybind> keybind)
+        {
+            if (cameraFreeLook->IsActive())
+            {
+                cameraFreeLook->SetActive(false);
+                cameraFreeLook->Disabled();
+
+                cameraOrbital->SetActive(true);
+                cameraOrbital->Enabled();
+            }
+            else if (cameraOrbital->IsActive())
+            {
+                cameraOrbital->SetActive(false);
+                cameraOrbital->Disabled();
+
+                cameraFreeLook->SetActive(true);
+                cameraFreeLook->Enabled();
+            }
+
+            return true;
+        });
+    }
+
+    // Initialize Networking
+    NetworkUtils::InitNetwork(&_updateFramework.gameRegistry, _asioService);
+
+    // Initialize Script Handler
+    ScriptHandler::Init(_updateFramework.gameRegistry);
+
+    // Setup SceneManager (Must happen after ScriptHandler::Init)
+    {
+        SceneManager* sceneManager = new SceneManager();
+        ServiceLocator::SetSceneManager(sceneManager);
+        sceneManager->SetAvailableScenes({ "LoginScreen"_h, "CharacterSelection"_h, "CharacterCreation"_h });
+        sceneManager->LoadScene("LoginScreen"_h);
+    }
+
+    // Initialize DayNightSystem & AreaUpdateSystem
+    {
+        DayNightSystem::Init(_updateFramework.gameRegistry);
+        AreaUpdateSystem::Init(_updateFramework.gameRegistry);
+    }
+
+    // Initialize MovementSystem & SimulateDebugCubeSystem (Must happen after ClientRenderer is created)
+    {
+        MovementSystem::Init(_updateFramework.gameRegistry);
+        SimulateDebugCubeSystem::Init(_updateFramework.gameRegistry);
+    }
+
+    _isInitialized = true;
+    return true;
+}
+
+void EngineLoop::Run()
+{
+    if (!Init())
     {
         Abort();
         return;
     }
 
-    DayNightSystem::Init(_updateFramework.gameRegistry);
-    AreaUpdateSystem::Init(_updateFramework.gameRegistry);
+    _isRunning = true;
 
     TimeSingleton& timeSingleton = _updateFramework.gameRegistry.set<TimeSingleton>();
-    ScriptSingleton& scriptSingleton = _updateFramework.gameRegistry.set<ScriptSingleton>();
-    DataStorageSingleton& dataStorageSingleton = _updateFramework.gameRegistry.set<DataStorageSingleton>();
-    SceneManagerSingleton& sceneManagerSingleton = _updateFramework.gameRegistry.set<SceneManagerSingleton>();
-    ConnectionSingleton& connectionSingleton = _updateFramework.gameRegistry.set<ConnectionSingleton>();
-    AuthenticationSingleton& authenticationSingleton = _updateFramework.gameRegistry.set<AuthenticationSingleton>();
-    LocalplayerSingleton& localplayerSingleton = _updateFramework.gameRegistry.set<LocalplayerSingleton>();
     EngineStatsSingleton& statsSingleton = _updateFramework.gameRegistry.set<EngineStatsSingleton>();
-
-    connectionSingleton.authConnection = _network.authSocket;
-    connectionSingleton.gameConnection = _network.gameSocket;
-
-    // Set up SceneManager. This has to happen before the ClientRenderer is created.
-    SceneManager* sceneManager = new SceneManager();
-    sceneManager->SetAvailableScenes({ "LoginScreen"_h, "CharacterSelection"_h, "CharacterCreation"_h });
-    ServiceLocator::SetSceneManager(sceneManager);
-
-    _clientRenderer = new ClientRenderer();
-    _editor = new Editor::Editor();
-
-    CameraFreeLook* cameraFreeLook = new CameraFreeLook(vec3(0.0f, 0.0f, 0.0f)); // Center of Map (0, 0)
-    cameraFreeLook->Init();
-    ServiceLocator::SetCameraFreeLook(cameraFreeLook);
-
-    CameraOrbital* cameraOrbital = new CameraOrbital();
-    cameraOrbital->Init();
-    ServiceLocator::SetCameraOrbital(cameraOrbital);
-
-    ConfigSingleton& configSingleton = _updateFramework.gameRegistry.ctx<ConfigSingleton>();
-
-    // Check Startup Settings for UI
-    UIConfig& uiConfig = configSingleton.uiConfig;
-    {
-        const std::string& defaultMap = uiConfig.GetDefaultMap();
-
-        if (defaultMap.length() != 0)
-        {
-            MapSingleton& mapSingleton = _updateFramework.gameRegistry.ctx<MapSingleton>();
-
-            u32 defaultMapHash = StringUtils::fnv1a_32(defaultMap.c_str(), defaultMap.length());
-            auto itr = mapSingleton.mapNameToDBC.find(defaultMapHash);
-            if (itr != mapSingleton.mapNameToDBC.end())
-            {
-                const NDBC::Map* map = itr->second;
-
-                cameraFreeLook->LoadFromFile("freelook.cameradata");
-                _clientRenderer->GetTerrainRenderer()->LoadMap(map);
-            }
-        }
-    }
-
-    // Bind Movement Keys
-    InputManager* inputManager = ServiceLocator::GetInputManager();
-    inputManager->RegisterKeybind("Switch Camera Mode", GLFW_KEY_C, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE, [this](Window* window, std::shared_ptr<Keybind> keybind)
-    {
-        CameraFreeLook* freeLook = ServiceLocator::GetCameraFreeLook();
-        CameraOrbital* orbital = ServiceLocator::GetCameraOrbital();
-
-        if (freeLook->IsActive())
-        {
-            freeLook->SetActive(false);
-            freeLook->Disabled();
-
-            orbital->SetActive(true);
-            orbital->Enabled();
-        }
-        else if (orbital->IsActive())
-        {
-            orbital->SetActive(false);
-            orbital->Disabled();
-
-            freeLook->SetActive(true);
-            freeLook->Enabled();
-        }
-
-        return true;
-    });
-    inputManager->RegisterKeybind("Move Forward", GLFW_KEY_W, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
-    inputManager->RegisterKeybind("Move Backward", GLFW_KEY_S, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
-    inputManager->RegisterKeybind("Move Left", GLFW_KEY_A, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
-    inputManager->RegisterKeybind("Move Right", GLFW_KEY_D, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
-    inputManager->RegisterKeybind("Move Jump", GLFW_KEY_SPACE, KEYBIND_ACTION_PRESS, KEYBIND_MOD_NONE);
-
-    // Initialize Localplayer
-    localplayerSingleton.entity = _updateFramework.gameRegistry.create();
-    Transform& transform = _updateFramework.gameRegistry.emplace<Transform>(localplayerSingleton.entity);
-
-    transform.position = vec3(-9249.f, 87.f, 79.f);
-    transform.scale = vec3(0.5f, 0.5f, 2.f); // "Ish" scale for humans
-
-    _updateFramework.gameRegistry.emplace<DebugBox>(localplayerSingleton.entity);
-    //Model& model = EntityUtils::CreateModelComponent(_updateFramework.gameRegistry, localplayerSingleton.entity, "Data/models/Cube.novusmodel");
-
-    // Load Scripts
-    std::string scriptPath = "./Data/scripts";
-    ScriptHandler::LoadScriptDirectory(scriptPath);
-
-    sceneManager->LoadScene("LoginScreen"_h);
-
-    _network.authSocket->SetReadHandler(std::bind(&ConnectionUpdateSystem::AuthSocket_HandleRead, std::placeholders::_1));
-    _network.authSocket->SetConnectHandler(std::bind(&ConnectionUpdateSystem::AuthSocket_HandleConnect, std::placeholders::_1, std::placeholders::_2));
-    _network.authSocket->SetDisconnectHandler(std::bind(&ConnectionUpdateSystem::AuthSocket_HandleDisconnect, std::placeholders::_1));
-    
-    _network.gameSocket->SetReadHandler(std::bind(&ConnectionUpdateSystem::GameSocket_HandleRead, std::placeholders::_1));
-    _network.gameSocket->SetConnectHandler(std::bind(&ConnectionUpdateSystem::GameSocket_HandleConnect, std::placeholders::_1, std::placeholders::_2));
-    _network.gameSocket->SetDisconnectHandler(std::bind(&ConnectionUpdateSystem::GameSocket_HandleDisconnect, std::placeholders::_1));
-
-    MovementSystem::Init(_updateFramework.gameRegistry);
-    SimulateDebugCubeSystem::Init(_updateFramework.gameRegistry);
 
     Timer timer;
     Timer updateTimer;
@@ -317,8 +284,8 @@ void EngineLoop::Run()
 
             for (deltaTime = timer.GetDeltaTime(); deltaTime < targetDelta; deltaTime = timer.GetDeltaTime())
             {
-                ZoneScopedNC("WaitForTickRate::Yield", tracy::Color::AntiqueWhite1)
-                    std::this_thread::yield();
+                ZoneScopedNC("WaitForTickRate::Yield", tracy::Color::AntiqueWhite1);
+                std::this_thread::yield();
             }
         }
 
@@ -333,8 +300,13 @@ void EngineLoop::Run()
 }
 void EngineLoop::RunIoService()
 {
-    asio::io_service::work ioWork(*_network.asioService.get());
-    _network.asioService->run();
+    asio::io_service::work ioWork(*_asioService.get());
+    _asioService->run();
+}
+void EngineLoop::Cleanup()
+{
+    // Cleanup Network
+    NetworkUtils::DeInitNetwork(&_updateFramework.gameRegistry, _asioService);
 }
 
 bool EngineLoop::Update(f32 deltaTime)
@@ -353,6 +325,7 @@ bool EngineLoop::Update(f32 deltaTime)
 
         if (message.code == MSG_IN_EXIT)
         {
+            Cleanup();
             return false;
         }
         else if (message.code == MSG_IN_PRINT)
@@ -397,18 +370,30 @@ bool EngineLoop::Update(f32 deltaTime)
     {
         if (CVarSystem::Get()->IsDirty())
         {
-            ConfigLoader::Save(ConfigSaveType::CVAR);
+            //ConfigLoader::Save(ConfigSaveType::CVAR);
             CVarSystem::Get()->ClearDirty();
         }
 
         if (configSingleton.uiConfig.IsDirty())
         {
-            ConfigLoader::Save(ConfigSaveType::UI);
+            //ConfigLoader::Save(ConfigSaveType::UI);
             configSingleton.uiConfig.ClearDirty();
         }
     }
     
     return true;
+}
+void EngineLoop::UpdateSystems()
+{
+    ZoneScopedNC("UpdateSystems", tracy::Color::DarkBlue)
+    {
+        ZoneScopedNC("Taskflow::Run", tracy::Color::DarkBlue)
+            _updateFramework.taskflow.run(_updateFramework.framework);
+    }
+    {
+        ZoneScopedNC("Taskflow::WaitForAll", tracy::Color::DarkBlue)
+            _updateFramework.taskflow.wait_for_all();
+    }
 }
 
 void EngineLoop::Render()
@@ -427,13 +412,13 @@ void EngineLoop::SetupUpdateFramework()
 
     ServiceLocator::SetGameRegistry(&gameRegistry);
     ServiceLocator::SetUIRegistry(&uiRegistry);
-    SetMessageHandler();
+    SetupMessageHandler();
 
     // ConnectionUpdateSystem
     tf::Task connectionUpdateSystemTask = framework.emplace([&gameRegistry]()
     {
-        ZoneScopedNC("ConnectionUpdateSystem::Update", tracy::Color::Blue2)
-            ConnectionUpdateSystem::Update(gameRegistry);
+        ZoneScopedNC("ConnectionUpdateSystem::Update", tracy::Color::Blue2);
+        ConnectionUpdateSystem::Update(gameRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
 
@@ -441,7 +426,7 @@ void EngineLoop::SetupUpdateFramework()
     // DeleteElementsSystem
     tf::Task uiDeleteElementSystem = framework.emplace([&uiRegistry, &gameRegistry]()
     {
-        ZoneScopedNC("DeleteElementsSystem::Update", tracy::Color::Gainsboro)
+        ZoneScopedNC("DeleteElementsSystem::Update", tracy::Color::Gainsboro);
         UISystem::DeleteElementsSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
@@ -449,8 +434,8 @@ void EngineLoop::SetupUpdateFramework()
     // UpdateRenderingSystem
     tf::Task uiUpdateRenderingSystem = framework.emplace([&uiRegistry, &gameRegistry]()
     {
-        ZoneScopedNC("UpdateRenderingSystem::Update", tracy::Color::Gainsboro)
-            UISystem::UpdateRenderingSystem::Update(uiRegistry);
+        ZoneScopedNC("UpdateRenderingSystem::Update", tracy::Color::Gainsboro);
+        UISystem::UpdateRenderingSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
     uiUpdateRenderingSystem.gather(uiDeleteElementSystem);
@@ -458,17 +443,17 @@ void EngineLoop::SetupUpdateFramework()
     // UpdateBoundsSystem
     tf::Task uiUpdateBoundsSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
     {
-        ZoneScopedNC("UpdateBoundsSystem::Update", tracy::Color::Gainsboro)
-            UISystem::UpdateBoundsSystem::Update(uiRegistry);
+        ZoneScopedNC("UpdateBoundsSystem::Update", tracy::Color::Gainsboro);
+        UISystem::UpdateBoundsSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
-        });
+    });
     uiUpdateRenderingSystem.gather(uiDeleteElementSystem);
 
     // UpdateCullingSystem
     tf::Task uiUpdateCullingSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
     {
-        ZoneScopedNC("UpdateCullingSystem::Update", tracy::Color::Gainsboro)
-            UISystem::UpdateCullingSystem::Update(uiRegistry);
+        ZoneScopedNC("UpdateCullingSystem::Update", tracy::Color::Gainsboro);
+        UISystem::UpdateCullingSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
     uiUpdateRenderingSystem.gather(uiDeleteElementSystem);
@@ -476,8 +461,8 @@ void EngineLoop::SetupUpdateFramework()
     // BuildSortKeySystem
     tf::Task uiBuildSortKeySystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
     {
-        ZoneScopedNC("BuildSortKeySystem::Update", tracy::Color::Gainsboro)
-            UISystem::BuildSortKeySystem::Update(uiRegistry);
+        ZoneScopedNC("BuildSortKeySystem::Update", tracy::Color::Gainsboro);
+        UISystem::BuildSortKeySystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
     uiUpdateRenderingSystem.gather(uiDeleteElementSystem);
@@ -485,8 +470,8 @@ void EngineLoop::SetupUpdateFramework()
     // FinalCleanUpSystem
     tf::Task uiFinalCleanUpSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
     {
-        ZoneScopedNC("UpdateRenderingSystem::Update", tracy::Color::Gainsboro)
-            UISystem::FinalCleanUpSystem::Update(uiRegistry);
+        ZoneScopedNC("UpdateRenderingSystem::Update", tracy::Color::Gainsboro);
+        UISystem::FinalCleanUpSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
     uiFinalCleanUpSystemTask.gather(uiUpdateRenderingSystem);
@@ -497,8 +482,8 @@ void EngineLoop::SetupUpdateFramework()
     // MovementSystem
     tf::Task movementSystemTask = framework.emplace([&gameRegistry]()
     {
-        ZoneScopedNC("MovementSystem::Update", tracy::Color::Blue2)
-            MovementSystem::Update(gameRegistry);
+        ZoneScopedNC("MovementSystem::Update", tracy::Color::Blue2);
+        MovementSystem::Update(gameRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
     movementSystemTask.gather(connectionUpdateSystemTask);
@@ -506,7 +491,7 @@ void EngineLoop::SetupUpdateFramework()
     // DayNightSystem
     tf::Task dayNightSystemTask = framework.emplace([&gameRegistry]()
     {
-        ZoneScopedNC("DayNightSystem::Update", tracy::Color::Blue2)
+        ZoneScopedNC("DayNightSystem::Update", tracy::Color::Blue2);
         DayNightSystem::Update(gameRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
@@ -515,7 +500,7 @@ void EngineLoop::SetupUpdateFramework()
     // AreaUpdateSystem
     tf::Task areaUpdateSystemTask = framework.emplace([&gameRegistry]()
     {
-        ZoneScopedNC("AreaUpdateSystem::Update", tracy::Color::Blue2)
+        ZoneScopedNC("AreaUpdateSystem::Update", tracy::Color::Blue2);
         AreaUpdateSystem::Update(gameRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
@@ -524,8 +509,8 @@ void EngineLoop::SetupUpdateFramework()
     // SimulateDebugCubeSystem
     tf::Task simulateDebugCubeSystemTask = framework.emplace([this, &gameRegistry]()
     {
-        ZoneScopedNC("SimulateDebugCubeSystem::Update", tracy::Color::Blue2)
-            SimulateDebugCubeSystem::Update(gameRegistry, _clientRenderer->GetDebugRenderer());
+        ZoneScopedNC("SimulateDebugCubeSystem::Update", tracy::Color::Blue2);
+        SimulateDebugCubeSystem::Update(gameRegistry, _clientRenderer->GetDebugRenderer());
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
     simulateDebugCubeSystemTask.gather(areaUpdateSystemTask);
@@ -533,8 +518,8 @@ void EngineLoop::SetupUpdateFramework()
     // RenderModelSystem
     tf::Task renderModelSystemTask = framework.emplace([this, &gameRegistry]()
     {
-        ZoneScopedNC("RenderModelSystem::Update", tracy::Color::Blue2)
-            RenderModelSystem::Update(gameRegistry, _clientRenderer);
+        ZoneScopedNC("RenderModelSystem::Update", tracy::Color::Blue2);
+        RenderModelSystem::Update(gameRegistry, _clientRenderer);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
     renderModelSystemTask.gather(simulateDebugCubeSystemTask);
@@ -542,14 +527,14 @@ void EngineLoop::SetupUpdateFramework()
     // ScriptSingletonTask
     tf::Task scriptSingletonTask = framework.emplace([&uiRegistry, &gameRegistry]()
     {
-        ZoneScopedNC("ScriptSingletonTask::Update", tracy::Color::Blue2)
+        ZoneScopedNC("ScriptSingletonTask::Update", tracy::Color::Blue2);
         gameRegistry.ctx<ScriptSingleton>().ExecuteTransactions();
         gameRegistry.ctx<ScriptSingleton>().ResetCompletedSystems();
     });
     scriptSingletonTask.gather(uiFinalCleanUpSystemTask);
     scriptSingletonTask.gather(renderModelSystemTask);
 }
-void EngineLoop::SetMessageHandler()
+void EngineLoop::SetupMessageHandler()
 {
     // Setup Auth Message Handler
     MessageHandler* authSocketMessageHandler = new MessageHandler();
@@ -568,15 +553,14 @@ void EngineLoop::ImguiNewFrame()
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 }
-
 void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
 {
     if (ImGui::Begin("Engine Info"))
     {
         EngineStatsSingleton::Frame average = stats->AverageFrame(240);
 
-        ImGui::Text("FPS : %f ", 1.f / average.deltaTime);
-        ImGui::Text("global frametime : %f ms", average.deltaTime * 1000);
+        ImGui::Text("Frames Per Second : %f ", 1.f / average.deltaTime);
+        ImGui::Text("Global Frame Time (ms) : %f", average.deltaTime * 1000);
 
         if (ImGui::BeginTabBar("Information"))
         {
@@ -611,10 +595,11 @@ void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
             if (ImGui::BeginTabItem("Frame Timings"))
             {
                 ImGui::Spacing();
+
                 // Draw Timing Graph
                 {
-                    ImGui::Text("update time : %f ms", average.simulationFrameTime * 1000);
-                    ImGui::Text("render time (CPU): %f ms", average.renderFrameTime * 1000);
+                    ImGui::Text("update time (ms) : %f", average.simulationFrameTime * 1000);
+                    ImGui::Text("render time CPU (ms): %f", average.renderFrameTime * 1000);
 
                     //read the frame buffer to gather timings for the histograms
                     std::vector<float> updateTimes;
@@ -640,6 +625,7 @@ void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
                         ImPlot::EndPlot();
                     }
                 }
+
                 ImGui::EndTabItem();
             }
 
@@ -649,7 +635,6 @@ void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
 
     ImGui::End();
 }
-
 void EngineLoop::DrawMapStats()
 {
     entt::registry* registry = ServiceLocator::GetGameRegistry();
@@ -659,8 +644,10 @@ void EngineLoop::DrawMapStats()
     static const std::string* selectedMap = nullptr;
     static std::string selectedMapToLower;
 
-    if (selectedMap == nullptr && mapSingleton.mapNames.size() > 0)
-        selectedMap = mapSingleton.mapNames[0];
+    const std::vector<const std::string*>& mapNames = mapSingleton.GetMapNames();
+
+    if (selectedMap == nullptr && mapNames.size() > 0)
+        selectedMap = mapNames[0];
 
     selectedMapToLower.resize(selectedMap->length());
     std::transform(selectedMap->begin(), selectedMap->end(), selectedMapToLower.begin(), std::tolower);
@@ -685,7 +672,7 @@ void EngineLoop::DrawMapStats()
 
         if (ImGui::BeginCombo("##", preview)) // The second parameter is the label previewed before opening the combo.
         {
-            for (const std::string* mapName : mapSingleton.mapNames)
+            for (const std::string* mapName : mapNames)
             {
                 mapNameCopy.resize(mapName->length());
                 std::transform(mapName->begin(), mapName->end(), mapNameCopy.begin(), std::tolower);
@@ -717,7 +704,7 @@ void EngineLoop::DrawMapStats()
                 }
                 else
                 {
-                    for (const std::string* mapName : mapSingleton.mapNames)
+                    for (const std::string* mapName : mapNames)
                     {
                         mapNameCopy.resize(mapName->length());
                         std::transform(mapName->begin(), mapName->end(), mapNameCopy.begin(), std::tolower);
@@ -735,7 +722,7 @@ void EngineLoop::DrawMapStats()
         if (ImGui::Button("Load"))
         {
             u32 mapNamehash = StringUtils::fnv1a_32(preview, strlen(preview));
-            const NDBC::Map* map = mapSingleton.mapNameToDBC[mapNamehash];
+            const NDBC::Map* map = mapSingleton.GetMapByNameHash(mapNamehash);
 
             ServiceLocator::GetClientRenderer()->GetTerrainRenderer()->LoadMap(map);
         }
@@ -761,7 +748,8 @@ void EngineLoop::DrawMapStats()
 
     if (ImGui::BeginTabBar("Map Information"))
     {
-        bool mapIsLoaded = mapSingleton.currentMap.IsLoadedMap();
+        Terrain::Map& currentMap = mapSingleton.GetCurrentMap();
+        bool mapIsLoaded = currentMap.IsLoadedMap();
 
         if (ImGui::BeginTabItem("Basic Info"))
         {
@@ -771,11 +759,11 @@ void EngineLoop::DrawMapStats()
             }
             else
             {
-                const NDBC::File& ndbcFile = ndbcSingleton.nameHashToDBCFile["Maps"_h];
-                const NDBC::Map* map = mapSingleton.mapIdToDBC[mapSingleton.currentMap.id];
+                NDBC::File* ndbcFile = ndbcSingleton.GetNDBCFile("Maps"_h);
+                const NDBC::Map* map = ndbcFile->GetRowById<NDBC::Map>(currentMap.id);
 
-                const std::string& publicMapName = ndbcFile.stringTable->GetString(map->name);
-                const std::string& internalMapName = ndbcFile.stringTable->GetString(map->internalName);
+                const std::string& publicMapName = ndbcFile->GetStringTable()->GetString(map->name);
+                const std::string& internalMapName = ndbcFile->GetStringTable()->GetString(map->internalName);
 
                 static std::string instanceType = "............."; // Default to 13 Characters (Max that can be set to force default size to not need reallocation)
                 {
@@ -813,13 +801,13 @@ void EngineLoop::DrawMapStats()
             }
             else
             {
-                if (mapSingleton.currentMap.header.flags.UseMapObjectInsteadOfTerrain)
+                if (currentMap.header.flags.UseMapObjectInsteadOfTerrain)
                 {
-                    ImGui::Text("Loaded World Object:           %s", mapSingleton.currentMap.header.mapObjectName.c_str());
+                    ImGui::Text("Loaded World Object:           %s", currentMap.header.mapObjectName.c_str());
                 }
                 else
                 {
-                    ImGui::Text("Loaded Chunks:                 %u", mapSingleton.currentMap.chunks.size());
+                    ImGui::Text("Loaded Chunks:                 %u", currentMap.chunks.size());
                 }
 
                 TerrainRenderer* terrainRenderer = _clientRenderer->GetTerrainRenderer();
@@ -840,15 +828,14 @@ void EngineLoop::DrawMapStats()
         ImGui::EndTabBar();
     }
 }
-
 void EngineLoop::DrawPositionStats()
 {
     Camera* camera = ServiceLocator::GetCamera();
     vec3 cameraLocation = camera->GetPosition();
     vec3 cameraRotation = camera->GetRotation();
 
-    ImGui::Text("Camera Location : %f x, %f y, %f z", cameraLocation.x, cameraLocation.y, cameraLocation.z);
-    ImGui::Text("Camera Rotation : %f x, %f y, %f z", cameraRotation.x, cameraRotation.y, cameraRotation.z);
+    ImGui::Text("Camera Location : (%f, %f, %f)", cameraLocation.x, cameraLocation.y, cameraLocation.z);
+    ImGui::Text("Camera Rotation : (%f, %f, %f)", cameraRotation.x, cameraRotation.y, cameraRotation.z);
 
     ImGui::Spacing();
     ImGui::Spacing();
@@ -866,30 +853,29 @@ void EngineLoop::DrawPositionStats()
     vec2 patchPos = patchLocalPos / Terrain::MAP_PATCH_SIZE;
     vec2 patchRemainder = patchPos - glm::floor(patchPos);
 
-    ImGui::Text("ADT : %f x, %f y", adtPos.x, adtPos.y);
-    ImGui::Text("Chunk : %f x, %f y", chunkPos.x, chunkPos.y);
-    ImGui::Text("cellPos : %f x, %f y", cellLocalPos.x, cellLocalPos.y);
-    ImGui::Text("patchPos : %f x, %f y", patchLocalPos.x, patchLocalPos.y);
+    ImGui::Text("Chunk : (%f, %f)", chunkPos.x, chunkPos.y);
+    ImGui::Text("cellPos : (%f, %f)", cellLocalPos.x, cellLocalPos.y);
+    ImGui::Text("patchPos : (%f, %f)", patchLocalPos.x, patchLocalPos.y);
 
     ImGui::Spacing();
-    ImGui::Text("Chunk Remainder : %f x, %f y", chunkRemainder.x, chunkRemainder.y);
-    ImGui::Text("Cell  Remainder : %f x, %f y", cellRemainder.x, cellRemainder.y);
-    ImGui::Text("Patch Remainder : %f x, %f y", patchRemainder.x, patchRemainder.y);
+    ImGui::Text("Chunk Remainder : (%f, %f)", chunkRemainder.x, chunkRemainder.y);
+    ImGui::Text("Cell  Remainder : (%f, %f)", cellRemainder.x, cellRemainder.y);
+    ImGui::Text("Patch Remainder : (%f, %f)", patchRemainder.x, patchRemainder.y);
 }
-
 void EngineLoop::DrawUIStats()
 {
-    size_t count = ServiceLocator::GetUIRegistry()->size<UIComponent::Transform>();
-    size_t notCulled = ServiceLocator::GetUIRegistry()->size<UIComponent::NotCulled>();
+    entt::registry* registry = ServiceLocator::GetUIRegistry();
+    size_t count = registry->size<UIComponent::Transform>();
+    size_t notCulled = registry->size<UIComponent::NotCulled>();
+    bool* drawCollisionBounds = reinterpret_cast<bool*>(CVarSystem::Get()->GetIntCVar("ui.drawCollisionBounds"));
 
     ImGui::Text("Total Elements : %d", count);
     ImGui::Text("Culled elements : %d", (count-notCulled));
     
     ImGui::Spacing();
     ImGui::Spacing();
-    ImGui::Checkbox("Show Collision Bounds", reinterpret_cast<bool*>(CVarSystem::Get()->GetIntCVar(StringUtils::StringHash("ui.drawCollisionBounds"))));
+    ImGui::Checkbox("Show Collision Bounds", drawCollisionBounds);
 }
-
 void EngineLoop::DrawMemoryStats()
 {
     // RAM
@@ -926,7 +912,6 @@ void EngineLoop::DrawMemoryStats()
 
     ImGui::Text("VRAM Usage (Min specs): %luMB / %luMB (%.2f%%)", vramUsage, vramMinBudget, vramMinPercent);
 }
-
 void EngineLoop::DrawImguiMenuBar()
 {
     if (ImGui::BeginMainMenuBar())
@@ -943,18 +928,5 @@ void EngineLoop::DrawImguiMenuBar()
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
-    }
-}
-
-void EngineLoop::UpdateSystems()
-{
-    ZoneScopedNC("UpdateSystems", tracy::Color::DarkBlue)
-    {
-        ZoneScopedNC("Taskflow::Run", tracy::Color::DarkBlue)
-            _updateFramework.taskflow.run(_updateFramework.framework);
-    }
-    {
-        ZoneScopedNC("Taskflow::WaitForAll", tracy::Color::DarkBlue)
-            _updateFramework.taskflow.wait_for_all();
     }
 }

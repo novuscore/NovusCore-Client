@@ -18,7 +18,6 @@
 
 #include "../ECS/Components/Singletons/NDBCSingleton.h"
 #include "../ECS/Components/Singletons/TextureSingleton.h"
-#include "../ECS/Components/Singletons/DisplayInfoSingleton.h"
 
 #include "Camera.h"
 #include "../Gameplay/Map/Map.h"

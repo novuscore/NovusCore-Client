@@ -2,12 +2,13 @@
 #include <string>
 #include <filesystem>
 #include <asio.hpp>
-#include <entt.hpp>
+#include <entity/fwd.hpp>
 #include "angelscript.h"
 
 class ScriptHandler
 {
 public:
+    static void Init(entt::registry& registry);
     static void LoadScriptDirectory(std::string& path);
     static void ReloadScripts();
 

@@ -98,10 +98,8 @@ Vertex LoadVertex(uint chunkID, uint cellID, uint vertexBaseOffset, uint vertexI
     float2 cellPos = GetCellPosition(chunkID, cellID);
     float2 vertexPos = GetCellSpaceVertexPosition(vertexID);
 
-    const float CELL_PRECISION = CELL_SIDE_SIZE / 8.0f;
-
-    vertex.position.x = vertexPos.x * CELL_PRECISION + cellPos.x;
-    vertex.position.y = vertexPos.y * CELL_PRECISION + cellPos.y;
+    vertex.position.x = cellPos.x + vertexPos.x * PATCH_SIDE_SIZE;
+    vertex.position.y = cellPos.y + vertexPos.y * PATCH_SIDE_SIZE;
     vertex.uv = float2(-vertexPos.y, -vertexPos.x); // Negated to go from 3D coordinates to 2D
 
     return vertex;

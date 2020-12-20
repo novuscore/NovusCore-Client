@@ -41,7 +41,7 @@ private:
     void DrawDefaultLayout();
 
 private:
-    char* _selectedNDBC = nullptr;
+    const char* _selectedNDBC = nullptr;
 
     std::vector<TemporaryNDBCColumn> _newNDBCColumns;
     robin_hood::unordered_map<u32, NDBCEditorBase*> _editors; // Name Hash -> Editor

@@ -33,6 +33,7 @@
 // A Chunk consists of 16x16 Cells which are all being used.
 // A Cell consists of two interlapping grids. There is the 9*9 OUTER grid and the 8*8 INNER grid.
 
+class FileReader;
 namespace Terrain
 {
     constexpr f32 MAP_SIZE = MAP_CHUNK_SIZE * MAP_CHUNKS_PER_MAP_STRIDE; // yards
@@ -52,6 +53,8 @@ namespace Terrain
 
         std::string mapObjectName = "";
         Placement mapObjectPlacement;
+
+        static bool Read(FileReader& reader, Terrain::MapHeader& header);
     };
 
     struct PlacementDetails
@@ -74,8 +77,14 @@ namespace Terrain
         bool IsLoadedMap() { return id != std::numeric_limits<u16>().max(); }
         bool IsMapLoaded(u16 newId) { return id == newId; }
 
-        /*f32 GetHeight(Vector2& pos);
-        bool GetAdtIdFromWorldPosition(Vector2& pos, u16& adtId);*/
+        Terrain::Chunk* GetChunkById(u16 chunkID)
+        {
+            auto& itr = chunks.find(chunkID);
+            if (itr == chunks.end())
+                return nullptr;
+
+            return &itr->second;
+        }
         void GetChunkPositionFromChunkId(u16 chunkId, u16& x, u16& y) const;
         bool GetChunkIdFromChunkPosition(u16 x, u16 y, u16& chunkId) const;
 

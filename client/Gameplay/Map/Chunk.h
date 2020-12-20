@@ -34,16 +34,17 @@
 // A Chunk consists of 16x16 Cells which are all being used.
 // A Cell consists of two interlapping grids. There is the 9*9 OUTER grid and the 8*8 INNER grid.
 
+class FileReader;
 namespace Terrain
 {
     constexpr i32 MAP_CHUNK_TOKEN = 1128812107; // UTF8 -> Binary -> Decimal for "chnk"
-    constexpr i32 MAP_CHUNK_VERSION = 6;
+    constexpr i32 MAP_CHUNK_VERSION = 7;
     constexpr u16 MAP_CHUNK_ID_INVALID = std::numeric_limits<u16>().max();
 
     constexpr u32 MAP_CHUNKS_PER_MAP_STRIDE = 64;
     constexpr u32 MAP_CHUNKS_PER_MAP = MAP_CHUNKS_PER_MAP_STRIDE * MAP_CHUNKS_PER_MAP_STRIDE;
 
-    constexpr f32 MAP_CHUNK_SIZE = 533.3333f; // yards
+    constexpr f32 MAP_CHUNK_SIZE = 533.33333f; // yards
     constexpr f32 MAP_CHUNK_HALF_SIZE = MAP_CHUNK_SIZE / 2.0f; // yards
 
 #pragma pack(push, 1)
@@ -83,27 +84,52 @@ namespace Terrain
 
     struct CellLiquidHeader
     {
-        // Packed Format
+        u32 instancesOffset = 0;
+        u32 layerCount = 0;
+        u32 attributesOffset = 0;
+
+        /*// Packed Format
         // Bit 1-7 (numInstances)
         // Bit 8 (hasAttributes)
         u8 packedData = 0;
 
-        u8 cellID = 0;
+        u8 cellID = 0;*/
     };
+
+    /*
+        struct LiquidInstance
+        {
+            u16 liquidType = 0; // Foreign Key (Referencing LiquidType.dbc)
+            u16 liquidVertexFormat = 0; // Classic, TBC and WOTLK Only (Cata+ Foreign Key)
+
+            f32 minHeightLevel = 0;
+            f32 maxHeightLevel = 0;
+
+            u8 xOffset = 0;
+            u8 yOffset = 0;
+            u8 width = 0;
+            u8 height = 0;
+
+            u32 bitmapExistsOffset = 0; // Will contain bytes equals to height (For every "Row" we have cells on, we need at least 8 bits to display which is 1 byte)
+            u32 vertexDataOffset = 0; // Vertex Data, can be in 2 formats for WOTLK and will always contain vertexCount entries for both arrays (f32* heightMap, char* depthMap), (f32* heightMap, UVEntry* uvMap)
+        };
+    */
 
     struct CellLiquidInstance
     {
-        u8 liquidType = 0;
+        u16 liquidType = 0; // Foreign Key (Referencing LiquidType.dbc)
+        u16 liquidVertexFormat = 0; // Classic, TBC and WOTLK Only (Cata+ Foreign Key)
 
-        // Packed Format
-        // Bit 1-6 (liquidVertexFormat)
-        // Bit 7 (hasBitMaskForPatches)
-        // Bit 8 (hasVertexData)
-        u8 packedData = 0;
+        f32 minHeightLevel = 0;
+        f32 maxHeightLevel = 0;
 
-        hvec2 heightLevel = hvec2(0.f, 0.f); // Min, Max
-        u8 packedOffset = 0; // X, Y
-        u8 packedSize = 0; // Width, Height
+        u8 xOffset = 0;
+        u8 yOffset = 0;
+        u8 width = 0;
+        u8 height = 0;
+
+        u32 bitmapExistsOffset = 0; // Will contain bytes equals to height (For every "Row" we have cells on, we need at least 8 bits to display which is 1 byte)
+        u32 vertexDataOffset = 0; // Vertex Data, can be in 2 formats for WOTLK and will always contain vertexCount entries for both arrays (f32* heightMap, char* depthMap), (f32* heightMap, UVEntry* uvMap)
     };
 
     struct CellLiquidAttributes
@@ -164,11 +190,15 @@ namespace Terrain
         std::vector<Placement> mapObjectPlacements;
         std::vector<Placement> complexModelPlacements;
 
+        std::vector<u8> liquidBytes;
+
         std::vector<CellLiquidHeader> liquidHeaders;
         std::vector<CellLiquidInstance> liquidInstances;
         std::vector<CellLiquidAttributes> liquidAttributes;
         std::vector<u8> liquidBitMaskForPatchesData;
         std::vector<u8> liquidvertexData;
+
+        static bool Read(FileReader& reader, Terrain::Chunk& chunk, StringTable& stringTable);
     };
 #pragma pack(pop)
 }
