@@ -195,16 +195,16 @@ bool EngineLoop::Init()
     // Initialize Networking
     NetworkUtils::InitNetwork(&_updateFramework.gameRegistry, _asioService);
 
+    // Setup SceneManager (Must happen before ScriptHandler::Init)
+    SceneManager* sceneManager = new SceneManager();
+    ServiceLocator::SetSceneManager(sceneManager);
+    sceneManager->SetAvailableScenes({ "LoginScreen"_h, "CharacterSelection"_h, "CharacterCreation"_h });
+
     // Initialize Script Handler
     ScriptHandler::Init(_updateFramework.gameRegistry);
 
-    // Setup SceneManager (Must happen after ScriptHandler::Init)
-    {
-        SceneManager* sceneManager = new SceneManager();
-        ServiceLocator::SetSceneManager(sceneManager);
-        sceneManager->SetAvailableScenes({ "LoginScreen"_h, "CharacterSelection"_h, "CharacterCreation"_h });
-        sceneManager->LoadScene("LoginScreen"_h);
-    }
+    // Invoke LoadScene (Must happen after ScriptHandler::Init)
+    sceneManager->LoadScene("LoginScreen"_h);
 
     // Initialize DayNightSystem & AreaUpdateSystem
     {
