@@ -29,6 +29,7 @@
 
 #include "UI/ECS/Components/Transform.h"
 #include "UI/ECS/Components/NotCulled.h"
+#include "UI/ECS/Components/Singletons/UIDataSingleton.h"
 
 // Systems
 #include "ECS/Systems/Network/ConnectionSystems.h"
@@ -865,14 +866,21 @@ void EngineLoop::DrawPositionStats()
 void EngineLoop::DrawUIStats()
 {
     entt::registry* registry = ServiceLocator::GetUIRegistry();
+    auto dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();
     size_t count = registry->size<UIComponent::Transform>();
     size_t notCulled = registry->size<UIComponent::NotCulled>();
     bool* drawCollisionBounds = reinterpret_cast<bool*>(CVarSystem::Get()->GetIntCVar("ui.drawCollisionBounds"));
 
     ImGui::Text("Total Elements : %d", count);
     ImGui::Text("Culled elements : %d", (count-notCulled));
-    
     ImGui::Spacing();
+
+    ImGui::Text("Focused Element : %d", entt::to_integral(dataSingleton->focusedElement));
+    ImGui::Text("Dragged Element : %d", entt::to_integral(dataSingleton->draggedElement));
+    ImGui::Text("Hovered Element : %d", entt::to_integral(dataSingleton->hoveredElement));
+    ImGui::Spacing();
+
+    ImGui::Text("UI Resolution : %f, %f", dataSingleton->UIRESOLUTION.x, dataSingleton->UIRESOLUTION.y);
     ImGui::Spacing();
     ImGui::Checkbox("Show Collision Bounds", drawCollisionBounds);
 }

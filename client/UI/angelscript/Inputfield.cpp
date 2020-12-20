@@ -92,7 +92,7 @@ namespace UIScripting
             UIUtils::ExecuteEvent(elementInfo.scriptingObject, inputField.onSubmitCallback);
             UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusLostCallback);
 
-            registry->ctx<UISingleton::UIDataSingleton>().focusedWidget = entt::null;
+            registry->ctx<UISingleton::UIDataSingleton>().focusedElement = entt::null;
             break;
         }
         default:

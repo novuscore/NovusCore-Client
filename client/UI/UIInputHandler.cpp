@@ -37,19 +37,19 @@ namespace UIInput
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
 
         //Unfocus last focused widget.
-        entt::entity lastFocusedWidget = dataSingleton.focusedWidget;
-        if (dataSingleton.focusedWidget != entt::null)
+        entt::entity lastFocusedWidget = dataSingleton.focusedElement;
+        if (dataSingleton.focusedElement != entt::null)
         {
-            auto [elementInfo, events] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.focusedWidget);
+            auto [elementInfo, events] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.focusedElement);
             UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusLostCallback);
-            dataSingleton.focusedWidget = entt::null;
+            dataSingleton.focusedElement = entt::null;
         }
 
-        if (dataSingleton.draggedWidget != entt::null && keybind->state == GLFW_RELEASE)
+        if (dataSingleton.draggedElement != entt::null && keybind->state == GLFW_RELEASE)
         {
-            auto [elementInfo, events] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.draggedWidget);
+            auto [elementInfo, events] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.draggedElement);
             UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onDragEndedCallback);
-            dataSingleton.draggedWidget = entt::null;
+            dataSingleton.draggedElement = entt::null;
 
             return true;
         }
@@ -76,7 +76,7 @@ namespace UIInput
                 if (events.IsDraggable())
                 {
                     const UIComponent::Transform& transform = registry->get<UIComponent::Transform>(entity);
-                    dataSingleton.draggedWidget = entity;
+                    dataSingleton.draggedElement = entity;
                     dataSingleton.dragOffset = mouse - (transform.anchorPosition + transform.position);
                     
                     UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onDragStartedCallback);
@@ -86,7 +86,7 @@ namespace UIInput
             {
                 if (events.IsFocusable())
                 {
-                    dataSingleton.focusedWidget = entity;
+                    dataSingleton.focusedElement = entity;
 
                     UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusGainedCallback);
                 }
@@ -121,10 +121,10 @@ namespace UIInput
 
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
-        if (dataSingleton.draggedWidget != entt::null)
+        if (dataSingleton.draggedElement != entt::null)
         {
-            const UIComponent::ElementInfo* elementInfo = &registry->get<UIComponent::ElementInfo>(dataSingleton.draggedWidget);
-            auto [transform, events] = registry->get<UIComponent::Transform, UIComponent::TransformEvents>(dataSingleton.draggedWidget);
+            const UIComponent::ElementInfo* elementInfo = &registry->get<UIComponent::ElementInfo>(dataSingleton.draggedElement);
+            auto [transform, events] = registry->get<UIComponent::Transform, UIComponent::TransformEvents>(dataSingleton.draggedElement);
 
             hvec2 newPos = mouse - transform.anchorPosition - dataSingleton.dragOffset;
             if (events.HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_X))
@@ -141,10 +141,10 @@ namespace UIInput
                 sliderHandle->OnDragged();
             }
 
-            UIUtils::MarkDirty(registry, dataSingleton.draggedWidget);
-            UIUtils::MarkChildrenDirty(registry, dataSingleton.draggedWidget);
-            UIUtils::Transform::UpdateChildPositions(registry, dataSingleton.draggedWidget);
-            UIUtils::Collision::MarkBoundsDirty(registry, dataSingleton.draggedWidget);
+            UIUtils::MarkDirty(registry, dataSingleton.draggedElement);
+            UIUtils::MarkChildrenDirty(registry, dataSingleton.draggedElement);
+            UIUtils::Transform::UpdateChildPositions(registry, dataSingleton.draggedElement);
+            UIUtils::Collision::MarkBoundsDirty(registry, dataSingleton.draggedElement);
         }
 
         // Handle hover.
@@ -152,7 +152,7 @@ namespace UIInput
         eventGroup.sort<UIComponent::SortKey>([](const UIComponent::SortKey& first, const UIComponent::SortKey& second) { return first.key > second.key; });
         for (auto entity : eventGroup)
         {
-            if (dataSingleton.draggedWidget == entity)
+            if (dataSingleton.draggedElement == entity)
                 continue;
 
             const UIComponent::Collision& collision = eventGroup.get<UIComponent::Collision>(entity);
@@ -161,9 +161,9 @@ namespace UIInput
                 continue;
 
             // Hovered widget hasn't changed.
-            if (dataSingleton.hoveredWidget == entity)
+            if (dataSingleton.hoveredElement == entity)
                 break;
-            dataSingleton.hoveredWidget = entity;
+            dataSingleton.hoveredElement = entity;
 
             // TODO Update EventState.
 
@@ -177,18 +177,18 @@ namespace UIInput
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
 
-        if (dataSingleton.focusedWidget == entt::null)
+        if (dataSingleton.focusedElement == entt::null)
             return false;
 
         if (action == GLFW_RELEASE)
             return true;
 
-        const UIComponent::ElementInfo& elementInfo = registry->get<UIComponent::ElementInfo>(dataSingleton.focusedWidget);
-        UIComponent::TransformEvents& events = registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget);
+        const UIComponent::ElementInfo& elementInfo = registry->get<UIComponent::ElementInfo>(dataSingleton.focusedElement);
+        UIComponent::TransformEvents& events = registry->get<UIComponent::TransformEvents>(dataSingleton.focusedElement);
         if (key == GLFW_KEY_ESCAPE)
         {
             UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusLostCallback);
-            dataSingleton.focusedWidget = entt::null;
+            dataSingleton.focusedElement = entt::null;
 
             return true;
         }
@@ -224,11 +224,11 @@ namespace UIInput
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
 
-        if (dataSingleton.focusedWidget == entt::null)
+        if (dataSingleton.focusedElement == entt::null)
             return false;
 
-        const UIComponent::ElementInfo& elementInfo = registry->get<UIComponent::ElementInfo>(dataSingleton.focusedWidget);
-        const UIComponent::TransformEvents& events = registry->get<UIComponent::TransformEvents>(dataSingleton.focusedWidget);
+        const UIComponent::ElementInfo& elementInfo = registry->get<UIComponent::ElementInfo>(dataSingleton.focusedElement);
+        const UIComponent::TransformEvents& events = registry->get<UIComponent::TransformEvents>(dataSingleton.focusedElement);
         if (elementInfo.type == UI::ElementType::UITYPE_INPUTFIELD)
         {
             UIScripting::InputField* inputField = reinterpret_cast<UIScripting::InputField*>(elementInfo.scriptingObject);

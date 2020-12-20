@@ -31,9 +31,9 @@ namespace UIUtils
         // Delete entities.
         registry->destroy(entityIds.begin(), entityIds.end());
 
-        dataSingleton->focusedWidget = entt::null;
-        dataSingleton->hoveredWidget = entt::null;
-        dataSingleton->draggedWidget = entt::null;
+        dataSingleton->focusedElement = entt::null;
+        dataSingleton->hoveredElement = entt::null;
+        dataSingleton->draggedElement = entt::null;
     }
 
     void MarkChildrenDirty(entt::registry* registry, const entt::entity entityId)
