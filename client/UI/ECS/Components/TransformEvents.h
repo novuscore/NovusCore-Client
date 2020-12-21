@@ -42,8 +42,5 @@ namespace UIComponent
         inline void SetFlag(const UI::TransformEventsFlags inFlags) { flags |= inFlags; }
         inline void UnsetFlag(const UI::TransformEventsFlags inFlags) { flags &= ~inFlags; }
         inline bool HasFlag(const UI::TransformEventsFlags inFlags) const { return (flags & inFlags) == inFlags; }
-        inline const bool IsClickable() const { return (flags & UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE) == UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE; }
-        inline const bool IsDraggable() const { return (flags & UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE) == UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE; }
-        inline const bool IsFocusable() const { return (flags & UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE) == UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE; }
     };
 }

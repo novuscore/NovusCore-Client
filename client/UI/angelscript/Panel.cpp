@@ -55,7 +55,7 @@ namespace UIScripting
     const bool Panel::IsClickable() const
     {
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        return events->IsClickable();
+        return events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }
     void Panel::SetClickable(bool clickable)
     {
@@ -68,7 +68,7 @@ namespace UIScripting
     const bool Panel::IsDraggable() const
     {
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        return events->IsDraggable();
+        return events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE);
     }
     void Panel::SetDraggable(bool draggable)
     {
@@ -81,7 +81,7 @@ namespace UIScripting
     const bool Panel::IsFocusable() const
     {
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        return events->IsFocusable();
+        return events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
     }
     void Panel::SetFocusable(bool focusable)
     {
@@ -139,17 +139,13 @@ namespace UIScripting
     void Panel::SetTexCoord(const vec4& texCoords)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.texCoord.top = texCoords.x;
-        image->style.texCoord.right = texCoords.y;
-        image->style.texCoord.bottom = texCoords.z;
-        image->style.texCoord.left = texCoords.w;
+        image->style.texCoord = { texCoords.x, texCoords.y, texCoords.z, texCoords.w };
     }
 
     const Color Panel::GetColor() const
     {
         const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         return image->style.color;
-
     }
     void Panel::SetColor(const Color& color)
     {
@@ -171,27 +167,18 @@ namespace UIScripting
     void Panel::SetBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderSize.top = topSize;
-        image->style.borderSize.right = rightSize;
-        image->style.borderSize.bottom = bottomSize;
-        image->style.borderSize.left = leftSize;
+        image->style.borderSize = { topSize, rightSize, bottomSize, leftSize };
     }
     void Panel::SetBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderInset.top = topBorderInset;
-        image->style.borderInset.right = rightBorderInset;
-        image->style.borderInset.bottom = bottomBorderInset;
-        image->style.borderInset.left = leftBorderInset;
+        image->style.borderInset = { topBorderInset, rightBorderInset, bottomBorderInset, leftBorderInset };
     }
 
     void Panel::SetSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.slicingOffset.top = topOffset;
-        image->style.slicingOffset.right = rightOffset;
-        image->style.slicingOffset.bottom = bottomOffset;
-        image->style.slicingOffset.left = leftOffset;
+        image->style.slicingOffset = { topOffset, rightOffset, bottomOffset, leftOffset };
     }
 
     Panel* Panel::CreatePanel(bool collisionEnabled)

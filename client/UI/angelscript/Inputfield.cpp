@@ -87,7 +87,6 @@ namespace UIScripting
                 HandleCharInput('\n');
                 break;
             }
-
             auto [elementInfo, inputField, events] = registry->get<UIComponent::ElementInfo, UIComponent::InputField, UIComponent::TransformEvents>(_entityId);
             UIUtils::ExecuteEvent(elementInfo.scriptingObject, inputField.onSubmitCallback);
             UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusLostCallback);
@@ -170,7 +169,7 @@ namespace UIScripting
     const bool InputField::IsFocusable() const
     {
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        return events->IsFocusable();
+        return events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
     }
     void InputField::SetFocusable(bool focusable)
     {

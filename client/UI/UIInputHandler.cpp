@@ -73,7 +73,7 @@ namespace UIInput
 
             if (keybind->state == GLFW_PRESS)
             {
-                if (events.IsDraggable())
+                if (events.HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE))
                 {
                     const UIComponent::Transform& transform = registry->get<UIComponent::Transform>(entity);
                     dataSingleton.draggedElement = entity;
@@ -84,14 +84,14 @@ namespace UIInput
             }
             else if (keybind->state == GLFW_RELEASE)
             {
-                if (events.IsFocusable())
+                if (events.HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE))
                 {
                     dataSingleton.focusedElement = entity;
 
                     UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusGainedCallback);
                 }
 
-                if (events.IsClickable())
+                if (events.HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE))
                 {
                     if (elementInfo.type == UI::ElementType::UITYPE_CHECKBOX)
                     {
@@ -208,7 +208,7 @@ namespace UIInput
             break;
         }
         default:
-            if (key == GLFW_KEY_ENTER && events.IsClickable())
+            if (key == GLFW_KEY_ENTER && events.HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE))
             {
                 UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onClickCallback);
             }

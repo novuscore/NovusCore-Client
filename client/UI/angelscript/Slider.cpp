@@ -70,7 +70,7 @@ namespace UIScripting
     {
         UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
         slider->minimumValue = min;
-        slider->currentValue = Math::Max(slider->currentValue, slider->minimumValue);
+        slider->currentValue = Math::Max(slider->currentValue, min);
     
         UpdateHandlePosition();
     }
@@ -84,7 +84,7 @@ namespace UIScripting
     {
         UIComponent::Slider* slider = &ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
         slider->maximumValue = max;
-        slider->currentValue = Math::Min(slider->currentValue, slider->maximumValue);
+        slider->currentValue = Math::Min(slider->currentValue, max);
 
         UpdateHandlePosition();
     }

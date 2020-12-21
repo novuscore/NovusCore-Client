@@ -65,7 +65,7 @@ namespace UIScripting
     const bool Button::IsClickable() const
     {
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        return events->IsClickable();
+        return events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }
 
     void Button::SetOnClickCallback(asIScriptFunction* callback)
@@ -123,18 +123,14 @@ namespace UIScripting
     }
     void Button::SetTexture(const std::string& texture)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         image->style.texture = texture;
     }
 
-    void Button::SetTexCoord(const vec4& texCoord)
+    void Button::SetTexCoord(const vec4& texCoords)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.texCoord.top = texCoord.x;
-        image->style.texCoord.right = texCoord.y;
-        image->style.texCoord.bottom = texCoord.z;
-        image->style.texCoord.left = texCoord.w;
+        image->style.texCoord = { texCoords.x, texCoords.y, texCoords.z, texCoords.w };
     }
 
     const Color Button::GetColor() const
@@ -144,14 +140,13 @@ namespace UIScripting
     }
     void Button::SetColor(const Color& color)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         image->style.color = color;
     }
 
     const std::string& Button::GetBorder() const
     {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
+        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         return image->style.border;
     }
     void Button::SetBorder(const std::string& texture)
@@ -163,27 +158,18 @@ namespace UIScripting
     void Button::SetBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderSize.top = topSize;
-        image->style.borderSize.right = rightSize;
-        image->style.borderSize.bottom = bottomSize;
-        image->style.borderSize.left = leftSize;
+        image->style.borderSize = { topSize, rightSize, bottomSize, leftSize };
     }
     void Button::SetBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderInset.top = topBorderInset;
-        image->style.borderInset.right = rightBorderInset;
-        image->style.borderInset.bottom = bottomBorderInset;
-        image->style.borderInset.left = leftBorderInset;
+        image->style.borderInset = { topBorderInset, rightBorderInset, bottomBorderInset, leftBorderInset };
     }
 
     void Button::SetSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.slicingOffset.top = topOffset;
-        image->style.slicingOffset.right = rightOffset;
-        image->style.slicingOffset.bottom = bottomOffset;
-        image->style.slicingOffset.left = leftOffset;
+        image->style.slicingOffset = { topOffset, rightOffset, bottomOffset, leftOffset };
     }
 
     Button* Button::CreateButton()

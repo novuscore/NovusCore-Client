@@ -79,13 +79,13 @@ namespace UIScripting
     const bool Checkbox::IsClickable() const
     {
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        return events->IsClickable();
+        return events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
 
     }
     const bool Checkbox::IsFocusable() const
     {
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        return events->IsFocusable();
+        return events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
     }
 
     void Checkbox::SetOnClickCallback(asIScriptFunction* callback)
@@ -114,8 +114,7 @@ namespace UIScripting
     }
     void Checkbox::SetTexture(const std::string& texture)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         image->style.texture = texture;
     }
 
@@ -126,8 +125,7 @@ namespace UIScripting
     }
     void Checkbox::SetColor(const Color& color)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
+        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         image->style.color = color;
     }
 
@@ -144,26 +142,17 @@ namespace UIScripting
     void Checkbox::SetBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderSize.top = topSize;
-        image->style.borderSize.right = rightSize;
-        image->style.borderSize.bottom = bottomSize;
-        image->style.borderSize.left = leftSize;
+        image->style.borderSize = { topSize, rightSize, bottomSize, leftSize };
     }
     void Checkbox::SetBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderInset.top = topBorderInset;
-        image->style.borderInset.right = rightBorderInset;
-        image->style.borderInset.bottom = bottomBorderInset;
-        image->style.borderInset.left = leftBorderInset;
+        image->style.borderInset = { topBorderInset, rightBorderInset, bottomBorderInset, leftBorderInset };
     }
     void Checkbox::SetSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.slicingOffset.top = topOffset;
-        image->style.slicingOffset.right = rightOffset;
-        image->style.slicingOffset.bottom = bottomOffset;
-        image->style.slicingOffset.left = leftOffset;
+        image->style.slicingOffset = { topOffset, rightOffset, bottomOffset, leftOffset };
     }
 
     const std::string& Checkbox::GetCheckTexture() const
@@ -197,26 +186,17 @@ namespace UIScripting
     void Checkbox::SetCheckBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_checkPanel->GetEntityId());
-        image->style.borderSize.top = topSize;
-        image->style.borderSize.right = rightSize;
-        image->style.borderSize.bottom = bottomSize;
-        image->style.borderSize.left = leftSize;
+        image->style.borderSize = { topSize, rightSize, bottomSize, leftSize };
     }
     void Checkbox::SetCheckBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_checkPanel->GetEntityId());
-        image->style.borderInset.top = topBorderInset;
-        image->style.borderInset.right = rightBorderInset;
-        image->style.borderInset.bottom = bottomBorderInset;
-        image->style.borderInset.left = leftBorderInset;
+        image->style.borderInset = { topBorderInset, rightBorderInset, bottomBorderInset, leftBorderInset };
     }
     void Checkbox::SetCheckSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_checkPanel->GetEntityId());
-        image->style.slicingOffset.top = topOffset;
-        image->style.slicingOffset.right = rightOffset;
-        image->style.slicingOffset.bottom = bottomOffset;
-        image->style.slicingOffset.left = leftOffset;
+        image->style.slicingOffset = { topOffset, rightOffset, bottomOffset, leftOffset };
     }
 
     void Checkbox::SetOnCheckedCallback(asIScriptFunction* callback)
