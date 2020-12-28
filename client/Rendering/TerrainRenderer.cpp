@@ -305,8 +305,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                 if (!lockFrustum)
                 {
                     Camera* camera = ServiceLocator::GetCamera();
-                    memcpy(_cullingConstantBuffer->resource.frustumPlanes, camera->GetFrustumPlanes(), sizeof(vec4[6]));
-                    _cullingConstantBuffer->Apply(frameIndex);
+                    memcpy(_cullingConstants.frustumPlanes, camera->GetFrustumPlanes(), sizeof(_cullingConstants.frustumPlanes));
                 }
                 
                 // Reset the counter
@@ -315,11 +314,12 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                 commandList.FillBuffer(_argumentBuffer, 16, 4, 0);
                 commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _argumentBuffer);
 
+                commandList.PushConstant(&_cullingConstants, 0, sizeof(CullingConstants));
+
                 _cullingPassDescriptorSet.Bind("_instances", _instanceBuffer);
                 _cullingPassDescriptorSet.Bind("_heightRanges", _cellHeightRangeBuffer);
                 _cullingPassDescriptorSet.Bind("_culledInstances", _culledInstanceBuffer);
                 _cullingPassDescriptorSet.Bind("_argumentBuffer", _argumentBuffer);
-                _cullingPassDescriptorSet.Bind("_constants", _cullingConstantBuffer->GetBuffer(frameIndex));
 
                 commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingPassDescriptorSet, frameIndex);
 
@@ -471,9 +471,6 @@ void TerrainRenderer::CreatePermanentResources()
 
     _colorSampler = _renderer->CreateSampler(colorSamplerDesc);
     _passDescriptorSet.Bind("_colorSampler"_h, _colorSampler);
-
-    // Culling constant buffer
-    _cullingConstantBuffer = new Renderer::Buffer<CullingConstants>(_renderer, "CullingConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
     {
         Renderer::BufferDesc desc;

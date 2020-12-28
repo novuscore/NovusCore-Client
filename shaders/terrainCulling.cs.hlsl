@@ -8,11 +8,11 @@ struct Constants
 	float4 frustumPlanes[6];
 };
 
+[[vk::push_constant]] Constants _constants;
 [[vk::binding(0, PER_PASS)]] ByteAddressBuffer _instances;
 [[vk::binding(1, PER_PASS)]] ByteAddressBuffer _heightRanges;
 [[vk::binding(2, PER_PASS)]] RWByteAddressBuffer _culledInstances;
 [[vk::binding(3, PER_PASS)]] RWByteAddressBuffer _argumentBuffer;
-[[vk::binding(4, PER_PASS)]] ConstantBuffer<Constants> _constants;
 
 float2 ReadHeightRange(uint instanceIndex)
 {
@@ -93,7 +93,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
 	uint outInstanceIndex;
-	_argumentBuffer.InterlockedAdd(4, 1, outInstanceIndex);
+    _argumentBuffer.InterlockedAdd(4, 1, outInstanceIndex);
 
-	_culledInstances.Store<CellInstance>(outInstanceIndex * 8, instance);
+    _culledInstances.Store<CellInstance>(outInstanceIndex * 8, instance);
 }

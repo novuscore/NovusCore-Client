@@ -68,6 +68,31 @@ float2 GetCellPosition(uint chunkID, uint cellID)
     return float2(-pos.y, -pos.x);
 }
 
+float2 GetGlobalVertexPosition(uint chunkID, uint cellID, uint vertexID)
+{
+    const int chunkX = chunkID % NUM_CHUNKS_PER_MAP_SIDE * NUM_CELLS_PER_CHUNK_SIDE;
+    const int chunkY = chunkID / NUM_CHUNKS_PER_MAP_SIDE * NUM_CELLS_PER_CHUNK_SIDE;
+
+    const int cellX = ((cellID % NUM_CELLS_PER_CHUNK_SIDE) + chunkX);
+    const int cellY = ((cellID / NUM_CELLS_PER_CHUNK_SIDE) + chunkY);
+
+    const int vX = vertexID % 17;
+    const int vY = vertexID / 17;
+
+    bool isOddRow = vX > 8.01;
+
+    float2 vertexOffset;
+    vertexOffset.x = -(8.5 * isOddRow);
+    vertexOffset.y = (0.5 * isOddRow);
+
+    int2 globalVertex = int2(vX + cellX * 8, vY + cellY * 8);
+
+    float2 finalPos = -MAP_HALF_SIZE + (float2(globalVertex)+vertexOffset) * PATCH_SIDE_SIZE;
+
+    return float2(-finalPos.y, -finalPos.x);
+}
+
+
 AABB GetCellAABB(uint chunkID, uint cellID, float2 heightRange)
 {
     float2 pos = GetCellPosition(chunkID, cellID);
@@ -122,7 +147,7 @@ bool IsHoleVertex(uint vertexId, uint hole)
             return true;
         }
     }
-    
+
     if (shiftedHole & 0b0100)
     {
         if (blockVertexId == 13 || blockVertexId == 14 || blockVertexId == 30 || blockVertexId == 31)
@@ -130,7 +155,7 @@ bool IsHoleVertex(uint vertexId, uint hole)
             return true;
         }
     }
-    
+
     if (shiftedHole & 0b1000)
     {
         if (blockVertexId == 15 || blockVertexId == 16 || blockVertexId == 32 || blockVertexId == 33)

@@ -100,9 +100,9 @@ private:
 
     void DebugRenderCellTriangles(const Camera* camera);
 private:
-    Renderer::Renderer* _renderer;
-
-    Renderer::Buffer<CullingConstants>* _cullingConstantBuffer;
+    Renderer::Renderer* _renderer; 
+    
+    CullingConstants _cullingConstants;
 
     Renderer::BufferID _argumentBuffer = Renderer::BufferID::Invalid();
     Renderer::BufferID _instanceBuffer = Renderer::BufferID::Invalid();
