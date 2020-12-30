@@ -132,12 +132,12 @@ namespace UIScripting
     const std::string& Checkbox::GetBorder() const
     {
         const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->style.border;
+        return image->style.borderTexture;
     }
     void Checkbox::SetBorder(const std::string& texture)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.border = texture;
+        image->style.borderTexture = texture;
     }
     void Checkbox::SetBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize)
     {
@@ -176,12 +176,12 @@ namespace UIScripting
     const std::string& Checkbox::GetCheckBorder() const
     {
         const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_checkPanel->GetEntityId());
-        return image->style.border;
+        return image->style.borderTexture;
     }
     void Checkbox::SetCheckBorder(const std::string& texture)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_checkPanel->GetEntityId());
-        image->style.border = texture;
+        image->style.borderTexture = texture;
     }
     void Checkbox::SetCheckBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize)
     {

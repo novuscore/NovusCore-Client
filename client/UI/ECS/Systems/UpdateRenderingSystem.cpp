@@ -71,10 +71,10 @@ namespace UISystem
                 image.textureID = renderer->LoadTexture(Renderer::TextureDesc{ image.style.texture });
             }
 
-            if (!image.style.border.empty())
+            if (!image.style.borderTexture.empty())
             {
                 ZoneScopedNC("(Re)load Border", tracy::Color::RoyalBlue);
-                image.borderID = renderer->LoadTexture(Renderer::TextureDesc{ image.style.border });
+                image.borderID = renderer->LoadTexture(Renderer::TextureDesc{ image.style.borderTexture });
             }
 
             // Create constant buffer if necessary
@@ -169,16 +169,15 @@ namespace UISystem
                 UISystem::UIVertex* baseVertices = reinterpret_cast<UISystem::UIVertex*>(renderer->MapBuffer(text.vertexBufferID));
                 u32* baseTextureID = reinterpret_cast<u32*>(renderer->MapBuffer(text.textureIDBufferID));
 
-                size_t currentLine = 0;
-                size_t glyph = 0;
+                size_t line = 0, glyph = 0;
                 for (size_t i = text.pushback; i < finalCharacter; i++)
                 {
                     const char character = text.text[i];
-                    if (currentLine < lineBreakPoints.size() && lineBreakPoints[currentLine] == i)
+                    if (line < lineBreakPoints.size() && lineBreakPoints[line] == i)
                     {
-                        currentLine++;
+                        line++;
                         currentPosition.y += text.style.fontSize * text.style.lineHeightMultiplier;
-                        currentPosition.x = startX - lineWidths[currentLine] * alignment.x;
+                        currentPosition.x = startX - lineWidths[line] * alignment.x;
                     }
 
                     if (character == '\n')

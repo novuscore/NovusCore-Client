@@ -147,12 +147,12 @@ namespace UIScripting
     const std::string& Button::GetBorder() const
     {
         const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->style.border;
+        return image->style.borderTexture;
     }
     void Button::SetBorder(const std::string& texture)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.border = texture;
+        image->style.borderTexture = texture;
     }
 
     void Button::SetBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize)
