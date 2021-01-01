@@ -98,13 +98,33 @@ namespace UI
 
     struct TextStylesheet
     {
+        enum OverrideMaskProperties : u8
+        {
+            FONT_PATH = 1 << 0,
+            FONT_SIZE = 1 << 1,
+            LINE_HEIGHT_MULTIPLIER = 1 << 2,
+
+            COLOR = 1 << 3,
+            OUTLINE_COLOR = 1 << 4,
+            OUTLINE_WIDTH = 1 << 5,
+        };
+
+        u8 overrideMask = 0;
+
+        std::string fontPath = "";
+        f32 fontSize = 0;
+        f32 lineHeightMultiplier = 1.15f;
+
         Color color = Color(1, 1, 1, 1);
         Color outlineColor = Color(0, 0, 0, 0);
         f32 outlineWidth = 0.f;
 
-        std::string fontPath = "";
-        f32 fontSize = 0;
+        inline void SetFontPath(std::string_view newFontPath) { fontPath = newFontPath; overrideMask |= FONT_PATH; }
+        inline void SetFontSize(f32 newFontSize) { fontSize = newFontSize; overrideMask |= FONT_SIZE; }
+        inline void SetLineHeightMultiplier(f32 newLineHeightMultiplier) { lineHeightMultiplier = newLineHeightMultiplier; overrideMask |= LINE_HEIGHT_MULTIPLIER; }
 
-        f32 lineHeightMultiplier = 1.15f;
+        inline void SetColor(Color newColor) { color = newColor; overrideMask |= COLOR; }
+        inline void SetOutlineColor(Color newOutlineColor) { outlineColor = newOutlineColor; overrideMask |= OUTLINE_COLOR; }
+        inline void SetOutlineWidth(f32 newOutlineWidth) { outlineWidth = newOutlineWidth; overrideMask |= OUTLINE_WIDTH; }
     };
 }

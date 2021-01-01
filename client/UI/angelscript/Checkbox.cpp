@@ -53,27 +53,8 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void OnFocusLost(CheckboxEventCallback@ cb)", asMETHOD(Checkbox, SetOnFocusLostCallback)); assert(r >= 0);
 
         // Rendering Functions
-        r = ScriptEngine::RegisterScriptClassFunction("string GetTexture()", asMETHOD(Checkbox, GetTexture)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetTexture(string Texture)", asMETHOD(Checkbox, SetTexture)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("Color GetColor()", asMETHOD(Checkbox, GetColor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetColor(Color color)", asMETHOD(Checkbox, SetColor)); assert(r >= 0);
-
-        r = ScriptEngine::RegisterScriptClassFunction("string GetBorder()", asMETHOD(Checkbox, GetBorder)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetBorder(string Texture)", asMETHOD(Checkbox, SetBorder)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetBorderSize(uint topSize, uint rightSize, uint bottomSize, uint leftSize)", asMETHOD(Checkbox, SetBorderSize)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetBorderInset(uint topBorderInset, uint rightBorderInset, uint bottomBorderInset, uint leftBorderInset)", asMETHOD(Checkbox, SetBorderInset)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetSlicing(uint topOffset, uint rightOffset, uint bottomOffset, uint leftOffset)", asMETHOD(Checkbox, SetSlicing)); assert(r >= 0);
-
-        r = ScriptEngine::RegisterScriptClassFunction("string GetCheckTexture()", asMETHOD(Checkbox, GetCheckTexture)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetCheckTexture(string Texture)", asMETHOD(Checkbox, SetCheckTexture)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("Color GetCheckColor()", asMETHOD(Checkbox, GetCheckColor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetCheckColor(Color color)", asMETHOD(Checkbox, SetCheckColor)); assert(r >= 0);
-
-        r = ScriptEngine::RegisterScriptClassFunction("string GetCheckBorder()", asMETHOD(Checkbox, GetCheckBorder)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetCheckBorder(string Texture)", asMETHOD(Checkbox, SetCheckBorder)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetCheckBorderSize(uint topSize, uint rightSize, uint bottomSize, uint leftSize)", asMETHOD(Checkbox, SetCheckBorderSize)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetCheckBorderInset(uint topBorderInset, uint rightBorderInset, uint bottomBorderInset, uint leftBorderInset)", asMETHOD(Checkbox, SetCheckBorderInset)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetCheckSlicing(uint topOffset, uint rightOffset, uint bottomOffset, uint leftOffset)", asMETHOD(Checkbox, SetCheckSlicing)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetStylesheet(ImageStylesheet styleSheet)", asMETHOD(Checkbox, SetStylesheet)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetCheckStylesheet(ImageStylesheet styleSheet)", asMETHOD(Checkbox, SetCheckStylesheet)); assert(r >= 0);
     }
 
     const bool Checkbox::IsClickable() const
@@ -107,96 +88,15 @@ namespace UIScripting
         events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
     }
 
-    const std::string& Checkbox::GetTexture() const
-    {
-        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->style.texture;
-    }
-    void Checkbox::SetTexture(const std::string& texture)
+    void Checkbox::SetStylesheet(UI::ImageStylesheet styleSheet)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.texture = texture;
+        image->style = styleSheet;
     }
 
-    const Color Checkbox::GetColor() const
+    void Checkbox::SetCheckStylesheet(UI::ImageStylesheet styleSheet)
     {
-        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->style.color;
-    }
-    void Checkbox::SetColor(const Color& color)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.color = color;
-    }
-
-    const std::string& Checkbox::GetBorder() const
-    {
-        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->style.borderTexture;
-    }
-    void Checkbox::SetBorder(const std::string& texture)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderTexture = texture;
-    }
-    void Checkbox::SetBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderSize = { topSize, rightSize, bottomSize, leftSize };
-    }
-    void Checkbox::SetBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderInset = { topBorderInset, rightBorderInset, bottomBorderInset, leftBorderInset };
-    }
-    void Checkbox::SetSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.slicingOffset = { topOffset, rightOffset, bottomOffset, leftOffset };
-    }
-
-    const std::string& Checkbox::GetCheckTexture() const
-    {
-        return _checkPanel->GetTexture();
-    }
-    void Checkbox::SetCheckTexture(const std::string& texture)
-    {
-        _checkPanel->SetTexture(texture);
-    }
-
-    const Color Checkbox::GetCheckColor() const
-    {
-        return _checkPanel->GetColor();
-    }
-    void Checkbox::SetCheckColor(const Color& color)
-    {
-        _checkPanel->SetColor(color);
-    }
-
-    const std::string& Checkbox::GetCheckBorder() const
-    {
-        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_checkPanel->GetEntityId());
-        return image->style.borderTexture;
-    }
-    void Checkbox::SetCheckBorder(const std::string& texture)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_checkPanel->GetEntityId());
-        image->style.borderTexture = texture;
-    }
-    void Checkbox::SetCheckBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_checkPanel->GetEntityId());
-        image->style.borderSize = { topSize, rightSize, bottomSize, leftSize };
-    }
-    void Checkbox::SetCheckBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_checkPanel->GetEntityId());
-        image->style.borderInset = { topBorderInset, rightBorderInset, bottomBorderInset, leftBorderInset };
-    }
-    void Checkbox::SetCheckSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_checkPanel->GetEntityId());
-        image->style.slicingOffset = { topOffset, rightOffset, bottomOffset, leftOffset };
+        _checkPanel->SetStylesheet(styleSheet);
     }
 
     void Checkbox::SetOnCheckedCallback(asIScriptFunction* callback)

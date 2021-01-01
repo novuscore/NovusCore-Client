@@ -874,9 +874,9 @@ void EngineLoop::DrawUIStats()
         if (entId == entt::null)
             ImGui::Text("%s Element : Id: None, Type: None", elementName);
         else
-            ImGui::Text("%s Element : Id: %s, Type: %s",
+            ImGui::Text("%s Element : Id: %d, Type: %s",
                 elementName,
-                std::to_string(entt::to_integral(entId)).c_str(),
+                entt::to_integral(entId),
                 UI::GetElementTypeAsString(registry->get<UIComponent::ElementInfo>(entId).type).c_str()
             );
     };

@@ -39,17 +39,7 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void OnFocusLost(PanelEventCallback@ cb)", asMETHOD(Panel, SetOnFocusLostCallback)); assert(r >= 0);
 
         // Renderable Functions
-        r = ScriptEngine::RegisterScriptClassFunction("string GetTexture()", asMETHOD(Panel, GetTexture)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetTexture(string Texture)", asMETHOD(Panel, SetTexture)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetTexCoord(vec4 texCoords)", asMETHOD(Panel, SetTexCoord)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("Color GetColor()", asMETHOD(Panel, GetColor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetColor(Color color)", asMETHOD(Panel, SetColor)); assert(r >= 0);
-
-        r = ScriptEngine::RegisterScriptClassFunction("string GetBorder()", asMETHOD(Panel, GetBorder)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetBorder(string Texture)", asMETHOD(Panel, SetBorder)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetBorderSize(uint topSize, uint rightSize, uint bottomSize, uint leftSize)", asMETHOD(Panel, SetBorderSize)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetBorderInset(uint topBorderInset, uint rightBorderInset, uint bottomBorderInset, uint leftBorderInset)", asMETHOD(Panel, SetBorderInset)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetSlicing(uint topOffset, uint rightOffset, uint bottomOffset, uint leftOffset)", asMETHOD(Panel, SetSlicing)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetStylesheet(ImageStylesheet styleSheet)", asMETHOD(Panel, SetStylesheet)); assert(r >= 0);
     }
 
     const bool Panel::IsClickable() const
@@ -125,60 +115,10 @@ namespace UIScripting
         events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
     }
 
-    const std::string& Panel::GetTexture() const
-    {
-        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->style.texture;
-    }
-    void Panel::SetTexture(const std::string& texture)
+    void Panel::SetStylesheet(const UI::ImageStylesheet& styleSheet)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.texture = texture;
-    }
-
-    void Panel::SetTexCoord(const vec4& texCoords)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.texCoord = { texCoords.x, texCoords.y, texCoords.z, texCoords.w };
-    }
-
-    const Color Panel::GetColor() const
-    {
-        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->style.color;
-    }
-    void Panel::SetColor(const Color& color)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.color = color;
-    }
-
-    const std::string& Panel::GetBorder() const
-    {
-        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->style.borderTexture;
-    }
-    void Panel::SetBorder(const std::string& texture)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderTexture = texture;
-    }
-
-    void Panel::SetBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderSize = { topSize, rightSize, bottomSize, leftSize };
-    }
-    void Panel::SetBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderInset = { topBorderInset, rightBorderInset, bottomBorderInset, leftBorderInset };
-    }
-
-    void Panel::SetSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.slicingOffset = { topOffset, rightOffset, bottomOffset, leftOffset };
+        image->style = styleSheet;
     }
 
     Panel* Panel::CreatePanel(bool collisionEnabled)
