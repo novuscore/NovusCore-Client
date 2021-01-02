@@ -40,7 +40,7 @@ namespace UIScripting
         const std::string GetText() const;
         void SetText(const std::string& newText, bool updateWriteHead = true);
 
-        void SetStylesheet(UI::TextStylesheet styleSheet);
+        void SetStylesheet(const UI::TextStylesheet& styleSheet);
 
         static InputField* CreateInputField();
     };

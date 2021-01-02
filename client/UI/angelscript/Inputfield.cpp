@@ -201,7 +201,7 @@ namespace UIScripting
         }
     }
 
-    void InputField::SetStylesheet(UI::TextStylesheet textStylesheet)
+    void InputField::SetStylesheet(const UI::TextStylesheet& textStylesheet)
     {
         UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         text->style = textStylesheet;

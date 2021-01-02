@@ -23,7 +23,7 @@ namespace UIScripting
         const std::string GetText() const;
         void SetText(const std::string& text);
 
-        void SetTextStylesheet(UI::TextStylesheet textStylesheet);
+        void SetTextStylesheet(const UI::TextStylesheet& textStylesheet);
 
         //Panel Functions
         void SetStylesheet(UI::ImageStylesheet stylesheet);

@@ -128,7 +128,7 @@ namespace UI
         UI::TextVerticalAlignment verticalAlignment = UI::TextVerticalAlignment::TOP;
         bool multiline = false;
 
-        inline void SetFontPath(std::string_view newFontPath) { fontPath = newFontPath; overrideMask |= FONT_PATH; }
+        inline void SetFontPath(std::string newFontPath) { fontPath = newFontPath; overrideMask |= FONT_PATH; }
         inline void SetFontSize(f32 newFontSize) { fontSize = newFontSize; overrideMask |= FONT_SIZE; }
         inline void SetLineHeightMultiplier(f32 newLineHeightMultiplier) { lineHeightMultiplier = newLineHeightMultiplier; overrideMask |= LINE_HEIGHT_MULTIPLIER; }
 

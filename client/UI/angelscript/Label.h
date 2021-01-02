@@ -16,7 +16,7 @@ namespace UIScripting
         const std::string GetText() const;
         void SetText(const std::string& newText);
 
-        void SetStylesheet(UI::TextStylesheet textStylesheet);
+        void SetStylesheet(const UI::TextStylesheet& textStylesheet);
          
         static Label* CreateLabel();
     };

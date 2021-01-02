@@ -40,6 +40,7 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void OnClick(ButtonEventCallback@ cb)", asMETHOD(Button, SetOnClickCallback)); assert(r >= 0);
 
         //Label Functions
+        r = ScriptEngine::RegisterScriptClassFunction("void SetText(string text)", asMETHOD(Button, SetText)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetTextStylesheet(TextStylesheet stylesheet)", asMETHOD(Button, SetTextStylesheet)); assert(r >= 0);
 
         //Panel Functions.
@@ -68,7 +69,7 @@ namespace UIScripting
         _label->SetText(text);
     }
 
-    void Button::SetTextStylesheet(UI::TextStylesheet textStylesheet)
+    void Button::SetTextStylesheet(const UI::TextStylesheet& textStylesheet)
     {
         _label->SetStylesheet(textStylesheet);
     }

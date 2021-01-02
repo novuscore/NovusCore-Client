@@ -40,7 +40,7 @@ namespace UIScripting
         text->text = newText;
     }
 
-    void Label::SetStylesheet(UI::TextStylesheet textStylesheet)
+    void Label::SetStylesheet(const UI::TextStylesheet& textStylesheet)
     {
         UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
         text->style = textStylesheet;
