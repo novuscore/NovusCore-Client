@@ -28,10 +28,6 @@ namespace UIComponent
 
         UI::TextStylesheet style;
 
-        UI::TextHorizontalAlignment horizontalAlignment = UI::TextHorizontalAlignment::LEFT;
-        UI::TextVerticalAlignment verticalAlignment = UI::TextVerticalAlignment::TOP;
-        bool multiline = false;
-
         Renderer::Font* font = nullptr;
 
         size_t vertexBufferGlyphCount = 0;

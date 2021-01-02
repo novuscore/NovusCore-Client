@@ -48,19 +48,8 @@ namespace UIScripting
         //Text Functions
         r = ScriptEngine::RegisterScriptClassFunction("string GetText()", asMETHOD(InputField, GetText)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetText(string text, bool updateWriteHead = true)", asMETHOD(InputField, SetText)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("Color GetColor()", asMETHOD(InputField, GetColor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetColor(Color color)", asMETHOD(InputField, SetColor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("Color GetOutlineColor()", asMETHOD(InputField, GetOutlineColor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineColor(Color color)", asMETHOD(InputField, SetOutlineColor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("float GetOutlineWidth()", asMETHOD(InputField, GetOutlineWidth)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineWidth(float width)", asMETHOD(InputField, SetOutlineWidth)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetFont(string fontPath, float fontSize)", asMETHOD(InputField, SetFont)); assert(r >= 0);
 
-        r = ScriptEngine::RegisterScriptClassFunction("bool IsMultiline()", asMETHOD(InputField, IsMultiline)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetMultiline(bool multiline)", asMETHOD(InputField, SetMultiline)); assert(r >= 0);
-
-        r = ScriptEngine::RegisterScriptClassFunction("void SetHorizontalAlignment(uint8 alignment)", asMETHOD(InputField, SetHorizontalAlignment)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetVerticalAlignment(uint8 alignment)", asMETHOD(InputField, SetVerticalAlignment)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetStylesheet(TextStylesheet stylesheet)", asMETHOD(InputField, SetStylesheet)); assert(r >= 0);
     }
 
     void InputField::HandleKeyInput(i32 key)
@@ -82,7 +71,7 @@ namespace UIScripting
         case GLFW_KEY_ENTER:
         {
             entt::registry* registry = ServiceLocator::GetUIRegistry();
-            if (registry->get<UIComponent::Text>(_entityId).multiline)
+            if (registry->get<UIComponent::Text>(_entityId).style.multiline)
             {
                 HandleCharInput('\n');
                 break;
@@ -212,67 +201,10 @@ namespace UIScripting
         }
     }
 
-    const Color& InputField::GetColor() const
-    {
-        const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        return text->style.color;
-    }
-    void InputField::SetColor(const Color& color)
+    void InputField::SetStylesheet(UI::TextStylesheet textStylesheet)
     {
         UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        text->style.color = color;
-    }
-
-    const Color& InputField::GetOutlineColor() const
-    {
-        const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        return text->style.outlineColor;
-    }
-    void InputField::SetOutlineColor(const Color& outlineColor)
-    {
-        UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        text->style.outlineColor = outlineColor;
-    }
-
-    const f32 InputField::GetOutlineWidth() const
-    {
-        const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        return text->style.outlineWidth;
-    }
-    void InputField::SetOutlineWidth(f32 outlineWidth)
-    {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Text* text = &registry->get<UIComponent::Text>(_entityId);
-        text->style.outlineWidth = outlineWidth;
-    }
-
-    void InputField::SetFont(const std::string& fontPath, f32 fontSize)
-    {
-        UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        text->style.fontPath = fontPath;
-        text->style.fontSize = fontSize;
-    }
-
-    bool InputField::IsMultiline()
-    {
-        const UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        return text->multiline;
-    }
-    void InputField::SetMultiline(bool multiline)
-    {
-        UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        text->multiline = multiline;
-    }
-
-    void InputField::SetHorizontalAlignment(UI::TextHorizontalAlignment alignment)
-    {
-        UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        text->horizontalAlignment = alignment;
-    }
-    void InputField::SetVerticalAlignment(UI::TextVerticalAlignment alignment)
-    {
-        UIComponent::Text* text = &ServiceLocator::GetUIRegistry()->get<UIComponent::Text>(_entityId);
-        text->verticalAlignment = alignment;
+        text->style = textStylesheet;
     }
 
     InputField* InputField::CreateInputField()

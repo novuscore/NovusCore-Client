@@ -40,22 +40,7 @@ namespace UIScripting
         const std::string GetText() const;
         void SetText(const std::string& newText, bool updateWriteHead = true);
 
-        const Color& GetColor() const;
-        void SetColor(const Color& color);
-
-        const Color& GetOutlineColor() const;
-        void SetOutlineColor(const Color& outlineColor);
-
-        const f32 GetOutlineWidth() const;
-        void SetOutlineWidth(f32 outlineWidth);
-
-        void SetFont(const std::string& fontPath, f32 fontSize);
-
-        bool IsMultiline();
-        void SetMultiline(bool multiline);
-        
-        void SetHorizontalAlignment(UI::TextHorizontalAlignment alignment);
-        void SetVerticalAlignment(UI::TextVerticalAlignment alignment);
+        void SetStylesheet(UI::TextStylesheet styleSheet);
 
         static InputField* CreateInputField();
     };

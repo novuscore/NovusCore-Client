@@ -10,7 +10,7 @@ namespace UIUtils::Text
         if (!text->font)
             return 0;
 
-        if (text->multiline)
+        if (text->style.multiline)
             return CalculateMultilinePushback(text, writeHead, maxWidth, maxHeight);
         else
             return CalculateSinglelinePushback(text, writeHead, maxWidth, bufferDecimal);
@@ -98,7 +98,7 @@ namespace UIUtils::Text
         lineWidths.push_back(0);
         lineBreakPoints.clear();
 
-        const u32 MaxLines = static_cast<u32>(text->multiline ? maxHeight / (text->style.fontSize * text->style.lineHeightMultiplier) : 1);
+        const u32 MaxLines = static_cast<u32>(text->style.multiline ? maxHeight / (text->style.fontSize * text->style.lineHeightMultiplier) : 1);
         size_t wordStart = 0;
         f32 wordWidth = 0.f;
         f32 advance = 0.f;

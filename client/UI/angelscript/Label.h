@@ -16,23 +16,8 @@ namespace UIScripting
         const std::string GetText() const;
         void SetText(const std::string& newText);
 
-        void SetFont(const std::string& fontPath, f32 fontSize);
-
-        const Color& GetColor() const;
-        void SetColor(const Color& color);
-
-        const Color& GetOutlineColor() const;
-        void SetOutlineColor(const Color& outlineColor);
-
-        const f32 GetOutlineWidth() const;
-        void SetOutlineWidth(f32 outlineWidth);
-
-        bool IsMultiline();
-        void SetMultiline(bool multiline);
-
-        void SetHorizontalAlignment(UI::TextHorizontalAlignment alignment);
-        void SetVerticalAlignment(UI::TextVerticalAlignment alignment);
-
+        void SetStylesheet(UI::TextStylesheet textStylesheet);
+         
         static Label* CreateLabel();
     };
 }

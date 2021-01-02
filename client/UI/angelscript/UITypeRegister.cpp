@@ -33,10 +33,14 @@ namespace UI
         new(memory) ImageStylesheet();
     }
 
+    static void Construct_TEXTSTYLESHEET(void* memory)
+    {
+        new(memory) TextStylesheet();
+    }
+
     void RegisterTypes()
     {
         /*
-        *   Stylesheets
         *   TODO: Move.
         */
         u32 flags = asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS | asOBJ_APP_CLASS_CONSTRUCTOR | asOBJ_APP_CLASS_ASSIGNMENT | asOBJ_APP_CLASS_COPY_CONSTRUCTOR;
@@ -76,6 +80,21 @@ namespace UI
             r = ScriptEngine::RegisterScriptClassFunction("void SetBorderInset(Box borderInset)", asMETHOD(UI::ImageStylesheet, SetBorderInset)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassConstructor("void f()", asFUNCTION(Construct_IMAGESTYLESHEET)); assert(r >= 0);
+        }
+
+        // TextStylesheet
+        r = ScriptEngine::RegisterScriptClass("TextStylesheet", sizeof(UI::TextStylesheet), flags);
+        assert(r >= 0);
+        {        
+            r = ScriptEngine::RegisterScriptClassFunction("void SetFontPath(string font)", asMETHOD(UI::TextStylesheet, SetFontPath)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetFontSize(f32 size)", asMETHOD(UI::TextStylesheet, SetFontSize)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetLineHeightMultiplier(f32 lineHeightMultiplier)", asMETHOD(UI::TextStylesheet, SetLineHeightMultiplier)); assert(r >= 0);
+
+            r = ScriptEngine::RegisterScriptClassFunction("void SetColor(Color color)", asMETHOD(UI::TextStylesheet, SetColor)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineColor(Color color)", asMETHOD(UI::TextStylesheet, SetOutlineColor)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineWidth(f32 outlineWidth)", asMETHOD(UI::TextStylesheet, SetOutlineWidth)); assert(r >= 0);
+
+            r = ScriptEngine::RegisterScriptClassConstructor("void f()", asFUNCTION(Construct_TEXTSTYLESHEET)); assert(r >= 0);
         }
 
         UIScripting::BaseElement::RegisterType();
