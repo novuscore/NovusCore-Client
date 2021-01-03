@@ -290,7 +290,6 @@ void UIRenderer::AddImguiPass(Renderer::RenderGraph* renderGraph, Renderer::Imag
 
             // Rasterizer state
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
-            //pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
 
             // Render targets
             pipelineDesc.renderTargets[0] = data.renderTarget;
