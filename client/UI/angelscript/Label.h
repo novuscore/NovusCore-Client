@@ -1,7 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
-#include "../UITypes.h"
 #include "BaseElement.h"
+#include "../Stylesheets/TextStylesheet.h"
 
 namespace UIScripting
 {

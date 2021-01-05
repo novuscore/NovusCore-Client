@@ -2,7 +2,8 @@
 #include <NovusTypes.h>
 #include "BaseElement.h"
 
-#include "../ECS/Components/Image.h"
+#include "../Stylesheets/ImageStylesheet.h"
+#include "../Stylesheets/TextStylesheet.h"
 
 namespace UIScripting
 {
