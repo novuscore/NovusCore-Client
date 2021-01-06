@@ -6,6 +6,8 @@ namespace UI
 {
     struct ImageStylesheet
     {
+        static void RegisterType();
+
         enum OverrideMaskProperties : u8
         {
             TEXTURE = 1 << 0,

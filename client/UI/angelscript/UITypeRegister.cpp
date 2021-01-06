@@ -8,7 +8,8 @@
 #include "Checkbox.h"
 #include "Slider.h"
 
-#include "../ECS/Components/Image.h"
+#include "../Stylesheets/ImageStylesheet.h"
+#include "../Stylesheets/TextStylesheet.h"
 
 namespace UI
 {
@@ -26,16 +27,6 @@ namespace UI
         out->right = right;
         out->bottom = bottom;
         out->left = left;
-    }
-
-    static void Construct_IMAGESTYLESHEET(void* memory)
-    {
-        new(memory) ImageStylesheet();
-    }
-
-    static void Construct_TEXTSTYLESHEET(void* memory)
-    {
-        new(memory) TextStylesheet();
     }
 
     void RegisterTypes()
@@ -67,39 +58,8 @@ namespace UI
             r = ScriptEngine::RegisterScriptClassConstructor("void f(float top, float right, float bottom, float left)", asFUNCTION(Construct_FBOX)); assert(r >= 0);
         }
 
-        // ImageStylesheet
-        r = ScriptEngine::RegisterScriptClass("ImageStylesheet", sizeof(UI::ImageStylesheet), flags);
-        assert(r >= 0);
-        {        
-            r = ScriptEngine::RegisterScriptClassFunction("void SetTexture(string texture)", asMETHOD(UI::ImageStylesheet, SetTexture)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetTexCoord(FBox texCoord)", asMETHOD(UI::ImageStylesheet, SetTexCoord)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetColor(Color color)", asMETHOD(UI::ImageStylesheet, SetColor)); assert(r >= 0);
-
-            r = ScriptEngine::RegisterScriptClassFunction("void SetBorderTexture(string texture)", asMETHOD(UI::ImageStylesheet, SetBorderTexture)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetBorderSize(Box borderSize)", asMETHOD(UI::ImageStylesheet, SetBorderSize)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetBorderInset(Box borderInset)", asMETHOD(UI::ImageStylesheet, SetBorderInset)); assert(r >= 0);
-
-            r = ScriptEngine::RegisterScriptClassConstructor("void f()", asFUNCTION(Construct_IMAGESTYLESHEET)); assert(r >= 0);
-        }
-
-        // TextStylesheet
-        r = ScriptEngine::RegisterScriptClass("TextStylesheet", sizeof(UI::TextStylesheet), flags);
-        assert(r >= 0);
-        {
-            r = ScriptEngine::RegisterScriptClassFunction("void SetFontPath(string font)", asMETHOD(UI::TextStylesheet, SetFontPath)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetFontSize(float size)", asMETHOD(UI::TextStylesheet, SetFontSize)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetLineHeightMultiplier(float lineHeightMultiplier)", asMETHOD(UI::TextStylesheet, SetLineHeightMultiplier)); assert(r >= 0);
-
-            r = ScriptEngine::RegisterScriptClassFunction("void SetColor(Color color)", asMETHOD(UI::TextStylesheet, SetColor)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineColor(Color color)", asMETHOD(UI::TextStylesheet, SetOutlineColor)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineWidth(float outlineWidth)", asMETHOD(UI::TextStylesheet, SetOutlineWidth)); assert(r >= 0);
-
-            r = ScriptEngine::RegisterScriptClassFunction("void SetHorizontalAlignment(uint8 alignment)", asMETHOD(UI::TextStylesheet, SetHorizontalAlignment)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetVerticalAlignment(uint8 alignment)", asMETHOD(UI::TextStylesheet, SetVerticalAlignment)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetMultiline(bool multiline)", asMETHOD(UI::TextStylesheet, SetMultiline)); assert(r >= 0);
-
-            r = ScriptEngine::RegisterScriptClassConstructor("void f()", asFUNCTION(Construct_TEXTSTYLESHEET)); assert(r >= 0);
-        }
+        UI::ImageStylesheet::RegisterType();
+        UI::TextStylesheet::RegisterType();
 
         UIScripting::BaseElement::RegisterType();
         UIScripting::Panel::RegisterType();

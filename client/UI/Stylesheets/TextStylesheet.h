@@ -6,6 +6,8 @@ namespace UI
 {
     struct TextStylesheet
     {
+        static void RegisterType();
+
         enum OverrideMaskProperties : u16
         {
             FONT_PATH = 1 << 0,
