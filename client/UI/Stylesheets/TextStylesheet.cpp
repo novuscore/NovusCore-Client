@@ -1,9 +1,17 @@
 #include "TextStylesheet.h"
 #include "../../Scripting/ScriptEngine.h"
 
-static void Construct_TEXTSTYLESHEET(void* memory)
+static void Construct(void* memory)
 {
     new(memory) UI::TextStylesheet();
+}
+
+static void Construct_FONT(std::string fontPath, f32 fontSize, UI::TextStylesheet* out)
+{
+    new (out) UI::TextStylesheet();
+    out->overrideMask |= UI::TextStylesheet::OverrideMaskProperties::FONT_PATH | UI::TextStylesheet::OverrideMaskProperties::FONT_SIZE;
+    out->fontPath = fontPath;
+    out->fontSize = fontSize;
 }
 
 void UI::TextStylesheet::RegisterType()
@@ -25,6 +33,7 @@ void UI::TextStylesheet::RegisterType()
         r = ScriptEngine::RegisterScriptClassFunction("void SetVerticalAlignment(uint8 alignment)", asMETHOD(UI::TextStylesheet, SetVerticalAlignment)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetMultiline(bool multiline)", asMETHOD(UI::TextStylesheet, SetMultiline)); assert(r >= 0);
 
-        r = ScriptEngine::RegisterScriptClassConstructor("void f()", asFUNCTION(Construct_TEXTSTYLESHEET)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassConstructor("void f()", asFUNCTION(Construct)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassConstructor("void f(string fontPath, float fontSize)", asFUNCTION(Construct_FONT)); assert(r >= 0);
     }
 }
