@@ -55,39 +55,28 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	fieldSheet.SetBorderSize(Box(16,16,16,16));
 	fieldSheet.SetBorderInset(Box(4,5,9,10));
 
-	ImageStylesheet backgroundSheet;
-	backgroundSheet.SetTexture("Data/extracted/textures/Interface/Glues/LoadingScreens/loadscreennorthrendwide.dds");
+	ImageStylesheet backgroundSheet("Data/extracted/textures/Interface/Glues/LoadingScreens/loadscreennorthrendwide.dds");
+	ImageStylesheet checkBackSheet("Data/extracted/Textures/interface/buttons/ui-checkbox-up.dds");
 
-	ImageStylesheet checkBackSheet;
-	checkBackSheet.SetTexture("Data/extracted/Textures/interface/buttons/ui-checkbox-up.dds");
-
-	ImageStylesheet checkCheckSheet;
-	checkCheckSheet.SetTexture("Data/extracted/Textures/interface/buttons/ui-checkbox-check.dds");
+	ImageStylesheet checkCheckSheet("Data/extracted/Textures/interface/buttons/ui-checkbox-check.dds");
 	checkCheckSheet.SetColor(Color(0,1,0));
 
-	TextStylesheet labelSheet;
-	labelSheet.SetFontPath(FONT);
-	labelSheet.SetFontSize(LABELFONTSIZE);
+	TextStylesheet labelSheet(FONT, LABELFONTSIZE);
 	labelSheet.SetColor(TEXTCOLOR);
 	labelSheet.SetOutlineWidth(outlineWidth);
 	labelSheet.SetOutlineColor(OUTLINECOLOR);
 	labelSheet.SetHorizontalAlignment(1);
 
-	ImageStylesheet buttonSheet;
-	buttonSheet.SetTexture("Data/extracted/Textures/interface/glues/common/glue-panel-button-up-blue.dds");
+	ImageStylesheet buttonSheet("Data/extracted/Textures/interface/glues/common/glue-panel-button-up-blue.dds");
 	buttonSheet.SetTexCoord(FBox(0.0f, 0.578125f, 0.75f, 0.0f));
 
-	TextStylesheet buttonTextSheet;
-	buttonTextSheet.SetFontPath(FONT);
-	buttonTextSheet.SetFontSize(INPUTFIELDFONTSIZE);
+	TextStylesheet buttonTextSheet(FONT, INPUTFIELDFONTSIZE);
 	buttonTextSheet.SetColor(TEXTCOLOR);
 	buttonTextSheet.SetOutlineColor(OUTLINECOLOR);
 	buttonTextSheet.SetOutlineWidth(outlineWidth);
 	buttonTextSheet.SetHorizontalAlignment(1);
 
-	TextStylesheet inputFieldSheet;
-	inputFieldSheet.SetFontPath(FONT);
-	inputFieldSheet.SetFontSize(INPUTFIELDFONTSIZE);
+	TextStylesheet inputFieldSheet(FONT, INPUTFIELDFONTSIZE);
 
 	Panel@ background = CreatePanel();
 	Panel@ userNameFieldPanel = CreatePanel(false);

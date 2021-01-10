@@ -17,8 +17,7 @@ static void Construct_FONT(std::string fontPath, f32 fontSize, UI::TextStyleshee
 void UI::TextStylesheet::RegisterType()
 {
     // TextStylesheet
-    u32 flags = asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS | asOBJ_APP_CLASS_CONSTRUCTOR | asOBJ_APP_CLASS_ASSIGNMENT | asOBJ_APP_CLASS_COPY_CONSTRUCTOR;
-    i32 r = ScriptEngine::RegisterScriptClass("TextStylesheet", sizeof(UI::TextStylesheet), flags);
+    i32 r = ScriptEngine::RegisterScriptClass("TextStylesheet", sizeof(UI::TextStylesheet), asOBJ_VALUE | asOBJ_POD | asGetTypeTraits<UI::TextStylesheet>());
     assert(r >= 0);
     {
         r = ScriptEngine::RegisterScriptClassFunction("void SetFontPath(string font)", asMETHOD(UI::TextStylesheet, SetFontPath)); assert(r >= 0);
