@@ -17,6 +17,13 @@ namespace UI
         UIEVENTS_FLAG_DRAGLOCK_X = 1 << 5,
         UIEVENTS_FLAG_DRAGLOCK_Y = 1 << 6
     };
+
+    enum TransformEventState : u8
+    {
+        UIEVENTS_STATE_FOCUSED = 1 << 0,
+        UIEVENTS_STATE_HOVERED = 1 << 1,
+        UIEVENTS_STATE_PRESSED = 1 << 2
+    };
 }
 
 namespace UIComponent
@@ -28,6 +35,7 @@ namespace UIComponent
         TransformEvents() { }
 
         u8 flags = 0;
+        u8 state = 0;
         asIScriptFunction* onClickCallback = nullptr;
 
         asIScriptFunction* onDragStartedCallback = nullptr;
