@@ -1,26 +1,25 @@
-#include "UpdateRenderingSystem.h"
+#include "UpdateTextModelSystem.h"
 #include <entity/registry.hpp>
-#include <tracy/Tracy.hpp>
-#include "../../render-lib/Renderer/Descriptors/ModelDesc.h"
-#include "../../render-lib/Renderer/Buffer.h"
-
+#include "../../UITypes.h"
 #include "../../../Utils/ServiceLocator.h"
+#include "../../render-lib/Renderer/Renderer.h"
+
 #include "../Components/Singletons/UIDataSingleton.h"
 #include "../Components/Transform.h"
-#include "../Components/Image.h"
-#include "../Components/Text.h"
 #include "../Components/InputField.h"
+#include "../Components/Text.h"
 #include "../Components/Dirty.h"
+
 #include "../../Utils/TransformUtils.h"
 #include "../../Utils/TextUtils.h"
 
 
 namespace UISystem
 {
-    inline void CalculateVertices(const vec2& pos, const vec2& size, const UI::FBox& texCoords, std::array<UISystem::UIVertex, 4>& vertices)
+    inline void CalculateVertices(const vec2& pos, const vec2& size, const UI::FBox& texCoords, std::array<UI::UIVertex, 4>& vertices)
     {
         const UISingleton::UIDataSingleton& dataSingleton = ServiceLocator::GetUIRegistry()->ctx<UISingleton::UIDataSingleton>();
-        
+
         vec2 upperLeftPos = vec2(pos.x, pos.y);
         vec2 upperRightPos = vec2(pos.x + size.x, pos.y);
         vec2 lowerLeftPos = vec2(pos.x, pos.y + size.y);
@@ -44,74 +43,18 @@ namespace UISystem
         vertices[1] = { upperRightPos, vec2(texCoords.right, texCoords.top) };
 
         vertices[2] = { lowerLeftPos, vec2(texCoords.left, texCoords.bottom) };
-        
+
         vertices[3] = { lowerRightPos, vec2(texCoords.right, texCoords.bottom) };
     }
 
-    void UpdateRenderingSystem::Update(entt::registry& registry)
+    void UpdateTextModelSystem::Update(entt::registry& registry)
     {
         Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
-        auto& dataSingleton = registry.ctx<UISingleton::UIDataSingleton>();
 
         auto inputFieldView = registry.view<UIComponent::Transform, UIComponent::InputField, UIComponent::Text, UIComponent::Dirty>();
         inputFieldView.each([&](const UIComponent::Transform& transform, const UIComponent::InputField& inputField, UIComponent::Text& text)
         {
             text.pushback = UIUtils::Text::CalculatePushback(&text, inputField.writeHeadIndex, 0.2f, transform.size.x, transform.size.y);
-        });
-
-        auto imageView = registry.view<UIComponent::Transform, UIComponent::Image, UIComponent::Dirty>();
-        imageView.each([&](UIComponent::Transform& transform, UIComponent::Image& image)
-        {
-            ZoneScopedNC("UpdateRenderingSystem::Update::ImageView", tracy::Color::RoyalBlue);
-            if (image.style.texture.length() == 0)
-                return;
-
-            {
-                ZoneScopedNC("(Re)load Texture", tracy::Color::RoyalBlue);
-                image.textureID = renderer->LoadTexture(Renderer::TextureDesc{ image.style.texture });
-            }
-
-            if (!image.style.borderTexture.empty())
-            {
-                ZoneScopedNC("(Re)load Border", tracy::Color::RoyalBlue);
-                image.borderID = renderer->LoadTexture(Renderer::TextureDesc{ image.style.borderTexture });
-            }
-
-            // Create constant buffer if necessary
-            auto constantBuffer = image.constantBuffer;
-            if (constantBuffer == nullptr)
-            {
-                constantBuffer = new Renderer::Buffer<UIComponent::Image::ImageConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
-                image.constantBuffer = constantBuffer;
-            }
-            constantBuffer->resource.color = image.style.color;
-            constantBuffer->resource.borderSize = image.style.borderSize;
-            constantBuffer->resource.borderInset = image.style.borderInset;
-            constantBuffer->resource.slicingOffset = image.style.slicingOffset;
-            constantBuffer->resource.size = transform.size;
-            constantBuffer->ApplyAll();
-
-            // Transform Updates.
-            const vec2& pos = UIUtils::Transform::GetMinBounds(&transform);
-            const vec2& size = transform.size;
-            const UI::FBox& texCoords = image.style.texCoord;
-
-            std::array<UISystem::UIVertex, 4> vertices;
-            CalculateVertices(pos, size, texCoords, vertices);
-
-            constexpr u32 bufferSize = sizeof(UISystem::UIVertex) * 4; // 4 vertices per image
-
-            if (image.vertexBufferID == Renderer::BufferID::Invalid())
-            {
-                Renderer::BufferDesc desc { "ImageVertices", Renderer::BufferUsage::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly };
-                desc.size = bufferSize;
-
-                image.vertexBufferID = renderer->CreateBuffer(desc);
-            }
-
-            void* dst = renderer->MapBuffer(image.vertexBufferID);
-            memcpy(dst, vertices.data(), bufferSize);
-            renderer->UnmapBuffer(image.vertexBufferID);
         });
 
         auto textView = registry.view<UIComponent::Transform, UIComponent::Text, UIComponent::Dirty>();
@@ -121,18 +64,13 @@ namespace UISystem
             if (text.style.fontPath.length() == 0)
                 return;
 
-            {
-                ZoneScopedNC("(Re)load Font", tracy::Color::RoyalBlue);
-                text.font = Renderer::Font::GetFont(renderer, text.style.fontPath, text.style.fontSize);
-            }
-
             std::vector<f32> lineWidths;
             std::vector<size_t> lineBreakPoints;
             const size_t finalCharacter = UIUtils::Text::CalculateLineWidthsAndBreaks(&text, transform.size.x, transform.size.y, lineWidths, lineBreakPoints);
             const size_t textLengthWithoutSpaces = std::count_if(text.text.begin() + text.pushback, text.text.end() - (text.text.length() - finalCharacter), [](char c) { return !std::isspace(c); });
 
             // If textLengthWithoutSpaces is bigger than the amount of glyphs we allocated in our buffer we need to reallocate the buffer
-            constexpr u32 perGlyphVertexSize = sizeof(UISystem::UIVertex) * 4; // 4 vertices per glyph
+            constexpr u32 perGlyphVertexSize = sizeof(UI::UIVertex) * 4; // 4 vertices per glyph
             if (textLengthWithoutSpaces > text.vertexBufferGlyphCount)
             {
                 if (text.vertexBufferID != Renderer::BufferID::Invalid())
@@ -166,7 +104,7 @@ namespace UISystem
                 currentPosition.x -= lineWidths[0] * alignment.x;
                 currentPosition.y += text.style.fontSize * (1 - alignment.y) * lineWidths.size();
 
-                UISystem::UIVertex* baseVertices = reinterpret_cast<UISystem::UIVertex*>(renderer->MapBuffer(text.vertexBufferID));
+                UI::UIVertex* baseVertices = reinterpret_cast<UI::UIVertex*>(renderer->MapBuffer(text.vertexBufferID));
                 u32* baseTextureID = reinterpret_cast<u32*>(renderer->MapBuffer(text.textureIDBufferID));
 
                 size_t line = 0, glyph = 0;
@@ -195,10 +133,10 @@ namespace UISystem
                     const vec2& size = vec2(fontChar.width, fontChar.height);
                     constexpr UI::FBox texCoords{ 0.f, 1.f, 1.f, 0.f };
 
-                    std::array<UISystem::UIVertex, 4> vertices;
+                    std::array<UI::UIVertex, 4> vertices;
                     CalculateVertices(pos, size, texCoords, vertices);
 
-                    UISystem::UIVertex* dst = &baseVertices[glyph * 4]; // 4 vertices per glyph
+                    UI::UIVertex* dst = &baseVertices[glyph * 4]; // 4 vertices per glyph
                     memcpy(dst, vertices.data(), perGlyphVertexSize);
                     baseTextureID[glyph] = fontChar.textureIndex;
 

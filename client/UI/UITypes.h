@@ -95,4 +95,10 @@ namespace UI
         f16 left = f16(0.0f);
     };
 #pragma pack(pop)
+    
+    struct UIVertex
+    {
+        vec2 pos;
+        vec2 uv;
+    };
 }
