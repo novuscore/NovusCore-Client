@@ -230,6 +230,23 @@ namespace Renderer
         vmaGetBudget(_device->_allocator, sBudgets);
     }
 
+
+    ImageDesc RendererVK::GetImageDesc(ImageID ID)
+    {
+        return _imageHandler->GetImageDesc(ID);
+    }
+
+
+    uvec2 RendererVK::GetImageDimension(const ImageID id)
+    {
+        return _imageHandler->GetDimension(id);
+    }
+
+    DepthImageDesc RendererVK::GetDepthImageDesc(DepthImageID ID)
+    {
+        return _imageHandler->GetDepthImageDesc(ID);
+    }
+
     CommandListID RendererVK::BeginCommandList()
     {
         return _commandListHandler->BeginCommandList();
@@ -670,9 +687,25 @@ namespace Renderer
         {
             VkDescriptorImageInfo imageInfo = {};
             imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-            imageInfo.imageView = _imageHandler->GetColorView(descriptor.imageID);
+            imageInfo.imageView = _imageHandler->GetColorView(descriptor.imageID,descriptor.imageMipLevel);
 
             builder->BindImage(descriptor.nameHash, imageInfo);
+        }
+        else if (descriptor.descriptorType == DescriptorType::DESCRIPTOR_TYPE_DEPTH_IMAGE)
+        {
+            VkDescriptorImageInfo imageInfo = {};
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            imageInfo.imageView = _imageHandler->GetDepthView(descriptor.depthImageID);
+
+            builder->BindImage(descriptor.nameHash, imageInfo);
+        }
+        else if (descriptor.descriptorType == DescriptorType::DESCRIPTOR_TYPE_STORAGE_IMAGE)
+        {
+            VkDescriptorImageInfo imageInfo = {};
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            imageInfo.imageView = _imageHandler->GetColorView(descriptor.imageID, descriptor.imageMipLevel);
+
+            builder->BindStorageImage(descriptor.nameHash, imageInfo);
         }
         else if (descriptor.descriptorType == DescriptorType::DESCRIPTOR_TYPE_BUFFER)
         {
@@ -1114,7 +1147,7 @@ namespace Renderer
     {
         
     }
-    
+
     void RendererVK::CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range)
     {
         VkBuffer vkDstBuffer = _bufferHandler->GetBuffer(dstBuffer);

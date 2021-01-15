@@ -27,6 +27,8 @@
 
 #define USE_PACKED_HEIGHT_RANGE 1
 
+
+AutoCVar_Int CVAR_OcclusionCullingEnabled("terrain.occlusionCull.Enable", "enable culling of terrain tiles", 1, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_CullingEnabled("terrain.culling.Enable", "enable culling of terrain tiles", 1, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_GPUCullingEnabled("terrain.culling.GPUCullEnable", "enable gpu culling", 1, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_LockCullingFrustum("terrain.culling.LockFrustum", "lock frustrum for terrain culling", 0, CVarFlags::EditCheckbox);
@@ -254,7 +256,7 @@ void TerrainRenderer::DebugRenderCellTriangles(const Camera* camera)
     }
 }
 
-void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID depthPyramid, u8 frameIndex)
 {
     // Terrain Pass
     {
@@ -331,6 +333,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                     Camera* camera = ServiceLocator::GetCamera();
                     memcpy(_cullingConstants.frustumPlanes, camera->GetFrustumPlanes(), sizeof(_cullingConstants.frustumPlanes));
                 }
+                _cullingConstants.occlusionEnabled = CVAR_OcclusionCullingEnabled.Get();
                 
                 // Reset the counter
                 commandList.FillBuffer(_argumentBuffer, 0, 4, Terrain::NUM_INDICES_PER_CELL);
@@ -345,6 +348,23 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                 _cullingPassDescriptorSet.Bind("_culledInstances", _culledInstanceBuffer);
                 _cullingPassDescriptorSet.Bind("_drawCount", _argumentBuffer);
 
+                Renderer::SamplerDesc samplerDesc;
+                samplerDesc.filter = Renderer::SAMPLER_FILTER_MINIMUM_MIN_MAG_MIP_LINEAR;
+
+                samplerDesc.addressU = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.addressV = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.addressW = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.minLOD = 0.f;
+                samplerDesc.maxLOD = 16.f;
+                samplerDesc.mode = Renderer::SAMPLER_REDUCTION_MIN;
+
+                Renderer::SamplerID occlusionSampler = _renderer->CreateSampler(samplerDesc);
+
+                _cullingPassDescriptorSet.Bind("_depthSampler", occlusionSampler);
+                _cullingPassDescriptorSet.Bind("_depthPyramid", depthPyramid);
+
+                // Bind descriptorset
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
                 commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingPassDescriptorSet, frameIndex);
 
                 const u32 cellCount = (u32)_loadedChunks.size() * Terrain::MAP_CELLS_PER_CHUNK;
@@ -446,8 +466,8 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
     }
 
     // Subrenderers
-    _mapObjectRenderer->AddMapObjectPass(renderGraph, globalDescriptorSet, colorTarget, objectTarget, depthTarget, frameIndex); 
-    _waterRenderer->AddWaterPass(renderGraph, globalDescriptorSet, colorTarget, depthTarget, frameIndex);
+    _mapObjectRenderer->AddMapObjectPass(renderGraph, globalDescriptorSet, colorTarget, objectTarget, depthTarget, depthPyramid, frameIndex); 
+   // _waterRenderer->AddWaterPass(renderGraph, globalDescriptorSet, colorTarget, depthTarget, frameIndex);
 }
 
 void TerrainRenderer::CreatePermanentResources()
@@ -765,6 +785,7 @@ bool TerrainRenderer::LoadMap(const NDBC::Map* map)
     else
     {
         RegisterChunksToBeLoaded(currentMap, ivec2(32, 32), 32); // Load everything
+        //RegisterChunksToBeLoaded(currentMap, ivec2(31, 49), 1); // bugged terrain
         //RegisterChunksToBeLoaded(mapSingleton.currentMap, ivec2(31, 49), 1); // Goldshire
         //RegisterChunksToBeLoaded(map, ivec2(40, 32), 8); // Razor Hill
         //RegisterChunksToBeLoaded(map, ivec2(22, 25), 8); // Borean Tundra
@@ -806,7 +827,7 @@ bool TerrainRenderer::LoadMap(const NDBC::Map* map)
     _complexModelRenderer->ExecuteLoad();
 
     // Load Water
-    _waterRenderer->LoadWater(_loadedChunks);
+    //_waterRenderer->LoadWater(_loadedChunks);
 
     return true;
 }

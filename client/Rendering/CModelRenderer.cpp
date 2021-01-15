@@ -29,6 +29,8 @@ AutoCVar_Int CVAR_ComplexModelCullingEnabled("complexModels.cullEnable", "enable
 AutoCVar_Int CVAR_ComplexModelSortingEnabled("complexModels.sortEnable", "enable sorting of transparent complex models", 1, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_ComplexModelLockCullingFrustum("complexModels.lockCullingFrustum", "lock frustrum for complex model culling", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_ComplexModelDrawBoundingBoxes("complexModels.drawBoundingBoxes", "draw bounding boxes for complex models", 0, CVarFlags::EditCheckbox);
+AutoCVar_Int CVAR_ComplexModelOcclusionCullEnabled("complexModels.occlusionCullEnable", "enable culling of complex models", 1, CVarFlags::EditCheckbox);
+
 
 constexpr u32 BITONIC_BLOCK_SIZE = 1024;
 const u32 TRANSPOSE_BLOCK_SIZE = 16;
@@ -137,7 +139,7 @@ void CModelRenderer::Update(f32 deltaTime)
     }
 }
 
-void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, Renderer::ImageID occlusionPyramid)
 {
     struct CModelPassData
     {
@@ -233,7 +235,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
                 memcpy(cullConstants, &_cullConstants, sizeof(CullConstants));
                 cullConstants->maxDrawCount = numOpaqueDrawCalls;
                 cullConstants->shouldPrepareSort = false;
-
+                cullConstants->occlusionCull = CVAR_ComplexModelOcclusionCullEnabled.Get();
                 commandList.PushConstant(cullConstants, 0, sizeof(CullConstants));
 
                 _cullingDescriptorSet.Bind("_packedDrawCallDatas", _opaqueDrawCallDataBuffer);
@@ -243,6 +245,21 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
                 _cullingDescriptorSet.Bind("_triangleCount", _opaqueTriangleCountBuffer);
                 _cullingDescriptorSet.Bind("_instances", _instanceBuffer);
                 _cullingDescriptorSet.Bind("_cullingDatas", _cullingDataBuffer);
+
+                Renderer::SamplerDesc samplerDesc;
+                samplerDesc.filter = Renderer::SAMPLER_FILTER_MINIMUM_MIN_MAG_MIP_LINEAR;
+
+                samplerDesc.addressU = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.addressV = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.addressW = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.minLOD = 0.f;
+                samplerDesc.maxLOD = 16.f;
+                samplerDesc.mode = Renderer::SAMPLER_REDUCTION_MIN;
+
+                Renderer::SamplerID occlusionSampler = _renderer->CreateSampler(samplerDesc);
+
+                _cullingDescriptorSet.Bind("_depthSampler", occlusionSampler);
+                _cullingDescriptorSet.Bind("_depthPyramid", occlusionPyramid);
 
                 // These two are not actually used by the culling shader unless shouldPrepareSort is enabled, but they need to be bound to avoid validation errors...
                 _cullingDescriptorSet.Bind("_sortKeys", _transparentSortKeys);
@@ -336,7 +353,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
                 memcpy(cullConstants, &_cullConstants, sizeof(CullConstants));
                 cullConstants->maxDrawCount = numTransparentDrawCalls;
                 cullConstants->shouldPrepareSort = alphaSortEnabled;
-
+                cullConstants->occlusionCull = CVAR_ComplexModelOcclusionCullEnabled.Get();
                 commandList.PushConstant(cullConstants, 0, sizeof(CullConstants));
 
                 _cullingDescriptorSet.Bind("_packedDrawCallDatas", _transparentDrawCallDataBuffer);

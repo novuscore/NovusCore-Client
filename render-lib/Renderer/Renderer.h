@@ -119,6 +119,11 @@ namespace Renderer
         virtual void Present(Window* window, DepthImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) = 0;
 
         // Utils
+        
+        virtual ImageDesc GetImageDesc(ImageID ID) = 0;
+        virtual DepthImageDesc GetDepthImageDesc(DepthImageID ID) = 0;
+        virtual uvec2 GetImageDimension(const ImageID id) = 0;
+
         virtual void FlipFrame(u32 frameIndex) = 0;
 
         virtual void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;

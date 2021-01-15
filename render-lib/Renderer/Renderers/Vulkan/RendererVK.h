@@ -112,6 +112,11 @@ namespace Renderer
         // Utils
         void FlipFrame(u32 frameIndex) override;
 
+        ImageDesc GetImageDesc(ImageID ID) override;
+        DepthImageDesc GetDepthImageDesc(DepthImageID ID) override;
+
+        uvec2 GetImageDimension(const ImageID id)override;
+
         void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
 
         void* MapBuffer(BufferID buffer) override;

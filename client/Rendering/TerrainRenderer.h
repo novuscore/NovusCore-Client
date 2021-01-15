@@ -59,6 +59,8 @@ class TerrainRenderer
     struct CullingConstants
     {
         vec4 frustumPlanes[6];
+        mat4x4 viewmat;
+        u32 occlusionEnabled;
     };
 
     struct CellInstance
@@ -82,7 +84,7 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
+    void AddTerrainPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID depthPyramid, u8 frameIndex);
 
     bool LoadMap(const NDBC::Map* map);
 

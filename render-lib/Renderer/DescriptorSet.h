@@ -4,8 +4,10 @@
 #include "Descriptors/SamplerDesc.h"
 #include "Descriptors/TextureDesc.h"
 #include "Descriptors/ImageDesc.h"
+#include "Descriptors/DepthImageDesc.h"
 #include "Descriptors/TextureArrayDesc.h"
-#include <robin_hood.h>
+
+#include <Utils/StringUtils.h>
 
 namespace Renderer
 {
@@ -15,17 +17,20 @@ namespace Renderer
         DESCRIPTOR_TYPE_TEXTURE,
         DESCRIPTOR_TYPE_TEXTURE_ARRAY,
         DESCRIPTOR_TYPE_IMAGE,
+        DESCRIPTOR_TYPE_DEPTH_IMAGE,
+        DESCRIPTOR_TYPE_STORAGE_IMAGE,
         DESCRIPTOR_TYPE_BUFFER,
     };
 
     struct Descriptor
     {
         u32 nameHash;
-
+        u32 imageMipLevel;
         DescriptorType descriptorType;
 
         TextureID textureID;
         ImageID imageID;
+        DepthImageID depthImageID;
         SamplerID samplerID;
         TextureArrayID textureArrayID;
         BufferID bufferID;
@@ -55,8 +60,12 @@ namespace Renderer
         void Bind(const std::string& name, TextureArrayID textureArrayID);
         void Bind(u32 nameHash, TextureArrayID textureArrayID);
 
-        void Bind(const std::string& name, ImageID imageID);
-        void Bind(u32 nameHash, ImageID imageID);
+        void Bind(const std::string& name, ImageID imageID, u32 mipLevel = 0 );
+        void Bind(u32 nameHash, ImageID imageID, u32 mipLevel = 0);
+
+        void Bind(StringUtils::StringHash nameHash, DepthImageID imageID);
+
+        void BindStorage(StringUtils::StringHash nameHash, ImageID imageID, u32 mipLevel = 0);
 
         void Bind(const std::string& name, BufferID buffer);
         void Bind(u32 nameHash, BufferID buffer);

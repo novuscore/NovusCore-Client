@@ -19,6 +19,8 @@
 
 namespace fs = std::filesystem;
 
+
+AutoCVar_Int CVAR_MapObjectOcclusionCullEnabled("mapObjects.occlusionCullEnable", "enable culling of map objects", 1, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_MapObjectCullingEnabled("mapObjects.cullEnable", "enable culling of map objects", 1, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_MapObjectLockCullingFrustum("mapObjects.lockCullingFrustum", "lock frustrum for map object culling", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_MapObjectDrawBoundingBoxes("mapObjects.drawBoundingBoxes", "draw bounding boxes for mapobjects", 0, CVarFlags::EditCheckbox);
@@ -106,7 +108,7 @@ void MapObjectRenderer::Update(f32 deltaTime)
     }
 }
 
-void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID depthPyramid, u8 frameIndex)
 {
     // Map Object Pass
     {
@@ -165,6 +167,7 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
                     memcpy(_cullingConstantBuffer->resource.frustumPlanes, camera->GetFrustumPlanes(), sizeof(vec4[6]));
                     _cullingConstantBuffer->resource.cameraPos = camera->GetPosition();
                     _cullingConstantBuffer->resource.maxDrawCount = drawCount;
+                    _cullingConstantBuffer->resource.occlusionEnabled = CVAR_MapObjectOcclusionCullEnabled.Get();
                     _cullingConstantBuffer->Apply(frameIndex);
                 }
 
@@ -173,6 +176,22 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
                 _cullingDescriptorSet.Bind("_culledDrawCommands", _culledArgumentBuffer);
                 _cullingDescriptorSet.Bind("_drawCount", _drawCountBuffer);
                 _cullingDescriptorSet.Bind("_triangleCount", _triangleCountBuffer);
+
+                Renderer::SamplerDesc samplerDesc;
+                samplerDesc.filter = Renderer::SAMPLER_FILTER_MINIMUM_MIN_MAG_MIP_LINEAR;
+
+                samplerDesc.addressU = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.addressV = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.addressW = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.minLOD = 0.f;
+                samplerDesc.maxLOD = 16.f;
+                samplerDesc.mode = Renderer::SAMPLER_REDUCTION_MIN;
+
+                Renderer::SamplerID occlusionSampler = _renderer->CreateSampler(samplerDesc);
+
+                _cullingDescriptorSet.Bind("_depthSampler", occlusionSampler);
+                _cullingDescriptorSet.Bind("_depthPyramid", depthPyramid);
+
                 commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingDescriptorSet, frameIndex);
                 commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
 

@@ -72,6 +72,7 @@ private:
     // Permanent resources
     Renderer::ImageID _mainColor;
     Renderer::ImageID _objectIDs;
+    Renderer::ImageID _depthPyramid;
 
     Renderer::DepthImageID _mainDepth;
 

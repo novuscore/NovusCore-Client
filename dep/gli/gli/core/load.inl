@@ -8,6 +8,11 @@ namespace gli
 	/// Load a texture (DDS, KTX or KMG) from memory
 	inline texture load(char const * Data, std::size_t Size)
 	{
+		if (!Data || Size == 0)
+		{
+			return texture();
+		}
+
 		{
 			texture Texture = load_dds(Data, Size);
 			if(!Texture.empty())

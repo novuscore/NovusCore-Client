@@ -9,6 +9,28 @@ namespace Renderer
 {
     namespace Backend
     {
+        u32 PreviousPow2(u32 v)
+        {
+            u32 r = 1;
+
+            while (r * 2 < v)
+                r *= 2;
+
+            return r;
+        }
+        u32 GetImageMipLevels(u32 width, u32 height)
+        {
+            u32 result = 1;
+
+            while (width > 1 || height > 1)
+            {
+                result++;
+                width /= 2;
+                height /= 2;
+            }
+
+            return result;
+        }
         void ImageHandlerVK::Init(RenderDeviceVK* device)
         {
             _device = device;
@@ -104,6 +126,44 @@ namespace Renderer
             return _depthImages[static_cast<type>(id)].desc;
         }
 
+        uvec2 ImageHandlerVK::GetDimension(const ImageID id)
+        {
+            auto desc = GetImageDesc(id);
+
+            f32 width = desc.dimensions.x;
+            f32 height = desc.dimensions.y;
+            u32 mips = desc.mipLevels;
+
+            u32 uwidth = static_cast<u32>(width);;
+            u32 uheight = static_cast<u32>(height);
+
+            // If the supplied dimensions is a % of window size
+            if (desc.dimensionType == ImageDimensionType::DIMENSION_SCALE)
+            {
+                uvec2 windowSize = _device->GetMainWindowSize();
+                width *= windowSize.x;
+                height *= windowSize.y;
+
+                uwidth = static_cast<u32>(width);
+                uheight = static_cast<u32>(height);
+            }
+            else if (desc.dimensionType == ImageDimensionType::DIMENSION_PYRAMID)
+            {
+                uvec2 windowSize = _device->GetMainWindowSize();
+                width *= windowSize.x;
+                height *= windowSize.y;
+
+                uwidth = static_cast<u32>(width);
+                uheight = static_cast<u32>(height);
+
+                uwidth = (PreviousPow2(uwidth));
+                uheight = (PreviousPow2(uheight));
+                mips = (GetImageMipLevels(uwidth, uheight));
+            }
+
+            return { uwidth,uheight };
+        }
+
         VkImage ImageHandlerVK::GetImage(const ImageID id)
         {
             using type = type_safe::underlying_type<ImageID>;
@@ -120,6 +180,34 @@ namespace Renderer
             // Lets make sure this id exists
             assert(_images.size() > static_cast<type>(id));
             return _images[static_cast<type>(id)].colorView;
+        }
+
+        VkImageView ImageHandlerVK::GetColorView(const ImageID id, u32 mipLevel)
+        {
+            VkImageView view = VK_NULL_HANDLE;
+
+            using type = type_safe::underlying_type<ImageID>;
+
+            if (mipLevel == 0)
+            {
+                return GetColorView(id);
+            }
+            // Lets make sure this id exists
+            type tid = static_cast<type>(id);
+
+            auto img = _extraViews.find(tid);
+            if (img != _extraViews.end())
+            {
+                for (auto im : img->second)
+                {
+                    if (im.mip == mipLevel)
+                    {
+                        return im.view;
+                    }
+                }
+            }
+
+            return view;
         }
 
         VkImage ImageHandlerVK::GetImage(const DepthImageID id)
@@ -156,9 +244,17 @@ namespace Renderer
             {
                 NC_LOG_FATAL("Non-3d images is currently unsupported");
             }
+            if (image.desc.dimensionType != ImageDimensionType::DIMENSION_PYRAMID)
+            {
+                image.desc.mipLevels = 1;
+            }
 
             f32 width = image.desc.dimensions.x;
             f32 height = image.desc.dimensions.y;
+            u32 mips = image.desc.mipLevels;
+
+            u32 uwidth = static_cast<u32>(width);;
+            u32 uheight = static_cast<u32>(height);
 
             // If the supplied dimensions is a % of window size
             if (image.desc.dimensionType == ImageDimensionType::DIMENSION_SCALE)
@@ -166,13 +262,31 @@ namespace Renderer
                 uvec2 windowSize = _device->GetMainWindowSize();
                 width *= windowSize.x;
                 height *= windowSize.y;
+
+                uwidth = static_cast<u32>(width);
+                uheight = static_cast<u32>(height);
+            }
+            else if (image.desc.dimensionType == ImageDimensionType::DIMENSION_PYRAMID)
+            {
+                uvec2 windowSize = _device->GetMainWindowSize();
+                width *= windowSize.x;
+                height *= windowSize.y;
+
+                uwidth = static_cast<u32>(width);
+                uheight = static_cast<u32>(height);
+
+                uwidth = (PreviousPow2(uwidth));
+                uheight = (PreviousPow2(uheight));
+                mips = (GetImageMipLevels(uwidth, uheight));
+
+                image.desc.mipLevels = mips;
             }
 
             imageInfo.format = FormatConverterVK::ToVkFormat(image.desc.format);
-            imageInfo.extent.width = static_cast<u32>(width);
-            imageInfo.extent.height = static_cast<u32>(height);
+            imageInfo.extent.width = uwidth;
+            imageInfo.extent.height = uheight;
             imageInfo.extent.depth = image.desc.depth;
-            imageInfo.mipLevels = 1;
+            imageInfo.mipLevels = mips;
             imageInfo.arrayLayers = 1;
             imageInfo.samples = FormatConverterVK::ToVkSampleCount(image.desc.sampleCount);
             imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -212,9 +326,34 @@ namespace Renderer
             colorViewInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
             colorViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             colorViewInfo.subresourceRange.baseMipLevel = 0;
-            colorViewInfo.subresourceRange.levelCount = 1;
+            colorViewInfo.subresourceRange.levelCount = mips;
             colorViewInfo.subresourceRange.baseArrayLayer = 0;
             colorViewInfo.subresourceRange.layerCount = 1;
+
+            //we want a full mip chain of views
+            if (image.desc.dimensionType == ImageDimensionType::DIMENSION_PYRAMID)
+            {
+                std::vector<ExtraViews> views;
+
+                for (u32 i = 0; i < mips; ++i)
+                {
+                    VkImageViewCreateInfo pyramidLevelInfo = colorViewInfo;
+                    pyramidLevelInfo.subresourceRange.baseMipLevel = i;
+                    pyramidLevelInfo.subresourceRange.levelCount = 1;
+
+                    VkImageView newView;
+                    if (vkCreateImageView(_device->_device, &pyramidLevelInfo, nullptr, &newView) != VK_SUCCESS)
+                    {
+                        NC_LOG_FATAL("Failed to create color image view!");
+                    }
+                    ExtraViews v;
+                    v.view = newView;
+                    v.mip = i;
+                    views.push_back(v);
+                }
+
+                _extraViews[(static_cast<u16>(_images.size()))] = std::move(views);
+            }
 
             if (vkCreateImageView(_device->_device, &colorViewInfo, nullptr, &image.colorView) != VK_SUCCESS)
             {
@@ -224,7 +363,7 @@ namespace Renderer
             DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)image.colorView, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, image.desc.debugName.c_str());
 
             // Transition image from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_GENERAL
-            _device->TransitionImageLayout(image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, image.desc.depth, 1);
+            _device->TransitionImageLayout(image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, image.desc.depth, mips);
         }
 
         void ImageHandlerVK::CreateImage(DepthImage& image)
