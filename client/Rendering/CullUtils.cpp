@@ -13,7 +13,7 @@ inline u32 GetGroupCount(u32 threadCount, u32 localSize)
     return (threadCount + localSize - 1) / localSize;
 }
 
-void DepthPyramidUtils::BuildPyramid(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex,Renderer::DepthImageID depthImage, Renderer::ImageID pyramidImage)
+void DepthPyramidUtils::BuildPyramid(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, Renderer::DepthImageID depthImage, Renderer::ImageID pyramidImage)
 {
     Renderer::ComputePipelineDesc queryPipelineDesc;
     resources.InitializePipelineDesc(queryPipelineDesc);

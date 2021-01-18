@@ -82,6 +82,16 @@ namespace Renderer
 
             VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
             {
+                // First check for immediate mode (not vsync)
+                for (const auto& availablePresentMode : availablePresentModes)
+                {
+                    if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR)
+                    {
+                        return availablePresentMode;
+                    }
+                }
+
+                // Then check for mailbox (vsync)
                 for (const auto& availablePresentMode : availablePresentModes)
                 {
                     if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
@@ -90,6 +100,7 @@ namespace Renderer
                     }
                 }
 
+                // Then use the fallback FIFO mode which kinda sucks
                 return VK_PRESENT_MODE_FIFO_KHR;
             }
 
