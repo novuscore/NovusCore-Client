@@ -87,11 +87,11 @@ void WaterRenderer::AddWaterPass(Renderer::RenderGraph* renderGraph, Renderer::D
 
         // Shaders
         Renderer::VertexShaderDesc vertexShaderDesc;
-        vertexShaderDesc.path = "Data/shaders/water.vs.hlsl.spv";
+        vertexShaderDesc.path = "water.vs.hlsl";
         pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
         Renderer::PixelShaderDesc pixelShaderDesc;
-        pixelShaderDesc.path = "Data/shaders/water.ps.hlsl.spv";
+        pixelShaderDesc.path = "water.ps.hlsl";
         pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
         // Depth state

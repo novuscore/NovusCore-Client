@@ -899,6 +899,17 @@ void EngineLoop::DrawImguiMenuBar()
                 CVarSystem::Get()->DrawImguiEditor();
                 ImGui::EndMenu();
             }
+
+            // Reload shaders button
+            if (ImGui::Button("Reload Shaders"))
+            {
+                _clientRenderer->ReloadShaders(false);
+            }
+            if (ImGui::Button("Reload Shaders (FORCE)"))
+            {
+                _clientRenderer->ReloadShaders(true);
+            }
+
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();

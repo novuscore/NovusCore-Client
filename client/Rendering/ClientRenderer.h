@@ -51,6 +51,8 @@ public:
     DebugRenderer* GetDebugRenderer() { return _debugRenderer; }
     PixelQuery* GetPixelQuery() { return _pixelQuery; }
 
+    void ReloadShaders(bool forceRecompileAll);
+
     const std::string& GetGPUName();
 
     size_t GetVRAMUsage();

@@ -29,5 +29,14 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 	angelscript::angelscript
 	imgui::imgui
 )
+
+add_custom_command(
+    TARGET ${PROJECT_NAME} 
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${DXCOMPILER_DYNAMIC_LIB_PATH}"
+        "$<TARGET_FILE_DIR:client-demo>/dxcompiler.dll"
+)
+
 target_precompile_headers(${PROJECT_NAME} PRIVATE "pch.h")
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

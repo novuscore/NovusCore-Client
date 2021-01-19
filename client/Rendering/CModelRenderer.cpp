@@ -170,7 +170,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
         resources.InitializePipelineDesc(cullingPipelineDesc);
 
         Renderer::ComputeShaderDesc shaderDesc;
-        shaderDesc.path = "Data/shaders/cModelCulling.cs.hlsl.spv";
+        shaderDesc.path = "cModelCulling.cs.hlsl";
         cullingPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
 
         Renderer::GraphicsPipelineDesc pipelineDesc;
@@ -178,11 +178,11 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
 
         // Shaders
         Renderer::VertexShaderDesc vertexShaderDesc;
-        vertexShaderDesc.path = "Data/shaders/cModel.vs.hlsl.spv";
+        vertexShaderDesc.path = "cModel.vs.hlsl";
         pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
         Renderer::PixelShaderDesc pixelShaderDesc;
-        pixelShaderDesc.path = "Data/shaders/cModel.ps.hlsl.spv";
+        pixelShaderDesc.path = "cModel.ps.hlsl";
         pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
         // Depth state
@@ -342,7 +342,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
 
                 // Do culling
                 Renderer::ComputeShaderDesc shaderDesc;
-                shaderDesc.path = "Data/shaders/cModelCulling.cs.hlsl.spv";
+                shaderDesc.path = "cModelCulling.cs.hlsl";
                 cullingPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
 
                 Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(cullingPipelineDesc);
@@ -414,7 +414,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
                     commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentSortValues);
 
                     Renderer::ComputeShaderDesc shaderDesc;
-                    shaderDesc.path = "Data/shaders/cModelApplySort.cs.hlsl.spv";
+                    shaderDesc.path = "cModelApplySort.cs.hlsl";
                     Renderer::ComputePipelineDesc pipelineDesc;
                     pipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
 

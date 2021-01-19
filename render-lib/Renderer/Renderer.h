@@ -38,6 +38,8 @@ namespace Renderer
         virtual void InitWindow(Window* window) = 0;
         virtual void Deinit() = 0;
 
+        virtual void ReloadShaders(bool forceRecompileAll) = 0;
+
         virtual ~Renderer();
 
         RenderGraph CreateRenderGraph(RenderGraphDesc& desc);

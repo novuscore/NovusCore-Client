@@ -19,7 +19,7 @@ void DepthPyramidUtils::BuildPyramid(Renderer::Renderer* renderer, Renderer::Ren
     resources.InitializePipelineDesc(queryPipelineDesc);
 
     Renderer::ComputeShaderDesc shaderDesc;
-    shaderDesc.path = "Data/shaders/blitDepth.cs.hlsl.spv";
+    shaderDesc.path = "Blitting/blitDepth.cs.hlsl";
     queryPipelineDesc.computeShader = renderer->LoadShader(shaderDesc);
 
     // Do culling

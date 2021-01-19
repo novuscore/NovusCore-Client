@@ -52,14 +52,7 @@ namespace Renderer
 
         _textureHandler->LoadDebugTexture(debugTexture);
 
-        // Load dummy pipeline containing our global descriptorset
-        VertexShaderDesc dummyShaderDesc;
-        dummyShaderDesc.path = "Data/shaders/globalDataDummy.vs.hlsl.spv";
-
-        GraphicsPipelineDesc dummyPipelineDesc;
-        dummyPipelineDesc.states.vertexShader = _shaderHandler->LoadShader(dummyShaderDesc);
-
-        _globalDummyPipeline = _pipelineHandler->CreatePipeline(dummyPipelineDesc);
+        CreateDummyPipeline();
     }
 
     void RendererVK::InitWindow(Window* window)
@@ -81,6 +74,19 @@ namespace Renderer
         delete(_commandListHandler);
         delete(_samplerHandler);
         delete(_semaphoreHandler);
+    }
+
+    void RendererVK::ReloadShaders(bool forceRecompileAll)
+    {
+        // Make sure the device is not rendering
+        vkDeviceWaitIdle(_device->_device);
+
+        _shaderHandler->ReloadShaders(forceRecompileAll);
+        _pipelineHandler->DiscardPipelines();
+
+        CreateDummyPipeline();
+
+        _device->ReloadShaders(_shaderHandler);
     }
 
     BufferID RendererVK::CreateBuffer(BufferDesc& desc)
@@ -749,6 +755,18 @@ namespace Renderer
         _device->RecreateSwapChain(_shaderHandler, swapChain);
         _pipelineHandler->OnWindowResize();
         _imageHandler->OnWindowResize();
+    }
+
+    void RendererVK::CreateDummyPipeline()
+    {
+        // Load dummy pipeline containing our global descriptorset
+        VertexShaderDesc dummyShaderDesc;
+        dummyShaderDesc.path = "globalDataDummy.vs.hlsl";
+
+        GraphicsPipelineDesc dummyPipelineDesc;
+        dummyPipelineDesc.states.vertexShader = _shaderHandler->LoadShader(dummyShaderDesc);
+
+        _globalDummyPipeline = _pipelineHandler->CreatePipeline(dummyPipelineDesc);
     }
 
     void RendererVK::DestroyObjects(ObjectDestroyList& destroyList)

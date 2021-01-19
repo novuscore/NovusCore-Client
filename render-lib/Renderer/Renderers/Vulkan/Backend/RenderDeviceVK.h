@@ -43,6 +43,8 @@ namespace Renderer
             void Init();
             void InitWindow(ShaderHandlerVK* shaderHandler, Window* window);
 
+            void ReloadShaders(ShaderHandlerVK* shaderHandler);
+
             u32 GetFrameIndex() { return _frameIndex; }
             void EndFrame() { _frameIndex = (_frameIndex + 1) % FRAME_INDEX_COUNT; }
 
@@ -69,6 +71,7 @@ namespace Renderer
             void CreateImageViews(SwapChainVK* swapChain);
             void CreateFrameBuffers(SwapChainVK* swapChain);
             void CreateBlitPipeline(ShaderHandlerVK* shaderHandler, SwapChainVK* swapChain, std::string fragShaderName, ImageComponentType componentType);
+            
 
             void CleanupSwapChain(SwapChainVK* swapChain);
             void RecreateSwapChain(ShaderHandlerVK* shaderHandler, SwapChainVK* swapChain);

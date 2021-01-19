@@ -28,6 +28,7 @@ namespace Renderer
             using cIDType = type_safe::underlying_type<ComputePipelineID>;
         public:
             void Init(RenderDeviceVK* device, ShaderHandlerVK* shaderHandler, ImageHandlerVK* imageHandler);
+            void DiscardPipelines();
 
             void OnWindowResize();
 
@@ -73,9 +74,6 @@ namespace Renderer
                 std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
 
                 std::vector<VkPushConstantRange> pushConstantRanges;
-
-                VkDescriptorPool descriptorPool;
-                std::vector<VkDescriptorSet> descriptorSets;
 
                 DescriptorSetBuilderVK* descriptorSetBuilder;
             };

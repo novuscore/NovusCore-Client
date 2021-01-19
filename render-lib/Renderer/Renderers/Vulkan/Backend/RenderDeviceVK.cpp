@@ -95,6 +95,16 @@ namespace Renderer
             CreateBlitPipeline(shaderHandler, swapChain, "blitInt", IMAGE_COMPONENT_TYPE_SINT);
         }
 
+        void RenderDeviceVK::ReloadShaders(ShaderHandlerVK* shaderHandler)
+        {
+            for (SwapChainVK* swapChain : _swapChains)
+            {
+                CreateBlitPipeline(shaderHandler, swapChain, "blitFloat", IMAGE_COMPONENT_TYPE_FLOAT);
+                CreateBlitPipeline(shaderHandler, swapChain, "blitUint", IMAGE_COMPONENT_TYPE_UINT);
+                CreateBlitPipeline(shaderHandler, swapChain, "blitInt", IMAGE_COMPONENT_TYPE_SINT);
+            }
+        }
+
         void RenderDeviceVK::FlushGPU()
         {
             vkDeviceWaitIdle(_device); // Wait for any in progress rendering to finish
@@ -281,11 +291,11 @@ namespace Renderer
             std::vector<VkExtensionProperties> extensions(extensionCount);
             vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
 
-            NC_LOG_MESSAGE("[Renderer]: Supported extensions:");
+            /*NC_LOG_MESSAGE("[Renderer]: Supported extensions:");
             for (VkExtensionProperties& extension : extensions)
             {
                 NC_LOG_MESSAGE("[Renderer]: %s", extension.extensionName);
-            }
+            }*/
 
             auto requiredExtensions = GetRequiredExtensions();
 
@@ -718,11 +728,11 @@ namespace Renderer
 
             // Load shaders
             VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "Data/shaders/blit.vs.hlsl.spv";
+            vertexShaderDesc.path = "Blitting/blit.vs.hlsl";
             VertexShaderID vertexShader = shaderHandler->LoadShader(vertexShaderDesc);
 
             PixelShaderDesc pixelShaderDesc;
-            pixelShaderDesc.path = "Data/shaders/" + fragShaderName + ".ps.hlsl.spv";
+            pixelShaderDesc.path = "Blitting/" + fragShaderName + ".ps.hlsl";
             PixelShaderID pixelShader = shaderHandler->LoadShader(pixelShaderDesc);
 
             // Create shader stage infos

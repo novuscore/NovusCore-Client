@@ -17,15 +17,20 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     Vulkan::Vulkan
     gli::gli
     imgui::imgui
+    shadercooker::shadercooker
 )
 add_dependencies(${PROJECT_NAME} shaders)
 
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-	COMMENT "Compiling shaders..."
-	COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/shaders/"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${SHADER_OUTPUT}"
-        "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/shaders/"
-        )
+# Add shader location defines
+set(SHADER_BIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/../Data/shaders/ CACHE PATH "Output Directory for shaders")
+add_compile_definitions(SHADER_SOURCE_DIR="${shaders_SOURCE_DIR}" SHADER_BIN_DIR="${SHADER_BIN_DIR}")
+
+#add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+#	COMMENT "Compiling shaders..."
+#	COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/shaders/"
+#    COMMAND ${CMAKE_COMMAND} -E copy_directory
+#        "${SHADER_OUTPUT}"
+#        "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/shaders/"
+#        )
 
 add_compile_definitions(NOMINMAX _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS VK_USE_PLATFORM_WIN32_KHR)

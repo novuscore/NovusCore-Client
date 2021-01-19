@@ -322,7 +322,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                 resources.InitializePipelineDesc(pipelineDesc);
 
                 Renderer::ComputeShaderDesc shaderDesc;
-                shaderDesc.path = "Data/shaders/terrainCulling.cs.hlsl.spv";
+                shaderDesc.path = "terrainCulling.cs.hlsl";
                 pipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
 
                 Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(pipelineDesc);
@@ -381,11 +381,11 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
 
             // Shaders
             Renderer::VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "Data/shaders/terrain.vs.hlsl.spv";
+            vertexShaderDesc.path = "terrain.vs.hlsl";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
             Renderer::PixelShaderDesc pixelShaderDesc;
-            pixelShaderDesc.path = "Data/shaders/terrain.ps.hlsl.spv";
+            pixelShaderDesc.path = "terrain.ps.hlsl";
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
             // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
@@ -406,6 +406,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             // Rasterizer state
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
             pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
+
             // Render targets
             pipelineDesc.renderTargets[0] = data.mainColor;
             pipelineDesc.renderTargets[1] = data.mainObject;

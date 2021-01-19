@@ -33,6 +33,8 @@ namespace Renderer
         void InitWindow(Window* window) override;
         void Deinit() override;
 
+        void ReloadShaders(bool forceRecompileAll) override;
+
         // Creation
         BufferID CreateBuffer(BufferDesc& desc) override;
         BufferID CreateTemporaryBuffer(BufferDesc& desc, u32 framesLifetime) override;
@@ -135,6 +137,7 @@ namespace Renderer
         void BindDescriptor(Backend::DescriptorSetBuilderVK* builder, void* imageInfosArraysVoid, Descriptor& descriptor);
 
         void RecreateSwapChain(Backend::SwapChainVK* swapChain);
+        void CreateDummyPipeline();
 
     private:
         Backend::RenderDeviceVK* _device = nullptr;

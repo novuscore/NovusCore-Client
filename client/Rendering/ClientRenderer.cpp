@@ -186,7 +186,7 @@ void ClientRenderer::Render()
 
             // Shaders
             Renderer::VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "Data/shaders/depthprepass.vs.hlsl.spv";
+            vertexShaderDesc.path = "depthprepass.vs.hlsl";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
             // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
@@ -259,11 +259,11 @@ void ClientRenderer::Render()
 
             // Shaders
             Renderer::VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "Data/shaders/test.vs.hlsl.spv";
+            vertexShaderDesc.path = "test.vs.hlsl";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
             Renderer::PixelShaderDesc pixelShaderDesc;
-            pixelShaderDesc.path = "Data/shaders/test.ps.hlsl.spv";
+            pixelShaderDesc.path = "test.ps.hlsl";
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
             // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
@@ -376,6 +376,11 @@ void ClientRenderer::InitImgui()
     ImGui_ImplGlfw_InitForVulkan(_window->GetWindow(),true);
 
     _renderer->InitImgui();
+}
+
+void ClientRenderer::ReloadShaders(bool forceRecompileAll)
+{
+    _renderer->ReloadShaders(forceRecompileAll);
 }
 
 const std::string& ClientRenderer::GetGPUName()

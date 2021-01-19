@@ -1,33 +1,7 @@
 project(shaders VERSION 1.0.0 DESCRIPTION "Shaders for NovusCore")
  
-set(SHADER_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/../Data/shaders CACHE PATH "Output Directory for shaders")
- 
-#Handle GLSL shaders TODO: Enable this again after making the shader cooker support GLSL (if we ever need it idk)
-#if (${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "AMD64")
-#  set(GLSL_VALIDATOR "$ENV{VULKAN_SDK}/Bin/glslangValidator.exe")
-#else()
-#  set(GLSL_VALIDATOR "$ENV{VULKAN_SDK}/Bin32/glslangValidator.exe")
-#endif()
-#
-#file(GLOB_RECURSE GLSL_SOURCE_FILES
-#  "*.geom"
-#  "*.vert"
-#  "*.frag"
-#   "*.comp"
-#    )
-#
-#foreach(GLSL ${GLSL_SOURCE_FILES})
-#  get_filename_component(FILE_NAME ${GLSL} NAME)
-#  set(SPIRV "${SHADER_OUTPUT}/${FILE_NAME}.spv")
-#  add_custom_command(
-#    OUTPUT ${SPIRV}
-#    COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_OUTPUT}/"
-#    COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -Od -g -o ${SPIRV}
-#    DEPENDS ${GLSL})
-#  list(APPEND SPIRV_BINARY_FILES ${SPIRV})
-#endforeach(GLSL)
-#
-#find_assign_files(${GLSL_SOURCE_FILES})
+set(SHADER_BIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/../Data/shaders CACHE PATH "Output Directory for shaders")
+set(SHADER_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
  
 #Handle HLSL shaders
 set(SHADER_COOKER_STANDALONE "$<TARGET_FILE:shadercookerstandalone>")
@@ -50,11 +24,16 @@ file(GLOB_RECURSE HLSL_INCLUDE_FILES
 
 foreach(HLSL ${HLSL_SOURCE_FILES})
   get_filename_component(FILE_NAME ${HLSL} NAME)
-  set(SPIRV "${SHADER_OUTPUT}/${FILE_NAME}.spv")
+
+  file(RELATIVE_PATH rel ${SHADER_SOURCE_DIR} ${HLSL})
+
+  set(SHADER_REL_PATH ${rel})
+  set(SPIRV "${SHADER_BIN_DIR}/${SHADER_REL_PATH}.spv")
+  
   add_custom_command(
     OUTPUT ${SPIRV}
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_OUTPUT}/"
-    COMMAND ${SHADER_COOKER_STANDALONE} ${HLSL} ${SPIRV} ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_BIN_DIR}/"
+    COMMAND ${SHADER_COOKER_STANDALONE} ${SHADER_REL_PATH} ${SHADER_SOURCE_DIR} ${SHADER_BIN_DIR}
     DEPENDS ${HLSL})
     set_source_files_properties(${HLSL} PROPERTIES VS_TOOL_OVERRIDE "None")
   list(APPEND SPIRV_BINARY_FILES ${SPIRV})

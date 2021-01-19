@@ -99,10 +99,10 @@ void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 
 			// Shader
 			Renderer::VertexShaderDesc vertexShaderDesc;
-			vertexShaderDesc.path = "Data/shaders/debug2D.vs.hlsl.spv";
+			vertexShaderDesc.path = "debug2D.vs.hlsl";
 
 			Renderer::PixelShaderDesc pixelShaderDesc;
-			pixelShaderDesc.path = "Data/shaders/debug2D.ps.hlsl.spv";
+			pixelShaderDesc.path = "debug2D.ps.hlsl";
 
 			pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 			pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
@@ -162,10 +162,10 @@ void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 
 			// Shader
 			Renderer::VertexShaderDesc vertexShaderDesc;
-			vertexShaderDesc.path = "Data/shaders/debug3D.vs.hlsl.spv";
+			vertexShaderDesc.path = "debug3D.vs.hlsl";
 
 			Renderer::PixelShaderDesc pixelShaderDesc;
-			pixelShaderDesc.path = "Data/shaders/debug3D.ps.hlsl.spv";
+			pixelShaderDesc.path = "debug3D.ps.hlsl";
 
 			pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 			pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);

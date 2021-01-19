@@ -154,7 +154,7 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
                 resources.InitializePipelineDesc(pipelineDesc);
 
                 Renderer::ComputeShaderDesc shaderDesc;
-                shaderDesc.path = "Data/shaders/mapObjectCulling.cs.hlsl.spv";
+                shaderDesc.path = "mapObjectCulling.cs.hlsl";
                 pipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
 
                 Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(pipelineDesc);
@@ -215,11 +215,11 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
 
             // Shaders
             Renderer::VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "Data/shaders/mapObject.vs.hlsl.spv";
+            vertexShaderDesc.path = "mapObject.vs.hlsl";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
             Renderer::PixelShaderDesc pixelShaderDesc;
-            pixelShaderDesc.path = "Data/shaders/mapObject.ps.hlsl.spv";
+            pixelShaderDesc.path = "mapObject.ps.hlsl";
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
             // Blend state

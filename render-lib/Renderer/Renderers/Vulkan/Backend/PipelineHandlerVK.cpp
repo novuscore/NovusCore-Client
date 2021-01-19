@@ -20,6 +20,45 @@ namespace Renderer
             _imageHandler = imageHandler;
         }
 
+        void PipelineHandlerVK::DiscardPipelines()
+        {
+            for (GraphicsPipeline& pipeline : _graphicsPipelines)
+            {
+                vkDestroyRenderPass(_device->_device, pipeline.renderPass, nullptr);
+                vkDestroyPipeline(_device->_device, pipeline.pipeline, nullptr);
+                vkDestroyPipelineLayout(_device->_device, pipeline.pipelineLayout, nullptr);
+                vkDestroyFramebuffer(_device->_device, pipeline.framebuffer, nullptr);
+
+                for (VkDescriptorSetLayout& layout : pipeline.descriptorSetLayouts)
+                {
+                    vkDestroyDescriptorSetLayout(_device->_device, layout, nullptr);
+                }
+                pipeline.descriptorSetLayouts.clear();
+                pipeline.descriptorSetLayoutDatas.clear();
+                pipeline.pushConstantRanges.clear();
+
+                delete pipeline.descriptorSetBuilder;
+            }
+            _graphicsPipelines.clear();
+
+            for (ComputePipeline& pipeline : _computePipelines)
+            {
+                vkDestroyPipeline(_device->_device, pipeline.pipeline, nullptr);
+                vkDestroyPipelineLayout(_device->_device, pipeline.pipelineLayout, nullptr);
+
+                for (VkDescriptorSetLayout& layout : pipeline.descriptorSetLayouts)
+                {
+                    vkDestroyDescriptorSetLayout(_device->_device, layout, nullptr);
+                }
+                pipeline.descriptorSetLayouts.clear();
+                pipeline.descriptorSetLayoutDatas.clear();
+                pipeline.pushConstantRanges.clear();
+
+                delete pipeline.descriptorSetBuilder;
+            }
+            _computePipelines.clear();
+        }
+
         void PipelineHandlerVK::OnWindowResize()
         {
             for (auto& pipeline : _graphicsPipelines)
