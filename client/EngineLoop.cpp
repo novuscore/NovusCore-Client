@@ -41,7 +41,9 @@
 #include "ECS/Systems/DayNightSystem.h"
 
 #include "UI/ECS/Systems/DeleteElementsSystem.h"
-#include "UI/ECS/Systems/UpdateRenderingSystem.h"
+#include "UI/ECS/Systems/LoadTexturesSystem.h"
+#include "UI/ECS/Systems/UpdateImageModelSystem.h"
+#include "UI/ECS/Systems/UpdateTextModelSystem.h"
 #include "UI/ECS/Systems/UpdateBoundsSystem.h"
 #include "UI/ECS/Systems/UpdateCullingSystem.h"
 #include "UI/ECS/Systems/BuildSortKeySystem.h"
@@ -433,14 +435,33 @@ void EngineLoop::SetupUpdateFramework()
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
 
-    // UpdateRenderingSystem
-    tf::Task uiUpdateRenderingSystem = framework.emplace([&uiRegistry, &gameRegistry]()
+    // LoadTextureSystem
+    tf::Task uiLoadTexturesSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+        {
+            ZoneScopedNC("LoadTextureSystem::Update", tracy::Color::Gainsboro);
+            UISystem::LoadTexturesSystem::Update(uiRegistry);
+            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+        });
+    uiLoadTexturesSystemTask.gather(uiDeleteElementSystem);
+
+    // UpdateImageModelsSystem
+    tf::Task uiUpdateImageModelsSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
     {
-        ZoneScopedNC("UpdateRenderingSystem::Update", tracy::Color::Gainsboro);
-        UISystem::UpdateRenderingSystem::Update(uiRegistry);
+        ZoneScopedNC("UpdateImageModelsSystem::Update", tracy::Color::Gainsboro);
+        UISystem::UpdateImageModelSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
-    uiUpdateRenderingSystem.gather(uiDeleteElementSystem);
+    uiUpdateImageModelsSystemTask.gather(uiLoadTexturesSystemTask);
+
+    // UpdateTextModelSystem
+    tf::Task uiUpdateTextModelsSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+        {
+            ZoneScopedNC("UpdateTextModelSystem::Update", tracy::Color::Gainsboro);
+            UISystem::UpdateTextModelSystem::Update(uiRegistry);
+            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+        });
+    uiUpdateTextModelsSystemTask.gather(uiLoadTexturesSystemTask);
+    uiUpdateTextModelsSystemTask.gather(uiUpdateImageModelsSystemTask); // Remove when buffers are fixed.
 
     // UpdateBoundsSystem
     tf::Task uiUpdateBoundsSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
@@ -449,7 +470,7 @@ void EngineLoop::SetupUpdateFramework()
         UISystem::UpdateBoundsSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
-    uiUpdateRenderingSystem.gather(uiDeleteElementSystem);
+    uiUpdateBoundsSystemTask.gather(uiDeleteElementSystem);
 
     // UpdateCullingSystem
     tf::Task uiUpdateCullingSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
@@ -458,7 +479,7 @@ void EngineLoop::SetupUpdateFramework()
         UISystem::UpdateCullingSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
-    uiUpdateRenderingSystem.gather(uiDeleteElementSystem);
+    uiUpdateCullingSystemTask.gather(uiDeleteElementSystem);
     
     // BuildSortKeySystem
     tf::Task uiBuildSortKeySystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
@@ -467,7 +488,7 @@ void EngineLoop::SetupUpdateFramework()
         UISystem::BuildSortKeySystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
-    uiUpdateRenderingSystem.gather(uiDeleteElementSystem);
+    uiBuildSortKeySystemTask.gather(uiDeleteElementSystem);
 
     // FinalCleanUpSystem
     tf::Task uiFinalCleanUpSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
@@ -476,7 +497,8 @@ void EngineLoop::SetupUpdateFramework()
         UISystem::FinalCleanUpSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
-    uiFinalCleanUpSystemTask.gather(uiUpdateRenderingSystem);
+    uiFinalCleanUpSystemTask.gather(uiUpdateImageModelsSystemTask);
+    uiFinalCleanUpSystemTask.gather(uiUpdateTextModelsSystemTask);
     uiFinalCleanUpSystemTask.gather(uiUpdateCullingSystemTask);
     uiFinalCleanUpSystemTask.gather(uiBuildSortKeySystemTask);
     /* END UI SYSTEMS */

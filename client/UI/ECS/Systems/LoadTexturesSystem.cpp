@@ -30,7 +30,7 @@ namespace UISystem
             }
         });
 
-        auto textView = registry.view<UIComponent::Text>();
+        auto textView = registry.view<UIComponent::Text, UIComponent::Dirty>();
         textView.each([&](UIComponent::Text& text)
         {
             ZoneScopedNC("UpdateRenderingSystem::Update::TextView", tracy::Color::SkyBlue);
