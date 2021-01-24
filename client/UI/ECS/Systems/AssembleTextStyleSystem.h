@@ -3,7 +3,7 @@
 
 namespace UISystem
 {
-    class UpdateTextModelSystem
+    class AssembleTextStyleSystem
     {
     public:
         static void Update(entt::registry& registry);

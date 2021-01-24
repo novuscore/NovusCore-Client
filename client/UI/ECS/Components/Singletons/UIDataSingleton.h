@@ -18,8 +18,11 @@ namespace UISingleton
         robin_hood::unordered_map<entt::entity, UIScripting::BaseElement*> entityToElement;
 
         entt::entity focusedElement = entt::null;
-        entt::entity draggedElement = entt::null;
         entt::entity hoveredElement = entt::null;
+        entt::entity pressedElement = entt::null;
+
+        entt::entity resizedElement = entt::null;
+        entt::entity draggedElement = entt::null;
         hvec2 dragOffset = hvec2(0.f,0.f);
 
         //Resolution

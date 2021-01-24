@@ -8,11 +8,6 @@
 
 namespace UISystem
 {
-    /*
-    *   This is the most AAA looking programming I have done.
-    *   I both hate & love it.
-    *       - Grim.
-    */
     void AssembleImageStyleSystem::Update(entt::registry& registry)
     {
         auto imageView = registry.view<UIComponent::Image, UIComponent::ImageEventStyles, UIComponent::TransformEvents, UIComponent::Dirty>();
@@ -20,56 +15,45 @@ namespace UISystem
         {
             image.style = UI::ImageStylesheet();
 
-            const u8 highestSetState = static_cast<u8>(std::log2(events.state)); 
-            
-            /*
-            *   Problem with this:
-            *   It is a very manual process and if someone adds in a new property this must be updated for it.
-            *   Is there a meta-programming solution?
-            */
+            const u8 highestSetState = static_cast<u8>(std::pow(2,static_cast<u8>(std::log2(events.state)))); 
             for (u8 key = highestSetState; key > 0; key >>= 1)
             {
-                auto itr = imageStyles.styleMap.find(static_cast<UI::TransformEventState>(key));
+                const auto itr = imageStyles.styleMap.find(static_cast<UI::TransformEventState>(key));
                 if (itr == imageStyles.styleMap.end())
                     continue;
 
                 const UI::ImageStylesheet& eventStyle = itr->getSecond();
-                const u8 existingOverride = image.style.overrideMask;
                 
                 /*
                 *   Figure out which properties this style has that we are missing. Example:
                 *   1011 ^ 1110 = 0101
                 *   1110 & 0101 = 0100
                 */
-                const u8 missingProperties = eventStyle.overrideMask & (existingOverride ^ eventStyle.overrideMask);
+                const u8 missingProperties = eventStyle.overrideMask & (image.style.overrideMask ^ eventStyle.overrideMask);
                 const auto IsMissingProperty = [&](UI::ImageStylesheet::OverrideMaskProperties property) { return missingProperties & property; };
 
                 if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::TEXTURE))
-                    image.style.SetTexture(eventStyle.texture);
+                    image.style.texture = eventStyle.texture;
 
                 if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::TEXCOORD))
-                    image.style.SetTexCoord(eventStyle.texCoord);
+                    image.style.texCoord = eventStyle.texCoord;
 
                 if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::COLOR))
-                    image.style.SetColor(eventStyle.color);
+                    image.style.color = eventStyle.color;
 
                 if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::BORDER_TEXTURE))
-                    image.style.SetBorderTexture(eventStyle.borderTexture);
+                    image.style.borderTexture = eventStyle.borderTexture;
 
                 if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::BORDER_SIZE))
-                    image.style.SetBorderSize(eventStyle.borderSize);
+                    image.style.borderSize = eventStyle.borderSize;
 
                 if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::BORDER_INSET))
-                    image.style.SetBorderInset(eventStyle.borderInset);
+                    image.style.borderInset = eventStyle.borderInset;
 
                 if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::SLICING_OFFSET))
-                    image.style.SetSlicingOffset(eventStyle.slicingOffset);
+                    image.style.slicingOffset = eventStyle.slicingOffset;
 
-                // Assert that we have the sum of all properties of both parts. If this fails someone has forgotten to implement the assembling of a property.
-                if ((existingOverride | eventStyle.overrideMask) != image.style.overrideMask)
-                {
-                    DebugHandler::PrintFatal("Overriden property not implemented in AssembleImageStyleSystem. Expected mask: %d. Recieved mask: %d", (existingOverride | itr->second.overrideMask), image.style.overrideMask);
-                }
+                image.style.overrideMask |= eventStyle.overrideMask;
             }
         });
     }

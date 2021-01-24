@@ -20,7 +20,7 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        events->SetFlag(UI::TransformEventsFlags::FLAG_CLICKABLE);
 
         registry->emplace<UIComponent::Checkbox>(_entityId);
         registry->emplace<UIComponent::Image>(_entityId);
@@ -60,32 +60,32 @@ namespace UIScripting
     const bool Checkbox::IsClickable() const
     {
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        return events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        return events->HasFlag(UI::TransformEventsFlags::FLAG_CLICKABLE);
 
     }
     const bool Checkbox::IsFocusable() const
     {
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        return events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        return events->HasFlag(UI::TransformEventsFlags::FLAG_CLICKABLE);
     }
 
     void Checkbox::SetOnClickCallback(asIScriptFunction* callback)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onClickCallback = callback;
-        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        events->SetFlag(UI::TransformEventsFlags::FLAG_CLICKABLE);
     }
     void Checkbox::SetOnFocusGainedCallback(asIScriptFunction* callback)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onFocusGainedCallback = callback;
-        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+        events->SetFlag(UI::TransformEventsFlags::FLAG_FOCUSABLE);
     }
     void Checkbox::SetOnFocusLostCallback(asIScriptFunction* callback)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onFocusLostCallback = callback;
-        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+        events->SetFlag(UI::TransformEventsFlags::FLAG_FOCUSABLE);
     }
 
     void Checkbox::SetStylesheet(UI::ImageStylesheet styleSheet)

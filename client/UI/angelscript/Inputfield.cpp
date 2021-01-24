@@ -21,7 +21,7 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
 
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+        events->SetFlag(UI::TransformEventsFlags::FLAG_FOCUSABLE);
 
         registry->emplace<UIComponent::InputField>(_entityId);
         registry->emplace<UIComponent::Text>(_entityId);
@@ -158,29 +158,29 @@ namespace UIScripting
     const bool InputField::IsFocusable() const
     {
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        return events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+        return events->HasFlag(UI::TransformEventsFlags::FLAG_FOCUSABLE);
     }
     void InputField::SetFocusable(bool focusable)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
 
         if (focusable)
-            events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+            events->SetFlag(UI::TransformEventsFlags::FLAG_FOCUSABLE);
         else
-            events->UnsetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+            events->UnsetFlag(UI::TransformEventsFlags::FLAG_FOCUSABLE);
     }
 
     void InputField::SetOnFocusGainedCallback(asIScriptFunction* callback)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onFocusGainedCallback = callback;
-        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+        events->SetFlag(UI::TransformEventsFlags::FLAG_FOCUSABLE);
     }
     void InputField::SetOnFocusLostCallback(asIScriptFunction* callback)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onFocusLostCallback = callback;
-        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE);
+        events->SetFlag(UI::TransformEventsFlags::FLAG_FOCUSABLE);
     }
 
     const std::string InputField::GetText() const

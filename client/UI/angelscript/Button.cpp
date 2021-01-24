@@ -50,14 +50,14 @@ namespace UIScripting
     const bool Button::IsClickable() const
     {
         const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        return events->HasFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        return events->HasFlag(UI::TransformEventsFlags::FLAG_CLICKABLE);
     }
 
     void Button::SetOnClickCallback(asIScriptFunction* callback)
     {
         UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
         events->onClickCallback = callback;
-        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
+        events->SetFlag(UI::TransformEventsFlags::FLAG_CLICKABLE);
     }
 
     const std::string Button::GetText() const

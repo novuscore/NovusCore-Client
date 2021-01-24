@@ -14,7 +14,7 @@ namespace UIScripting
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::TransformEvents* events = &registry->emplace<UIComponent::TransformEvents>(_entityId);
-        events->SetFlag(static_cast<UI::TransformEventsFlags>(UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE | UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGLOCK_Y));
+        events->SetFlag(static_cast<UI::TransformEventsFlags>(UI::TransformEventsFlags::FLAG_DRAGGABLE | UI::TransformEventsFlags::FLAG_DRAGLOCK_Y));
 
         registry->emplace<UIComponent::Image>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
