@@ -22,7 +22,9 @@ namespace UI
     {
         UIEVENTS_STATE_FOCUSED = 1 << 0,
         UIEVENTS_STATE_HOVERED = 1 << 1,
-        UIEVENTS_STATE_PRESSED = 1 << 2
+        UIEVENTS_STATE_PRESSED = 1 << 2,
+
+        COUNT = 3
     };
 }
 

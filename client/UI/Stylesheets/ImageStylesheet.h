@@ -42,5 +42,7 @@ namespace UI
         inline void SetBorderInset(Box newBorderInset) { borderInset = newBorderInset; overrideMask |= BORDER_INSET; }
 
         inline void SetSlicingOffset(Box newSlicingOffset) { slicingOffset = newSlicingOffset; overrideMask |= SLICING_OFFSET; }
+
+        inline bool DoesOverride(OverrideMaskProperties property) const { return (overrideMask & property) == property; }
     };
 }
