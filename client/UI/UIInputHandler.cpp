@@ -29,15 +29,7 @@
 
 namespace UIInput
 {
-    inline bool IsPointInRect(const vec2 point, const vec2 min, const vec2 max) { return point.x < min.x || point.x > max.x || point.y < min.y || point.y > max.y; }
-
-    inline void FocusElement(entt::registry* registry, UISingleton::UIDataSingleton& dataSingleton, entt::entity entity, const UIComponent::ElementInfo& elementInfo, UIComponent::TransformEvents& events)
-    {
-        UIUtils::MarkDirty(registry, entity);
-        events.SetState(UI::TransformEventState::STATE_FOCUSED);
-        dataSingleton.focusedElement = entity;
-        UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusGainedCallback);
-    }
+    inline bool IsPointOutsideRect(const vec2 point, const vec2 min, const vec2 max) { return point.x < min.x || point.x > max.x || point.y < min.y || point.y > max.y; }
 
     inline void UnFocusElement(entt::registry* registry, UISingleton::UIDataSingleton& dataSingleton, const UIComponent::ElementInfo& elementInfo, UIComponent::TransformEvents& events)
     {
@@ -45,6 +37,14 @@ namespace UIInput
         events.UnsetState(UI::TransformEventState::STATE_FOCUSED);
         dataSingleton.focusedElement = entt::null;
         UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusLostCallback);
+    }
+
+    inline void UnHover(entt::registry* registry, UISingleton::UIDataSingleton& dataSingleton, const UIComponent::ElementInfo& elementInfo, UIComponent::TransformEvents& events)
+    {
+        UIUtils::MarkDirty(registry, dataSingleton.hoveredElement);
+        events.UnsetState(UI::TransformEventState::STATE_HOVERED);
+        dataSingleton.focusedElement = entt::null;
+        UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onHoverEndedCallback);
     }
 
     bool OnMouseClick(Window* window, std::shared_ptr<Keybind> keybind)
@@ -62,22 +62,26 @@ namespace UIInput
             UnFocusElement(registry, dataSingleton, elementInfo, events);
         }
 
-        // Stop dragging.
-        if (dataSingleton.draggedElement != entt::null && keybind->state == GLFW_RELEASE)
+        // Handle release events.
+        if (keybind->state == GLFW_RELEASE)
         {
-            auto [elementInfo, events] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.draggedElement);
-            dataSingleton.draggedElement = entt::null;
-            UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onDragEndedCallback);
+            // Stop dragging.
+            if (dataSingleton.draggedElement != entt::null)
+            {
+                auto [elementInfo, events] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.draggedElement);
+                dataSingleton.draggedElement = entt::null;
+                UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onDragEndedCallback);
 
-            return true;
-        }
+                return true;
+            }
 
-        // Stop pressing.
-        if (dataSingleton.pressedElement != entt::null && keybind->state == GLFW_RELEASE)
-        {
-            registry->get<UIComponent::TransformEvents>(dataSingleton.pressedElement).UnsetState(UI::TransformEventState::STATE_PRESSED);
-            UIUtils::MarkDirty(registry, dataSingleton.pressedElement);
-            dataSingleton.pressedElement = entt::null;
+            // Stop pressing.
+            if (dataSingleton.pressedElement != entt::null)
+            {
+                registry->get<UIComponent::TransformEvents>(dataSingleton.pressedElement).UnsetState(UI::TransformEventState::STATE_PRESSED);
+                UIUtils::MarkDirty(registry, dataSingleton.pressedElement);
+                dataSingleton.pressedElement = entt::null;
+            }
         }
 
         auto eventGroup = registry->group<>(entt::get<UIComponent::TransformEvents, UIComponent::ElementInfo, UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible, UIComponent::NotCulled>);
@@ -87,7 +91,7 @@ namespace UIInput
             auto [events, elementInfo, collision] = eventGroup.get<UIComponent::TransformEvents, UIComponent::ElementInfo, UIComponent::Collision>(entity);
 
             // Check so mouse if within widget bounds.
-            if (IsPointInRect(mouse, collision.minBound, collision.maxBound))
+            if (IsPointOutsideRect(mouse, collision.minBound, collision.maxBound))
                 continue;
 
             // Don't interact with the last focused element directly. Reserving first click for unfocusing it but still block clicking through it.
@@ -116,7 +120,10 @@ namespace UIInput
                 // Focus element.
                 if (events.HasFlag(UI::TransformEventsFlags::FLAG_FOCUSABLE))
                 {
-                    FocusElement(registry, dataSingleton, entity, elementInfo, events);
+                    UIUtils::MarkDirty(registry, entity);
+                    events.SetState(UI::TransformEventState::STATE_FOCUSED);
+                    dataSingleton.focusedElement = entity;
+                    UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onFocusGainedCallback);
                 }
 
                 // Click element.
@@ -150,6 +157,7 @@ namespace UIInput
         UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
         const hvec2 mouse = UIUtils::Transform::WindowPositionToUIPosition(hvec2(x, y));
         
+        // Handle dragging.
         if (dataSingleton.draggedElement != entt::null)
         {
             auto [elementInfo, transform, events] = registry->get<UIComponent::ElementInfo, UIComponent::Transform, UIComponent::TransformEvents>(dataSingleton.draggedElement);
@@ -174,29 +182,36 @@ namespace UIInput
             UIUtils::Transform::UpdateChildPositions(registry, dataSingleton.draggedElement);
             UIUtils::Collision::MarkBoundsDirty(registry, dataSingleton.draggedElement);
         }
+        
+        // Check if we are still hovering over element.
+        UIComponent::Collision& hoveredCollision = registry->get<UIComponent::Collision>(dataSingleton.hoveredElement);
+        if (IsPointOutsideRect(mouse, hoveredCollision.minBound, hoveredCollision.maxBound))
+        {
+            // Update eventstate of old hover.
+            auto [oldElementInfo, oldEvents] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.hoveredElement);
+            UnHover(registry, dataSingleton, oldElementInfo, oldEvents);
+        }
 
         // Handle hover.
         auto eventGroup = registry->group<>(entt::get<UIComponent::TransformEvents, UIComponent::ElementInfo, UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible, UIComponent::NotCulled>);
         eventGroup.sort<UIComponent::SortKey>([](const UIComponent::SortKey& first, const UIComponent::SortKey& second) { return first.key > second.key; });
         for (auto entity : eventGroup)
         {
-            if (dataSingleton.draggedElement == entity)
-                continue;
-
+            // Check if mouse is within widget bounds.
             const UIComponent::Collision& collision = eventGroup.get<UIComponent::Collision>(entity);
-            // Check so mouse if within widget bounds.
-            if (IsPointInRect(mouse, collision.minBound, collision.maxBound))
+            if (IsPointOutsideRect(mouse, collision.minBound, collision.maxBound))
                 continue;
 
             // Hovered widget hasn't changed.
             if (dataSingleton.hoveredElement == entity)
                 break;
-
-            // Update eventstate of old hover.
-            auto [oldEvents, oldElementInfo] = eventGroup.get<UIComponent::TransformEvents, UIComponent::ElementInfo>(dataSingleton.hoveredElement);
-            oldEvents.UnsetState(UI::TransformEventState::STATE_HOVERED);
-            UIUtils::MarkDirty(registry, dataSingleton.hoveredElement);
-            UIUtils::ExecuteEvent(oldElementInfo.scriptingObject, oldEvents.onHoverEndedCallback);
+            
+            // If it has then unhover the old one.
+            if (dataSingleton.hoveredElement != entt::null)
+            {
+                auto [oldElementInfo, oldEvents] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.hoveredElement);
+                UnHover(registry, dataSingleton, oldElementInfo, oldEvents);
+            }
 
             dataSingleton.hoveredElement = entity;
 
@@ -218,7 +233,7 @@ namespace UIInput
 
         if (dataSingleton.focusedElement == entt::null)
             return false;
-        else if (action == GLFW_RELEASE)
+        else if (action == GLFW_RELEASE) // We handle PRESS & REPEAT events.
             return true;
 
         auto [elementInfo, events] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.focusedElement);
