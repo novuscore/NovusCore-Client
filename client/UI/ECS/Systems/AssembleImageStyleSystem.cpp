@@ -21,44 +21,10 @@ namespace UISystem
             while (true)
             {
                 const auto itr = imageStyles.styleMap.find(static_cast<UI::TransformEventState>(key));
-                if (itr == imageStyles.styleMap.end())
+                if (itr != imageStyles.styleMap.end())
                 {
-                    key >>= 1;
-                    continue;
+                    image.style.Merge(itr->getSecond());
                 }
-
-                const UI::ImageStylesheet& eventStyle = itr->getSecond();
-
-                /*
-                *   Figure out which properties this style has that we are missing. Example:
-                *   1011 ^ 1110 = 0101
-                *   1110 & 0101 = 0100
-                */
-                const u8 missingProperties = eventStyle.overrideMask & (image.style.overrideMask ^ eventStyle.overrideMask);
-                const auto IsMissingProperty = [&](UI::ImageStylesheet::OverrideMaskProperties property) { return (missingProperties & property); };
-
-                if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::TEXTURE))
-                    image.style.texture = eventStyle.texture;
-
-                if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::TEXCOORD))
-                    image.style.texCoord = eventStyle.texCoord;
-
-                if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::COLOR))
-                    image.style.color = eventStyle.color;
-
-                if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::BORDER_TEXTURE))
-                    image.style.borderTexture = eventStyle.borderTexture;
-
-                if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::BORDER_SIZE))
-                    image.style.borderSize = eventStyle.borderSize;
-
-                if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::BORDER_INSET))
-                    image.style.borderInset = eventStyle.borderInset;
-
-                if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::SLICING_OFFSET))
-                    image.style.slicingOffset = eventStyle.slicingOffset;
-
-                image.style.overrideMask |= eventStyle.overrideMask;
 
                 if (key == 0)
                     break;

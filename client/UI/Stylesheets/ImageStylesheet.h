@@ -42,5 +42,39 @@ namespace UI
         inline void SetBorderInset(Box newBorderInset) { borderInset = newBorderInset; overrideMask |= BORDER_INSET; }
 
         inline void SetSlicingOffset(Box newSlicingOffset) { slicingOffset = newSlicingOffset; overrideMask |= SLICING_OFFSET; }
+
+        inline void Merge(const UI::ImageStylesheet& other)
+        {
+            /*
+            *   Figure out which properties other has that we are missing. Example:
+            *   1011 ^ 1110 = 0101
+            *   1110 & 0101 = 0100
+            */
+            const u8 missingProperties = other.overrideMask & (overrideMask ^ other.overrideMask);
+            const auto IsMissingProperty = [&](UI::ImageStylesheet::OverrideMaskProperties property) { return (missingProperties & property); };
+
+            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::TEXTURE))
+                texture = other.texture;
+
+            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::TEXCOORD))
+                texCoord = other.texCoord;
+
+            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::COLOR))
+                color = other.color;
+
+            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::BORDER_TEXTURE))
+                borderTexture = other.borderTexture;
+
+            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::BORDER_SIZE))
+                borderSize = other.borderSize;
+
+            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::BORDER_INSET))
+                borderInset = other.borderInset;
+
+            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::SLICING_OFFSET))
+                slicingOffset = other.slicingOffset;
+
+            overrideMask |= other.overrideMask;
+        }
     };
 }
