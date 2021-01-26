@@ -15,22 +15,27 @@ namespace UISystem
         {
             image.style = UI::ImageStylesheet();
 
-            const u8 highestSetState = static_cast<u8>(std::pow(2,static_cast<u8>(std::log2(events.state)))); 
-            for (u8 key = highestSetState; key > 0; key >>= 1)
+            const u8 highestSetBit = static_cast<u8>(std::log2(events.state));
+            const u8 highestSetState = highestSetBit ? static_cast<u8>(std::pow(2,highestSetBit)) : 0;
+            u8 key = highestSetState;
+            while (true)
             {
                 const auto itr = imageStyles.styleMap.find(static_cast<UI::TransformEventState>(key));
                 if (itr == imageStyles.styleMap.end())
+                {
+                    key >>= 1;
                     continue;
+                }
 
                 const UI::ImageStylesheet& eventStyle = itr->getSecond();
-                
+
                 /*
                 *   Figure out which properties this style has that we are missing. Example:
                 *   1011 ^ 1110 = 0101
                 *   1110 & 0101 = 0100
                 */
                 const u8 missingProperties = eventStyle.overrideMask & (image.style.overrideMask ^ eventStyle.overrideMask);
-                const auto IsMissingProperty = [&](UI::ImageStylesheet::OverrideMaskProperties property) { return missingProperties & property; };
+                const auto IsMissingProperty = [&](UI::ImageStylesheet::OverrideMaskProperties property) { return (missingProperties & property); };
 
                 if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::TEXTURE))
                     image.style.texture = eventStyle.texture;
@@ -54,6 +59,10 @@ namespace UISystem
                     image.style.slicingOffset = eventStyle.slicingOffset;
 
                 image.style.overrideMask |= eventStyle.overrideMask;
+
+                if (key == 0)
+                    break;
+                key >>= 1;
             }
         });
     }

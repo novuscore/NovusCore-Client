@@ -74,7 +74,7 @@ namespace UIScripting
         _label->SetStylesheet(textStylesheet);
     }
 
-    void Button::SetStylesheet(UI::ImageStylesheet stylesheet)
+    void Button::SetStylesheet(const UI::ImageStylesheet& stylesheet)
     {
         UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
         image->style = stylesheet;

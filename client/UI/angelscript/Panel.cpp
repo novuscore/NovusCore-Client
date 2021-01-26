@@ -4,6 +4,7 @@
 
 #include "../ECS/Components/TransformEvents.h"
 #include "../ECS/Components/Image.h"
+#include "../ECS/Components/ImageEventStyles.h"
 #include "../ECS/Components/Renderable.h"
 
 namespace UIScripting
@@ -14,6 +15,7 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::TransformEvents>(_entityId);
         registry->emplace<UIComponent::Image>(_entityId);
+        registry->emplace<UIComponent::ImageEventStyles>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
     }
 
@@ -40,6 +42,9 @@ namespace UIScripting
 
         // Renderable Functions
         r = ScriptEngine::RegisterScriptClassFunction("void SetStylesheet(ImageStylesheet styleSheet)", asMETHOD(Panel, SetStylesheet)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetFocusedStylesheet(ImageStylesheet styleSheet)", asMETHOD(Panel, SetFocusedStylesheet)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetHoverStylesheet(ImageStylesheet styleSheet)", asMETHOD(Panel, SetHoverStylesheet)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetPressedStylesheet(ImageStylesheet styleSheet)", asMETHOD(Panel, SetPressedStylesheet)); assert(r >= 0);
     }
 
     const bool Panel::IsClickable() const
@@ -117,8 +122,23 @@ namespace UIScripting
 
     void Panel::SetStylesheet(const UI::ImageStylesheet& styleSheet)
     {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style = styleSheet;
+        UIComponent::ImageEventStyles& image = ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        image.styleMap[UI::TransformEventState::STATE_NORMAL] = styleSheet;
+    }
+    void Panel::SetFocusedStylesheet(const UI::ImageStylesheet& styleSheet)
+    {
+        UIComponent::ImageEventStyles& image = ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        image.styleMap[UI::TransformEventState::STATE_FOCUSED] = styleSheet;
+    }
+    void Panel::SetHoverStylesheet(const UI::ImageStylesheet& styleSheet)
+    {
+        UIComponent::ImageEventStyles& image = ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        image.styleMap[UI::TransformEventState::STATE_HOVERED] = styleSheet;
+    }
+    void Panel::SetPressedStylesheet(const UI::ImageStylesheet& styleSheet)
+    {
+        UIComponent::ImageEventStyles& image = ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        image.styleMap[UI::TransformEventState::STATE_PRESSED] = styleSheet;
     }
 
     Panel* Panel::CreatePanel(bool collisionEnabled)

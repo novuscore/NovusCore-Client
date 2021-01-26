@@ -27,7 +27,7 @@ namespace UIScripting
         void SetTextStylesheet(const UI::TextStylesheet& textStylesheet);
 
         //Panel Functions
-        void SetStylesheet(UI::ImageStylesheet stylesheet);
+        void SetStylesheet(const UI::ImageStylesheet& stylesheet);
 
         static Button* CreateButton();
 

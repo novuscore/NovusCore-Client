@@ -112,6 +112,7 @@ namespace UIInput
                 if (events.HasFlag(UI::TransformEventsFlags::FLAG_CLICKABLE))
                 {
                     events.SetState(UI::TransformEventState::STATE_PRESSED);
+                    dataSingleton.pressedElement = entity;
                     UIUtils::MarkDirty(registry, entity);
                 }
             }
@@ -184,12 +185,15 @@ namespace UIInput
         }
         
         // Check if we are still hovering over element.
-        UIComponent::Collision& hoveredCollision = registry->get<UIComponent::Collision>(dataSingleton.hoveredElement);
-        if (IsPointOutsideRect(mouse, hoveredCollision.minBound, hoveredCollision.maxBound))
+        if (dataSingleton.hoveredElement != entt::null)
         {
-            // Update eventstate of old hover.
-            auto [oldElementInfo, oldEvents] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.hoveredElement);
-            UnHover(registry, dataSingleton, oldElementInfo, oldEvents);
+            UIComponent::Collision& hoveredCollision = registry->get<UIComponent::Collision>(dataSingleton.hoveredElement);
+            if (IsPointOutsideRect(mouse, hoveredCollision.minBound, hoveredCollision.maxBound))
+            {
+                // Update eventstate of old hover.
+                auto [oldElementInfo, oldEvents] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.hoveredElement);
+                UnHover(registry, dataSingleton, oldElementInfo, oldEvents);
+            }
         }
 
         // Handle hover.

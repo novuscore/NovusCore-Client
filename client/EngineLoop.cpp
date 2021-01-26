@@ -41,6 +41,9 @@
 #include "ECS/Systems/DayNightSystem.h"
 
 #include "UI/ECS/Systems/DeleteElementsSystem.h"
+#include "UI/ECS/Systems/AssembleImageStyleSystem.h"
+#include "UI/ECS/Systems/AssembleTextStyleSystem.h"
+#include "UI/ECS/Systems/DeleteElementsSystem.h"
 #include "UI/ECS/Systems/LoadTexturesSystem.h"
 #include "UI/ECS/Systems/UpdateImageModelSystem.h"
 #include "UI/ECS/Systems/UpdateTextModelSystem.h"
@@ -435,6 +438,21 @@ void EngineLoop::SetupUpdateFramework()
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
 
+    tf::Task uiAssembleImageStyleSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+        {
+            ZoneScopedNC("AssembleImageStyleSystem::Update", tracy::Color::Gainsboro);
+            UISystem::AssembleImageStyleSystem::Update(uiRegistry);
+            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
+    uiAssembleImageStyleSystemTask.gather(uiDeleteElementSystem);
+    tf::Task uiAssembleTextStyleSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+        {
+            ZoneScopedNC("AssembleTextStyleSystem::Update", tracy::Color::Gainsboro);
+            UISystem::AssembleTextStyleSystem::Update(uiRegistry);
+            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+        });
+    uiAssembleImageStyleSystemTask.gather(uiDeleteElementSystem);
+
     // LoadTextureSystem
     tf::Task uiLoadTexturesSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
         {
@@ -442,7 +460,8 @@ void EngineLoop::SetupUpdateFramework()
             UISystem::LoadTexturesSystem::Update(uiRegistry);
             gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
         });
-    uiLoadTexturesSystemTask.gather(uiDeleteElementSystem);
+    uiLoadTexturesSystemTask.gather(uiAssembleImageStyleSystemTask);
+    uiLoadTexturesSystemTask.gather(uiAssembleTextStyleSystemTask);
 
     // UpdateImageModelsSystem
     tf::Task uiUpdateImageModelsSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
