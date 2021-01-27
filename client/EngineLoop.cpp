@@ -897,8 +897,12 @@ void EngineLoop::DrawUIStats()
     };
 
     DisplayElementInfo("Focused", dataSingleton->focusedElement);
-    DisplayElementInfo("Dragged", dataSingleton->draggedElement);
     DisplayElementInfo("Hovered", dataSingleton->hoveredElement);
+    DisplayElementInfo("Pressed", dataSingleton->pressedElement);
+    ImGui::Spacing();
+
+    DisplayElementInfo("Resized", dataSingleton->resizedElement);
+    DisplayElementInfo("Dragged", dataSingleton->draggedElement);
     ImGui::Spacing();
     ImGui::Spacing();
 

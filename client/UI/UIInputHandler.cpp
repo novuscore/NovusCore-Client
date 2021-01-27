@@ -43,7 +43,7 @@ namespace UIInput
     {
         UIUtils::MarkDirty(registry, dataSingleton.hoveredElement);
         events.UnsetState(UI::TransformEventState::STATE_HOVERED);
-        dataSingleton.focusedElement = entt::null;
+        dataSingleton.hoveredElement = entt::null;
         UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onHoverEndedCallback);
     }
 
