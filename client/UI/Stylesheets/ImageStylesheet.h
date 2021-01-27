@@ -51,27 +51,27 @@ namespace UI
             *   1110 & 0101 = 0100
             */
             const u8 missingProperties = other.overrideMask & (overrideMask ^ other.overrideMask);
-            const auto IsMissingProperty = [&](UI::ImageStylesheet::OverrideMaskProperties property) { return (missingProperties & property); };
+            const auto IsMissingProperty = [&](OverrideMaskProperties property) { return (missingProperties & property); };
 
-            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::TEXTURE))
+            if (IsMissingProperty(OverrideMaskProperties::TEXTURE))
                 texture = other.texture;
 
-            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::TEXCOORD))
+            if (IsMissingProperty(OverrideMaskProperties::TEXCOORD))
                 texCoord = other.texCoord;
 
-            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::COLOR))
+            if (IsMissingProperty(OverrideMaskProperties::COLOR))
                 color = other.color;
 
-            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::BORDER_TEXTURE))
+            if (IsMissingProperty(OverrideMaskProperties::BORDER_TEXTURE))
                 borderTexture = other.borderTexture;
 
-            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::BORDER_SIZE))
+            if (IsMissingProperty(OverrideMaskProperties::BORDER_SIZE))
                 borderSize = other.borderSize;
 
-            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::BORDER_INSET))
+            if (IsMissingProperty(OverrideMaskProperties::BORDER_INSET))
                 borderInset = other.borderInset;
 
-            if (IsMissingProperty(UI::ImageStylesheet::OverrideMaskProperties::SLICING_OFFSET))
+            if (IsMissingProperty(OverrideMaskProperties::SLICING_OFFSET))
                 slicingOffset = other.slicingOffset;
 
             overrideMask |= other.overrideMask;

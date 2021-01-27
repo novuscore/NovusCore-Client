@@ -50,5 +50,40 @@ namespace UI
         inline void SetVerticalAlignment(UI::TextVerticalAlignment newVerticalAlignment) { verticalAlignment = newVerticalAlignment; overrideMask |= VERTICAL_ALIGNMENT; }
 
         inline void SetMultiline(bool newMultiline) { multiline = newMultiline; overrideMask |= MULTILINE; }
+
+        inline void Merge(const UI::TextStylesheet& other)
+        {
+            /*
+            *   Figure out which properties other has that we are missing. Example:
+            *   1011 ^ 1110 = 0101
+            *   1110 & 0101 = 0100
+            */
+            const u16 missingProperties = other.overrideMask & (overrideMask ^ other.overrideMask);
+            const auto IsMissingProperty = [&](OverrideMaskProperties property) { return (missingProperties & property); };
+
+            if (IsMissingProperty(OverrideMaskProperties::FONT_PATH))
+                fontPath = other.fontPath;
+            if (IsMissingProperty(OverrideMaskProperties::FONT_SIZE))
+                fontSize = other.fontSize;
+            if (IsMissingProperty(OverrideMaskProperties::LINE_HEIGHT_MULTIPLIER))
+                lineHeightMultiplier = other.lineHeightMultiplier;
+
+            if (IsMissingProperty(OverrideMaskProperties::COLOR))
+                color = other.color;
+            if (IsMissingProperty(OverrideMaskProperties::OUTLINE_COLOR))
+                outlineColor = other.outlineColor;
+            if (IsMissingProperty(OverrideMaskProperties::OUTLINE_WIDTH))
+                outlineWidth = other.outlineWidth;
+
+            if (IsMissingProperty(OverrideMaskProperties::HORIZONTAL_ALIGNMENT))
+                horizontalAlignment = other.horizontalAlignment;
+            if (IsMissingProperty(OverrideMaskProperties::VERTICAL_ALIGNMENT))
+                verticalAlignment = other.verticalAlignment;
+
+            if (IsMissingProperty(OverrideMaskProperties::MULTILINE))
+                multiline = other.multiline;
+
+            overrideMask |= other.overrideMask;
+        }
     };
 }
