@@ -9,7 +9,7 @@ struct TextData
 [[vk::binding(0, PER_PASS)]] SamplerState _sampler;
 
 [[vk::binding(1, PER_DRAW)]] ConstantBuffer<TextData> _textData;
-[[vk::binding(2, PER_DRAW)]] ByteAddressBuffer _textureIDs;
+[[vk::binding(2, PER_DRAW)]] StructuredBuffer<uint> _textureIDs;
 [[vk::binding(3, PER_DRAW)]] Texture2D<float4> _textures[128];
 
 struct VertexOutput
@@ -19,14 +19,9 @@ struct VertexOutput
     uint charIndex : TEXCOORD1;
 };
 
-uint GetTextureID(uint charIndex)
-{
-    return _textureIDs.Load<uint>(charIndex * 4); // 4 = sizeof(charIndex)
-}
-
 float4 main(VertexOutput input) : SV_Target
 {
-    uint textureID = GetTextureID(input.charIndex);
+    uint textureID = _textureIDs[input.charIndex];
 
     float distance = _textures[textureID].SampleLevel(_sampler, input.uv, 0).r;
     float smoothWidth = fwidth(distance);

@@ -10,6 +10,11 @@
 #include "SpirvReflect.h"
 #include <Utils/DebugHandler.h>
 
+namespace ShaderCooker
+{
+    class ShaderCooker;
+}
+
 namespace Renderer
 {
     namespace Backend
@@ -51,6 +56,7 @@ namespace Renderer
 
         public:
             void Init(RenderDeviceVK* device);
+            void ReloadShaders(bool forceRecompileAll);
 
             VertexShaderID LoadShader(const VertexShaderDesc& desc);
             PixelShaderID LoadShader(const PixelShaderDesc& desc);
@@ -77,6 +83,8 @@ namespace Renderer
             struct Shader
             {
                 std::string path;
+                std::string sourcePath;
+
                 VkShaderModule module;
                 ShaderBinary spirv;
 
@@ -96,12 +104,24 @@ namespace Renderer
                     return T(static_cast<idType>(id));
                 }
 
+                // Check if we need to compile it before loading
+                if (NeedsCompile(shaderPath))
+                {
+                    NC_LOG_MESSAGE("[ShaderCooker]: Compiling %s", shaderPath.c_str())
+                    if (!CompileShader(shaderPath))
+                    {
+                        NC_LOG_WARNING("[ShaderCooker]: Compiling %s failed, using old version", shaderPath.c_str());
+                    }
+                }
+
+                std::string shaderBinPath = GetShaderBinPathString(shaderPath);
+
                 id = shaders.size();
                 assert(id < T::MaxValue());
 
                 shaders.emplace_back();
                 Shader& shader = shaders.back();
-                ReadFile(shaderPath, shader.spirv);
+                ReadFile(shaderBinPath, shader.spirv);
                 shader.path = shaderPath;
                 shader.module = CreateShaderModule(shader.spirv);
 
@@ -184,8 +204,16 @@ namespace Renderer
             VkShaderModule CreateShaderModule(const ShaderBinary& binary);
             bool TryFindExistingShader(const std::string& shaderPath, std::vector<Shader>& shaders, size_t& id);
 
+            std::string GetShaderBinPathString(const std::string& shaderPath);
+
+            bool NeedsCompile(const std::string& shaderPath);
+            bool CompileShader(const std::string& shaderPath);
+
         private:
             RenderDeviceVK* _device;
+
+            ShaderCooker::ShaderCooker* _shaderCooker;
+            bool _forceRecompileAll = false;
 
             std::vector<Shader> _vertexShaders;
             std::vector<Shader> _pixelShaders;

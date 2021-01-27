@@ -51,6 +51,10 @@ public:
     DebugRenderer* GetDebugRenderer() { return _debugRenderer; }
     PixelQuery* GetPixelQuery() { return _pixelQuery; }
 
+    void ReloadShaders(bool forceRecompileAll);
+
+    const std::string& GetGPUName();
+
     size_t GetVRAMUsage();
     size_t GetVRAMBudget();
 
@@ -70,6 +74,7 @@ private:
     // Permanent resources
     Renderer::ImageID _mainColor;
     Renderer::ImageID _objectIDs;
+    Renderer::ImageID _depthPyramid;
 
     Renderer::DepthImageID _mainDepth;
 

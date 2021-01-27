@@ -305,7 +305,7 @@ void SortUtils::SetupIndirectParameters(Renderer::Renderer* renderer, Renderer::
     commandList.PushMarker("SetupIndirectParameters", Color::White);
     // Setup pipeline
     Renderer::ComputeShaderDesc shaderDesc;
-    shaderDesc.path = "Data/shaders/SortSetupIndirectParameters.cs.hlsl.spv";
+    shaderDesc.path = "Sorting/SortSetupIndirectParameters.cs.hlsl";
 
     Renderer::ComputePipelineDesc pipelineDesc;
     pipelineDesc.computeShader = renderer->LoadShader(shaderDesc);
@@ -342,7 +342,7 @@ void SortUtils::Count(Renderer::Renderer* renderer, Renderer::RenderGraphResourc
     commandList.PushMarker("Count", Color::White);
     // Setup pipeline
     Renderer::ComputeShaderDesc shaderDesc;
-    shaderDesc.path = "Data/shaders/SortCount.cs.hlsl.spv";
+    shaderDesc.path = "Sorting/SortCount.cs.hlsl";
 
     Renderer::ComputePipelineDesc pipelineDesc;
     pipelineDesc.computeShader = renderer->LoadShader(shaderDesc);
@@ -378,7 +378,7 @@ void SortUtils::CountReduce(Renderer::Renderer* renderer, Renderer::CommandList&
     commandList.PushMarker("CountReduce", Color::White);
     // Setup pipeline
     Renderer::ComputeShaderDesc shaderDesc;
-    shaderDesc.path = "Data/shaders/SortCountReduce.cs.hlsl.spv";
+    shaderDesc.path = "Sorting/SortCountReduce.cs.hlsl";
 
     Renderer::ComputePipelineDesc pipelineDesc;
     pipelineDesc.computeShader = renderer->LoadShader(shaderDesc);
@@ -404,7 +404,7 @@ void SortUtils::Scan(Renderer::Renderer* renderer, Renderer::CommandList& comman
     commandList.PushMarker("Scan", Color::White);
     // Setup pipeline
     Renderer::ComputeShaderDesc shaderDesc;
-    shaderDesc.path = "Data/shaders/SortScan.cs.hlsl.spv";
+    shaderDesc.path = "Sorting/SortScan.cs.hlsl";
 
     Renderer::ComputePipelineDesc pipelineDesc;
     pipelineDesc.computeShader = renderer->LoadShader(shaderDesc);
@@ -431,7 +431,7 @@ void SortUtils::ScanAdd(Renderer::Renderer* renderer, Renderer::CommandList& com
     commandList.PushMarker("ScanAdd", Color::White);
     // Setup pipeline
     Renderer::ComputeShaderDesc shaderDesc;
-    shaderDesc.path = "Data/shaders/SortScanAdd.cs.hlsl.spv";
+    shaderDesc.path = "Sorting/SortScanAdd.cs.hlsl";
 
     Renderer::ComputePipelineDesc pipelineDesc;
     pipelineDesc.computeShader = renderer->LoadShader(shaderDesc);
@@ -458,7 +458,7 @@ void SortUtils::Scatter(Renderer::Renderer* renderer, Renderer::RenderGraphResou
     commandList.PushMarker("Scatter", Color::White);
     // Setup pipeline
     Renderer::ComputeShaderDesc shaderDesc;
-    shaderDesc.path = "Data/shaders/SortScatter.cs.hlsl.spv";
+    shaderDesc.path = "Sorting/SortScatter.cs.hlsl";
 
     Renderer::ComputePipelineDesc pipelineDesc;
     pipelineDesc.computeShader = renderer->LoadShader(shaderDesc);

@@ -191,6 +191,40 @@ namespace Renderer
             }
         }
 
+
+        void DescriptorSetBuilderVK::BindStorageImage(u32 nameHash, const VkDescriptorImageInfo& imageInfo)
+        {
+            for (auto& bindInfo : _bindInfos)
+            {
+                if (nameHash == bindInfo.nameHash)
+                {
+                    BindStorageImage(bindInfo.set, bindInfo.binding, imageInfo);
+                    return;
+                }
+            }
+        }
+
+
+        void DescriptorSetBuilderVK::BindStorageImage(i32 set, i32 binding, const VkDescriptorImageInfo& imageInfo)
+        {
+            for (auto& imageWrite : _imageWrites)
+            {
+                if (imageWrite.dstBinding == binding && imageWrite.dstSet == set)
+                {
+                    imageWrite.imageInfo = imageInfo;
+                    return;
+                }
+            }
+
+            ImageWriteDescriptor newWrite;
+            newWrite.dstSet = set;
+            newWrite.dstBinding = binding;
+            newWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            newWrite.imageInfo = imageInfo;
+
+            _imageWrites.push_back(newWrite);
+        }
+
         void DescriptorSetBuilderVK::BindBuffer(i32 set, i32 binding, const VkDescriptorBufferInfo& bufferInfo, VkDescriptorType bufferType)
         {
             for (auto& bufferWrite : _bufferWrites) 

@@ -156,20 +156,20 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
 
             // Panel Shaders
             Renderer::VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "Data/shaders/panel.vs.hlsl.spv";
+            vertexShaderDesc.path = "UI/panel.vs.hlsl";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
             Renderer::PixelShaderDesc pixelShaderDesc;
-            pixelShaderDesc.path = "Data/shaders/panel.ps.hlsl.spv";
+            pixelShaderDesc.path = "UI/panel.ps.hlsl";
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
             Renderer::GraphicsPipelineID imagePipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
 
             // Text Shaders
-            vertexShaderDesc.path = "Data/shaders/text.vs.hlsl.spv";
+            vertexShaderDesc.path = "UI/text.vs.hlsl";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
-            pixelShaderDesc.path = "Data/shaders/text.ps.hlsl.spv";
+            pixelShaderDesc.path = "UI/text.ps.hlsl";
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
             Renderer::GraphicsPipelineID textPipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
@@ -303,11 +303,11 @@ void UIRenderer::AddImguiPass(Renderer::RenderGraph* renderGraph, Renderer::Imag
 
             // Panel Shaders
             Renderer::VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "Data/shaders/panel.vs.hlsl.spv";
+            vertexShaderDesc.path = "UI/panel.vs.hlsl";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
             Renderer::PixelShaderDesc pixelShaderDesc;
-            pixelShaderDesc.path = "Data/shaders/panel.ps.hlsl.spv";
+            pixelShaderDesc.path = "UI/panel.ps.hlsl";
             pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
             Renderer::GraphicsPipelineID activePipeline = _renderer->CreatePipeline(pipelineDesc);

@@ -43,10 +43,14 @@ namespace Renderer
             void Init();
             void InitWindow(ShaderHandlerVK* shaderHandler, Window* window);
 
+            void ReloadShaders(ShaderHandlerVK* shaderHandler);
+
             u32 GetFrameIndex() { return _frameIndex; }
             void EndFrame() { _frameIndex = (_frameIndex + 1) % FRAME_INDEX_COUNT; }
 
             void FlushGPU();
+
+            const std::string& GetGPUName() { return _gpuName; }
 
         private:
             void InitOnce();
@@ -67,6 +71,7 @@ namespace Renderer
             void CreateImageViews(SwapChainVK* swapChain);
             void CreateFrameBuffers(SwapChainVK* swapChain);
             void CreateBlitPipeline(ShaderHandlerVK* shaderHandler, SwapChainVK* swapChain, std::string fragShaderName, ImageComponentType componentType);
+            
 
             void CleanupSwapChain(SwapChainVK* swapChain);
             void RecreateSwapChain(ShaderHandlerVK* shaderHandler, SwapChainVK* swapChain);
@@ -74,6 +79,7 @@ namespace Renderer
             int RateDeviceSuitability(VkPhysicalDevice device);
             QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
             bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
+            bool CheckDeviceFeatureSupport(VkPhysicalDevice device, VkPhysicalDeviceFeatures2& requestedFeatures);
 
             void CheckValidationLayerSupport();
             std::vector<const char*> GetRequiredExtensions();
@@ -98,7 +104,8 @@ namespace Renderer
 
             VkInstance _instance;
             VkDebugUtilsMessengerEXT _debugMessenger;
-
+            
+            std::string _gpuName;
             VkPhysicalDevice _physicalDevice = VK_NULL_HANDLE;
             VkDevice _device = VK_NULL_HANDLE;
             VkCommandPool _commandPool = VK_NULL_HANDLE;

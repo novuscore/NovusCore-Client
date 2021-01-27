@@ -1,23 +1,5 @@
 #include "globalData.inc.hlsl"
-
-[[vk::binding(0, PER_PASS)]] ByteAddressBuffer _vertices;
-[[vk::binding(1, PER_PASS)]] ByteAddressBuffer _instanceData;
-[[vk::binding(2, PER_PASS)]] ByteAddressBuffer _instanceLookup;
-[[vk::binding(6, PER_PASS)]] Texture2D<float4> _textures[4096]; // This binding needs to stay up to date with the one in mapObject.ps.hlsl or we're gonna have a baaaad time
-
-struct InstanceLookupData
-{
-    uint16_t instanceID;
-    uint16_t materialParamID;
-    uint16_t cullingDataID;
-    uint16_t vertexColorTextureID0;
-    uint16_t vertexColorTextureID1;
-    uint16_t padding1;
-    uint vertexOffset;
-    uint vertexColor1Offset;
-    uint vertexColor2Offset;
-    uint loadedObjectID;
-};
+#include "mapObject.inc.hlsl"
 
 struct InstanceData
 {
@@ -26,11 +8,11 @@ struct InstanceData
 
 struct PackedVertex
 {
-    uint data0;
-    uint data1;
-    uint data2;
-    uint data3;
-};
+    uint data0; // half positionX, half positionY
+    uint data1; // half positionZ, uint8_t octNormalX, uint8_t octNormalY
+    uint data2; // half uvX, half uvY
+    uint data3; // half uvZ, half uvW
+}; // 16 bytes
 
 struct Vertex
 {
@@ -41,48 +23,9 @@ struct Vertex
     float4 uv;
 };
 
-
-struct VSInput
-{
-    uint vertexID : SV_VertexID;
-    uint instanceID : SV_InstanceID;
-};
-
-struct VSOutput
-{
-    float4 position : SV_Position;
-    float3 normal : TEXCOORD0;
-    float4 color0 : TEXCOORD1;
-    float4 color1 : TEXCOORD2;
-    float4 uv01 : TEXCOORD3;
-    uint materialParamID : TEXCOORD4;
-    uint instanceLookupID : TEXCOORD5;
-};
-
-InstanceData LoadInstanceData(uint instanceID)
-{
-    InstanceData instanceData;
-
-    instanceData = _instanceData.Load<InstanceData>(instanceID * 64); // 64 = sizeof(InstanceData)
-
-    return instanceData;
-}
-
-// PackedVertex is packed like this:
-// data0
-//  half positionX
-//  half positionY
-// data1
-//  half positionZ
-//  u8 octNormalX
-//  u8 octNormalY
-// data2
-//  half uvX
-//  half uvY
-// data3
-//  half uvZ
-//  half uvW
-
+[[vk::binding(1, PER_PASS)]] StructuredBuffer<PackedVertex> _packedVertices;
+[[vk::binding(2, PER_PASS)]] StructuredBuffer<InstanceData> _instanceData;
+[[vk::binding(6, PER_PASS)]] Texture2D<float4> _textures[4096]; // This binding needs to stay up to date with the one in mapObject.ps.hlsl or we're gonna have a baaaad time
 
 float3 UnpackPosition(PackedVertex packedVertex)
 {
@@ -139,7 +82,7 @@ Vertex UnpackVertex(PackedVertex packedVertex)
 
 Vertex LoadVertex(uint vertexID, uint vertexColor1Offset, uint vertexColor2Offset, uint vertexColorTextureID0, uint vertexColorTextureID1, uint vertexMeshOffset)
 {
-    PackedVertex packedVertex = _vertices.Load<PackedVertex>(vertexID * 16);
+    PackedVertex packedVertex = _packedVertices[vertexID];
     
     Vertex vertex = UnpackVertex(packedVertex);
 
@@ -150,7 +93,7 @@ Vertex LoadVertex(uint vertexID, uint vertexColor1Offset, uint vertexColor2Offse
         uint offsetVertexID1 = (offsetVertex + vertexColor1Offset) * hasVertexColor1;
         uint3 vertexColorUV1 = uint3((float)offsetVertexID1 % 1024.0f, (float)offsetVertexID1 / 1024.0f, 0);
 
-        vertex.color0 = _textures[vertexColorTextureID0].Load(vertexColorUV1) * float4(hasVertexColor1, hasVertexColor1, hasVertexColor1, 1.0f);
+        vertex.color0 = _textures[NonUniformResourceIndex(vertexColorTextureID0)].Load(vertexColorUV1) * float4(hasVertexColor1, hasVertexColor1, hasVertexColor1, 1.0f);
     }
 
     bool hasVertexColor2 = vertexColor2Offset != 0xffffffff;
@@ -158,17 +101,34 @@ Vertex LoadVertex(uint vertexID, uint vertexColor1Offset, uint vertexColor2Offse
         uint offsetVertexID2 = (offsetVertex + vertexColor2Offset) * hasVertexColor2;
         uint3 vertexColorUV2 = uint3((float)offsetVertexID2 % 1024.0f, (float)offsetVertexID2 / 1024.0f, 0);
 
-        vertex.color1 = _textures[vertexColorTextureID1].Load(vertexColorUV2) * float4(hasVertexColor2, hasVertexColor2, hasVertexColor2, 1.0f);
+        vertex.color1 = _textures[NonUniformResourceIndex(vertexColorTextureID1)].Load(vertexColorUV2) * float4(hasVertexColor2, hasVertexColor2, hasVertexColor2, 1.0f);
     }
 
     return vertex;
 }
 
+struct VSInput
+{
+    uint vertexID : SV_VertexID;
+    uint instanceID : SV_InstanceID;
+};
+
+struct VSOutput
+{
+    float4 position : SV_Position;
+    float3 normal : TEXCOORD0;
+    float4 color0 : TEXCOORD1;
+    float4 color1 : TEXCOORD2;
+    float4 uv01 : TEXCOORD3;
+    uint materialParamID : TEXCOORD4;
+    uint instanceLookupID : TEXCOORD5;
+};
+
 VSOutput main(VSInput input)
 {
     VSOutput output;
 
-    InstanceLookupData lookupData = _instanceLookup.Load<InstanceLookupData>(input.instanceID * 28); // 28 = sizeof(InstanceLookupData)
+    InstanceLookupData lookupData = LoadInstanceLookupData(input.instanceID);
     
     uint instanceID = lookupData.instanceID;
     uint vertexColorTextureID0 = lookupData.vertexColorTextureID0;
@@ -176,7 +136,7 @@ VSOutput main(VSInput input)
     uint vertexOffset = lookupData.vertexOffset;
     uint materialParamID = lookupData.materialParamID;
 
-    InstanceData instanceData = LoadInstanceData(instanceID);
+    InstanceData instanceData = _instanceData[instanceID];
     Vertex vertex = LoadVertex(input.vertexID, lookupData.vertexColor1Offset, lookupData.vertexColor2Offset, vertexColorTextureID0, vertexColorTextureID1, vertexOffset);
 
     float4 position = float4(vertex.position, 1.0f);

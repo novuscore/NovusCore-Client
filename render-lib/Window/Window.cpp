@@ -39,7 +39,12 @@ bool Window::Init(u32 width, u32 height)
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
+#if NC_Debug
+    _window = glfwCreateWindow(width, height, "CNovusCore (DEBUG)", NULL, NULL);
+#else
     _window = glfwCreateWindow(width, height, "CNovusCore", NULL, NULL);
+#endif
+
     if (!_window)
     {
         assert(false);

@@ -88,7 +88,7 @@ void PixelQuery::AddPixelQueryPass(Renderer::RenderGraph* renderGraph, Renderer:
                     resources.InitializePipelineDesc(queryPipelineDesc);
 
                     Renderer::ComputeShaderDesc shaderDesc;
-                    shaderDesc.path = "Data/shaders/objectQuery.cs.hlsl.spv";
+                    shaderDesc.path = "objectQuery.cs.hlsl";
                     queryPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
 
                     // Do culling

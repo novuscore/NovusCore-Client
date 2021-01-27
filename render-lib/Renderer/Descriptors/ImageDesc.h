@@ -13,7 +13,7 @@ namespace Renderer
         ImageDimensionType dimensionType = ImageDimensionType::DIMENSION_ABSOLUTE;
 
         u32 depth = 1;
-
+        u32 mipLevels = 1;
         ImageFormat format = IMAGE_FORMAT_UNKNOWN;
         SampleCount sampleCount = SAMPLE_COUNT_1;
         Color clearColor = Color::Clear;

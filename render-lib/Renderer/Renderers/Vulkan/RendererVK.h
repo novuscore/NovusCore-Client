@@ -33,6 +33,8 @@ namespace Renderer
         void InitWindow(Window* window) override;
         void Deinit() override;
 
+        void ReloadShaders(bool forceRecompileAll) override;
+
         // Creation
         BufferID CreateBuffer(BufferDesc& desc) override;
         BufferID CreateTemporaryBuffer(BufferDesc& desc, u32 framesLifetime) override;
@@ -112,10 +114,17 @@ namespace Renderer
         // Utils
         void FlipFrame(u32 frameIndex) override;
 
+        ImageDesc GetImageDesc(ImageID ID) override;
+        DepthImageDesc GetDepthImageDesc(DepthImageID ID) override;
+
+        uvec2 GetImageDimension(const ImageID id)override;
+
         void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
 
         void* MapBuffer(BufferID buffer) override;
         void UnmapBuffer(BufferID buffer) override;
+
+        const std::string& GetGPUName() override;
 
         size_t GetVRAMUsage() override;
         size_t GetVRAMBudget() override;
@@ -128,6 +137,7 @@ namespace Renderer
         void BindDescriptor(Backend::DescriptorSetBuilderVK* builder, void* imageInfosArraysVoid, Descriptor& descriptor);
 
         void RecreateSwapChain(Backend::SwapChainVK* swapChain);
+        void CreateDummyPipeline();
 
     private:
         Backend::RenderDeviceVK* _device = nullptr;

@@ -1,23 +1,36 @@
 #include "globalData.inc.hlsl"
+#include "mapObject.inc.hlsl"
 
-[[vk::binding(3, PER_PASS)]] SamplerState _sampler;
-[[vk::binding(4, PER_PASS)]] ByteAddressBuffer _materialParams;
-[[vk::binding(5, PER_PASS)]] ByteAddressBuffer _materialData;
-[[vk::binding(6, PER_PASS)]] Texture2D<float4> _textures[4096];
+struct PackedMaterialParam
+{
+    uint packed; // uint16_t materialID, uint16_t exteriorLit
+}; // 4 bytes
 
 struct MaterialParam
 {
-    uint16_t materialID;
-    uint16_t exteriorLit;
+    uint materialID;
+    uint exteriorLit;
 };
+
+struct PackedMaterial
+{
+    uint packed0; // uint16_t textureID0, uint16_t textureID1
+    uint packed1; // uint16_t textureID2, uint16_t alphaTestVal
+    uint packed2; // uint16_t materialType, uint16_t isUnlit
+}; // 12 bytes
 
 struct Material
 {
-    uint16_t textureIDs[3];
-    uint16_t alphaTestVal;
-    uint16_t materialType;
-    uint16_t isUnlit;
+    uint textureIDs[3];
+    uint alphaTestVal;
+    uint materialType;
+    uint isUnlit;
 };
+
+[[vk::binding(3, PER_PASS)]] SamplerState _sampler;
+[[vk::binding(4, PER_PASS)]] StructuredBuffer<PackedMaterialParam> _packedMaterialParams;
+[[vk::binding(5, PER_PASS)]] StructuredBuffer<PackedMaterial> _packedMaterialData;
+[[vk::binding(6, PER_PASS)]] Texture2D<float4> _textures[4096];
 
 struct PSInput
 {
@@ -37,18 +50,28 @@ struct PSOutput
 
 MaterialParam LoadMaterialParam(uint materialParamID)
 {
+    PackedMaterialParam packedMaterialParam = _packedMaterialParams[materialParamID];
+    
     MaterialParam materialParam;
     
-    materialParam = _materialParams.Load<MaterialParam>(materialParamID * 4); // 4 = sizeof(MaterialParam)
+    materialParam.materialID = packedMaterialParam.packed & 0xFFFF;
+    materialParam.exteriorLit = (packedMaterialParam.packed >> 16) & 0xFFFF;
     
     return materialParam;
 }
 
 Material LoadMaterial(uint materialID)
 {
+    PackedMaterial packedMaterial = _packedMaterialData[materialID];
+    
     Material material;
 
-    material = _materialData.Load<Material>(materialID * 12); // 12 = sizeof(Material)
+    material.textureIDs[0] = packedMaterial.packed0 & 0xFFFF;
+    material.textureIDs[1] = (packedMaterial.packed0 >> 16) & 0xFFFF;
+    material.textureIDs[2] = packedMaterial.packed1 & 0xFFFF;
+    material.alphaTestVal = (packedMaterial.packed1 >> 16) & 0xFFFF;
+    material.materialType = packedMaterial.packed2 & 0xFFFF;
+    material.isUnlit = (packedMaterial.packed2 >> 16) & 0xFFFF;
 
     return material;
 }
@@ -67,8 +90,8 @@ PSOutput main(PSInput input)
     // If I do this instead, it works
     uint textureID0 = material.textureIDs[0]; // Prevents invalid patching of shader when running GPU validation layers, maybe remove in future
     uint textureID1 = material.textureIDs[1]; // Prevents invalid patching of shader when running GPU validation layers, maybe remove in future
-    float4 tex0 = _textures[textureID0].Sample(_sampler, input.uv01.xy);
-    float4 tex1 = _textures[textureID1].Sample(_sampler, input.uv01.zw);
+    float4 tex0 = _textures[NonUniformResourceIndex(textureID0)].Sample(_sampler, input.uv01.xy);
+    float4 tex1 = _textures[NonUniformResourceIndex(textureID1)].Sample(_sampler, input.uv01.zw);
 
     float alphaTestVal = f16tof32(material.alphaTestVal);
     if (tex0.a < alphaTestVal)

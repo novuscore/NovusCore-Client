@@ -354,6 +354,13 @@ namespace Renderer
         TEXTURE_ADDRESS_MODE_MIRROR_ONCE
     };
 
+    enum SamplerReductionMode
+    {
+        SAMPLER_REDUCTION_NONE,
+        SAMPLER_REDUCTION_MAX,
+        SAMPLER_REDUCTION_MIN
+    };
+
     enum StaticBorderColor
     {
         STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
@@ -368,6 +375,7 @@ namespace Renderer
         TextureAddressMode addressU = TEXTURE_ADDRESS_MODE_CLAMP;
         TextureAddressMode addressV = TEXTURE_ADDRESS_MODE_CLAMP;
         TextureAddressMode addressW = TEXTURE_ADDRESS_MODE_CLAMP;
+        SamplerReductionMode mode = SAMPLER_REDUCTION_NONE;
         f32 mipLODBias = 0.0f;
         u32 maxAnisotropy = 0;
         ComparisonFunc comparisonFunc = COMPARISON_FUNC_NEVER;
@@ -473,7 +481,8 @@ namespace Renderer
     enum ImageDimensionType
     {
         DIMENSION_ABSOLUTE, // vec2(1,1) means 1x1 pixels
-        DIMENSION_SCALE     // vec2(1,1) means 100% of window size
+        DIMENSION_SCALE,     // vec2(1,1) means 100% of window size
+        DIMENSION_PYRAMID //vec2(1,1) means 100% of window size, does POW2 and mip levels
     };
 
     enum BufferUsage
@@ -499,6 +508,7 @@ namespace Renderer
         TransferDestToIndirectArguments,
         TransferDestToComputeShaderRW,
         TransferDestToVertexBuffer,
+        TransferDestToTransferSrc,
         ComputeWriteToIndirectArguments,
         ComputeWriteToVertexBuffer,
         ComputeWriteToVertexShaderRead,

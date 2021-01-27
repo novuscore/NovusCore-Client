@@ -143,7 +143,7 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
+    void AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID depthPyramid, u8 frameIndex);
 
     void RegisterMapObjectToBeLoaded(const std::string& mapObjectName, const Terrain::Placement& mapObjectPlacement);
     void RegisterMapObjectsToBeLoaded(u16 chunkID, const Terrain::Chunk& chunk, StringTable& stringTable);
@@ -159,6 +159,14 @@ public:
     u32 GetChunkPlacementDetailsOffset(u16 chunkID) { return _mapChunkToPlacementOffset[chunkID]; }
     u32 GetNumLoadedMapObjects() { return static_cast<u32>(_loadedMapObjects.size()); }
     u32 GetNumMapObjectPlacements() { return static_cast<u32>(_instances.size()); }
+
+    // Drawcall stats
+    u32 GetNumDrawCalls() { return static_cast<u32>(_drawParameters.size()); }
+    u32 GetNumSurvivingDrawCalls() { return _numSurvivingDrawCalls; }
+
+    // Triangle stats
+    u32 GetNumTriangles() { return _numTriangles; }
+    u32 GetNumSurvivingTriangles() { return _numSurvivingTriangles; }
 
 private:
     void CreatePermanentResources();
@@ -197,6 +205,7 @@ private:
         vec4 frustumPlanes[6];
         vec3 cameraPos;
         u32 maxDrawCount;
+        u32 occlusionEnabled;
     };
 
 private:
@@ -222,23 +231,30 @@ private:
 
     Renderer::Buffer<CullingConstants>* _cullingConstantBuffer;
 
-    Renderer::BufferID _argumentBuffer = Renderer::BufferID::Invalid();
-    Renderer::BufferID _culledArgumentBuffer = Renderer::BufferID::Invalid();
-    Renderer::BufferID _drawCountBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _argumentBuffer;
+    Renderer::BufferID _culledArgumentBuffer;
+    Renderer::BufferID _drawCountBuffer;
+    Renderer::BufferID _drawCountReadBackBuffer;
+    Renderer::BufferID _triangleCountBuffer;
+    Renderer::BufferID _triangleCountReadBackBuffer;
 
-    Renderer::BufferID _vertexBuffer = Renderer::BufferID::Invalid();
-    Renderer::BufferID _indexBuffer = Renderer::BufferID::Invalid();
-    Renderer::BufferID _instanceBuffer = Renderer::BufferID::Invalid();
-    Renderer::BufferID _instanceLookupBuffer = Renderer::BufferID::Invalid();
-    Renderer::BufferID _materialBuffer = Renderer::BufferID::Invalid();
-    Renderer::BufferID _materialParametersBuffer = Renderer::BufferID::Invalid();
-    Renderer::BufferID _cullingDataBuffer = Renderer::BufferID::Invalid();
+    Renderer::BufferID _vertexBuffer;
+    Renderer::BufferID _indexBuffer;
+    Renderer::BufferID _instanceBuffer;
+    Renderer::BufferID _instanceLookupBuffer;
+    Renderer::BufferID _materialBuffer;
+    Renderer::BufferID _materialParametersBuffer;
+    Renderer::BufferID _cullingDataBuffer;
 
     Renderer::TextureArrayID _mapObjectTextures;
 
     robin_hood::unordered_map<u32, u8> _uniqueIdCounter;
     robin_hood::unordered_map<u16, u32> _mapChunkToPlacementOffset;
     std::vector<Terrain::PlacementDetails> _mapObjectPlacementDetails;
+
+    u32 _numSurvivingDrawCalls;
+    u32 _numTriangles;
+    u32 _numSurvivingTriangles;
 
     std::vector<MapObjectToBeLoaded> _mapObjectsToBeLoaded;
 };

@@ -88,7 +88,7 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
+    void AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, Renderer::ImageID occlusionPyramid);
 
     void RegisterLoadFromChunk(u16 chunkID, const Terrain::Chunk& chunk, StringTable& stringTable);
     void ExecuteLoad();
@@ -116,6 +116,18 @@ public:
 
         return modelIndex;
     }
+    
+    // Drawcall stats
+    u32 GetNumOpaqueDrawCalls() { return static_cast<u32>(_opaqueDrawCalls.size()); }
+    u32 GetNumOpaqueSurvivingDrawCalls() { return _numOpaqueSurvivingDrawCalls; }
+    u32 GetNumTransparentDrawCalls() { return static_cast<u32>(_transparentDrawCalls.size()); }
+    u32 GetNumTransparentSurvivingDrawCalls() { return _numTransparentSurvivingDrawCalls; }
+
+    // Triangle stats
+    u32 GetNumOpaqueTriangles() { return _numOpaqueTriangles; }
+    u32 GetNumOpaqueSurvivingTriangles() { return _numOpaqueSurvivingTriangles; }
+    u32 GetNumTransparentTriangles() { return _numTransparentTriangles; }
+    u32 GetNumTransparentSurvivingTriangles() { return _numTransparentSurvivingTriangles; }
 
 private:
     struct ComplexModelToBeLoaded
@@ -162,10 +174,11 @@ private:
 
     struct CullConstants
     {
-        vec4 frustumPlanes[6];
+        vec4 frustumPlanes[6];       
         vec3 cameraPos;
         u32 maxDrawCount;
-        bool shouldPrepareSort = false;
+        u32 shouldPrepareSort = false;
+        u32 occlusionCull = false;
     };
 
 private:
@@ -220,12 +233,18 @@ private:
     Renderer::BufferID _opaqueCulledDrawCallBuffer;
     Renderer::BufferID _opaqueDrawCallDataBuffer;
     Renderer::BufferID _opaqueDrawCountBuffer;
+    Renderer::BufferID _opaqueDrawCountReadBackBuffer;
+    Renderer::BufferID _opaqueTriangleCountBuffer;
+    Renderer::BufferID _opaqueTriangleCountReadBackBuffer;
 
     Renderer::BufferID _transparentDrawCallBuffer;
     Renderer::BufferID _transparentCulledDrawCallBuffer;
     Renderer::BufferID _transparentSortedCulledDrawCallBuffer;
     Renderer::BufferID _transparentDrawCallDataBuffer;
     Renderer::BufferID _transparentDrawCountBuffer;
+    Renderer::BufferID _transparentDrawCountReadBackBuffer;
+    Renderer::BufferID _transparentTriangleCountBuffer;
+    Renderer::BufferID _transparentTriangleCountReadBackBuffer;
 
     Renderer::BufferID _transparentSortKeys;
     Renderer::BufferID _transparentSortValues;
@@ -233,6 +252,14 @@ private:
     CullConstants _cullConstants;
 
     Renderer::TextureArrayID _cModelTextures;
+
+    u32 _numOpaqueSurvivingDrawCalls;
+    u32 _numTransparentSurvivingDrawCalls;
+
+    u32 _numOpaqueTriangles;
+    u32 _numOpaqueSurvivingTriangles;
+    u32 _numTransparentTriangles;
+    u32 _numTransparentSurvivingTriangles;
 
     DebugRenderer* _debugRenderer;
 };

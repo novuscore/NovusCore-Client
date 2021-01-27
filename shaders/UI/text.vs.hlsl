@@ -5,7 +5,7 @@ struct Vertex
     float2 uv;
 };
 
-[[vk::binding(0, PER_DRAW)]] ByteAddressBuffer _vertexData;
+[[vk::binding(0, PER_DRAW)]] StructuredBuffer<Vertex> _vertexData;
 
 struct VertexInput
 {
@@ -22,13 +22,12 @@ struct VertexOutput
 
 Vertex LoadVertex(uint instanceID, uint vertexID)
 {
-    Vertex vertex;
+    
 
     uint sizeOfVertex = 16; // sizeof(Vertex)
 
     uint vertexOffset = instanceID * 4 + vertexID; // 4 vertices per instance
-    vertex.position = _vertexData.Load<float2>(vertexOffset * sizeOfVertex);
-    vertex.uv = _vertexData.Load<float2>(vertexOffset * sizeOfVertex + 8);
+    Vertex vertex = _vertexData[vertexOffset];
 
     return vertex;
 }

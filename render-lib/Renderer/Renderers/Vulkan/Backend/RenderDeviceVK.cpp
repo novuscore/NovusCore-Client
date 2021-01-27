@@ -95,6 +95,16 @@ namespace Renderer
             CreateBlitPipeline(shaderHandler, swapChain, "blitInt", IMAGE_COMPONENT_TYPE_SINT);
         }
 
+        void RenderDeviceVK::ReloadShaders(ShaderHandlerVK* shaderHandler)
+        {
+            for (SwapChainVK* swapChain : _swapChains)
+            {
+                CreateBlitPipeline(shaderHandler, swapChain, "blitFloat", IMAGE_COMPONENT_TYPE_FLOAT);
+                CreateBlitPipeline(shaderHandler, swapChain, "blitUint", IMAGE_COMPONENT_TYPE_UINT);
+                CreateBlitPipeline(shaderHandler, swapChain, "blitInt", IMAGE_COMPONENT_TYPE_SINT);
+            }
+        }
+
         void RenderDeviceVK::FlushGPU()
         {
             vkDeviceWaitIdle(_device); // Wait for any in progress rendering to finish
@@ -269,7 +279,7 @@ namespace Renderer
             appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
             appInfo.pEngineName = "NovusCore";
             appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-            appInfo.apiVersion = VK_API_VERSION_1_0;
+            appInfo.apiVersion = VK_API_VERSION_1_1;
 
             VkInstanceCreateInfo createInfo = {};
             createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -281,11 +291,11 @@ namespace Renderer
             std::vector<VkExtensionProperties> extensions(extensionCount);
             vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
 
-            NC_LOG_MESSAGE("[Renderer]: Supported extensions:");
+            /*NC_LOG_MESSAGE("[Renderer]: Supported extensions:");
             for (VkExtensionProperties& extension : extensions)
             {
                 NC_LOG_MESSAGE("[Renderer]: %s", extension.extensionName);
-            }
+            }*/
 
             auto requiredExtensions = GetRequiredExtensions();
 
@@ -374,6 +384,12 @@ namespace Renderer
             if (candidates.rbegin()->first > 0)
             {
                 _physicalDevice = candidates.rbegin()->second;
+
+                // Get the name of the GPU
+                VkPhysicalDeviceProperties deviceProperties;
+                vkGetPhysicalDeviceProperties(_physicalDevice, &deviceProperties);
+
+                _gpuName = deviceProperties.deviceName;
             }
             else
             {
@@ -406,6 +422,7 @@ namespace Renderer
             VkPhysicalDeviceDescriptorIndexingFeaturesEXT descriptorIndexingFeatures = {};
             descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
             descriptorIndexingFeatures.runtimeDescriptorArray = true;
+            descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = true;
             descriptorIndexingFeatures.pNext = &shaderSubgroupFeatures;
 
             VkPhysicalDeviceFeatures2 deviceFeatures = {};
@@ -413,12 +430,13 @@ namespace Renderer
             deviceFeatures.features.samplerAnisotropy = VK_TRUE;
             deviceFeatures.features.fragmentStoresAndAtomics = VK_TRUE;
             deviceFeatures.features.vertexPipelineStoresAndAtomics = VK_TRUE;
-            deviceFeatures.features.shaderInt16 = VK_TRUE;
             deviceFeatures.features.shaderInt64 = VK_TRUE;
             deviceFeatures.features.multiDrawIndirect = VK_TRUE;
             deviceFeatures.features.drawIndirectFirstInstance = VK_TRUE;
             deviceFeatures.features.independentBlend = VK_TRUE;
             deviceFeatures.pNext = &descriptorIndexingFeatures;
+
+            CheckDeviceFeatureSupport(_physicalDevice, deviceFeatures);
 
             VkDeviceCreateInfo createInfo = {};
             createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -710,11 +728,11 @@ namespace Renderer
 
             // Load shaders
             VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "Data/shaders/blit.vs.hlsl.spv";
+            vertexShaderDesc.path = "Blitting/blit.vs.hlsl";
             VertexShaderID vertexShader = shaderHandler->LoadShader(vertexShaderDesc);
 
             PixelShaderDesc pixelShaderDesc;
-            pixelShaderDesc.path = "Data/shaders/" + fragShaderName + ".ps.hlsl.spv";
+            pixelShaderDesc.path = "Blitting/" + fragShaderName + ".ps.hlsl";
             PixelShaderID pixelShader = shaderHandler->LoadShader(pixelShaderDesc);
 
             // Create shader stage infos
@@ -1112,6 +1130,425 @@ namespace Renderer
             }
 
             return requiredExtensions.empty();
+        }
+
+        bool RenderDeviceVK::CheckDeviceFeatureSupport(VkPhysicalDevice device, VkPhysicalDeviceFeatures2& requested)
+        {
+            VkPhysicalDeviceDescriptorIndexingFeaturesEXT& requestedDescriptorIndexingFeatures = *static_cast<VkPhysicalDeviceDescriptorIndexingFeaturesEXT*>(requested.pNext);
+            VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR& requestedShaderSubgroupFeatures = *static_cast<VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR*>(requestedDescriptorIndexingFeatures.pNext);
+
+            VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR supportedShaderSubgroupFeatures = {};
+            supportedShaderSubgroupFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES_KHR;
+
+            VkPhysicalDeviceDescriptorIndexingFeaturesEXT supportedDescriptorIndexingFeatures = {};
+            supportedDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
+            supportedDescriptorIndexingFeatures.pNext = &supportedShaderSubgroupFeatures;
+
+            VkPhysicalDeviceFeatures2 supported = {};
+            supported.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+            supported.pNext = &supportedDescriptorIndexingFeatures;
+            vkGetPhysicalDeviceFeatures2(device, &supported);
+
+            std::vector<std::string> errorMessages;
+            bool didError = false;
+
+            if (requested.features.robustBufferAccess && !supported.features.robustBufferAccess)
+            {
+                errorMessages.push_back("We requested device feature robustBufferAccess which was not supported!");
+                didError = true;
+            }
+            if (requested.features.fullDrawIndexUint32 && !supported.features.fullDrawIndexUint32)
+            {
+                errorMessages.push_back("We requested device feature fullDrawIndexUint32 which was not supported!");
+                didError = true;
+            }
+            if (requested.features.imageCubeArray && !supported.features.imageCubeArray)
+            {
+                errorMessages.push_back("We requested device feature imageCubeArray which was not supported!");
+                didError = true;
+            }
+            if (requested.features.independentBlend && !supported.features.independentBlend)
+            {
+                errorMessages.push_back("We requested device feature independentBlend which was not supported!");
+                didError = true;
+            }
+            if (requested.features.geometryShader && !supported.features.geometryShader)
+            {
+                errorMessages.push_back("We requested device feature geometryShader which was not supported!");
+                didError = true;
+            }
+            if (requested.features.tessellationShader && !supported.features.tessellationShader)
+            {
+                errorMessages.push_back("We requested device feature tessellationShader which was not supported!");
+                didError = true;
+            }
+            if (requested.features.sampleRateShading && !supported.features.sampleRateShading)
+            {
+                errorMessages.push_back("We requested device feature sampleRateShading which was not supported!");
+                didError = true;
+            }
+            if (requested.features.dualSrcBlend && !supported.features.dualSrcBlend)
+            {
+                errorMessages.push_back("We requested device feature dualSrcBlend which was not supported!");
+                didError = true;
+            }
+            if (requested.features.logicOp && !supported.features.logicOp)
+            {
+                errorMessages.push_back("We requested device feature logicOp which was not supported!");
+                didError = true;
+            }
+            if (requested.features.multiDrawIndirect && !supported.features.multiDrawIndirect)
+            {
+                errorMessages.push_back("We requested device feature multiDrawIndirect which was not supported!");
+                didError = true;
+            }
+            if (requested.features.drawIndirectFirstInstance && !supported.features.drawIndirectFirstInstance)
+            {
+                errorMessages.push_back("We requested device feature drawIndirectFirstInstance which was not supported!");
+                didError = true;
+            }
+            if (requested.features.depthClamp && !supported.features.depthClamp)
+            {
+                errorMessages.push_back("We requested device feature depthClamp which was not supported!");
+                didError = true;
+            }
+            if (requested.features.depthBiasClamp && !supported.features.depthBiasClamp)
+            {
+                errorMessages.push_back("We requested device feature depthBiasClamp which was not supported!");
+                didError = true;
+            }
+            if (requested.features.fillModeNonSolid && !supported.features.fillModeNonSolid)
+            {
+                errorMessages.push_back("We requested device feature fillModeNonSolid which was not supported!");
+                didError = true;
+            }
+            if (requested.features.depthBounds && !supported.features.depthBounds)
+            {
+                errorMessages.push_back("We requested device feature depthBounds which was not supported!");
+                didError = true;
+            }
+            if (requested.features.wideLines && !supported.features.wideLines)
+            {
+                errorMessages.push_back("We requested device feature wideLines which was not supported!");
+                didError = true;
+            }
+            if (requested.features.largePoints && !supported.features.largePoints)
+            {
+                errorMessages.push_back("We requested device feature largePoints which was not supported!");
+                didError = true;
+            }
+            if (requested.features.alphaToOne && !supported.features.alphaToOne)
+            {
+                errorMessages.push_back("We requested device feature alphaToOne which was not supported!");
+                didError = true;
+            }
+            if (requested.features.multiViewport && !supported.features.multiViewport)
+            {
+                errorMessages.push_back("We requested device feature multiViewport which was not supported!");
+                didError = true;
+            }
+            if (requested.features.samplerAnisotropy && !supported.features.samplerAnisotropy)
+            {
+                errorMessages.push_back("We requested device feature samplerAnisotropy which was not supported!");
+                didError = true;
+            }
+            if (requested.features.textureCompressionETC2 && !supported.features.textureCompressionETC2)
+            {
+                errorMessages.push_back("We requested device feature textureCompressionETC2 which was not supported!");
+                didError = true;
+            }
+            if (requested.features.textureCompressionASTC_LDR && !supported.features.textureCompressionASTC_LDR)
+            {
+                errorMessages.push_back("We requested device feature textureCompressionASTC_LDR which was not supported!");
+                didError = true;
+            }
+            if (requested.features.textureCompressionBC && !supported.features.textureCompressionBC)
+            {
+                errorMessages.push_back("We requested device feature textureCompressionBC which was not supported!");
+                didError = true;
+            }
+            if (requested.features.occlusionQueryPrecise && !supported.features.occlusionQueryPrecise)
+            {
+                errorMessages.push_back("We requested device feature occlusionQueryPrecise which was not supported!");
+                didError = true;
+            }
+            if (requested.features.pipelineStatisticsQuery && !supported.features.pipelineStatisticsQuery)
+            {
+                errorMessages.push_back("We requested device feature pipelineStatisticsQuery which was not supported!");
+                didError = true;
+            }
+            if (requested.features.vertexPipelineStoresAndAtomics && !supported.features.vertexPipelineStoresAndAtomics)
+            {
+                errorMessages.push_back("We requested device feature vertexPipelineStoresAndAtomics which was not supported!");
+                didError = true;
+            }
+            if (requested.features.fragmentStoresAndAtomics && !supported.features.fragmentStoresAndAtomics)
+            {
+                errorMessages.push_back("We requested device feature fragmentStoresAndAtomics which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderTessellationAndGeometryPointSize && !supported.features.shaderTessellationAndGeometryPointSize)
+            {
+                errorMessages.push_back("We requested device feature shaderTessellationAndGeometryPointSize which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderImageGatherExtended && !supported.features.shaderImageGatherExtended)
+            {
+                errorMessages.push_back("We requested device feature shaderImageGatherExtended which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderStorageImageExtendedFormats && !supported.features.shaderStorageImageExtendedFormats)
+            {
+                errorMessages.push_back("We requested device feature shaderStorageImageExtendedFormats which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderStorageImageMultisample && !supported.features.shaderStorageImageMultisample)
+            {
+                errorMessages.push_back("We requested device feature shaderStorageImageMultisample which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderStorageImageReadWithoutFormat && !supported.features.shaderStorageImageReadWithoutFormat)
+            {
+                errorMessages.push_back("We requested device feature shaderStorageImageReadWithoutFormat which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderStorageImageWriteWithoutFormat && !supported.features.shaderStorageImageWriteWithoutFormat)
+            {
+                errorMessages.push_back("We requested device feature shaderStorageImageWriteWithoutFormat which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderUniformBufferArrayDynamicIndexing && !supported.features.shaderUniformBufferArrayDynamicIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderUniformBufferArrayDynamicIndexing which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderSampledImageArrayDynamicIndexing && !supported.features.shaderSampledImageArrayDynamicIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderSampledImageArrayDynamicIndexing which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderStorageBufferArrayDynamicIndexing && !supported.features.shaderStorageBufferArrayDynamicIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderStorageBufferArrayDynamicIndexing which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderStorageImageArrayDynamicIndexing && !supported.features.shaderStorageImageArrayDynamicIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderStorageImageArrayDynamicIndexing which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderClipDistance && !supported.features.shaderClipDistance)
+            {
+                errorMessages.push_back("We requested device feature shaderClipDistance which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderCullDistance && !supported.features.shaderCullDistance)
+            {
+                errorMessages.push_back("We requested device feature shaderCullDistance which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderFloat64 && !supported.features.shaderFloat64)
+            {
+                errorMessages.push_back("We requested device feature shaderFloat64 which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderInt64 && !supported.features.shaderInt64)
+            {
+                errorMessages.push_back("We requested device feature shaderInt64 which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderInt16 && !supported.features.shaderInt16)
+            {
+                errorMessages.push_back("We requested device feature shaderInt16 which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderResourceResidency && !supported.features.shaderResourceResidency)
+            {
+                errorMessages.push_back("We requested device feature shaderResourceResidency which was not supported!");
+                didError = true;
+            }
+            if (requested.features.shaderResourceMinLod && !supported.features.shaderResourceMinLod)
+            {
+                errorMessages.push_back("We requested device feature shaderResourceMinLod which was not supported!");
+                didError = true;
+            }
+            if (requested.features.sparseBinding && !supported.features.sparseBinding)
+            {
+                errorMessages.push_back("We requested device feature sparseBinding which was not supported!");
+                didError = true;
+            }
+            if (requested.features.sparseResidencyBuffer && !supported.features.sparseResidencyBuffer)
+            {
+                errorMessages.push_back("We requested device feature sparseResidencyBuffer which was not supported!");
+                didError = true;
+            }
+            if (requested.features.sparseResidencyImage2D && !supported.features.sparseResidencyImage2D)
+            {
+                errorMessages.push_back("We requested device feature sparseResidencyImage2D which was not supported!");
+                didError = true;
+            }
+            if (requested.features.sparseResidencyImage3D && !supported.features.sparseResidencyImage3D)
+            {
+                errorMessages.push_back("We requested device feature sparseResidencyImage3D which was not supported!");
+                didError = true;
+            }
+            if (requested.features.sparseResidency2Samples && !supported.features.sparseResidency2Samples)
+            {
+                errorMessages.push_back("We requested device feature sparseResidency2Samples which was not supported!");
+                didError = true;
+            }
+            if (requested.features.sparseResidency4Samples && !supported.features.sparseResidency4Samples)
+            {
+                errorMessages.push_back("We requested device feature sparseResidency4Samples which was not supported!");
+                didError = true;
+            }
+            if (requested.features.sparseResidency8Samples && !supported.features.sparseResidency8Samples)
+            {
+                errorMessages.push_back("We requested device feature sparseResidency8Samples which was not supported!");
+                didError = true;
+            }
+            if (requested.features.sparseResidency16Samples && !supported.features.sparseResidency16Samples)
+            {
+                errorMessages.push_back("We requested device feature sparseResidency16Samples which was not supported!");
+                didError = true;
+            }
+            if (requested.features.sparseResidencyAliased && !supported.features.sparseResidencyAliased)
+            {
+                errorMessages.push_back("We requested device feature sparseResidencyAliased which was not supported!");
+                didError = true;
+            }
+            if (requested.features.variableMultisampleRate && !supported.features.variableMultisampleRate)
+            {
+                errorMessages.push_back("We requested device feature variableMultisampleRate which was not supported!");
+                didError = true;
+            }
+            if (requested.features.inheritedQueries && !supported.features.inheritedQueries)
+            {
+                errorMessages.push_back("We requested device feature inheritedQueries which was not supported!");
+                didError = true;
+            }
+
+            // VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR
+            if (requestedDescriptorIndexingFeatures.shaderInputAttachmentArrayDynamicIndexing && !supportedDescriptorIndexingFeatures.shaderInputAttachmentArrayDynamicIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderInputAttachmentArrayDynamicIndexing which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.shaderUniformTexelBufferArrayDynamicIndexing && !supportedDescriptorIndexingFeatures.shaderUniformTexelBufferArrayDynamicIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderUniformTexelBufferArrayDynamicIndexing which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.shaderStorageTexelBufferArrayDynamicIndexing && !supportedDescriptorIndexingFeatures.shaderStorageTexelBufferArrayDynamicIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderStorageTexelBufferArrayDynamicIndexing which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.shaderUniformBufferArrayNonUniformIndexing && !supportedDescriptorIndexingFeatures.shaderUniformBufferArrayNonUniformIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderUniformBufferArrayNonUniformIndexing which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing && !supportedDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderSampledImageArrayNonUniformIndexing which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing && !supportedDescriptorIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderStorageBufferArrayNonUniformIndexing which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.shaderStorageImageArrayNonUniformIndexing && !supportedDescriptorIndexingFeatures.shaderStorageImageArrayNonUniformIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderStorageImageArrayNonUniformIndexing which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.shaderInputAttachmentArrayNonUniformIndexing && !supportedDescriptorIndexingFeatures.shaderInputAttachmentArrayNonUniformIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderInputAttachmentArrayNonUniformIndexing which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.shaderUniformTexelBufferArrayNonUniformIndexing && !supportedDescriptorIndexingFeatures.shaderUniformTexelBufferArrayNonUniformIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderUniformTexelBufferArrayNonUniformIndexing which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.shaderStorageTexelBufferArrayNonUniformIndexing && !supportedDescriptorIndexingFeatures.shaderStorageTexelBufferArrayNonUniformIndexing)
+            {
+                errorMessages.push_back("We requested device feature shaderStorageTexelBufferArrayNonUniformIndexing which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.descriptorBindingUniformBufferUpdateAfterBind && !supportedDescriptorIndexingFeatures.descriptorBindingUniformBufferUpdateAfterBind)
+            {
+                errorMessages.push_back("We requested device feature descriptorBindingUniformBufferUpdateAfterBind which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind && !supportedDescriptorIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind)
+            {
+                errorMessages.push_back("We requested device feature descriptorBindingSampledImageUpdateAfterBind which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.descriptorBindingStorageImageUpdateAfterBind && !supportedDescriptorIndexingFeatures.descriptorBindingStorageImageUpdateAfterBind)
+            {
+                errorMessages.push_back("We requested device feature descriptorBindingStorageImageUpdateAfterBind which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.descriptorBindingStorageBufferUpdateAfterBind && !supportedDescriptorIndexingFeatures.descriptorBindingStorageBufferUpdateAfterBind)
+            {
+                errorMessages.push_back("We requested device feature descriptorBindingStorageBufferUpdateAfterBind which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.descriptorBindingUniformTexelBufferUpdateAfterBind && !supportedDescriptorIndexingFeatures.descriptorBindingUniformTexelBufferUpdateAfterBind)
+            {
+                errorMessages.push_back("We requested device feature descriptorBindingUniformTexelBufferUpdateAfterBind which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.descriptorBindingStorageTexelBufferUpdateAfterBind && !supportedDescriptorIndexingFeatures.descriptorBindingStorageTexelBufferUpdateAfterBind)
+            {
+                errorMessages.push_back("We requested device feature descriptorBindingStorageTexelBufferUpdateAfterBind which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.descriptorBindingUpdateUnusedWhilePending && !supportedDescriptorIndexingFeatures.descriptorBindingUpdateUnusedWhilePending)
+            {
+                errorMessages.push_back("We requested device feature descriptorBindingUpdateUnusedWhilePending which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.descriptorBindingPartiallyBound && !supportedDescriptorIndexingFeatures.descriptorBindingPartiallyBound)
+            {
+                errorMessages.push_back("We requested device feature descriptorBindingPartiallyBound which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount && !supportedDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount)
+            {
+                errorMessages.push_back("We requested device feature descriptorBindingVariableDescriptorCount which was not supported!");
+                didError = true;
+            }
+            if (requestedDescriptorIndexingFeatures.runtimeDescriptorArray && !supportedDescriptorIndexingFeatures.runtimeDescriptorArray)
+            {
+                errorMessages.push_back("We requested device feature runtimeDescriptorArray which was not supported!");
+                didError = true;
+            }
+
+            // VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR
+            if (requestedShaderSubgroupFeatures.shaderSubgroupExtendedTypes && !supportedShaderSubgroupFeatures.shaderSubgroupExtendedTypes)
+            {
+                errorMessages.push_back("We requested device feature shaderSubgroupExtendedTypes which was not supported!");
+                didError = true;
+            }
+
+            if (didError)
+            {
+                for (const std::string& errorMessage : errorMessages)
+                {
+                    NC_LOG_ERROR(errorMessage);
+                }
+
+                NC_LOG_FATAL("The graphics card did not support all requested features!");
+                return false;
+            }
+
+            return true;
         }
 
         void RenderDeviceVK::CheckValidationLayerSupport()

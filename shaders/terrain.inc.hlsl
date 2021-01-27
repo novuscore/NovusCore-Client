@@ -17,7 +17,7 @@ struct PackedCellData
     uint packedDiffuseIDs1;
     uint packedDiffuseIDs2;
     uint packedHoles;
-};
+}; // 12 bytes
 
 struct CellData
 {
@@ -167,3 +167,24 @@ bool IsHoleVertex(uint vertexId, uint hole)
     return false;
 }
 
+#if !SHADER_CS
+[[vk::binding(0, PER_PASS)]] StructuredBuffer<PackedCellData> _packedCellData;
+
+CellData LoadCellData(uint globalCellID)
+{
+    const PackedCellData rawCellData = _packedCellData[globalCellID];
+
+    CellData cellData;
+
+    // Unpack diffuse IDs
+    cellData.diffuseIDs.x = (rawCellData.packedDiffuseIDs1 >> 0)  & 0xffff;
+    cellData.diffuseIDs.y = (rawCellData.packedDiffuseIDs1 >> 16)  & 0xffff;
+    cellData.diffuseIDs.z = (rawCellData.packedDiffuseIDs2 >> 0) & 0xffff;
+    cellData.diffuseIDs.w = (rawCellData.packedDiffuseIDs2 >> 16) & 0xffff;
+
+    // Unpack holes
+    cellData.holes = rawCellData.packedHoles & 0xffff;
+
+    return cellData;
+}
+#endif

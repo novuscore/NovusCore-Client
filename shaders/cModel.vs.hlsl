@@ -1,9 +1,6 @@
 #include "globalData.inc.hlsl"
 #include "cModel.inc.hlsl"
 
-[[vk::binding(1, PER_PASS)]] ByteAddressBuffer _vertices;
-[[vk::binding(2, PER_PASS)]] ByteAddressBuffer _instances;
-
 struct InstanceData
 {
     float4x4 instanceMatrix;
@@ -11,11 +8,11 @@ struct InstanceData
 
 struct PackedVertex
 {
-    uint data0; // half positionX, half positionY
-    uint data1; // half positionZ, u8 octNormal[2]
-    uint data2; // half uv0X, half uv0Y
-    uint data3; // half uv1X, half uv1Y
-};
+    uint packed0; // half positionX, half positionY
+    uint packed1; // half positionZ, u8 octNormal[2]
+    uint packed2; // half uv0X, half uv0Y
+    uint packed3; // half uv1X, half uv1Y
+}; // 16 bytes
 
 struct Vertex
 {
@@ -24,25 +21,14 @@ struct Vertex
     float4 uv01;
 };
 
-struct VSInput
-{
-    uint vertexID : SV_VertexID;
-    uint instanceID : SV_InstanceID;
-};
-
-struct VSOutput
-{
-    float4 position : SV_Position;
-    uint drawCallID : TEXCOORD0;
-    float3 normal : TEXCOORD1;
-    float4 uv01 : TEXCOORD2;
-};
+[[vk::binding(1, PER_PASS)]] StructuredBuffer<PackedVertex> _packedVertices;
+[[vk::binding(2, PER_PASS)]] StructuredBuffer<InstanceData> _instances;
 
 InstanceData LoadInstanceData(uint instanceID)
 {
     InstanceData instanceData;
 
-    instanceData = _instances.Load<InstanceData>(instanceID * 64); // 64 = sizeof(InstanceData)
+    instanceData = _instances[instanceID];
 
     return instanceData;
 }
@@ -51,9 +37,9 @@ float3 UnpackPosition(PackedVertex packedVertex)
 {
     float3 position;
     
-    position.x = f16tof32(packedVertex.data0);
-    position.y = f16tof32(packedVertex.data0 >> 16);
-    position.z = f16tof32(packedVertex.data1);
+    position.x = f16tof32(packedVertex.packed0);
+    position.y = f16tof32(packedVertex.packed0 >> 16);
+    position.z = f16tof32(packedVertex.packed1);
     
     return position;
 }
@@ -71,8 +57,8 @@ float3 OctNormalDecode(float2 f)
 
 float3 UnpackNormal(PackedVertex packedVertex)
 {
-    uint x = (packedVertex.data1 >> 16) & 0xFF;
-    uint y = packedVertex.data1 >> 24;
+    uint x = (packedVertex.packed1 >> 16) & 0xFF;
+    uint y = packedVertex.packed1 >> 24;
     
     float2 octNormal = float2(x, y) / 255.0f;
     return OctNormalDecode(octNormal);
@@ -82,17 +68,17 @@ float4 UnpackUVs(PackedVertex packedVertex)
 {
     float4 uvs;
     
-    uvs.x = f16tof32(packedVertex.data2);
-    uvs.y = f16tof32(packedVertex.data2 >> 16);
-    uvs.z = f16tof32(packedVertex.data3);
-    uvs.w = f16tof32(packedVertex.data3 >> 16);
+    uvs.x = f16tof32(packedVertex.packed2);
+    uvs.y = f16tof32(packedVertex.packed2 >> 16);
+    uvs.z = f16tof32(packedVertex.packed3);
+    uvs.w = f16tof32(packedVertex.packed3 >> 16);
 
     return uvs;
 }
 
 Vertex LoadVertex(uint vertexID)
 {
-    PackedVertex packedVertex = _vertices.Load<PackedVertex>(vertexID * 16); // 48 = sizeof(PackedVertex)
+    PackedVertex packedVertex = _packedVertices[vertexID];
     
     Vertex vertex;
     vertex.position = UnpackPosition(packedVertex);
@@ -101,6 +87,20 @@ Vertex LoadVertex(uint vertexID)
 
     return vertex;
 }
+
+struct VSInput
+{
+    uint vertexID : SV_VertexID;
+    uint instanceID : SV_InstanceID;
+};
+
+struct VSOutput
+{
+    float4 position : SV_Position;
+    uint drawCallID : TEXCOORD0;
+    float3 normal : TEXCOORD1;
+    float4 uv01 : TEXCOORD2;
+};
 
 VSOutput main(VSInput input)
 {

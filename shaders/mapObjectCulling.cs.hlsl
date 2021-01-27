@@ -1,10 +1,13 @@
 #include "globalData.inc.hlsl"
+#include "pyramidCulling.inc.hlsl"
+#include "mapObject.inc.hlsl"
 
 struct Constants
 {
 	float4 frustumPlanes[6];
-    float3 cameraPosition;   
+    float3 cameraPosition;
     uint maxDrawCount;
+    uint occlusionCull;
 };
 
 struct DrawCommand
@@ -18,9 +21,9 @@ struct DrawCommand
 
 struct PackedCullingData
 {
-    uint data0; // half minBoundingBox.x, half minBoundingBox.y, 
-    uint data1; // half minBoundingBox.z, half maxBoundingBox.x,  
-    uint data2; // half maxBoundingBox.y, half maxBoundingBox.z, 
+    uint packed0; // half minBoundingBox.x, half minBoundingBox.y, 
+    uint packed1; // half minBoundingBox.z, half maxBoundingBox.x,  
+    uint packed2; // half maxBoundingBox.y, half maxBoundingBox.z, 
     float sphereRadius;
 }; // 16 bytes
 
@@ -36,60 +39,41 @@ struct CullingData
     float sphereRadius;
 };
 
-struct InstanceLookupData
-{
-    uint16_t instanceID;
-    uint16_t materialParamID;
-    uint16_t cullingDataID;
-    uint16_t vertexColorTextureID0;
-    uint16_t vertexColorTextureID1;
-    uint16_t padding1;
-    uint vertexOffset;
-    uint vertexColor1Offset;
-    uint vertexColor2Offset;
-    uint loadedObjectID;
-};
-
 struct InstanceData
 {
     float4x4 instanceMatrix;
 };
 
-[[vk::binding(0, PER_PASS)]] ByteAddressBuffer _argumentBuffer;
-[[vk::binding(1, PER_PASS)]] RWByteAddressBuffer _culledArgumentBuffer;
-[[vk::binding(2, PER_PASS)]] RWByteAddressBuffer _drawCountBuffer;
+[[vk::binding(1, PER_PASS)]] StructuredBuffer<DrawCommand> _drawCommands;
+[[vk::binding(2, PER_PASS)]] RWStructuredBuffer<DrawCommand> _culledDrawCommands;
+[[vk::binding(3, PER_PASS)]] RWByteAddressBuffer _drawCount;
+[[vk::binding(4, PER_PASS)]] RWByteAddressBuffer _triangleCount;
 
-[[vk::binding(3, PER_PASS)]] ByteAddressBuffer _cullingData;
-[[vk::binding(4, PER_PASS)]] ByteAddressBuffer _instanceLookup;
-[[vk::binding(5, PER_PASS)]] ByteAddressBuffer _instanceData;
+[[vk::binding(5, PER_PASS)]] StructuredBuffer<PackedCullingData> _packedCullingData;
+[[vk::binding(6, PER_PASS)]] StructuredBuffer<InstanceData> _instanceData;
 
-[[vk::binding(6, PER_PASS)]] ConstantBuffer<Constants> _constants;
+[[vk::binding(7, PER_PASS)]] ConstantBuffer<Constants> _constants;
+
+
+[[vk::binding(8, PER_PASS)]] SamplerState _depthSampler;
+[[vk::binding(9, PER_PASS)]] Texture2D<float> _depthPyramid;
 
 CullingData LoadCullingData(uint instanceIndex)
 {
-    const PackedCullingData packed = _cullingData.Load<PackedCullingData>(instanceIndex * 16); // 16 = sizeof(PackedCullingData)
+    const PackedCullingData packed = _packedCullingData[instanceIndex];
     CullingData cullingData;
 
-    cullingData.boundingBox.min.x = f16tof32(packed.data0);
-    cullingData.boundingBox.min.y = f16tof32(packed.data0 >> 16);
-    cullingData.boundingBox.min.z = f16tof32(packed.data1);
+    cullingData.boundingBox.min.x = f16tof32(packed.packed0 & 0xffff);
+    cullingData.boundingBox.min.y = f16tof32((packed.packed0 >> 16) & 0xffff);
+    cullingData.boundingBox.min.z = f16tof32(packed.packed1 & 0xffff);
     
-    cullingData.boundingBox.max.x = f16tof32(packed.data1 >> 16);
-    cullingData.boundingBox.max.y = f16tof32(packed.data2);
-    cullingData.boundingBox.max.z = f16tof32(packed.data2 >> 16);
+    cullingData.boundingBox.max.x = f16tof32((packed.packed1 >> 16) & 0xffff);
+    cullingData.boundingBox.max.y = f16tof32(packed.packed2 & 0xffff);
+    cullingData.boundingBox.max.z = f16tof32((packed.packed2 >> 16) & 0xffff);
     
     cullingData.sphereRadius = packed.sphereRadius;
     
     return cullingData;
-}
-
-InstanceData LoadInstanceData(uint instanceID)
-{
-    InstanceData instanceData;
-
-    instanceData = _instanceData.Load<InstanceData>(instanceID * 64); // 64 = sizeof(InstanceData)
-
-    return instanceData;
 }
 
 bool IsAABBInsideFrustum(float4 frustum[6], AABB aabb)
@@ -150,13 +134,13 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     
     const uint drawCommandIndex = dispatchThreadId.x;
     
-    DrawCommand command = _argumentBuffer.Load<DrawCommand>(drawCommandIndex * 20); // 20 = sizeof(DrawCommand)
+    DrawCommand command = _drawCommands[drawCommandIndex];
     uint instanceID = command.firstInstance;
     
-    const InstanceLookupData lookupData = _instanceLookup.Load<InstanceLookupData>(instanceID * 28); // 28 = sizeof(InstanceLookupData)
+    const InstanceLookupData lookupData = LoadInstanceLookupData(instanceID);
     
     const CullingData cullingData = LoadCullingData(lookupData.cullingDataID);
-    const InstanceData instanceData = LoadInstanceData(lookupData.instanceID);
+    const InstanceData instanceData = _instanceData[lookupData.instanceID];
     
     // Get center and extents
     float3 center = (cullingData.boundingBox.min + cullingData.boundingBox.max) * 0.5f;
@@ -179,10 +163,20 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     if (!IsAABBInsideFrustum(_constants.frustumPlanes, aabb))
     {
         return;
+    } 
+    if (_constants.occlusionCull)
+    { 
+        if (!IsVisible(aabb.min, aabb.max, _viewData.eye, _depthPyramid, _depthSampler, _viewData.lastViewProjectionMatrix))
+        { 
+            return;
+        }
     }
+
+    uint outTriangles;
+    _triangleCount.InterlockedAdd(0, command.indexCount/3, outTriangles);
     
     uint outIndex;
-	_drawCountBuffer.InterlockedAdd(0, 1, outIndex);
+	_drawCount.InterlockedAdd(0, 1, outIndex);
     
-	_culledArgumentBuffer.Store<DrawCommand>(outIndex * 20, command); // 20 = sizeof(DrawCommand)
+	_culledDrawCommands[outIndex] = command;
 }

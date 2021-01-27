@@ -2,6 +2,7 @@
 #include <Networking/InputQueue.h>
 #include <Networking/MessageHandler.h>
 #include <Memory/MemoryTracker.h>
+#include <Utils/CPUInfo.h>
 
 #include <SceneManager.h>
 #include <Renderer/Renderer.h>
@@ -135,6 +136,9 @@ bool EngineLoop::TryGetMessage(Message& message)
 bool EngineLoop::Init()
 {
     assert(_isInitialized == false);
+
+    CPUInfo cpuInfo = CPUInfo::Get();
+    cpuInfo.Print();
 
     _updateFramework.gameRegistry.create();
     _updateFramework.uiRegistry.create();
@@ -635,40 +639,10 @@ void EngineLoop::DrawEngineStats(EngineStatsSingleton* stats)
                 ImGui::EndTabItem();
             }
 
-            if (ImGui::BeginTabItem("Frame Timings"))
+            if (ImGui::BeginTabItem("Performance"))
             {
                 ImGui::Spacing();
-
-                // Draw Timing Graph
-                {
-                    ImGui::Text("update time (ms) : %f", average.simulationFrameTime * 1000);
-                    ImGui::Text("render time CPU (ms): %f", average.renderFrameTime * 1000);
-
-                    //read the frame buffer to gather timings for the histograms
-                    std::vector<float> updateTimes;
-                    updateTimes.reserve(stats->frameStats.size());
-
-                    std::vector<float> renderTimes;
-                    renderTimes.reserve(stats->frameStats.size());
-
-                    for (int i = 0; i < stats->frameStats.size(); i++)
-                    {
-                        updateTimes.push_back(stats->frameStats[i].simulationFrameTime * 1000);
-                        renderTimes.push_back(stats->frameStats[i].renderFrameTime * 1000);
-                    }
-
-                    ImPlot::SetNextPlotLimits(0.0, 120.0, 0, 33.0);
-
-                    //lock minimum Y to 0 (cant have negative ms)
-                    //lock X completely as its fixed 120 frames
-                    if (ImPlot::BeginPlot("Timing", "frame", "ms", ImVec2(400, 300), 0, ImPlotAxisFlags_Lock, ImPlotAxisFlags_LockMin))
-                    {
-                        ImPlot::PlotLine("Update Time", updateTimes.data(), (int)updateTimes.size());
-                        ImPlot::PlotLine("Render Time", renderTimes.data(), (int)renderTimes.size());
-                        ImPlot::EndPlot();
-                    }
-                }
-
+                DrawPerformance(stats);
                 ImGui::EndTabItem();
             }
 
@@ -988,8 +962,255 @@ void EngineLoop::DrawImguiMenuBar()
                 CVarSystem::Get()->DrawImguiEditor();
                 ImGui::EndMenu();
             }
+
+            // Reload shaders button
+            if (ImGui::Button("Reload Shaders"))
+            {
+                _clientRenderer->ReloadShaders(false);
+            }
+            if (ImGui::Button("Reload Shaders (FORCE)"))
+            {
+                _clientRenderer->ReloadShaders(true);
+            }
+
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
+    }
+}
+
+void EngineLoop::DrawPerformance(EngineStatsSingleton* stats)
+{
+    EngineStatsSingleton::Frame average = stats->AverageFrame(240);
+
+    TerrainRenderer* terrainRenderer = _clientRenderer->GetTerrainRenderer();
+    MapObjectRenderer* mapObjectRenderer = terrainRenderer->GetMapObjectRenderer();
+    CModelRenderer* cModelRenderer = _clientRenderer->GetCModelRenderer();
+
+    // Draw hardware info
+    CPUInfo cpuInfo = CPUInfo::Get();
+
+    const std::string& cpuName = cpuInfo.GetPrettyName();
+    const std::string& gpuName = _clientRenderer->GetGPUName();
+
+    ImGui::Text("CPU: %s", cpuName.c_str());
+    ImGui::Text("GPU: %s", gpuName.c_str());
+
+    const std::string rightHeaderText = "Survived / Total (%%)";
+
+    f32 textWidth = ImGui::CalcTextSize(rightHeaderText.c_str()).x;
+    f32 windowWidth = ImGui::GetWindowContentRegionWidth();
+
+    f32 textPos = windowWidth - textWidth;
+
+    // Surviving Drawcalls
+    {
+        ImGui::Spacing();
+        bool showDrawCalls = ImGui::CollapsingHeader("Surviving Drawcalls");
+
+        // If we are not collapsed, add a header that explains the values
+        if (showDrawCalls)
+        {
+            ImGui::SameLine(textPos);
+            ImGui::Text(rightHeaderText.c_str());
+            ImGui::Separator();
+        }
+
+        u32 totalDrawCalls = 0;
+        u32 totalDrawCallsSurvived = 0;
+
+        // Terrain
+        {
+            u32 drawCalls = terrainRenderer->GetNumDrawCalls();
+            u32 drawCallsSurvived = terrainRenderer->GetNumSurvivingDrawCalls();
+
+            if (showDrawCalls)
+            {
+                DrawCullingStatsEntry("Terrain", drawCalls, drawCallsSurvived, !showDrawCalls);
+            }
+
+            totalDrawCalls += drawCalls;
+            totalDrawCallsSurvived += drawCallsSurvived;
+        }
+
+        // MapObjects
+        {
+            u32 drawCalls = mapObjectRenderer->GetNumDrawCalls();
+            u32 drawCallsSurvived = mapObjectRenderer->GetNumSurvivingDrawCalls();
+
+            if (showDrawCalls)
+            {
+                DrawCullingStatsEntry("MapObjects", drawCalls, drawCallsSurvived, !showDrawCalls);
+            }
+
+            totalDrawCalls += drawCalls;
+            totalDrawCallsSurvived += drawCallsSurvived;
+        }
+
+        // Opaque CModels
+        {
+            u32 drawCalls = cModelRenderer->GetNumOpaqueDrawCalls();
+            u32 drawCallsSurvived = cModelRenderer->GetNumOpaqueSurvivingDrawCalls();
+
+            if (showDrawCalls)
+            {
+                DrawCullingStatsEntry("CModels (O)", drawCalls, drawCallsSurvived, !showDrawCalls);
+            }
+
+            totalDrawCalls += drawCalls;
+            totalDrawCallsSurvived += drawCallsSurvived;
+        }
+
+        // Transparent CModels
+        {
+            u32 drawCalls = cModelRenderer->GetNumTransparentDrawCalls();
+            u32 drawCallsSurvived = cModelRenderer->GetNumTransparentSurvivingDrawCalls();
+
+            if (showDrawCalls)
+            {
+                DrawCullingStatsEntry("CModels (T)", drawCalls, drawCallsSurvived, !showDrawCalls);
+            }
+
+            totalDrawCalls += drawCalls;
+            totalDrawCallsSurvived += drawCallsSurvived;
+        }
+
+        // Always draw Total, if we are collapsed it will go on the collapsable header
+        DrawCullingStatsEntry("Total", totalDrawCalls, totalDrawCallsSurvived, !showDrawCalls);
+    }
+
+    // Surviving Triangles
+    {
+        ImGui::Spacing();
+        bool showTriangles = ImGui::CollapsingHeader("Surviving Triangles");
+
+        if (showTriangles)
+        {
+            ImGui::SameLine(textPos);
+            ImGui::Text(rightHeaderText.c_str());
+            ImGui::Separator();
+        }
+
+        u32 totalTriangles = 0;
+        u32 totalTrianglesSurvived = 0;
+
+        // Terrain
+        {
+            u32 triangles = terrainRenderer->GetNumTriangles();
+            u32 trianglesSurvived = terrainRenderer->GetNumSurvivingTriangles();
+
+            if (showTriangles)
+            {
+                DrawCullingStatsEntry("Terrain", triangles, trianglesSurvived, !showTriangles);
+            }
+
+            totalTriangles += triangles;
+            totalTrianglesSurvived += trianglesSurvived;
+        }
+
+        // MapObjects
+        {
+            u32 triangles = mapObjectRenderer->GetNumTriangles();
+            u32 trianglesSurvived = mapObjectRenderer->GetNumSurvivingTriangles();
+
+            if (showTriangles)
+            {
+                DrawCullingStatsEntry("MapObjects", triangles, trianglesSurvived, !showTriangles);
+            }
+
+            totalTriangles += triangles;
+            totalTrianglesSurvived += trianglesSurvived;
+        }
+
+        // Opaque CModels
+        {
+            u32 triangles = cModelRenderer->GetNumOpaqueTriangles();
+            u32 trianglesSurvived = cModelRenderer->GetNumOpaqueSurvivingTriangles();
+
+            if (showTriangles)
+            {
+                DrawCullingStatsEntry("CModels (O)", triangles, trianglesSurvived, !showTriangles);
+            }
+
+            totalTriangles += triangles;
+            totalTrianglesSurvived += trianglesSurvived;
+        }
+
+        // Transparent CModels
+        {
+            u32 triangles = cModelRenderer->GetNumTransparentTriangles();
+            u32 trianglesSurvived = cModelRenderer->GetNumTransparentSurvivingTriangles();
+
+            if (showTriangles)
+            {
+                DrawCullingStatsEntry("CModels (T)", triangles, trianglesSurvived, !showTriangles);
+            }
+
+            totalTriangles += triangles;
+            totalTrianglesSurvived += trianglesSurvived;
+        }
+
+        DrawCullingStatsEntry("Total", totalTriangles, totalTrianglesSurvived, !showTriangles);
+    }
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Text("Frametimes");
+    ImGui::Separator();
+
+    // Draw Timing Graph
+    {
+        ImGui::Text("Update Time (ms) : %f", average.simulationFrameTime * 1000);
+        ImGui::Text("Render Time CPU (ms): %f", average.renderFrameTime * 1000);
+
+        //read the frame buffer to gather timings for the histograms
+        std::vector<float> updateTimes;
+        updateTimes.reserve(stats->frameStats.size());
+
+        std::vector<float> renderTimes;
+        renderTimes.reserve(stats->frameStats.size());
+
+        for (int i = 0; i < stats->frameStats.size(); i++)
+        {
+            updateTimes.push_back(stats->frameStats[i].simulationFrameTime * 1000);
+            renderTimes.push_back(stats->frameStats[i].renderFrameTime * 1000);
+        }
+
+        ImPlot::SetNextPlotLimits(0.0, 120.0, 0, 33.0);
+
+        //lock minimum Y to 0 (cant have negative ms)
+        //lock X completely as its fixed 120 frames
+        if (ImPlot::BeginPlot("Timing", "frame", "ms", ImVec2(400, 300), 0, ImPlotAxisFlags_Lock, ImPlotAxisFlags_LockMin))
+        {
+            ImPlot::PlotLine("Update Time", updateTimes.data(), (int)updateTimes.size());
+            ImPlot::PlotLine("Render Time", renderTimes.data(), (int)renderTimes.size());
+            ImPlot::EndPlot();
+        }
+    }
+}
+
+void EngineLoop::DrawCullingStatsEntry(std::string_view name, u32 drawCalls, u32 survivedDrawCalls, bool isCollapsed)
+{
+    f32 percent = static_cast<f32>(survivedDrawCalls) / static_cast<f32>(drawCalls) * 100.0f;
+
+    char str[50];
+    i32 strLength = StringUtils::FormatString(str, sizeof(str), "%s / %s (%.0f%%)", StringUtils::FormatThousandSeparator(survivedDrawCalls).c_str(), StringUtils::FormatThousandSeparator(drawCalls).c_str(), percent);
+
+    f32 textWidth = ImGui::CalcTextSize(str).x;
+    f32 windowWidth = ImGui::GetWindowContentRegionWidth();
+
+    f32 textPos = windowWidth - textWidth;
+
+    if (isCollapsed)
+    {
+        ImGui::SameLine(textPos);
+        ImGui::Text("%s", str);
+    }
+    else
+    {
+        ImGui::Separator();
+        ImGui::Text("%.*s:", name.length(), name.data());
+        ImGui::SameLine(textPos);
+        ImGui::Text("%s", str);
     }
 }

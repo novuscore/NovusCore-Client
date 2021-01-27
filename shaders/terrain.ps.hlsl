@@ -1,14 +1,13 @@
 #include "globalData.inc.hlsl"
 #include "terrain.inc.hlsl"
 
-[[vk::binding(2, PER_PASS)]] ByteAddressBuffer _cellData;
-[[vk::binding(3, PER_PASS)]] ByteAddressBuffer _chunkData;
+[[vk::binding(2, PER_PASS)]] StructuredBuffer<ChunkData> _chunkData;
 
-[[vk::binding(4, PER_PASS)]] SamplerState _alphaSampler;
-[[vk::binding(5, PER_PASS)]] SamplerState _colorSampler;
+[[vk::binding(3, PER_PASS)]] SamplerState _alphaSampler;
+[[vk::binding(4, PER_PASS)]] SamplerState _colorSampler;
 
-[[vk::binding(6, PER_PASS)]] Texture2D<float4> _terrainColorTextures[4096];
-[[vk::binding(7, PER_PASS)]] Texture2DArray<float4> _terrainAlphaTextures[NUM_CHUNKS_PER_MAP_SIDE * NUM_CHUNKS_PER_MAP_SIDE];
+[[vk::binding(5, PER_PASS)]] Texture2D<float4> _terrainColorTextures[4096];
+[[vk::binding(6, PER_PASS)]] Texture2DArray<float4> _terrainAlphaTextures[NUM_CHUNKS_PER_MAP_SIDE * NUM_CHUNKS_PER_MAP_SIDE];
 
 struct PSInput
 {
@@ -24,24 +23,6 @@ struct PSOutput
     float4 color : SV_Target0;
     uint objectID : SV_Target1;
 };
-
-CellData LoadCellData(uint globalCellID)
-{
-    const PackedCellData rawCellData = _cellData.Load<PackedCellData>(globalCellID * 12); // sizeof(PackedCellData) = 12
-
-    CellData cellData;
-
-    // Unpack diffuse IDs
-    cellData.diffuseIDs.x = (rawCellData.packedDiffuseIDs1 >> 0)  & 0xffff;
-    cellData.diffuseIDs.y = (rawCellData.packedDiffuseIDs1 >> 16)  & 0xffff;
-    cellData.diffuseIDs.z = (rawCellData.packedDiffuseIDs2 >> 0) & 0xffff;
-    cellData.diffuseIDs.w = (rawCellData.packedDiffuseIDs2 >> 16) & 0xffff;
-
-    // Unpack holes
-    cellData.holes = rawCellData.packedHoles & 0xffff;
-
-    return cellData;
-}
 
 PSOutput main(PSInput input)
 {
@@ -59,7 +40,7 @@ PSOutput main(PSInput input)
     const CellData cellData = LoadCellData(input.cellIndex);
 
     const uint chunkIndex = input.cellIndex / NUM_CELLS_PER_CHUNK;
-    const ChunkData chunkData = _chunkData.Load<ChunkData>(chunkIndex * 4); // sizeof(ChunkData) = 4
+    const ChunkData chunkData = _chunkData[chunkIndex];
 
     // We have 4 uints per chunk for our diffuseIDs, this gives us a size and alignment of 16 bytes which is exactly what GPUs want
     // However, we need a fifth uint for alphaID, so we decided to pack it into the LAST diffuseID, which gets split into two uint16s
@@ -74,22 +55,22 @@ PSOutput main(PSInput input)
     uint diffuse3ID = cellData.diffuseIDs.w;
     uint alphaID = chunkData.alphaID;
 
-    float3 alpha = _terrainAlphaTextures[alphaID].Sample(_alphaSampler, alphaUV).rgb;
+    float3 alpha = _terrainAlphaTextures[NonUniformResourceIndex(alphaID)].Sample(_alphaSampler, alphaUV).rgb;
     float minusAlphaBlendSum = (1.0 - clamp(alpha.x + alpha.y + alpha.z, 0.0, 1.0));
     float4 weightsVector = float4(minusAlphaBlendSum, alpha);
 
     float4 color = float4(0, 0, 0, 0);
 
-    float4 diffuse0 = _terrainColorTextures[diffuse0ID].Sample(_colorSampler, uv) * weightsVector.x;
+    float4 diffuse0 = _terrainColorTextures[NonUniformResourceIndex(diffuse0ID)].Sample(_colorSampler, uv) * weightsVector.x;
     color += diffuse0;
 
-    float4 diffuse1 = _terrainColorTextures[diffuse1ID].Sample(_colorSampler, uv) * weightsVector.y;
+    float4 diffuse1 = _terrainColorTextures[NonUniformResourceIndex(diffuse1ID)].Sample(_colorSampler, uv) * weightsVector.y;
     color += diffuse1;
 
-    float4 diffuse2 = _terrainColorTextures[diffuse2ID].Sample(_colorSampler, uv) * weightsVector.z;
+    float4 diffuse2 = _terrainColorTextures[NonUniformResourceIndex(diffuse2ID)].Sample(_colorSampler, uv) * weightsVector.z;
     color += diffuse2;
 
-    float4 diffuse3 = _terrainColorTextures[diffuse3ID].Sample(_colorSampler, uv) * weightsVector.w;
+    float4 diffuse3 = _terrainColorTextures[NonUniformResourceIndex(diffuse3ID)].Sample(_colorSampler, uv) * weightsVector.w;
     color += diffuse3;
 
     // Apply Vertex Lighting

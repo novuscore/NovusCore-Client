@@ -1,31 +1,11 @@
 #include "globalData.inc.hlsl"
 #include "terrain.inc.hlsl"
 
-[[vk::binding(0, PER_PASS)]] ByteAddressBuffer _vertices;
-[[vk::binding(1, PER_PASS)]] ByteAddressBuffer _cellDataVS;
-
-struct VSInput
-{
-    uint vertexID : SV_VertexID;
-    uint packedChunkCellID : TEXCOORD0;
-    uint cellIndex : TEXCOORD1;
-};
-
-struct VSOutput
-{
-    float4 position : SV_Position;
-    uint packedChunkCellID : TEXCOORD0;
-    float2 uv : TEXCOORD1;
-    float3 normal : TEXCOORD2;
-    float3 color : TEXCOORD3;
-    uint cellIndex : TEXCOORD4;
-};
-
 struct PackedVertex
 {
-    uint data0;
-    uint data1;
-};
+    uint packed0;
+    uint packed1;
+}; // 8 bytes
 
 struct Vertex
 {
@@ -34,6 +14,8 @@ struct Vertex
     float3 color;
     float2 uv;
 };
+
+[[vk::binding(1, PER_PASS)]] StructuredBuffer<PackedVertex> _packedVertices;
 
 float3 UnpackNormal(uint encoded)
 {
@@ -74,9 +56,9 @@ Vertex UnpackVertex(const PackedVertex packedVertex)
     // half height, 2 bytes
     
     // Unpack normal, color and height
-    uint normal = packedVertex.data0;// & 0x00FFFFFFu;
-    uint color = ((packedVertex.data1 & 0x0000FFFFu) << 8u) | (packedVertex.data0 >> 24u);
-    uint height = packedVertex.data1 >> 16u;
+    uint normal = packedVertex.packed0;// & 0x00FFFFFFu;
+    uint color = ((packedVertex.packed1 & 0x0000FFFFu) << 8u) | (packedVertex.packed0 >> 24u);
+    uint height = packedVertex.packed1 >> 16u;
     
     Vertex vertex;
     vertex.normal = UnpackNormal(normal);
@@ -90,7 +72,7 @@ Vertex LoadVertex(uint chunkID, uint cellID, uint vertexBaseOffset, uint vertexI
 {
     // Load height
     const uint vertexIndex = vertexBaseOffset + vertexID;
-    const PackedVertex packedVertex = _vertices.Load<PackedVertex>(vertexIndex * 8); // 8 = sizeof(PackedVertex)
+    const PackedVertex packedVertex = _packedVertices[vertexIndex];
     float2 vertexPos = GetCellSpaceVertexPosition(vertexID);
 
     Vertex vertex = UnpackVertex(packedVertex);
@@ -101,23 +83,22 @@ Vertex LoadVertex(uint chunkID, uint cellID, uint vertexBaseOffset, uint vertexI
     return vertex;
 }
 
-CellData LoadCellData(uint globalCellID)
+struct VSInput
 {
-    const PackedCellData rawCellData = _cellDataVS.Load<PackedCellData>(globalCellID * 12); // sizeof(PackedCellData) = 12
+    uint vertexID : SV_VertexID;
+    uint packedChunkCellID : TEXCOORD0;
+    uint cellIndex : TEXCOORD1;
+};
 
-    CellData cellData;
-
-    // Unpack diffuse IDs
-    cellData.diffuseIDs.x = rawCellData.packedDiffuseIDs1 & 0xffff;
-    cellData.diffuseIDs.y = rawCellData.packedDiffuseIDs1 >> 16;
-    cellData.diffuseIDs.z = rawCellData.packedDiffuseIDs2 & 0xffff;
-    cellData.diffuseIDs.w = rawCellData.packedDiffuseIDs2 >> 16;
-
-    // Unpack holes
-    cellData.holes = rawCellData.packedHoles & 0xffff;
-
-    return cellData;
-}
+struct VSOutput
+{
+    float4 position : SV_Position;
+    uint packedChunkCellID : TEXCOORD0;
+    float2 uv : TEXCOORD1;
+    float3 normal : TEXCOORD2;
+    float3 color : TEXCOORD3;
+    uint cellIndex : TEXCOORD4;
+};
 
 VSOutput main(VSInput input)
 {

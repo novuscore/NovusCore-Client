@@ -91,11 +91,11 @@ void WaterRenderer::AddWaterPass(Renderer::RenderGraph* renderGraph, Renderer::D
 
         // Shaders
         Renderer::VertexShaderDesc vertexShaderDesc;
-        vertexShaderDesc.path = "Data/shaders/water.vs.hlsl.spv";
+        vertexShaderDesc.path = "water.vs.hlsl";
         pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
         Renderer::PixelShaderDesc pixelShaderDesc;
-        pixelShaderDesc.path = "Data/shaders/water.ps.hlsl.spv";
+        pixelShaderDesc.path = "water.ps.hlsl";
         pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
         // Depth state
@@ -132,7 +132,7 @@ void WaterRenderer::AddWaterPass(Renderer::RenderGraph* renderGraph, Renderer::D
         commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
         {
-            commandList.PushConstant(&_constants, 0, sizeof(Constants));
+            //commandList.PushConstant(&_constants, 0, sizeof(Constants));
             commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
 
             u32 numDrawCalls = static_cast<u32>(_drawCalls.size());

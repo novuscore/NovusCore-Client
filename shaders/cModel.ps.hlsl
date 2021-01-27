@@ -1,17 +1,6 @@
 #include "globalData.inc.hlsl"
 #include "cModel.inc.hlsl"
 
-[[vk::binding(3, PER_PASS)]] ByteAddressBuffer _textureUnits;
-[[vk::binding(4, PER_PASS)]] SamplerState _sampler;
-[[vk::binding(5, PER_PASS)]] Texture2D<float4> _textures[4096];
-
-struct Constants
-{
-    uint isTransparent;
-};
-
-[[vk::push_constant]] Constants _constants;
-
 struct TextureUnit
 {
     uint data1; // (Is Projected Texture (1 bit) + Material Flag (10 bit) + Material Blending Mode (3 bit) + Unused Padding (2 bits)) + Material Type (16 bit)
@@ -19,26 +8,16 @@ struct TextureUnit
     uint padding;
 };
 
-struct PSInput
+struct Constants
 {
-    uint drawCallID : TEXCOORD0;
-    float3 normal : TEXCOORD1;
-    float4 uv01 : TEXCOORD2;
+    uint isTransparent;
 };
 
-struct PSOutput
-{
-    float4 color : SV_Target0;
-    uint objectID : SV_Target1;
-};
+[[vk::binding(3, PER_PASS)]] StructuredBuffer<TextureUnit> _textureUnits;
+[[vk::binding(4, PER_PASS)]] SamplerState _sampler;
+[[vk::binding(5, PER_PASS)]] Texture2D<float4> _textures[4096];
 
-TextureUnit LoadTextureUnit(uint textureUnitIndex)
-{
-    TextureUnit textureUnit;
-    textureUnit = _textureUnits.Load<TextureUnit>(textureUnitIndex * 16); // 16 = sizeof(TextureUnit)
-
-    return textureUnit;
-}
+[[vk::push_constant]] Constants _constants;
 
 enum PixelShaderID
 {
@@ -68,7 +47,7 @@ enum PixelShaderID
     Decal
 };
 
-float4 Shade(uint16_t pixelId, float4 texture1, float4 texture2, out float3 specular)
+float4 Shade(uint pixelId, float4 texture1, float4 texture2, out float3 specular)
 {
     float4 result = float4(0, 0, 0, 0);
     float4 diffuseColor = float4(1, 1, 1, 1);
@@ -205,7 +184,7 @@ float4 Shade(uint16_t pixelId, float4 texture1, float4 texture2, out float3 spec
     return result;
 }
 
-float4 Blend(uint16_t blendingMode, float4 previousColor, float4 color)
+float4 Blend(uint blendingMode, float4 previousColor, float4 color)
 {
     float4 result = previousColor;
 
@@ -259,6 +238,19 @@ float4 Blend(uint16_t blendingMode, float4 previousColor, float4 color)
     return result;
 }
 
+struct PSInput
+{
+    uint drawCallID : TEXCOORD0;
+    float3 normal : TEXCOORD1;
+    float4 uv01 : TEXCOORD2;
+};
+
+struct PSOutput
+{
+    float4 color : SV_Target0;
+    uint objectID : SV_Target1;
+};
+
 PSOutput main(PSInput input)
 {
     DrawCallData drawCallData = LoadDrawCallData(input.drawCallID);
@@ -270,26 +262,26 @@ PSOutput main(PSInput input)
 
     for (uint textureUnitIndex = drawCallData.textureUnitOffset; textureUnitIndex < drawCallData.textureUnitOffset + drawCallData.numTextureUnits; textureUnitIndex++)
     {
-        TextureUnit textureUnit = LoadTextureUnit(textureUnitIndex);
+        TextureUnit textureUnit = _textureUnits[textureUnitIndex];
 
-        uint16_t isProjectedTexture = uint16_t(textureUnit.data1 & 0x1);
-        uint16_t materialFlags = uint16_t((textureUnit.data1 >> 1) & 0x3FF);
-        uint16_t blendingMode = uint16_t((textureUnit.data1 >> 11) & 0x7);
+        uint isProjectedTexture = textureUnit.data1 & 0x1;
+        uint materialFlags = (textureUnit.data1 >> 1) & 0x3FF;
+        uint blendingMode = (textureUnit.data1 >> 11) & 0x7;
         
-        uint16_t materialType = uint16_t((textureUnit.data1 >> 16) & 0xFFFF);
-        uint16_t vertexShaderId = materialType & 0xFF;
-        uint16_t pixelShaderId = materialType >> 8;
+        uint materialType = (textureUnit.data1 >> 16) & 0xFFFF;
+        uint vertexShaderId = materialType & 0xFF;
+        uint pixelShaderId = materialType >> 8;
 
         if (materialType == 0x8000)
             continue;
 
-        float4 texture1 = _textures[textureUnit.textureIDs[0]].Sample(_sampler, input.uv01.xy);
+        float4 texture1 = _textures[NonUniformResourceIndex(textureUnit.textureIDs[0])].Sample(_sampler, input.uv01.xy);
         float4 texture2 = float4(0, 0, 0, 0);
 
         if (vertexShaderId > 2)
         {
             // ENV uses generated UVCoords based on camera pos + geometry normal in frame space
-            texture2 = _textures[textureUnit.textureIDs[1]].Sample(_sampler, input.uv01.zw);
+            texture2 = _textures[NonUniformResourceIndex(textureUnit.textureIDs[1])].Sample(_sampler, input.uv01.zw);
         }
 
         isUnlit |= (materialFlags & 0x1);
