@@ -7,6 +7,7 @@
 #include "../ECS/Components/Transform.h"
 #include "../ECS/Components/Transformevents.h"
 #include "../ECS/Components/Image.h"
+#include "../ECS/Components/ImageEventStyles.h"
 #include "../ECS/Components/Text.h"
 #include "../ECS/Components/Renderable.h"
 
@@ -19,6 +20,7 @@ namespace UIScripting
 
         registry->emplace<UIComponent::TransformEvents>(_entityId);
         registry->emplace<UIComponent::Image>(_entityId);
+        registry->emplace<UIComponent::ImageEventStyles>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
         
         _label = Label::CreateLabel();
@@ -45,6 +47,9 @@ namespace UIScripting
 
         //Panel Functions.
         r = ScriptEngine::RegisterScriptClassFunction("void SetStylesheet(ImageStylesheet stylesheet)", asMETHOD(Button, SetStylesheet)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetFocusedStylesheet(ImageStylesheet stylesheet)", asMETHOD(Button, SetFocusedStylesheet)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetHoveredStylesheet(ImageStylesheet stylesheet)", asMETHOD(Button, SetHoveredStylesheet)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetPressedStylesheet(ImageStylesheet stylesheet)", asMETHOD(Button, SetPressedStylesheet)); assert(r >= 0);
     }
 
     const bool Button::IsClickable() const
@@ -76,8 +81,23 @@ namespace UIScripting
 
     void Button::SetStylesheet(const UI::ImageStylesheet& stylesheet)
     {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style = stylesheet;
+        UIComponent::ImageEventStyles* imageStyles = &ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        imageStyles->styleMap[UI::TransformEventState::STATE_NORMAL] = stylesheet;
+    }
+    void Button::SetFocusedStylesheet(const UI::ImageStylesheet& stylesheet)
+    {
+        UIComponent::ImageEventStyles* imageStyles = &ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        imageStyles->styleMap[UI::TransformEventState::STATE_FOCUSED] = stylesheet;
+    }
+    void Button::SetHoveredStylesheet(const UI::ImageStylesheet& stylesheet)
+    {
+        UIComponent::ImageEventStyles* imageStyles = &ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        imageStyles->styleMap[UI::TransformEventState::STATE_HOVERED] = stylesheet;
+    }
+    void Button::SetPressedStylesheet(const UI::ImageStylesheet& stylesheet)
+    {
+        UIComponent::ImageEventStyles* imageStyles = &ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        imageStyles->styleMap[UI::TransformEventState::STATE_PRESSED] = stylesheet;
     }
 
     Button* Button::CreateButton()

@@ -28,6 +28,9 @@ namespace UIScripting
 
         //Panel Functions
         void SetStylesheet(const UI::ImageStylesheet& stylesheet);
+        void SetFocusedStylesheet(const UI::ImageStylesheet& stylesheet);
+        void SetHoveredStylesheet(const UI::ImageStylesheet& stylesheet);
+        void SetPressedStylesheet(const UI::ImageStylesheet& stylesheet);
 
         static Button* CreateButton();
 

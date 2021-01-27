@@ -1,7 +1,7 @@
 /*
 *	NOVUSCORE LOGIN SCREEN
-*	Version 0.3: Closer to correct.
-*	Updated 22/10/2020	
+*	Version 0.4: Styles or something.
+*	Updated 27/01/2021	
 */
 
 void LogIn()
@@ -69,8 +69,10 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 
 	ImageStylesheet buttonSheet("Data/extracted/Textures/interface/glues/common/glue-panel-button-up-blue.dds");
 	buttonSheet.SetTexCoord(FBox(0.0f, 0.578125f, 0.75f, 0.0f));
+	ImageStylesheet buttonDownSheet("Data/extracted/Textures/interface/glues/common/glue-panel-button-down-blue.dds");
+	buttonDownSheet.SetTexCoord(FBox(0.0f, 0.578125f, 0.75f, 0.0f));
 
-	TextStylesheet buttonTextSheet(FONT, INPUTFIELDFONTSIZE);
+	TextStylesheet buttonTextSheet(FONT, INPUTFIELDFONTSIZE * 0.9f);
 	buttonTextSheet.SetColor(TEXTCOLOR);
 	buttonTextSheet.SetOutlineColor(OUTLINECOLOR);
 	buttonTextSheet.SetOutlineWidth(outlineWidth);
@@ -137,12 +139,13 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	DataStorage::EmplaceEntity("LOGIN-passwordField", passwordField.GetEntityId());
 	
 	submitButton.SetParent(background);
-	submitButton.SetTransform(vec2(0, SIZE.y * 2.25f), SIZE * vec2(1.1f,1.3f));
+	submitButton.SetTransform(vec2(0, SIZE.y * 2.25f), SIZE * vec2(1.1f,1.4f));
 	submitButton.SetAnchor(vec2(0.5,0.5));
 	submitButton.SetLocalAnchor(vec2(0.5,0));
 	submitButton.SetPadding(8.f, 0.f, 0.f, 0.f);
 	submitButton.SetText("Login");
 	submitButton.SetStylesheet(buttonSheet);
+	submitButton.SetPressedStylesheet(buttonDownSheet);
 	submitButton.SetTextStylesheet(buttonTextSheet);
 	submitButton.OnClick(OnLoginButtonClick);
 			
@@ -156,6 +159,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	rememberAccountLabel.SetParent(checkBox);
 	rememberAccountLabel.SetAnchor(vec2(1,0));
 	rememberAccountLabel.SetTransform(vec2(5,0), vec2(SIZE.x - 80, 30));
+	labelSheet.SetFontSize(20.0f);
 	rememberAccountLabel.SetStylesheet(labelSheet);
 	rememberAccountLabel.SetText("Remember Account Name");
 	
