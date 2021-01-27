@@ -87,6 +87,7 @@ void MapObjectRenderer::Update(f32 deltaTime)
     if (cullingEnabled)
     {
         // Drawcalls
+        if (_drawCountReadBackBuffer != Renderer::BufferID::Invalid())
         {
             u32* count = static_cast<u32*>(_renderer->MapBuffer(_drawCountReadBackBuffer));
             if (count != nullptr)
@@ -97,6 +98,7 @@ void MapObjectRenderer::Update(f32 deltaTime)
         }
         
         // Triangles
+        if (_triangleCountReadBackBuffer != Renderer::BufferID::Invalid())
         {
             u32* count = static_cast<u32*>(_renderer->MapBuffer(_triangleCountReadBackBuffer));
             if (count != nullptr)

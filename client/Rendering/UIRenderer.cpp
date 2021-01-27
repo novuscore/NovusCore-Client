@@ -23,7 +23,9 @@
 
 #include "../UI/ECS/Components/Renderable.h"
 #include "../UI/ECS/Components/Image.h"
+#include "../UI/ECS/Components/ImageEventStyles.h"
 #include "../UI/ECS/Components/Text.h"
+#include "../UI/ECS/Components/TextEventStyles.h"
 
 #include "../UI/ECS/Components/Visibility.h"
 #include "../UI/ECS/Components/Visible.h"
@@ -72,7 +74,9 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRendere
 
     registry->reserve<UIComponent::Renderable>(ENTITIES_TO_PREALLOCATE);
     registry->reserve<UIComponent::Text>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::TextEventStyles>(ENTITIES_TO_PREALLOCATE);
     registry->reserve<UIComponent::Image>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::ImageEventStyles>(ENTITIES_TO_PREALLOCATE);
 
     registry->reserve<UIComponent::Collision>(ENTITIES_TO_PREALLOCATE);
     registry->reserve<UIComponent::Collidable>(ENTITIES_TO_PREALLOCATE);
