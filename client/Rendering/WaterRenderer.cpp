@@ -5,17 +5,15 @@
 
 #include <filesystem>
 #include <GLFW/glfw3.h>
-
 #include <InputManager.h>
 #include <Renderer/Renderer.h>
+#include <Renderer/RenderGraph.h>
 #include <Utils/FileReader.h>
-
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
+#include <tracy/TracyVulkan.hpp>
 
 #include "../ECS/Components/Singletons/MapSingleton.h"
-
-#include <tracy/TracyVulkan.hpp>
 
 namespace fs = std::filesystem;
 
@@ -72,8 +70,8 @@ void WaterRenderer::AddWaterPass(Renderer::RenderGraph* renderGraph, Renderer::D
 
     const auto setup = [=](WaterPassData& data, Renderer::RenderGraphBuilder& builder)
     {
-        data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-        data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+        data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+        data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
 
         return true; // Return true from setup to enable this pass, return false to disable it
     };
@@ -97,17 +95,17 @@ void WaterRenderer::AddWaterPass(Renderer::RenderGraph* renderGraph, Renderer::D
         // Depth state
         pipelineDesc.states.depthStencilState.depthEnable = true;
         pipelineDesc.states.depthStencilState.depthWriteEnable = true;
-        pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_GREATER;
+        pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::GREATER;
 
         // Rasterizer state
-        pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_NONE; //Renderer::CullMode::CULL_MODE_BACK;
-        pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
+        pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::NONE; //Renderer::CullMode::BACK;
+        pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
 
         // Blending state
         pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;
-        pipelineDesc.states.blendState.renderTargets[0].blendOp = Renderer::BlendOp::BLEND_OP_ADD;
-        pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::BLEND_MODE_SRC_ALPHA;
-        pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::BLEND_MODE_INV_SRC_ALPHA;
+        pipelineDesc.states.blendState.renderTargets[0].blendOp = Renderer::BlendOp::ADD;
+        pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::SRC_ALPHA;
+        pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::INV_SRC_ALPHA;
 
         // Render targets
         pipelineDesc.renderTargets[0] = data.mainColor;
@@ -152,11 +150,11 @@ void WaterRenderer::CreatePermanentResources()
 
     Renderer::SamplerDesc samplerDesc;
     samplerDesc.enabled = true;
-    samplerDesc.filter = Renderer::SamplerFilter::SAMPLER_FILTER_ANISOTROPIC;//Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-    samplerDesc.addressU = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc.addressV = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc.addressW = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_CLAMP;
-    samplerDesc.shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_PIXEL;
+    samplerDesc.filter = Renderer::SamplerFilter::ANISOTROPIC;//Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+    samplerDesc.addressU = Renderer::TextureAddressMode::WRAP;
+    samplerDesc.addressV = Renderer::TextureAddressMode::WRAP;
+    samplerDesc.addressW = Renderer::TextureAddressMode::CLAMP;
+    samplerDesc.shaderVisibility = Renderer::ShaderVisibility::PIXEL;
     samplerDesc.maxAnisotropy = 8;
 
     _sampler = _renderer->CreateSampler(samplerDesc);
@@ -176,7 +174,7 @@ void WaterRenderer::CreatePermanentResources()
 
 bool WaterRenderer::RegisterChunksToBeLoaded(const std::vector<u16>& chunkIDs)
 {
-    NC_LOG_MESSAGE("Loading Water");
+    DebugHandler::Print("Loading Water");
 
     entt::registry* registry = ServiceLocator::GetGameRegistry();
     MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
@@ -323,7 +321,7 @@ bool WaterRenderer::RegisterChunksToBeLoaded(const std::vector<u16>& chunkIDs)
         }
     }
 
-    NC_LOG_MESSAGE("Water: Loaded (%u, %u) Vertices/Indices", _vertices.size(), _indices.size());
+    DebugHandler::Print("Water: Loaded (%u, %u) Vertices/Indices", _vertices.size(), _indices.size());
     return true;
 }
 
@@ -340,7 +338,7 @@ void WaterRenderer::ExecuteLoad()
         Renderer::BufferDesc desc;
         desc.name = "WaterDrawCallBuffer";
         desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         desc.cpuAccess = Renderer::BufferCPUAccess::None;
 
         _drawCallsBuffer = _renderer->CreateBuffer(desc);
@@ -348,7 +346,7 @@ void WaterRenderer::ExecuteLoad()
         // Create staging buffer
         desc.name = "WaterDrawCallBufferStaging";
         desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -377,7 +375,7 @@ void WaterRenderer::ExecuteLoad()
         Renderer::BufferDesc desc;
         desc.name = "WaterDrawCallDatasBuffer";
         desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         desc.cpuAccess = Renderer::BufferCPUAccess::None;
 
         _drawCallDatasBuffer = _renderer->CreateBuffer(desc);
@@ -385,7 +383,7 @@ void WaterRenderer::ExecuteLoad()
         // Create staging buffer
         desc.name = "WaterDrawCallDatasBufferStaging";
         desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -414,7 +412,7 @@ void WaterRenderer::ExecuteLoad()
         Renderer::BufferDesc desc;
         desc.name = "VertexBuffer";
         desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         desc.cpuAccess = Renderer::BufferCPUAccess::None;
 
         _vertexBuffer = _renderer->CreateBuffer(desc);
@@ -422,7 +420,7 @@ void WaterRenderer::ExecuteLoad()
         // Create staging buffer
         desc.name = "VertexBufferStaging";
         desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -451,7 +449,7 @@ void WaterRenderer::ExecuteLoad()
         Renderer::BufferDesc desc;
         desc.name = "IndexBuffer";
         desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_INDEX_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::INDEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         desc.cpuAccess = Renderer::BufferCPUAccess::None;
 
         _indexBuffer = _renderer->CreateBuffer(desc);
@@ -459,7 +457,7 @@ void WaterRenderer::ExecuteLoad()
         // Create staging buffer
         desc.name = "IndexBufferStaging";
         desc.size = bufferSize;
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);

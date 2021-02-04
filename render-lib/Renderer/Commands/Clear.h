@@ -20,7 +20,7 @@ namespace Renderer
             static const BackendDispatchFunction DISPATCH_FUNCTION;
 
             DepthImageID image = DepthImageID::Invalid();
-            DepthClearFlags flags = DepthClearFlags::DEPTH_CLEAR_BOTH;
+            DepthClearFlags flags = DepthClearFlags::BOTH;
             f32 depth = 0.0f;
             u8 stencil = 0;
         };

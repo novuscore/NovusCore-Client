@@ -35,7 +35,7 @@ void SimulateDebugCubeSystem::Init(entt::registry& registry)
         registry.emplace<Rigidbody>(entity);
         registry.emplace<DebugBox>(entity);
 
-        NC_LOG_MESSAGE("Spawned debug cube!");
+        DebugHandler::Print("Spawned debug cube!");
 
         return true;
     });

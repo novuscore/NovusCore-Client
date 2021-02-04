@@ -12,6 +12,7 @@
 #include "../Utils/EventUtils.h"
 
 #include <GLFW/glfw3.h>
+#include <tracy/Tracy.hpp>
 
 namespace UIScripting
 {

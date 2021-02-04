@@ -37,12 +37,12 @@ void CameraFreeLook::Init()
         if (_captureMouse)
         {
             glfwSetInputMode(glfwWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-            NC_LOG_MESSAGE("Mouse captured because of tab!");
+            DebugHandler::Print("Mouse captured because of tab!");
         }
         else
         {
             glfwSetInputMode(glfwWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            NC_LOG_MESSAGE("Mouse released because of tab!");
+            DebugHandler::Print("Mouse released because of tab!");
         }
 
         return true;
@@ -59,7 +59,7 @@ void CameraFreeLook::Init()
 
             glfwSetInputMode(window->GetWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-            NC_LOG_MESSAGE("Mouse captured because of mouseclick!");
+            DebugHandler::Print("Mouse captured because of mouseclick!");
         }
         return true;
     });

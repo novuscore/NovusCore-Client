@@ -14,7 +14,7 @@ bool Terrain::MapUtils::LoadMap(entt::registry* registry, const NDBC::Map* map)
 
     if (currentMap.IsMapLoaded(map->id))
     {
-        NC_LOG_WARNING("Tried to Load Current Map (%s)", currentMap.name.data());
+        DebugHandler::PrintWarning("Tried to Load Current Map (%s)", currentMap.name.data());
         return false; // Don't reload the map we're on
     }
 
@@ -24,7 +24,7 @@ bool Terrain::MapUtils::LoadMap(entt::registry* registry, const NDBC::Map* map)
     fs::path absolutePath = std::filesystem::absolute("Data/extracted/maps/" + mapInternalName);
     if (!fs::is_directory(absolutePath))
     {
-        NC_LOG_ERROR("Failed to find map folder for %s", mapInternalName.c_str());
+        DebugHandler::PrintError("Failed to find map folder for %s", mapInternalName.c_str());
         return false;
     }
 
@@ -49,13 +49,13 @@ bool Terrain::MapUtils::LoadMap(entt::registry* registry, const NDBC::Map* map)
         FileReader mapHeaderFile(entry.path().string(), file.filename().string());
         if (!mapHeaderFile.Open())
         {
-            NC_LOG_ERROR("Failed to read map (%s)", mapInternalName.c_str());
+            DebugHandler::PrintError("Failed to read map (%s)", mapInternalName.c_str());
             return false;
         }
 
         if (!Terrain::MapHeader::Read(mapHeaderFile, currentMap.header))
         {
-            NC_LOG_ERROR("Failed to load map header for (%s)", mapInternalName.c_str());
+            DebugHandler::PrintError("Failed to load map header for (%s)", mapInternalName.c_str());
             return false;
         }
 
@@ -65,7 +65,7 @@ bool Terrain::MapUtils::LoadMap(entt::registry* registry, const NDBC::Map* map)
 
     if (!nmapFound)
     {
-        NC_LOG_ERROR("Failed to find nmap file for map (%s)", mapInternalName.c_str());
+        DebugHandler::PrintError("Failed to find nmap file for map (%s)", mapInternalName.c_str());
         return false;
     }
 
@@ -87,7 +87,7 @@ bool Terrain::MapUtils::LoadMap(entt::registry* registry, const NDBC::Map* map)
             FileReader chunkFile(entry.path().string(), file.filename().string());
             if (!chunkFile.Open())
             {
-                NC_LOG_ERROR("Failed to load map chunk (%s)", file.filename().string().c_str());
+                DebugHandler::PrintError("Failed to load map chunk (%s)", file.filename().string().c_str());
                 return false;
             }
 
@@ -95,7 +95,7 @@ bool Terrain::MapUtils::LoadMap(entt::registry* registry, const NDBC::Map* map)
             StringTable chunkStringTable;
             if (!Terrain::Chunk::Read(chunkFile, chunk, chunkStringTable))
             {
-                NC_LOG_ERROR("Failed to load map chunk for (%s)", file.filename().string().c_str());
+                DebugHandler::PrintError("Failed to load map chunk for (%s)", file.filename().string().c_str());
                 return false;
             }
 
@@ -122,13 +122,13 @@ bool Terrain::MapUtils::LoadMap(entt::registry* registry, const NDBC::Map* map)
 
         if (loadedChunks == 0)
         {
-            NC_LOG_ERROR("0 map chunks found in (%s)", absolutePath.string().c_str());
+            DebugHandler::PrintError("0 map chunks found in (%s)", absolutePath.string().c_str());
             return false;
         }
 
         Terrain::MapUtils::AlignChunkBorders(currentMap);
     }
 
-    NC_LOG_SUCCESS("Loaded Map (%s)", mapInternalName.c_str());
+    DebugHandler::PrintSuccess("Loaded Map (%s)", mapInternalName.c_str());
     return true;
 }

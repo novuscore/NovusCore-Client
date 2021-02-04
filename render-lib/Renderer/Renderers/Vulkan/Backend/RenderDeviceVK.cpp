@@ -1,26 +1,27 @@
 #include "RenderDeviceVK.h"
-#include <Utils/DebugHandler.h>
-#include <vector>
 #include "vk_format_utils.h"
-#include <tracy/TracyVulkan.hpp>
-
-#include "../../../../Window/Window.h"
 #include "DebugMarkerUtilVK.h"
 #include "SwapChainVK.h"
 #include "ShaderHandlerVK.h"
+#include "DescriptorSetBuilderVK.h"
+#include "../../../../Window/Window.h"
 #include "../../../Descriptors/VertexShaderDesc.h"
 #include "../../../Descriptors/PixelShaderDesc.h"
-#include "DescriptorSetBuilderVK.h"
+#include "imgui/imgui_impl_vulkan.h"
+
+#include <map>
+#include <set>
+#include <vector>
+#include <vulkan/vulkan.h>
+#include <Utils/DebugHandler.h>
+#include <tracy/TracyVulkan.hpp>
 
 #pragma warning (push)
 #pragma warning(disable : 4005)
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #pragma warning(pop)
-#include <map>
-#include <set>
 
-#include "imgui/imgui_impl_vulkan.h"
 
 namespace Renderer
 {
@@ -69,7 +70,7 @@ namespace Renderer
         {
             if (!_initialized)
             {
-                NC_LOG_FATAL("You need to intialize the render device before intializing a window");
+                DebugHandler::PrintFatal("You need to intialize the render device before intializing a window");
             }
 
             GLFWwindow* glfwWindow = window->GetWindow();
@@ -90,18 +91,18 @@ namespace Renderer
             CreateSwapChain(size, swapChain);
             CreateImageViews(swapChain);
             CreateFrameBuffers(swapChain);
-            CreateBlitPipeline(shaderHandler, swapChain, "blitFloat", IMAGE_COMPONENT_TYPE_FLOAT);
-            CreateBlitPipeline(shaderHandler, swapChain, "blitUint", IMAGE_COMPONENT_TYPE_UINT);
-            CreateBlitPipeline(shaderHandler, swapChain, "blitInt", IMAGE_COMPONENT_TYPE_SINT);
+            CreateBlitPipeline(shaderHandler, swapChain, "blitFloat", ImageComponentType::FLOAT);
+            CreateBlitPipeline(shaderHandler, swapChain, "blitUint", ImageComponentType::UINT);
+            CreateBlitPipeline(shaderHandler, swapChain, "blitInt", ImageComponentType::SINT);
         }
 
         void RenderDeviceVK::ReloadShaders(ShaderHandlerVK* shaderHandler)
         {
             for (SwapChainVK* swapChain : _swapChains)
             {
-                CreateBlitPipeline(shaderHandler, swapChain, "blitFloat", IMAGE_COMPONENT_TYPE_FLOAT);
-                CreateBlitPipeline(shaderHandler, swapChain, "blitUint", IMAGE_COMPONENT_TYPE_UINT);
-                CreateBlitPipeline(shaderHandler, swapChain, "blitInt", IMAGE_COMPONENT_TYPE_SINT);
+                CreateBlitPipeline(shaderHandler, swapChain, "blitFloat", ImageComponentType::FLOAT);
+                CreateBlitPipeline(shaderHandler, swapChain, "blitUint", ImageComponentType::UINT);
+                CreateBlitPipeline(shaderHandler, swapChain, "blitInt", ImageComponentType::SINT);
             }
         }
 
@@ -118,11 +119,11 @@ namespace Renderer
         {
             if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
             {
-                NC_LOG_ERROR("Validation layer: %s", pCallbackData->pMessage)
+                DebugHandler::PrintError("Validation layer: %s", pCallbackData->pMessage);
             }
             else if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
             {
-                NC_LOG_WARNING("Validation layer: %s", pCallbackData->pMessage)
+                DebugHandler::PrintWarning("Validation layer: %s", pCallbackData->pMessage);
             }
 
             return VK_FALSE;
@@ -291,10 +292,10 @@ namespace Renderer
             std::vector<VkExtensionProperties> extensions(extensionCount);
             vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
 
-            /*NC_LOG_MESSAGE("[Renderer]: Supported extensions:");
+            /*DebugHandler::Print("[Renderer]: Supported extensions:");
             for (VkExtensionProperties& extension : extensions)
             {
-                NC_LOG_MESSAGE("[Renderer]: %s", extension.extensionName);
+                DebugHandler::Print("[Renderer]: %s", extension.extensionName);
             }*/
 
             auto requiredExtensions = GetRequiredExtensions();
@@ -319,7 +320,7 @@ namespace Renderer
 #endif
             if (vkCreateInstance(&createInfo, nullptr, &_instance) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create Vulkan instance!");
+                DebugHandler::PrintFatal("Failed to create Vulkan instance!");
             }
         }
 
@@ -353,7 +354,7 @@ namespace Renderer
 
             if (CreateDebugUtilsMessengerEXT(_instance, &createInfo, nullptr, &_debugMessenger) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to set up Vulkan debug messenger!");
+                DebugHandler::PrintFatal("Failed to set up Vulkan debug messenger!");
             }
 #endif
         }
@@ -365,7 +366,7 @@ namespace Renderer
 
             if (deviceCount == 0)
             {
-                NC_LOG_FATAL("Failed to find GPUs with Vulkan support!");
+                DebugHandler::PrintFatal("Failed to find GPUs with Vulkan support!");
             }
 
             std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -393,7 +394,7 @@ namespace Renderer
             }
             else
             {
-                NC_LOG_FATAL("Failed to find a suitable Vulkan GPU!");
+                DebugHandler::PrintFatal("Failed to find a suitable Vulkan GPU!");
             }
         }
 
@@ -472,7 +473,7 @@ namespace Renderer
 
             if (vkCreateDevice(_physicalDevice, &createInfo, nullptr, &_device) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create logical device!");
+                DebugHandler::PrintFatal("Failed to create logical device!");
             }
 
             DebugMarkerUtilVK::InitializeFunctions(_device);
@@ -502,7 +503,7 @@ namespace Renderer
 
             if (vkCreateCommandPool(_device, &poolInfo, nullptr, &_commandPool) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create command pool!");
+                DebugHandler::PrintFatal("Failed to create command pool!");
             }
         }
 
@@ -527,7 +528,7 @@ namespace Renderer
         {
             if (glfwCreateWindowSurface(_instance, window, nullptr, &swapChain->surface) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create window surface!");
+                DebugHandler::PrintFatal("Failed to create window surface!");
             }
         }
 
@@ -537,7 +538,7 @@ namespace Renderer
 
             if (SwapChainVK::FRAME_BUFFER_COUNT < swapChainSupport.capabilities.minImageCount || SwapChainVK::FRAME_BUFFER_COUNT > swapChainSupport.capabilities.maxImageCount)
             {
-                NC_LOG_FATAL("Physical device does not support the requested number of swapchain images, you requested %u, and it supports between %u and %u", SwapChainVK::FRAME_BUFFER_COUNT, swapChainSupport.capabilities.minImageCount, swapChainSupport.capabilities.maxImageCount);
+                DebugHandler::PrintFatal("Physical device does not support the requested number of swapchain images, you requested %u, and it supports between %u and %u", SwapChainVK::FRAME_BUFFER_COUNT, swapChainSupport.capabilities.minImageCount, swapChainSupport.capabilities.maxImageCount);
             }
 
             VkSurfaceFormatKHR surfaceFormat = swapChain->ChooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -563,7 +564,7 @@ namespace Renderer
 
             if (!presentSupport)
             {
-                NC_LOG_FATAL("Selected physical device does not support presenting!");
+                DebugHandler::PrintFatal("Selected physical device does not support presenting!");
             }
 
             if (indices.graphicsFamily != indices.presentFamily)
@@ -589,7 +590,7 @@ namespace Renderer
 
             if (vkCreateSwapchainKHR(_device, &createInfo, nullptr, &swapChain->swapChain) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create swap chain!");
+                DebugHandler::PrintFatal("Failed to create swap chain!");
             }
             
             u32 imageCount = SwapChainVK::FRAME_BUFFER_COUNT;
@@ -620,17 +621,17 @@ namespace Renderer
 
                 if (vkCreateImageView(_device, &viewInfo, nullptr, &swapChain->imageViews.Get(i)) != VK_SUCCESS)
                 {
-                    NC_LOG_FATAL("Failed to create texture image view!");
+                    DebugHandler::PrintFatal("Failed to create texture image view!");
                 }
 
                 if (vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &swapChain->imageAvailableSemaphores.Get(i)) != VK_SUCCESS)
                 {
-                    NC_LOG_FATAL("Failed to create image available semaphore!");
+                    DebugHandler::PrintFatal("Failed to create image available semaphore!");
                 }
 
                 if (vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &swapChain->blitFinishedSemaphores.Get(i)) != VK_SUCCESS)
                 {
-                    NC_LOG_FATAL("Failed to create blit finished semaphore!");
+                    DebugHandler::PrintFatal("Failed to create blit finished semaphore!");
                 }
             }
         }
@@ -676,7 +677,7 @@ namespace Renderer
 
             if (vkCreateRenderPass(_device, &renderPassInfo, nullptr, &swapChain->renderPass) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create render pass!");
+                DebugHandler::PrintFatal("Failed to create render pass!");
             }
 
             // Create framebuffers
@@ -693,7 +694,7 @@ namespace Renderer
 
                 if (vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &swapChain->framebuffers.Get(i)) != VK_SUCCESS)
                 {
-                    NC_LOG_FATAL("Failed to create framebuffer!");
+                    DebugHandler::PrintFatal("Failed to create framebuffer!");
                 }
             }
 
@@ -718,13 +719,13 @@ namespace Renderer
 
             if (vkCreateSampler(_device, &samplerInfo, nullptr, &swapChain->sampler) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create texture sampler!");
+                DebugHandler::PrintFatal("Failed to create texture sampler!");
             }
         }
 
         void RenderDeviceVK::CreateBlitPipeline(ShaderHandlerVK* shaderHandler, SwapChainVK* swapChain, std::string fragShaderName, ImageComponentType componentType)
         {
-            BlitPipeline& pipeline = swapChain->blitPipelines[componentType];
+            BlitPipeline& pipeline = swapChain->blitPipelines[static_cast<u8>(componentType)];
 
             // Load shaders
             VertexShaderDesc vertexShaderDesc;
@@ -784,7 +785,7 @@ namespace Renderer
 
             if (vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &pipeline.descriptorSetLayout) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create descriptor set layout!");
+                DebugHandler::PrintFatal("Failed to create descriptor set layout!");
             }
 
             // Create descriptor pool
@@ -802,7 +803,7 @@ namespace Renderer
 
             if (vkCreateDescriptorPool(_device, &descriptorPoolInfo, nullptr, &pipeline.descriptorPool) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create descriptor pool!");
+                DebugHandler::PrintFatal("Failed to create descriptor pool!");
             }
 
             // Create descriptor set
@@ -817,7 +818,7 @@ namespace Renderer
                 VkResult result = vkAllocateDescriptorSets(_device, &allocInfo, &pipeline.descriptorSets.Get(i));
                 if (result != VK_SUCCESS)
                 {
-                    NC_LOG_FATAL("Failed to allocate descriptor sets!");
+                    DebugHandler::PrintFatal("Failed to allocate descriptor sets!");
                 }
             }
 
@@ -909,7 +910,7 @@ namespace Renderer
 
             if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &pipeline.pipelineLayout) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create pipeline layout!");
+                DebugHandler::PrintFatal("Failed to create pipeline layout!");
             }
 
             VkGraphicsPipelineCreateInfo pipelineInfo = {};
@@ -932,7 +933,7 @@ namespace Renderer
 
             if (vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline.pipeline) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create graphics pipeline!");
+                DebugHandler::PrintFatal("Failed to create graphics pipeline!");
             }
         }
 
@@ -1014,9 +1015,9 @@ namespace Renderer
             CreateFrameBuffers(swapChain);
 
             // Recreate blit pipelines
-            CreateBlitPipeline(shaderHandler, swapChain, "blitFloat", IMAGE_COMPONENT_TYPE_FLOAT);
-            CreateBlitPipeline(shaderHandler, swapChain, "blitUint", IMAGE_COMPONENT_TYPE_UINT);
-            CreateBlitPipeline(shaderHandler, swapChain, "blitInt", IMAGE_COMPONENT_TYPE_SINT);
+            CreateBlitPipeline(shaderHandler, swapChain, "blitFloat", ImageComponentType::FLOAT);
+            CreateBlitPipeline(shaderHandler, swapChain, "blitUint", ImageComponentType::UINT);
+            CreateBlitPipeline(shaderHandler, swapChain, "blitInt", ImageComponentType::SINT);
         }
 
         int RenderDeviceVK::RateDeviceSuitability(VkPhysicalDevice device)
@@ -1040,14 +1041,14 @@ namespace Renderer
 
             if (!deviceFeatures.samplerAnisotropy)
             {
-                NC_LOG_MESSAGE("[Renderer]: GPU Detected %s with score %i because it doesn't support sampler anisotropy", deviceProperties.deviceName, 0);
+                DebugHandler::Print("[Renderer]: GPU Detected %s with score %i because it doesn't support sampler anisotropy", deviceProperties.deviceName, 0);
                 return 0;
             }
 
             // Application can't function without geometry shaders
             if (!deviceFeatures.geometryShader)
             {
-                NC_LOG_MESSAGE("[Renderer]: GPU Detected %s with score %i because it doesn't support geometry shaders", deviceProperties.deviceName, 0);
+                DebugHandler::Print("[Renderer]: GPU Detected %s with score %i because it doesn't support geometry shaders", deviceProperties.deviceName, 0);
                 return 0;
             }
 
@@ -1055,7 +1056,7 @@ namespace Renderer
             QueueFamilyIndices indices = FindQueueFamilies(device);
             if (!indices.IsComplete())
             {
-                NC_LOG_MESSAGE("[Renderer]: GPU Detected %s with score %i because it doesn't support VK_QUEUE_GRAPHICS_BIT", deviceProperties.deviceName, 0);
+                DebugHandler::Print("[Renderer]: GPU Detected %s with score %i because it doesn't support VK_QUEUE_GRAPHICS_BIT", deviceProperties.deviceName, 0);
                 return 0;
             }
 
@@ -1063,11 +1064,11 @@ namespace Renderer
             bool extensionsSupported = CheckDeviceExtensionSupport(device);
             if (!extensionsSupported)
             {
-                NC_LOG_MESSAGE("[Renderer]: GPU Detected %s with score %i because it doesn't support the required extensions", deviceProperties.deviceName, 0);
+                DebugHandler::Print("[Renderer]: GPU Detected %s with score %i because it doesn't support the required extensions", deviceProperties.deviceName, 0);
                 return 0;
             }
 
-            NC_LOG_MESSAGE("[Renderer]: GPU Detected %s with score %i", deviceProperties.deviceName, score);
+            DebugHandler::Print("[Renderer]: GPU Detected %s with score %i", deviceProperties.deviceName, score);
             return score;
         }
 
@@ -1541,10 +1542,10 @@ namespace Renderer
             {
                 for (const std::string& errorMessage : errorMessages)
                 {
-                    NC_LOG_ERROR(errorMessage);
+                    DebugHandler::PrintError(errorMessage);
                 }
 
-                NC_LOG_FATAL("The graphics card did not support all requested features!");
+                DebugHandler::PrintFatal("The graphics card did not support all requested features!");
                 return false;
             }
 
@@ -1574,7 +1575,7 @@ namespace Renderer
 
                 if (!layerFound)
                 {
-                    NC_LOG_FATAL("We do not support a validation layer that we need to support: %s", layerName);
+                    DebugHandler::PrintFatal("We do not support a validation layer that we need to support: %s", layerName);
                 }
             }
         }
@@ -1692,7 +1693,7 @@ namespace Renderer
                 }
                 else
                 {
-                    NC_LOG_FATAL("Tried to use a format that wasn't uncompressed or used BC compression, what is this? id: %u", format)
+                    DebugHandler::PrintFatal("Tried to use a format that wasn't uncompressed or used BC compression, what is this? id: %u", format);
                 }
 
                 curWidth = Math::Max(1, curWidth / 2);
@@ -1733,15 +1734,15 @@ namespace Renderer
             imageBarrier.subresourceRange.levelCount = numMipLevels;
             imageBarrier.subresourceRange.layerCount = numLayers;
 
+            VkPipelineStageFlagBits srcFlags = VkPipelineStageFlagBits::VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+            VkPipelineStageFlagBits dstFlags = VkPipelineStageFlagBits::VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+
             // TODO: Fix this
             if (oldLayout == VkImageLayout::VK_IMAGE_LAYOUT_GENERAL && newLayout == VkImageLayout::VK_IMAGE_LAYOUT_GENERAL)
             {
                 imageBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
                 imageBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
             }
-
-            VkPipelineStageFlagBits srcFlags = VkPipelineStageFlagBits::VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-            VkPipelineStageFlagBits dstFlags = VkPipelineStageFlagBits::VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
             switch (oldLayout) 
             {
@@ -1753,7 +1754,7 @@ namespace Renderer
                     break;
                 case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
                     imageBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-                    srcFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+                    srcFlags = VkPipelineStageFlagBits(VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT);
                     break;
                 case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
                     imageBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -1765,6 +1766,10 @@ namespace Renderer
                 case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
                     imageBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
                     srcFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+                    break;
+
+                case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+                    imageBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
                     break;
             }
 
@@ -1784,13 +1789,17 @@ namespace Renderer
                     break;
                 case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
                     imageBarrier.dstAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-                    dstFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+                    dstFlags = VkPipelineStageFlagBits(VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT);
                     break;
                 case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
                     imageBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
                     imageBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
                     srcFlags = VkPipelineStageFlagBits(VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT);
                     dstFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+                    break;
+
+                case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+                    imageBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
                     break;
             }
             

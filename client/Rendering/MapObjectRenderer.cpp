@@ -1,7 +1,9 @@
 #include "MapObjectRenderer.h"
 #include "DebugRenderer.h"
+
 #include <filesystem>
 #include <Renderer/Renderer.h>
+#include <Renderer/RenderGraph.h>
 #include <Utils/FileReader.h>
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/euler_angles.hpp>
@@ -125,9 +127,9 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
         renderGraph->AddPass<MapObjectPassData>("MapObject Pass",
             [=](MapObjectPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
-            data.mainColor = builder.Write(colorTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-            data.mainObject = builder.Write(objectTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-            data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+            data.mainColor = builder.Write(colorTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+            data.mainObject = builder.Write(objectTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+            data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
 
             return true; // Return true from setup to enable this pass, return false to disable it
         },
@@ -178,14 +180,14 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
                 _cullingDescriptorSet.Bind("_triangleCount", _triangleCountBuffer);
 
                 Renderer::SamplerDesc samplerDesc;
-                samplerDesc.filter = Renderer::SAMPLER_FILTER_MINIMUM_MIN_MAG_MIP_LINEAR;
+                samplerDesc.filter = Renderer::SamplerFilter::MINIMUM_MIN_MAG_MIP_LINEAR;
 
-                samplerDesc.addressU = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
-                samplerDesc.addressV = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
-                samplerDesc.addressW = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.addressU = Renderer::TextureAddressMode::CLAMP;
+                samplerDesc.addressV = Renderer::TextureAddressMode::CLAMP;
+                samplerDesc.addressW = Renderer::TextureAddressMode::CLAMP;
                 samplerDesc.minLOD = 0.f;
                 samplerDesc.maxLOD = 16.f;
-                samplerDesc.mode = Renderer::SAMPLER_REDUCTION_MIN;
+                samplerDesc.mode = Renderer::SamplerReductionMode::MIN;
 
                 Renderer::SamplerID occlusionSampler = _renderer->CreateSampler(samplerDesc);
 
@@ -231,11 +233,11 @@ void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Ren
             // Depth state
             pipelineDesc.states.depthStencilState.depthEnable = true;
             pipelineDesc.states.depthStencilState.depthWriteEnable = true;
-            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_GREATER;
+            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::GREATER;
 
             // Rasterizer state
-            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
-            pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
+            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::BACK;
+            pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
 
             // Render targets
             pipelineDesc.renderTargets[0] = data.mainColor;
@@ -384,7 +386,7 @@ void MapObjectRenderer::CreatePermanentResources()
     Renderer::DataTextureDesc dataTextureDesc;
     dataTextureDesc.width = 1;
     dataTextureDesc.height = 1;
-    dataTextureDesc.format = Renderer::ImageFormat::IMAGE_FORMAT_B8G8R8A8_UNORM;
+    dataTextureDesc.format = Renderer::ImageFormat::B8G8R8A8_UNORM;
     dataTextureDesc.data = new u8[4]{ 0, 0, 0, 0 };
 
     u32 textureID;
@@ -394,16 +396,16 @@ void MapObjectRenderer::CreatePermanentResources()
 
     Renderer::SamplerDesc samplerDesc;
     samplerDesc.enabled = true;
-    samplerDesc.filter = Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_MIP_LINEAR; //Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-    samplerDesc.addressU = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc.addressV = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc.addressW = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_CLAMP;
-    samplerDesc.shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_PIXEL;
+    samplerDesc.filter = Renderer::SamplerFilter::MIN_MAG_MIP_LINEAR; //Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+    samplerDesc.addressU = Renderer::TextureAddressMode::WRAP;
+    samplerDesc.addressV = Renderer::TextureAddressMode::WRAP;
+    samplerDesc.addressW = Renderer::TextureAddressMode::CLAMP;
+    samplerDesc.shaderVisibility = Renderer::ShaderVisibility::PIXEL;
 
     _sampler = _renderer->CreateSampler(samplerDesc);
     _passDescriptorSet.Bind("_sampler", _sampler);
 
-    _cullingConstantBuffer = new Renderer::Buffer<CullingConstants>(_renderer, "CullingConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
+    _cullingConstantBuffer = new Renderer::Buffer<CullingConstants>(_renderer, "CullingConstantBuffer", Renderer::BufferUsage::UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 }
 
 bool MapObjectRenderer::LoadMapObject(MapObjectToBeLoaded& mapObjectToBeLoaded, LoadedMapObject& mapObject)
@@ -411,7 +413,7 @@ bool MapObjectRenderer::LoadMapObject(MapObjectToBeLoaded& mapObjectToBeLoaded, 
     // Load root
     if (!StringUtils::EndsWith(*mapObjectToBeLoaded.nmorName, ".nmor"))
     {
-        NC_LOG_FATAL("For some reason, a Chunk had a MapObjectPlacement with a reference to a file that didn't end with .nmor");
+        DebugHandler::PrintFatal("For some reason, a Chunk had a MapObjectPlacement with a reference to a file that didn't end with .nmor");
         return false;
     }
 
@@ -474,7 +476,7 @@ bool MapObjectRenderer::LoadMapObject(MapObjectToBeLoaded& mapObjectToBeLoaded, 
             vertexColorTextureDesc.debugName = "VertexColorTexture";
             vertexColorTextureDesc.width = width;
             vertexColorTextureDesc.height = height;
-            vertexColorTextureDesc.format = Renderer::ImageFormat::IMAGE_FORMAT_B8G8R8A8_UNORM;
+            vertexColorTextureDesc.format = Renderer::ImageFormat::B8G8R8A8_UNORM;
             vertexColorTextureDesc.data = reinterpret_cast<u8*>(mapObject.vertexColors[i].data());
 
             _renderer->CreateDataTextureIntoArray(vertexColorTextureDesc, _mapObjectTextures, mapObject.vertexColorTextureIDs[i]);
@@ -513,7 +515,7 @@ bool MapObjectRenderer::LoadRoot(const std::filesystem::path nmorPath, MeshRoot&
     FileReader nmorFile(nmorPath.string(), nmorPath.filename().string());
     if (!nmorFile.Open())
     {
-        NC_LOG_FATAL("Failed to load Map Object Root file: %s", nmorPath.string().c_str());
+        DebugHandler::PrintFatal("Failed to load Map Object Root file: %s", nmorPath.string().c_str());
         return false;
     }
 
@@ -529,7 +531,7 @@ bool MapObjectRenderer::LoadRoot(const std::filesystem::path nmorPath, MeshRoot&
 
     if (header.token != Terrain::MAP_OBJECT_ROOT_TOKEN)
     {
-        NC_LOG_FATAL("Found MapObjectRoot file (%s) with invalid token %u instead of expected token %u", nmorPath.string().c_str(), header.token, Terrain::MAP_OBJECT_ROOT_TOKEN);
+        DebugHandler::PrintFatal("Found MapObjectRoot file (%s) with invalid token %u instead of expected token %u", nmorPath.string().c_str(), header.token, Terrain::MAP_OBJECT_ROOT_TOKEN);
         return false;
     }
 
@@ -537,12 +539,12 @@ bool MapObjectRenderer::LoadRoot(const std::filesystem::path nmorPath, MeshRoot&
     {
         if (header.version < Terrain::MAP_OBJECT_ROOT_VERSION)
         {
-            NC_LOG_FATAL("Found MapObjectRoot file (%s) with older version %u instead of expected version %u, rerun dataextractor", nmorPath.string().c_str(), header.version, Terrain::MAP_OBJECT_ROOT_VERSION);
+            DebugHandler::PrintFatal("Found MapObjectRoot file (%s) with older version %u instead of expected version %u, rerun dataextractor", nmorPath.string().c_str(), header.version, Terrain::MAP_OBJECT_ROOT_VERSION);
             return false;
         }
         else
         {
-            NC_LOG_FATAL("Found MapObjectRoot file (%s) with newer version %u instead of expected version %u, update your client", nmorPath.string().c_str(), header.version, Terrain::MAP_OBJECT_ROOT_VERSION);
+            DebugHandler::PrintFatal("Found MapObjectRoot file (%s) with newer version %u instead of expected version %u, update your client", nmorPath.string().c_str(), header.version, Terrain::MAP_OBJECT_ROOT_VERSION);
             return false;
         }
     }
@@ -600,7 +602,7 @@ bool MapObjectRenderer::LoadMesh(const std::filesystem::path nmoPath, Mesh& mesh
     FileReader nmoFile(nmoPath.string(), nmoPath.filename().string());
     if (!nmoFile.Open())
     {
-        NC_LOG_FATAL("Failed to load Map Object file: %s", nmoPath.string().c_str());
+        DebugHandler::PrintFatal("Failed to load Map Object file: %s", nmoPath.string().c_str());
         return false;
     }
 
@@ -614,7 +616,7 @@ bool MapObjectRenderer::LoadMesh(const std::filesystem::path nmoPath, Mesh& mesh
 
     if (header.token != Terrain::MAP_OBJECT_TOKEN)
     {
-        NC_LOG_FATAL("Found MapObject file (%s) with invalid token %u instead of expected token %u", nmoPath.string().c_str(), header.token, Terrain::MAP_OBJECT_TOKEN);
+        DebugHandler::PrintFatal("Found MapObject file (%s) with invalid token %u instead of expected token %u", nmoPath.string().c_str(), header.token, Terrain::MAP_OBJECT_TOKEN);
         return false;
     }
 
@@ -622,12 +624,12 @@ bool MapObjectRenderer::LoadMesh(const std::filesystem::path nmoPath, Mesh& mesh
     {
         if (header.version < Terrain::MAP_OBJECT_VERSION)
         {
-            NC_LOG_FATAL("Found MapObject file (%s) with older version %u instead of expected version %u, rerun dataextractor", nmoPath.string().c_str(), header.version, Terrain::MAP_OBJECT_VERSION);
+            DebugHandler::PrintFatal("Found MapObject file (%s) with older version %u instead of expected version %u, rerun dataextractor", nmoPath.string().c_str(), header.version, Terrain::MAP_OBJECT_VERSION);
             return false;
         }
         else
         {
-            NC_LOG_FATAL("Found MapObject file (%s) with newer version %u instead of expected version %u, update your client", nmoPath.string().c_str(), header.version, Terrain::MAP_OBJECT_VERSION);
+            DebugHandler::PrintFatal("Found MapObject file (%s) with newer version %u instead of expected version %u, update your client", nmoPath.string().c_str(), header.version, Terrain::MAP_OBJECT_VERSION);
             return false;
         }
     }
@@ -818,12 +820,12 @@ void MapObjectRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "InstanceLookupDataBuffer";
         desc.size = sizeof(InstanceLookupData) * _instanceLookupData.size();
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _instanceLookupBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "InstanceLookupDataStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -851,12 +853,12 @@ void MapObjectRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "MapObjectIndirectArgs";
         desc.size = sizeof(DrawParameters) * _drawParameters.size();
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION | Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER;
         _argumentBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "MapObjectIndirectStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -881,12 +883,12 @@ void MapObjectRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "MapObjectCulledIndirectArgs";
         desc.size = sizeof(DrawParameters) * _drawParameters.size();
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION | Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER;
         _culledArgumentBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "MapObjectIndirectStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -908,10 +910,10 @@ void MapObjectRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "MapObjectDrawCount";
         desc.size = sizeof(u32);
-        desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION | Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::TRANSFER_SOURCE;
         _drawCountBuffer = _renderer->CreateBuffer(desc);
 
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         desc.cpuAccess = Renderer::BufferCPUAccess::ReadOnly;
         _drawCountReadBackBuffer = _renderer->CreateBuffer(desc);
     }
@@ -922,10 +924,10 @@ void MapObjectRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "MapObjectTriangleCount";
         desc.size = sizeof(u32);
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION | Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::TRANSFER_SOURCE;
         _triangleCountBuffer = _renderer->CreateBuffer(desc);
 
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         desc.cpuAccess = Renderer::BufferCPUAccess::ReadOnly;
         _triangleCountReadBackBuffer = _renderer->CreateBuffer(desc);
     }
@@ -939,12 +941,12 @@ void MapObjectRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "MapObjectVertexBuffer";
         desc.size = sizeof(Terrain::MapObjectVertex) * _vertices.size();
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _vertexBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "MapObjectVertexStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -971,12 +973,12 @@ void MapObjectRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "MapObjectIndexBuffer";
         desc.size = sizeof(u16) * _indices.size();
-        desc.usage = Renderer::BUFFER_USAGE_INDEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::INDEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _indexBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "MapObjectIndexStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -1001,12 +1003,12 @@ void MapObjectRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "MapObjectInstanceBuffer";
         desc.size = sizeof(InstanceData) * _instances.size();
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _instanceBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "MapObjectInstanceStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -1034,12 +1036,12 @@ void MapObjectRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "MapObjectMaterialBuffer";
         desc.size = sizeof(Material) * _materials.size();
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _materialBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "MapObjectMaterialStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -1066,12 +1068,12 @@ void MapObjectRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "MapObjectMaterialParamBuffer";
         desc.size = sizeof(MaterialParameters) * _materialParameters.size();
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _materialParametersBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "MapObjectMaterialParamStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -1098,12 +1100,12 @@ void MapObjectRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "MapObjectCullingDataBuffer";
         desc.size = sizeof(Terrain::CullingData) * _cullingData.size();
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _cullingDataBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "MapObjectCullingDataStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);

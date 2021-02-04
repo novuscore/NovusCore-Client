@@ -63,7 +63,7 @@ public:
         }
         else
         {
-            NC_LOG_WARNING("Unhandled command: " + command);
+            DebugHandler::PrintWarning("Unhandled command: " + command);
         }
     }
 

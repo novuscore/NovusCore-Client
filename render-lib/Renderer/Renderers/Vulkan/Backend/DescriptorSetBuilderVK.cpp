@@ -2,7 +2,9 @@
 #include "PipelineHandlerVK.h"
 #include "ShaderHandlerVK.h"
 #include "RenderDeviceVK.h"
+
 #include <Utils/StringUtils.h>
+#include <vulkan/vulkan.h>
 
 namespace Renderer
 {
@@ -64,7 +66,7 @@ namespace Renderer
                                 else
                                 {
                                     // Else somethings is really bad, lets fatal log
-                                    NC_LOG_FATAL("Vertex Shader and Pixel Shader tries to use the same descriptor set and binding, but they don't seem to match");
+                                    DebugHandler::PrintFatal("Vertex Shader and Pixel Shader tries to use the same descriptor set and binding, but they don't seem to match");
                                 }
                                 found = true;
                                 break;

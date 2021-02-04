@@ -31,7 +31,7 @@ namespace UIScripting
             }
             else
             {
-                NC_LOG_ERROR("Attempted to request LockToken with invalid LockState(%u)", static_cast<u8>(state));
+                DebugHandler::PrintError("Attempted to request LockToken with invalid LockState(%u)", static_cast<u8>(state));
             }
         }
 

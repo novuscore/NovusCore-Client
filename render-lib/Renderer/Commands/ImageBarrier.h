@@ -1,7 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
-#include <Renderer/BackendDispatch.h>
-#include <Renderer/Descriptors/ImageDesc.h>
+#include "../BackendDispatch.h"
+#include "../Descriptors/ImageDesc.h"
 
 namespace Renderer
 {

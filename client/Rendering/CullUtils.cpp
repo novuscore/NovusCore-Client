@@ -2,6 +2,7 @@
 
 #include <Renderer/Renderer.h>
 #include <Renderer/RenderGraphResources.h>
+#include <Renderer/CommandList.h>
 
 #include <Renderer/Descriptors/ComputeShaderDesc.h>
 #include <Renderer/Descriptors/ComputePipelineDesc.h>
@@ -33,14 +34,14 @@ void DepthPyramidUtils::BuildPyramid(Renderer::Renderer* renderer, Renderer::Ren
     uvec2 pyramidSize = renderer->GetImageDimension(pyramidImage);
 
     Renderer::SamplerDesc samplerDesc;
-    samplerDesc.filter = Renderer::SAMPLER_FILTER_MINIMUM_MIN_MAG_MIP_LINEAR;
+    samplerDesc.filter = Renderer::SamplerFilter::MINIMUM_MIN_MAG_MIP_LINEAR;
 
-    samplerDesc.addressU = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
-    samplerDesc.addressV = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
-    samplerDesc.addressW = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
+    samplerDesc.addressU = Renderer::TextureAddressMode::CLAMP;
+    samplerDesc.addressV = Renderer::TextureAddressMode::CLAMP;
+    samplerDesc.addressW = Renderer::TextureAddressMode::CLAMP;
     samplerDesc.minLOD = 0.f;
     samplerDesc.maxLOD = 16.f;
-    samplerDesc.mode = Renderer::SAMPLER_REDUCTION_MIN;
+    samplerDesc.mode = Renderer::SamplerReductionMode::MIN;
 
     Renderer::SamplerID occlusionSampler = renderer->CreateSampler(samplerDesc);
 
@@ -48,11 +49,13 @@ void DepthPyramidUtils::BuildPyramid(Renderer::Renderer* renderer, Renderer::Ren
     {
         _reduceDescriptorSet.Bind("_sampler", occlusionSampler);
         _reduceDescriptorSet.BindStorage("_target", pyramidImage, i);
+
         if (i == 0)
         {
             _reduceDescriptorSet.Bind("_source", depthImage);
         }
-        else {
+        else 
+        {
             _reduceDescriptorSet.Bind("_source", pyramidImage, i - 1);
         }
 

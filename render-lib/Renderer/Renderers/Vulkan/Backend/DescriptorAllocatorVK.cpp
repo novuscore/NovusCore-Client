@@ -181,7 +181,7 @@ namespace Renderer
                 }
                 else
                 {
-                    NC_LOG_FATAL("Could not allocate descriptor set");
+                    DebugHandler::PrintFatal("Could not allocate descriptor set");
                     return false;
                 }
             }
@@ -211,7 +211,7 @@ namespace Renderer
 
             if (result != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Could not create descriptor pool");
+                DebugHandler::PrintFatal("Could not create descriptor pool");
             }
 
             return descriptorPool;

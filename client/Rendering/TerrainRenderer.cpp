@@ -3,7 +3,6 @@
 #include "MapObjectRenderer.h"
 #include "CModelRenderer.h"
 #include "WaterRenderer.h"
-#include <entt.hpp>
 #include "../Utils/ServiceLocator.h"
 #include "../Utils/MapUtils.h"
 
@@ -14,13 +13,14 @@
 #include "CameraFreelook.h"
 
 #include <Renderer/Renderer.h>
+#include <Renderer/RenderGraph.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <tracy/TracyVulkan.hpp>
 #include <glm/gtx/euler_angles.hpp>
-
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
 #include <tracy/Tracy.hpp>
+#include <entt.hpp>
 
 #include "Camera.h"
 #include "CVar/CVarSystem.h"
@@ -274,9 +274,9 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
         renderGraph->AddPass<TerrainPassData>("Terrain Pass",
             [=](TerrainPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
-            data.mainColor = builder.Write(colorTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-            data.mainObject = builder.Write(objectTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-            data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+            data.mainColor = builder.Write(colorTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+            data.mainObject = builder.Write(objectTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+            data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
 
             return true; // Return true from setup to enable this pass, return false to disable it
         },
@@ -302,7 +302,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                 uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
                 uploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
                 uploadBufferDesc.size = sizeof(CellInstance) * _culledInstances.size();
-                uploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+                uploadBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
 
                 Renderer::BufferID instanceUploadBuffer = _renderer->CreateBuffer(uploadBufferDesc);
                 _renderer->QueueDestroyBuffer(instanceUploadBuffer);
@@ -349,14 +349,14 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
                 _cullingPassDescriptorSet.Bind("_drawCount", _argumentBuffer);
 
                 Renderer::SamplerDesc samplerDesc;
-                samplerDesc.filter = Renderer::SAMPLER_FILTER_MINIMUM_MIN_MAG_MIP_LINEAR;
+                samplerDesc.filter = Renderer::SamplerFilter::MINIMUM_MIN_MAG_MIP_LINEAR;
 
-                samplerDesc.addressU = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
-                samplerDesc.addressV = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
-                samplerDesc.addressW = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.addressU = Renderer::TextureAddressMode::CLAMP;
+                samplerDesc.addressV = Renderer::TextureAddressMode::CLAMP;
+                samplerDesc.addressW = Renderer::TextureAddressMode::CLAMP;
                 samplerDesc.minLOD = 0.f;
                 samplerDesc.maxLOD = 16.f;
-                samplerDesc.mode = Renderer::SAMPLER_REDUCTION_MIN;
+                samplerDesc.mode = Renderer::SamplerReductionMode::MIN;
 
                 Renderer::SamplerID occlusionSampler = _renderer->CreateSampler(samplerDesc);
 
@@ -391,21 +391,21 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, Rendere
             // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
             pipelineDesc.states.inputLayouts[0].enabled = true;
             pipelineDesc.states.inputLayouts[0].SetName("TEXCOORD0");
-            pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::INPUT_FORMAT_R32_UINT;
-            pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_INSTANCE;
+            pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::R32_UINT;
+            pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::PER_INSTANCE;
             pipelineDesc.states.inputLayouts[1].enabled = true;
             pipelineDesc.states.inputLayouts[1].SetName("TEXCOORD1");
-            pipelineDesc.states.inputLayouts[1].format = Renderer::InputFormat::INPUT_FORMAT_R32_UINT;
-            pipelineDesc.states.inputLayouts[1].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_INSTANCE;
+            pipelineDesc.states.inputLayouts[1].format = Renderer::InputFormat::R32_UINT;
+            pipelineDesc.states.inputLayouts[1].inputClassification = Renderer::InputClassification::PER_INSTANCE;
 
             // Depth state
             pipelineDesc.states.depthStencilState.depthEnable = true;
             pipelineDesc.states.depthStencilState.depthWriteEnable = true;
-            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_GREATER;
+            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::GREATER;
 
             // Rasterizer state
-            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
-            pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
+            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::BACK;
+            pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
 
             // Render targets
             pipelineDesc.renderTargets[0] = data.mainColor;
@@ -495,7 +495,7 @@ void TerrainRenderer::CreatePermanentResources()
     zeroColorTexture.layers = 1;
     zeroColorTexture.width = 1;
     zeroColorTexture.height = 1;
-    zeroColorTexture.format = Renderer::IMAGE_FORMAT_R8G8B8A8_UNORM;
+    zeroColorTexture.format = Renderer::ImageFormat::R8G8B8A8_UNORM;
     zeroColorTexture.data = new u8[4]{ 0, 0, 0, 0 };
 
     u32 index;
@@ -506,22 +506,22 @@ void TerrainRenderer::CreatePermanentResources()
     // Samplers
     Renderer::SamplerDesc alphaSamplerDesc;
     alphaSamplerDesc.enabled = true;
-    alphaSamplerDesc.filter = Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_MIP_LINEAR;
-    alphaSamplerDesc.addressU = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_CLAMP;
-    alphaSamplerDesc.addressV = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_CLAMP;
-    alphaSamplerDesc.addressW = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_CLAMP;
-    alphaSamplerDesc.shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_PIXEL;
+    alphaSamplerDesc.filter = Renderer::SamplerFilter::MIN_MAG_MIP_LINEAR;
+    alphaSamplerDesc.addressU = Renderer::TextureAddressMode::CLAMP;
+    alphaSamplerDesc.addressV = Renderer::TextureAddressMode::CLAMP;
+    alphaSamplerDesc.addressW = Renderer::TextureAddressMode::CLAMP;
+    alphaSamplerDesc.shaderVisibility = Renderer::ShaderVisibility::PIXEL;
 
     _alphaSampler = _renderer->CreateSampler(alphaSamplerDesc);
     _passDescriptorSet.Bind("_alphaSampler"_h, _alphaSampler);
 
     Renderer::SamplerDesc colorSamplerDesc;
     colorSamplerDesc.enabled = true;
-    colorSamplerDesc.filter = Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_MIP_LINEAR;
-    colorSamplerDesc.addressU = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
-    colorSamplerDesc.addressV = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
-    colorSamplerDesc.addressW = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_CLAMP;
-    colorSamplerDesc.shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_PIXEL;
+    colorSamplerDesc.filter = Renderer::SamplerFilter::MIN_MAG_MIP_LINEAR;
+    colorSamplerDesc.addressU = Renderer::TextureAddressMode::WRAP;
+    colorSamplerDesc.addressV = Renderer::TextureAddressMode::WRAP;
+    colorSamplerDesc.addressW = Renderer::TextureAddressMode::CLAMP;
+    colorSamplerDesc.shaderVisibility = Renderer::ShaderVisibility::PIXEL;
 
     _colorSampler = _renderer->CreateSampler(colorSamplerDesc);
     _passDescriptorSet.Bind("_colorSampler"_h, _colorSampler);
@@ -530,7 +530,7 @@ void TerrainRenderer::CreatePermanentResources()
         Renderer::BufferDesc desc;
         desc.name = "TerrainCellIndexBuffer";
         desc.size = Terrain::NUM_INDICES_PER_CELL * sizeof(u16);
-        desc.usage = Renderer::BUFFER_USAGE_INDEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::INDEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _cellIndexBuffer = _renderer->CreateBuffer(desc);
     }
 
@@ -538,11 +538,11 @@ void TerrainRenderer::CreatePermanentResources()
         Renderer::BufferDesc desc;
         desc.name = "TerrainArgumentBuffer";
         desc.size = sizeof(VkDrawIndexedIndirectCommand);
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION | Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::TRANSFER_SOURCE;
         _argumentBuffer = _renderer->CreateBuffer(desc);
 
         desc.size = sizeof(u32);
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         desc.cpuAccess = Renderer::BufferCPUAccess::ReadOnly;
         _drawCountReadBackBuffer = _renderer->CreateBuffer(desc);
     }
@@ -553,7 +553,7 @@ void TerrainRenderer::CreatePermanentResources()
         indexUploadBufferDesc.name = "TerrainCellIndexUploadBuffer";
         indexUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
         indexUploadBufferDesc.size = sizeof(u16) * Terrain::NUM_INDICES_PER_CELL;
-        indexUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        indexUploadBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
 
         Renderer::BufferID indexUploadBuffer = _renderer->CreateBuffer(indexUploadBufferDesc);
         _renderer->QueueDestroyBuffer(indexUploadBuffer);
@@ -682,7 +682,7 @@ void TerrainRenderer::ExecuteLoad()
         Renderer::BufferDesc desc;
         desc.name = "CulledTerrainInstanceBuffer";
         desc.size = sizeof(CellInstance) * Terrain::MAP_CELLS_PER_CHUNK * numChunksToLoad;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_VERTEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::VERTEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _instanceBuffer = _renderer->CreateBuffer(desc);
     }
 
@@ -694,7 +694,7 @@ void TerrainRenderer::ExecuteLoad()
         Renderer::BufferDesc desc;
         desc.name = "TerrainInstanceBuffer";
         desc.size = sizeof(CellInstance) * Terrain::MAP_CELLS_PER_CHUNK * numChunksToLoad;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_VERTEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::VERTEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _culledInstanceBuffer = _renderer->CreateBuffer(desc);
     }
 
@@ -706,7 +706,7 @@ void TerrainRenderer::ExecuteLoad()
         Renderer::BufferDesc desc;
         desc.name = "TerrainChunkBuffer";
         desc.size = sizeof(TerrainChunkData) * numChunksToLoad;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _chunkBuffer = _renderer->CreateBuffer(desc);
     }
 
@@ -718,7 +718,7 @@ void TerrainRenderer::ExecuteLoad()
         Renderer::BufferDesc desc;
         desc.name = "TerrainCellBuffer";
         desc.size = sizeof(TerrainCellData) * Terrain::MAP_CELLS_PER_CHUNK * numChunksToLoad;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _cellBuffer = _renderer->CreateBuffer(desc);
     }
 
@@ -730,7 +730,7 @@ void TerrainRenderer::ExecuteLoad()
         Renderer::BufferDesc desc;
         desc.name = "TerrainVertexBuffer";
         desc.size = sizeof(TerrainVertex) * Terrain::NUM_VERTICES_PER_CHUNK * numChunksToLoad;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _vertexBuffer = _renderer->CreateBuffer(desc);
     }
 
@@ -743,7 +743,7 @@ void TerrainRenderer::ExecuteLoad()
         Renderer::BufferDesc desc;
         desc.name = "CellHeightRangeBuffer";
         desc.size = sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK * numChunksToLoad;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _cellHeightRangeBuffer = _renderer->CreateBuffer(desc);
     }
 
@@ -801,7 +801,7 @@ bool TerrainRenderer::LoadMap(const NDBC::Map* map)
             uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
             uploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
             uploadBufferDesc.size = sizeof(CellInstance) * cellCount;
-            uploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+            uploadBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
 
             Renderer::BufferID instanceUploadBuffer = _renderer->CreateBuffer(uploadBufferDesc);
             _renderer->QueueDestroyBuffer(instanceUploadBuffer);
@@ -852,7 +852,7 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
         Renderer::BufferDesc cellDataUploadBufferDesc;
         cellDataUploadBufferDesc.name = "TerrainCellUploadBuffer";
         cellDataUploadBufferDesc.size = sizeof(TerrainCellData) * Terrain::MAP_CELLS_PER_CHUNK;
-        cellDataUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        cellDataUploadBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         cellDataUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID cellUploadBuffer = _renderer->CreateBuffer(cellDataUploadBufferDesc);
@@ -890,7 +890,7 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
                 _renderer->LoadTextureIntoArray(textureDesc, _terrainColorTextureArray, diffuseID);
                 if (diffuseID > 4096)
                 {
-                    NC_LOG_FATAL("This is bad!");
+                    DebugHandler::PrintFatal("This is bad!");
                 }
 
                 cellData.diffuseIDs[layerCount++] = diffuseID;
@@ -918,7 +918,7 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
         Renderer::BufferDesc chunkDataUploadBufferDesc;
         chunkDataUploadBufferDesc.name = "TerrainChunkUploadBuffer";
         chunkDataUploadBufferDesc.size = sizeof(TerrainChunkData);
-        chunkDataUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        chunkDataUploadBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         chunkDataUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID chunkUploadBuffer = _renderer->CreateBuffer(chunkDataUploadBufferDesc);
@@ -937,7 +937,7 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
         Renderer::BufferDesc vertexUploadBufferDesc;
         vertexUploadBufferDesc.name = "TerrainVertexUploadBuffer";
         vertexUploadBufferDesc.size = sizeof(TerrainVertex) * Terrain::NUM_VERTICES_PER_CHUNK;
-        vertexUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        vertexUploadBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         vertexUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID vertexUploadBuffer = _renderer->CreateBuffer(vertexUploadBufferDesc);
@@ -1031,7 +1031,7 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
             Renderer::BufferDesc heightRangeUploadBufferDesc;
             heightRangeUploadBufferDesc.name = "HeightRangeUploadBuffer";
             heightRangeUploadBufferDesc.size = sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK;
-            heightRangeUploadBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+            heightRangeUploadBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
             heightRangeUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
             Renderer::BufferID heightRangeUploadBuffer = _renderer->CreateBuffer(heightRangeUploadBufferDesc);

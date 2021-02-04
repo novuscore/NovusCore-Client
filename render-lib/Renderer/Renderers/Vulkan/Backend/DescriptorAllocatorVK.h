@@ -1,6 +1,5 @@
 #pragma once
 #include <NovusTypes.h>
-#include <vector>
 #include <vulkan/vulkan_core.h>
 
 namespace Renderer

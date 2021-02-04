@@ -204,7 +204,7 @@ bool NDBCEditorHandler::SaveSelectedNDBC()
         
         if (!file->GetStringTable()->Serialize(buffer))
         {
-            NC_LOG_ERROR("Failed to write StringTable during NDBCEditorHandler::SaveSelectedNDBC() for %s", _selectedNDBC);
+            DebugHandler::PrintError("Failed to write StringTable during NDBCEditorHandler::SaveSelectedNDBC() for %s", _selectedNDBC);
             return false;
         }
 

@@ -1,14 +1,17 @@
 #pragma once
 #include <NovusTypes.h>
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
+
 #include <vector>
 #include <unordered_map>
 #include <cassert>
+#include <Utils/DebugHandler.h>
+
 #include "../../../Descriptors/VertexShaderDesc.h"
 #include "../../../Descriptors/PixelShaderDesc.h"
 #include "../../../Descriptors/ComputeShaderDesc.h"
 #include "SpirvReflect.h"
-#include <Utils/DebugHandler.h>
+
 
 namespace ShaderCooker
 {
@@ -107,10 +110,10 @@ namespace Renderer
                 // Check if we need to compile it before loading
                 if (NeedsCompile(shaderPath))
                 {
-                    NC_LOG_MESSAGE("[ShaderCooker]: Compiling %s", shaderPath.c_str())
+                    DebugHandler::Print("[ShaderCooker]: Compiling %s", shaderPath.c_str());
                     if (!CompileShader(shaderPath))
                     {
-                        NC_LOG_WARNING("[ShaderCooker]: Compiling %s failed, using old version", shaderPath.c_str());
+                        DebugHandler::PrintWarning("[ShaderCooker]: Compiling %s failed, using old version", shaderPath.c_str());
                     }
                 }
 
@@ -131,7 +134,7 @@ namespace Renderer
 
                 if (result != SPV_REFLECT_RESULT_SUCCESS)
                 {
-                    NC_LOG_FATAL("We failed to reflect the spirv of %s", shaderPath.c_str());
+                    DebugHandler::PrintFatal("We failed to reflect the spirv of %s", shaderPath.c_str());
                 }
 
                 uint32_t descriptorSetCount = 0;
@@ -139,7 +142,7 @@ namespace Renderer
 
                 if (result != SPV_REFLECT_RESULT_SUCCESS)
                 {
-                    NC_LOG_FATAL("We failed to reflect the spirv descriptor set count of %s", shaderPath.c_str());
+                    DebugHandler::PrintFatal("We failed to reflect the spirv descriptor set count of %s", shaderPath.c_str());
                 }
 
                 
@@ -151,7 +154,7 @@ namespace Renderer
 
                     if (result != SPV_REFLECT_RESULT_SUCCESS)
                     {
-                        NC_LOG_FATAL("We failed to reflect the spirv descriptor sets of %s", shaderPath.c_str());
+                        DebugHandler::PrintFatal("We failed to reflect the spirv descriptor sets of %s", shaderPath.c_str());
                     }
 
                     for (auto* descriptorSet : descriptorSets)
@@ -179,7 +182,7 @@ namespace Renderer
 
                 if (result != SPV_REFLECT_RESULT_SUCCESS)
                 {
-                    NC_LOG_FATAL("We failed to reflect the spirv push constant count of %s", shaderPath.c_str());
+                    DebugHandler::PrintFatal("We failed to reflect the spirv push constant count of %s", shaderPath.c_str());
                 }
 
                 if (pushConstantCount > 0)

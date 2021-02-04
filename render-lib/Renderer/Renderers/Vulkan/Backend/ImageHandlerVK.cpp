@@ -1,6 +1,9 @@
 #include "ImageHandlerVK.h"
 #include <Utils/DebugHandler.h>
 #include <Utils/StringUtils.h>
+#include <vulkan/vulkan.h>
+#include <vector>
+
 #include "RenderDeviceVK.h"
 #include "FormatConverterVK.h"
 #include "DebugMarkerUtilVK.h"
@@ -18,6 +21,7 @@ namespace Renderer
 
             return r;
         }
+
         u32 GetImageMipLevels(u32 width, u32 height)
         {
             u32 result = 1;
@@ -31,15 +35,51 @@ namespace Renderer
 
             return result;
         }
+
+        struct Image
+        {
+            ImageDesc desc;
+
+            VmaAllocation allocation;
+            VkImage image;
+            VkImageView colorView;
+        };
+
+        struct DepthImage
+        {
+            DepthImageDesc desc;
+
+            VmaAllocation allocation;
+            VkImage image;
+            VkImageView depthView;
+        };
+
+        struct ExtraViews
+        {
+            VkImageView view;
+            u32 mip;
+        };
+
+        struct ImageHandlerVKData : IImageHandlerVKData
+        {
+            std::vector<Image> images;
+            std::vector<DepthImage> depthImages;
+
+            std::unordered_map<u16, std::vector<ExtraViews>> extraViews;
+        };
+
         void ImageHandlerVK::Init(RenderDeviceVK* device)
         {
             _device = device;
+            _data = new ImageHandlerVKData();
         }
 
         void ImageHandlerVK::OnWindowResize()
         {
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
+
             // Recreate color images
-            for (auto& image : _images)
+            for (auto& image : data.images)
             {
                 if (image.desc.dimensionType == ImageDimensionType::DIMENSION_SCALE)
                 {
@@ -53,7 +93,7 @@ namespace Renderer
             }
 
             // Recreate depth images
-            for (auto& image : _depthImages)
+            for (auto& image : data.depthImages)
             {
                 if (image.desc.dimensionType == ImageDimensionType::DIMENSION_SCALE)
                 {
@@ -69,11 +109,12 @@ namespace Renderer
 
         ImageID ImageHandlerVK::CreateImage(const ImageDesc& desc)
         {
-            size_t nextHandle = _images.size();
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
+
+            size_t nextHandle = data.images.size();
 
             // Make sure we haven't exceeded the limit of the ImageID type, if this hits you need to change type of ImageID to something bigger
             assert(nextHandle < ImageID::MaxValue());
-            using type = type_safe::underlying_type<ImageID>;
 
             Image image;
             image.desc = desc;
@@ -81,49 +122,50 @@ namespace Renderer
             assert(desc.dimensions.x > 0); // Make sure the width is valid
             assert(desc.dimensions.y > 0); // Make sure the height is valid
             assert(desc.depth > 0); // Make sure the depth is valid
-            assert(desc.format != IMAGE_FORMAT_UNKNOWN); // Make sure the format is valid
+            assert(desc.format != ImageFormat::UNKNOWN); // Make sure the format is valid
 
             CreateImage(image);
 
-            _images.push_back(image);
+            data.images.push_back(image);
 
-            return ImageID(static_cast<type>(nextHandle));
+            return ImageID(static_cast<ImageID::type>(nextHandle));
         }
 
         DepthImageID ImageHandlerVK::CreateDepthImage(const DepthImageDesc& desc)
         {
-            size_t nextHandle = _depthImages.size();
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
+
+            size_t nextHandle = data.depthImages.size();
 
             // Make sure we haven't exceeded the limit of the DepthImageID type, if this hits you need to change type of DepthImageID to something bigger
             assert(nextHandle < DepthImageID::MaxValue());
-            using type = type_safe::underlying_type<DepthImageID>;
 
             DepthImage image;
             image.desc = desc;
 
             CreateImage(image);
 
-            _depthImages.push_back(image);
+            data.depthImages.push_back(image);
 
-            return DepthImageID(static_cast<type>(nextHandle));
+            return DepthImageID(static_cast<DepthImageID::type>(nextHandle));
         }
 
         const ImageDesc& ImageHandlerVK::GetImageDesc(const ImageID id)
         {
-            using type = type_safe::underlying_type<ImageID>;
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_images.size() > static_cast<type>(id));
-            return _images[static_cast<type>(id)].desc;
+            assert(data.images.size() > static_cast<ImageID::type>(id));
+            return data.images[static_cast<ImageID::type>(id)].desc;
         }
 
         const DepthImageDesc& ImageHandlerVK::GetDepthImageDesc(const DepthImageID id)
         {
-            using type = type_safe::underlying_type<DepthImageID>;
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_depthImages.size() > static_cast<type>(id));
-            return _depthImages[static_cast<type>(id)].desc;
+            assert(data.depthImages.size() > static_cast<DepthImageID::type>(id));
+            return data.depthImages[static_cast<DepthImageID::type>(id)].desc;
         }
 
         uvec2 ImageHandlerVK::GetDimension(const ImageID id)
@@ -166,37 +208,36 @@ namespace Renderer
 
         VkImage ImageHandlerVK::GetImage(const ImageID id)
         {
-            using type = type_safe::underlying_type<ImageID>;
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_images.size() > static_cast<type>(id));
-            return _images[static_cast<type>(id)].image;
+            assert(data.images.size() > static_cast<ImageID::type>(id));
+            return data.images[static_cast<ImageID::type>(id)].image;
         }
 
         VkImageView ImageHandlerVK::GetColorView(const ImageID id)
         {
-            using type = type_safe::underlying_type<ImageID>;
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_images.size() > static_cast<type>(id));
-            return _images[static_cast<type>(id)].colorView;
+            assert(data.images.size() > static_cast<ImageID::type>(id));
+            return data.images[static_cast<ImageID::type>(id)].colorView;
         }
 
         VkImageView ImageHandlerVK::GetColorView(const ImageID id, u32 mipLevel)
         {
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
             VkImageView view = VK_NULL_HANDLE;
-
-            using type = type_safe::underlying_type<ImageID>;
 
             if (mipLevel == 0)
             {
                 return GetColorView(id);
             }
             // Lets make sure this id exists
-            type tid = static_cast<type>(id);
+            ImageID::type tid = static_cast<ImageID::type>(id);
 
-            auto img = _extraViews.find(tid);
-            if (img != _extraViews.end())
+            auto img = data.extraViews.find(tid);
+            if (img != data.extraViews.end())
             {
                 for (auto im : img->second)
                 {
@@ -212,24 +253,26 @@ namespace Renderer
 
         VkImage ImageHandlerVK::GetImage(const DepthImageID id)
         {
-            using type = type_safe::underlying_type<DepthImageID>;
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_depthImages.size() > static_cast<type>(id));
-            return _depthImages[static_cast<type>(id)].image;
+            assert(data.depthImages.size() > static_cast<DepthImageID::type>(id));
+            return data.depthImages[static_cast<DepthImageID::type>(id)].image;
         }
 
         VkImageView ImageHandlerVK::GetDepthView(const DepthImageID id)
         {
-            using type = type_safe::underlying_type<DepthImageID>;
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_depthImages.size() > static_cast<type>(id));
-            return _depthImages[static_cast<type>(id)].depthView;
+            assert(data.depthImages.size() > static_cast<DepthImageID::type>(id));
+            return data.depthImages[static_cast<DepthImageID::type>(id)].depthView;
         }
 
         void ImageHandlerVK::CreateImage(Image& image)
         {
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
+
             // Create image
             VkImageCreateInfo imageInfo = {};
             imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -242,7 +285,7 @@ namespace Renderer
             }
             else
             {
-                NC_LOG_FATAL("Non-3d images is currently unsupported");
+                DebugHandler::PrintFatal("Non-3d images is currently unsupported");
             }
             if (image.desc.dimensionType != ImageDimensionType::DIMENSION_PYRAMID)
             {
@@ -306,7 +349,7 @@ namespace Renderer
 
             if (vmaCreateImage(_device->_allocator, &imageInfo, &allocInfo, &image.image, &image.allocation, nullptr) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create image!");
+                DebugHandler::PrintFatal("Failed to create image!");
             }
 
             // Create Color View
@@ -319,7 +362,7 @@ namespace Renderer
             }
             else
             {
-                NC_LOG_FATAL("Non-3d images is currently unsupported");
+                DebugHandler::PrintFatal("Non-3d images is currently unsupported");
             }
 
             colorViewInfo.format = imageInfo.format;
@@ -344,7 +387,7 @@ namespace Renderer
                     VkImageView newView;
                     if (vkCreateImageView(_device->_device, &pyramidLevelInfo, nullptr, &newView) != VK_SUCCESS)
                     {
-                        NC_LOG_FATAL("Failed to create color image view!");
+                        DebugHandler::PrintFatal("Failed to create color image view!");
                     }
                     ExtraViews v;
                     v.view = newView;
@@ -352,12 +395,12 @@ namespace Renderer
                     views.push_back(v);
                 }
 
-                _extraViews[(static_cast<u16>(_images.size()))] = std::move(views);
+                data.extraViews[(static_cast<u16>(data.images.size()))] = std::move(views);
             }
 
             if (vkCreateImageView(_device->_device, &colorViewInfo, nullptr, &image.colorView) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create color image view!");
+                DebugHandler::PrintFatal("Failed to create color image view!");
             }
 
             DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)image.colorView, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, image.desc.debugName.c_str());
@@ -410,7 +453,7 @@ namespace Renderer
 
             if (vmaCreateImage(_device->_allocator, &imageInfo, &allocInfo, &image.image, &image.allocation, nullptr) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create image!");
+                DebugHandler::PrintFatal("Failed to create image!");
             }
 
             // Create Depth View
@@ -432,7 +475,7 @@ namespace Renderer
 
             if (vkCreateImageView(_device->_device, &depthViewInfo, nullptr, &image.depthView) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create depth image view!");
+                DebugHandler::PrintFatal("Failed to create depth image view!");
             }
 
             DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)image.depthView, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, image.desc.debugName.c_str());

@@ -24,7 +24,7 @@ std::string ScriptHandler::_scriptFolder = "";
 
 void ScriptHandler::ReloadScripts()
 {
-    NC_LOG_MESSAGE("Reloading scripts...");
+    DebugHandler::Print("Reloading scripts...");
 
     if (_scriptFolder != "")
     {
@@ -64,7 +64,7 @@ void ScriptHandler::LoadScriptDirectory(std::string& scriptFolder)
         }
     }
     f32 msTimeTaken = timer.GetLifeTime() * 1000;
-    NC_LOG_SUCCESS("Loaded %u scripts in %.2f ms", count, msTimeTaken);
+    DebugHandler::PrintSuccess("Loaded %u scripts in %.2f ms", count, msTimeTaken);
 }
 
 bool ScriptHandler::LoadScript(fs::path scriptPath)
@@ -78,7 +78,7 @@ bool ScriptHandler::LoadScript(fs::path scriptPath)
     {
         // If the code fails here it is usually because there
         // is no more memory to allocate the module
-        NC_LOG_ERROR("[Script]: Unrecoverable error while starting a new module.");
+        DebugHandler::PrintError("[Script]: Unrecoverable error while starting a new module.");
         return false;
     }
     r = builder.AddSectionFromFile(scriptPath.string().c_str());
@@ -87,7 +87,7 @@ bool ScriptHandler::LoadScript(fs::path scriptPath)
         // The builder wasn't able to load the file. Maybe the file
         // has been removed, or the wrong name was given, or some
         // preprocessing commands are incorrectly written.
-        NC_LOG_ERROR("[Script]: Please correct the errors in the script and try again.\n");
+        DebugHandler::PrintError("[Script]: Please correct the errors in the script and try again.\n");
         return false;
     }
     r = builder.BuildModule();
@@ -95,7 +95,7 @@ bool ScriptHandler::LoadScript(fs::path scriptPath)
     {
         // An error occurred. Instruct the script writer to fix the
         // compilation errors that were listed in the output stream.
-        NC_LOG_ERROR("[Script]: Please correct the errors in the script and try again.\n");
+        DebugHandler::PrintError("[Script]: Please correct the errors in the script and try again.\n");
         return false;
     }
 
@@ -105,7 +105,7 @@ bool ScriptHandler::LoadScript(fs::path scriptPath)
     {
         // The function couldn't be found. Instruct the script writer
         // to include the expected function in the script.
-        NC_LOG_ERROR("[Script]: The script must have the function 'void main()'. Please add it and try again.\n");
+        DebugHandler::PrintError("[Script]: The script must have the function 'void main()'. Please add it and try again.\n");
         return false;
     }
 
@@ -119,7 +119,7 @@ bool ScriptHandler::LoadScript(fs::path scriptPath)
         if (r == asEXECUTION_EXCEPTION)
         {
             // An exception occurred, let the script writer know what happened so it can be corrected.
-            NC_LOG_ERROR("[Script]: An exception '%s' occurred. Please correct the code and try again.\n", ctx->GetExceptionString());
+            DebugHandler::PrintError("[Script]: An exception '%s' occurred. Please correct the code and try again.\n", ctx->GetExceptionString());
             ctx->Release();
             return false;
         }

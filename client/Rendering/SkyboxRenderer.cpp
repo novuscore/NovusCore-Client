@@ -1,16 +1,15 @@
 #include "SkyboxRenderer.h"
 #include "DebugRenderer.h"
 #include "MapObjectRenderer.h"
-#include <entt.hpp>
 #include "../Utils/ServiceLocator.h"
-
 #include "../ECS/Components/Singletons/MapSingleton.h"
 
 #include <Renderer/Renderer.h>
+#include <Renderer/RenderGraph.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <tracy/TracyVulkan.hpp>
 #include <glm/gtx/euler_angles.hpp>
-
+#include <entt.hpp>
 #include <InputManager.h>
 #include <GLFW/glfw3.h>
 
@@ -43,8 +42,8 @@ void SkyboxRenderer::AddSkyboxPass(Renderer::RenderGraph* renderGraph, Renderer:
 
     const auto setup = [=](TerrainPassData& data, Renderer::RenderGraphBuilder& builder) 
     {
-        data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-        data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+        data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+        data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
 
         return true; // Return true from setup to enable this pass, return false to disable it
     };

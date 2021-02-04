@@ -1,6 +1,5 @@
 #pragma once
 #include "../../Renderer.h"
-
 #include <array>
 
 struct VkDescriptorSetLayoutBinding;
@@ -13,7 +12,6 @@ namespace Renderer
         class BufferHandlerVK;
         class ImageHandlerVK;
         class TextureHandlerVK;
-        class ModelHandlerVK;
         class ShaderHandlerVK;
         class PipelineHandlerVK;
         class CommandListHandlerVK;
@@ -49,17 +47,12 @@ namespace Renderer
         GraphicsPipelineID CreatePipeline(GraphicsPipelineDesc& desc) override;
         ComputePipelineID CreatePipeline(ComputePipelineDesc& desc) override;
 
-        ModelID CreatePrimitiveModel(PrimitiveModelDesc& desc) override;
-        void UpdatePrimitiveModel(ModelID modelID, PrimitiveModelDesc& desc) override;
-
         TextureArrayID CreateTextureArray(TextureArrayDesc& desc) override;
 
         TextureID CreateDataTexture(DataTextureDesc& desc) override;
         TextureID CreateDataTextureIntoArray(DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) override;
 
         // Loading
-        ModelID LoadModel(ModelDesc& desc) override;
-
         TextureID LoadTexture(TextureDesc& desc) override;
         TextureID LoadTextureIntoArray(TextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) override;
 
@@ -77,8 +70,6 @@ namespace Renderer
         void Clear(CommandListID commandListID, ImageID image, Color color) override;
         void Clear(CommandListID commandListID, DepthImageID image, DepthClearFlags clearFlags, f32 depth, u8 stencil) override;
         void Draw(CommandListID commandListID, u32 numVertices, u32 numInstances, u32 vertexOffset, u32 instanceOffset) override;
-        void DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances) override;
-        void DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances) override;
         void DrawIndexed(CommandListID commandListID, u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset) override;
         void DrawIndexedIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount) override;
         void DrawIndexedIndirectCount(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount) override;
@@ -104,6 +95,7 @@ namespace Renderer
         void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
         void PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer) override;
         void ImageBarrier(CommandListID commandListID, ImageID image) override;
+        void DepthImageBarrier(CommandListID commandListID, DepthImageID image) override;
         void PushConstant(CommandListID commandListID, void* data, u32 offset, u32 size) override;
         void FillBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, u32 data) override;
 
@@ -144,7 +136,6 @@ namespace Renderer
         Backend::BufferHandlerVK* _bufferHandler = nullptr;
         Backend::ImageHandlerVK* _imageHandler = nullptr;
         Backend::TextureHandlerVK* _textureHandler = nullptr;
-        Backend::ModelHandlerVK* _modelHandler = nullptr;
         Backend::ShaderHandlerVK* _shaderHandler = nullptr;
         Backend::PipelineHandlerVK* _pipelineHandler = nullptr;
         Backend::CommandListHandlerVK* _commandListHandler = nullptr;
@@ -153,7 +144,6 @@ namespace Renderer
 
         GraphicsPipelineID _globalDummyPipeline = GraphicsPipelineID::Invalid();
         Backend::DescriptorSetBuilderVK* _descriptorSetBuilder = nullptr;
-        ModelID _boundModelIndexBuffer = ModelID::Invalid(); // TODO: Move these into CommandListHandler I guess?
 
         i8 _renderPassOpenCount = 0; // TODO: Move these into CommandListHandler I guess?
 

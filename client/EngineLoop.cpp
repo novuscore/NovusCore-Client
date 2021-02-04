@@ -359,8 +359,10 @@ bool EngineLoop::Update(f32 deltaTime)
     // until we are sure it is static for the rest of the frame
     UpdateSystems();
 
+    uvec2 renderResolution = _clientRenderer->GetRenderResolution();
+
     Camera* camera = ServiceLocator::GetCamera();
-    camera->Update(deltaTime, 75.0f, static_cast<f32>(_clientRenderer->WIDTH) / static_cast<f32>(_clientRenderer->HEIGHT));
+    camera->Update(deltaTime, 75.0f, static_cast<f32>(renderResolution.x) / static_cast<f32>(renderResolution.y));
 
     i32* editorEnabledCVAR = CVarSystem::Get()->GetIntCVar("editor.Enable"_h);
     if (*editorEnabledCVAR)

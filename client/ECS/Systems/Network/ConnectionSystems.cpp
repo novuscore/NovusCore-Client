@@ -20,7 +20,7 @@ void ConnectionUpdateSystem::Update(entt::registry& registry)
         while (connectionSingleton.authPacketQueue.try_dequeue(packet))
         {
 #ifdef NC_Debug
-            NC_LOG_SUCCESS("[Network/Socket]: CMD: %u, Size: %u", packet->header.opcode, packet->header.size);
+            DebugHandler::PrintSuccess("[Network/Socket]: CMD: %u, Size: %u", packet->header.opcode, packet->header.size);
 #endif // NC_Debug
 
             if (!authSocketMessageHandler->CallHandler(connectionSingleton.authConnection, packet))
@@ -40,7 +40,7 @@ void ConnectionUpdateSystem::Update(entt::registry& registry)
         while (connectionSingleton.gamePacketQueue.try_dequeue(packet))
         {
 #ifdef NC_Debug
-            NC_LOG_SUCCESS("[Network/Socket]: CMD: %u, Size: %u", packet->header.opcode, packet->header.size);
+            DebugHandler::PrintSuccess("[Network/Socket]: CMD: %u, Size: %u", packet->header.opcode, packet->header.size);
 #endif // NC_Debug
 
             if (!gameSocketMessageHandler->CallHandler(connectionSingleton.gameConnection, packet))

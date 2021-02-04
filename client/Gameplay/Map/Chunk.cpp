@@ -12,18 +12,18 @@ bool Terrain::Chunk::Read(FileReader& reader, Terrain::Chunk& chunk, StringTable
 
     if (chunk.chunkHeader.token != Terrain::MAP_CHUNK_TOKEN)
     {
-        NC_LOG_FATAL("Tried to load a map chunk file with the wrong token");
+        DebugHandler::PrintFatal("Tried to load a map chunk file with the wrong token");
     }
 
     if (chunk.chunkHeader.version != Terrain::MAP_CHUNK_VERSION)
     {
         if (chunk.chunkHeader.version < Terrain::MAP_CHUNK_VERSION)
         {
-            NC_LOG_FATAL("Loaded map chunk with too old version %u instead of expected version of %u, rerun dataextractor", chunk.chunkHeader.version, Terrain::MAP_CHUNK_VERSION);
+            DebugHandler::PrintFatal("Loaded map chunk with too old version %u instead of expected version of %u, rerun dataextractor", chunk.chunkHeader.version, Terrain::MAP_CHUNK_VERSION);
         }
         else
         {
-            NC_LOG_FATAL("Loaded map chunk with too new version %u instead of expected version of %u, update your client", chunk.chunkHeader.version, Terrain::MAP_CHUNK_VERSION);
+            DebugHandler::PrintFatal("Loaded map chunk with too new version %u instead of expected version of %u, update your client", chunk.chunkHeader.version, Terrain::MAP_CHUNK_VERSION);
         }
     }
 

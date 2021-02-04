@@ -118,19 +118,19 @@ void ScriptEngine::MessageCallback(const asSMessageInfo* msg, void* param)
 {
     if (msg->type == asMSGTYPE_ERROR)
     {
-        NC_LOG_ERROR("[Script]: %s (%d, %d) : %s\n", msg->section, msg->row, msg->col, msg->message);
+        DebugHandler::PrintError("[Script]: %s (%d, %d) : %s\n", msg->section, msg->row, msg->col, msg->message);
     }
     else if (msg->type == asMSGTYPE_WARNING)
     {
-        NC_LOG_WARNING("[Script]: %s (%d, %d) : %s\n", msg->section, msg->row, msg->col, msg->message);
+        DebugHandler::PrintWarning("[Script]: %s (%d, %d) : %s\n", msg->section, msg->row, msg->col, msg->message);
     }
     else if (msg->type == asMSGTYPE_INFORMATION)
     {
-        NC_LOG_MESSAGE("[Script]: %s (%d, %d) : %s\n", msg->section, msg->row, msg->col, msg->message);
+        DebugHandler::Print("[Script]: %s (%d, %d) : %s\n", msg->section, msg->row, msg->col, msg->message);
     }
 }
 
 void ScriptEngine::Print(std::string& message)
 {
-    NC_LOG_MESSAGE("[Script]: %s", message.c_str());
+    DebugHandler::Print("[Script]: %s", message.c_str());
 }

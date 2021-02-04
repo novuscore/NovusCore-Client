@@ -1,7 +1,11 @@
 #include "SamplerHandlerVK.h"
+
+#include <vector>
 #include <Utils/DebugHandler.h>
 #include <Utils/StringUtils.h>
 #include <Utils/XXHash64.h>
+#include <vulkan/vulkan.h>
+
 #include "RenderDeviceVK.h"
 #include "TextureHandlerVK.h"
 #include "PipelineHandlerVK.h"
@@ -11,23 +15,38 @@ namespace Renderer
 {
     namespace Backend
     {
+        using _SamplerID = type_safe::underlying_type<SamplerID>;
+        struct Sampler
+        {
+            u64 samplerHash;
+            SamplerDesc desc;
+
+            VkSampler sampler;
+        };
+
+        struct SamplerHandlerVKData : ISamplerHandlerVKData
+        {
+            std::vector<Sampler> samplers;
+        };
+
         void SamplerHandlerVK::Init(RenderDeviceVK* device)
         {
             _device = device;
+            _data = new SamplerHandlerVKData();
         }
 
         SamplerID SamplerHandlerVK::CreateSampler(const SamplerDesc& desc)
         {
-            using type = type_safe::underlying_type<SamplerID>;
+            SamplerHandlerVKData& data = static_cast<SamplerHandlerVKData&>(*_data);
 
             // Check the cache
             size_t nextID;
             u64 samplerHash = CalculateSamplerHash(desc);
             if (TryFindExistingSampler(samplerHash, nextID))
             {
-                return SamplerID(static_cast<type>(nextID));
+                return SamplerID(static_cast<SamplerID::type>(nextID));
             }
-            nextID = _samplers.size();
+            nextID = data.samplers.size();
 
             // Make sure we haven't exceeded the limit of the SamplerID type, if this hits you need to change type of SamplerID to something bigger
             assert(nextID < SamplerID::MaxValue());
@@ -48,7 +67,7 @@ namespace Renderer
             samplerInfo.maxAnisotropy = static_cast<f32>(desc.maxAnisotropy);
             samplerInfo.borderColor = FormatConverterVK::ToVkBorderColor(desc.borderColor);
             samplerInfo.unnormalizedCoordinates = desc.unnormalizedCoordinates;
-            samplerInfo.compareEnable = desc.comparisonFunc != ComparisonFunc::COMPARISON_FUNC_ALWAYS;
+            samplerInfo.compareEnable = desc.comparisonFunc != ComparisonFunc::ALWAYS;
             samplerInfo.compareOp = FormatConverterVK::ToVkCompareOp(desc.comparisonFunc);
             samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
             samplerInfo.mipLodBias = desc.mipLODBias;
@@ -59,12 +78,12 @@ namespace Renderer
 
             VkSamplerReductionModeCreateInfoEXT createInfoReduction = { VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO_EXT };
 
-            if (desc.mode != SAMPLER_REDUCTION_NONE)
+            if (desc.mode != SamplerReductionMode::NONE)
             {
                 switch (desc.mode)
                 {
-                case SAMPLER_REDUCTION_MAX: reductionMode = VK_SAMPLER_REDUCTION_MODE_MAX; break;
-                case SAMPLER_REDUCTION_MIN: reductionMode = VK_SAMPLER_REDUCTION_MODE_MIN; break;
+                    case SamplerReductionMode::MAX: reductionMode = VK_SAMPLER_REDUCTION_MODE_MAX; break;
+                    case SamplerReductionMode::MIN: reductionMode = VK_SAMPLER_REDUCTION_MODE_MIN; break;
                 }
 
                 samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
@@ -77,29 +96,29 @@ namespace Renderer
 
             if (vkCreateSampler(_device->_device, &samplerInfo, nullptr, &sampler.sampler) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create sampler!");
+                DebugHandler::PrintFatal("Failed to create sampler!");
             }
 
-            _samplers.push_back(sampler);
-            return SamplerID(static_cast<type>(nextID));
+            data.samplers.push_back(sampler);
+            return SamplerID(static_cast<SamplerID::type>(nextID));
         }
 
         VkSampler& SamplerHandlerVK::GetSampler(const SamplerID samplerID)
         {
-            using type = type_safe::underlying_type<SamplerID>;
+            SamplerHandlerVKData& data = static_cast<SamplerHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_samplers.size() > static_cast<type>(samplerID));
-            return _samplers[static_cast<type>(samplerID)].sampler;
+            assert(data.samplers.size() > static_cast<SamplerID::type>(samplerID));
+            return data.samplers[static_cast<SamplerID::type>(samplerID)].sampler;
         }
 
         const SamplerDesc& SamplerHandlerVK::GetSamplerDesc(const SamplerID samplerID)
         {
-            using type = type_safe::underlying_type<SamplerID>;
+            SamplerHandlerVKData& data = static_cast<SamplerHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_samplers.size() > static_cast<type>(samplerID));
-            return _samplers[static_cast<type>(samplerID)].desc;
+            assert(data.samplers.size() > static_cast<SamplerID::type>(samplerID));
+            return data.samplers[static_cast<SamplerID::type>(samplerID)].desc;
         }
 
         u64 SamplerHandlerVK::CalculateSamplerHash(const SamplerDesc& desc)
@@ -109,9 +128,10 @@ namespace Renderer
 
         bool SamplerHandlerVK::TryFindExistingSampler(u64 descHash, size_t& id)
         {
+            SamplerHandlerVKData& data = static_cast<SamplerHandlerVKData&>(*_data);
             id = 0;
 
-            for (auto& sampler : _samplers)
+            for (auto& sampler : data.samplers)
             {
                 if (descHash == sampler.samplerHash)
                 {

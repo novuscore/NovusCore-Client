@@ -1,7 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
 #include <functional>
-#include <algorithm>
 #include <Utils/StrongTypedef.h>
 #include "../RenderStates.h"
 #include "../RenderPassResources.h"
@@ -19,11 +18,6 @@ namespace Renderer
     struct GraphicsPipelineDesc
     {
         static const int MAX_INPUT_LAYOUTS = 8;
-
-        GraphicsPipelineDesc()
-        {
-            std::fill_n(renderTargets, MAX_RENDER_TARGETS, RenderPassMutableResource::Invalid());
-        }
 
         // This part of the descriptor is hashable in the PipelineHandler
         struct States

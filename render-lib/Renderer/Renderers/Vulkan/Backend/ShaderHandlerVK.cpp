@@ -1,10 +1,13 @@
 #include "ShaderHandlerVK.h"
-#include <Utils/DebugHandler.h>
+
 #include <Utils/StringUtils.h>
+#include <Utils/DebugHandler.h>
 #include <ShaderCooker/ShaderCooker.h>
-#include "RenderDeviceVK.h"
-#include <fstream>
+#include <vulkan/vulkan.h>
 #include <filesystem>
+#include <fstream>
+
+#include "RenderDeviceVK.h"
 
 namespace Renderer
 {
@@ -50,7 +53,7 @@ namespace Renderer
 
             if (!file.is_open())
             {
-                NC_LOG_FATAL("Failed to open file!");
+                DebugHandler::PrintFatal("Failed to open file!");
             }
 
             size_t fileSize = (size_t)file.tellg();
@@ -72,7 +75,7 @@ namespace Renderer
             VkShaderModule shaderModule;
             if (vkCreateShaderModule(_device->_device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create shader module!");
+                DebugHandler::PrintFatal("Failed to create shader module!");
             }
 
             return shaderModule;
@@ -114,7 +117,7 @@ namespace Renderer
 
             if (!std::filesystem::exists(sourcePath))
             {
-                NC_LOG_FATAL("Tried to load a shader (%s) which does not exist at expected location (%s)", shaderPath, sourcePath.string());
+                DebugHandler::PrintFatal("Tried to load a shader (%s) which does not exist at expected location (%s)", shaderPath, sourcePath.string());
             }
 
             if (_forceRecompileAll)

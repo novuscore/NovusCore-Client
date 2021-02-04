@@ -86,7 +86,7 @@ namespace UISystem
             auto constantBuffer = image.constantBuffer;
             if (constantBuffer == nullptr)
             {
-                constantBuffer = new Renderer::Buffer<UIComponent::Image::ImageConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
+                constantBuffer = new Renderer::Buffer<UIComponent::Image::ImageConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BufferUsage::UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
                 image.constantBuffer = constantBuffer;
             }
             constantBuffer->resource.color = image.style.color;
@@ -111,7 +111,7 @@ namespace UISystem
                 Renderer::BufferDesc desc;
                 desc.name = "ImageVertices";
                 desc.size = bufferSize;
-                desc.usage = Renderer::BufferUsage::BUFFER_USAGE_UNIFORM_BUFFER;
+                desc.usage = Renderer::BufferUsage::UNIFORM_BUFFER;
                 desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
                 image.vertexBufferID = renderer->CreateBuffer(desc);
@@ -156,7 +156,7 @@ namespace UISystem
                 Renderer::BufferDesc vertexBufferDesc;
                 vertexBufferDesc.name = "TextView";
                 vertexBufferDesc.size = textLengthWithoutSpaces * perGlyphVertexSize;
-                vertexBufferDesc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER;
+                vertexBufferDesc.usage = Renderer::BufferUsage::STORAGE_BUFFER;
                 vertexBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
                 text.vertexBufferID = renderer->CreateBuffer(vertexBufferDesc);
@@ -164,7 +164,7 @@ namespace UISystem
                 Renderer::BufferDesc textureIDBufferDesc;
                 textureIDBufferDesc.name = "TexturesIDs";
                 textureIDBufferDesc.size = textLengthWithoutSpaces * sizeof(u32); // 1 u32 per glyph
-                textureIDBufferDesc.usage = Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER;
+                textureIDBufferDesc.usage = Renderer::BufferUsage::STORAGE_BUFFER;
                 textureIDBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
                 text.textureIDBufferID = renderer->CreateBuffer(textureIDBufferDesc);
@@ -230,7 +230,7 @@ namespace UISystem
 
             // Create constant buffer if necessary
             if (!text.constantBuffer)
-                text.constantBuffer = new Renderer::Buffer<UIComponent::Text::TextConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
+                text.constantBuffer = new Renderer::Buffer<UIComponent::Text::TextConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BufferUsage::UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
             text.constantBuffer->resource.textColor = text.style.color;
             text.constantBuffer->resource.outlineColor = text.style.outlineColor;

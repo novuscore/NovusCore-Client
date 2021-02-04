@@ -1,13 +1,9 @@
 #pragma once
 #include <NovusTypes.h>
-
-#include "../../../Descriptors/BufferDesc.h"
-
-#include "vk_mem_alloc.h"
 #include "vulkan/vulkan_core.h"
 
-#include <vector>
-#include <queue>
+#include "vk_mem_alloc.h"
+#include "../../../Descriptors/BufferDesc.h"
 
 namespace Renderer
 {
@@ -15,12 +11,11 @@ namespace Renderer
     {
         class RenderDeviceVK;
 
+        struct IBufferHandlerVKData {};
+
         class BufferHandlerVK
         {
         public:
-            BufferHandlerVK();
-            ~BufferHandlerVK();
-
             void Init(RenderDeviceVK* device);
 
             void OnFrameStart();
@@ -37,25 +32,10 @@ namespace Renderer
             BufferID AcquireNewBufferID();
             void ReturnBufferID(BufferID bufferID);
 
-            RenderDeviceVK* _device = nullptr;
+        private:
+            RenderDeviceVK* _device;
 
-            struct Buffer
-            {
-                VmaAllocation allocation;
-                VkBuffer buffer;
-                VkDeviceSize size;
-            };
-
-            struct TemporaryBuffer
-            {
-                BufferID bufferID;
-                u32 framesLifetimeLeft;
-            };
-
-            std::vector<Buffer> _buffers;
-            std::queue<BufferID> _returnedBufferIDs;
-
-            std::vector<TemporaryBuffer> _temporaryBuffers;
+            IBufferHandlerVKData* _data;
 
             friend class RendererVK;
         };

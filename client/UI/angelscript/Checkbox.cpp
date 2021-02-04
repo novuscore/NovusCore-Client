@@ -4,6 +4,7 @@
 #include "../../Utils/ServiceLocator.h"
 
 #include <GLFW/glfw3.h>
+#include <tracy/Tracy.hpp>
 
 #include "../ECS/Components/Transform.h"
 #include "../ECS/Components/TransformEvents.h"

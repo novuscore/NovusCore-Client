@@ -32,7 +32,7 @@ public:
 
         if (!fs::is_directory(absolutePath))
         {
-            NC_LOG_ERROR("Failed to find Textures folder");
+            DebugHandler::PrintError("Failed to find Textures folder");
             return false;
         }
 
@@ -66,13 +66,13 @@ public:
             auto itr = textureSingleton.textureHashToPath.find(texturePair.hash);
             if (itr != textureSingleton.textureHashToPath.end())
             {
-                NC_LOG_ERROR("Found duplicate texture hash (%u) for Path (%s)", texturePair.hash, texturePair.path.c_str()); // This error cannot be more specific when loading in parallel unless we copy more data.
+                DebugHandler::PrintError("Found duplicate texture hash (%u) for Path (%s)", texturePair.hash, texturePair.path.c_str()); // This error cannot be more specific when loading in parallel unless we copy more data.
             }
 
             textureSingleton.textureHashToPath[texturePair.hash] = (relativeParentPath / texturePair.path).string();
         }
 
-        NC_LOG_SUCCESS("Loaded Texture %u entries", textureSingleton.textureHashToPath.size());
+        DebugHandler::PrintSuccess("Loaded Texture %u entries", textureSingleton.textureHashToPath.size());
         return true;
     }
 };

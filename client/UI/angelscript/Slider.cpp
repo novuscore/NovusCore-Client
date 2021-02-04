@@ -12,6 +12,7 @@
 #include "../Utils/SliderUtils.h"
 #include "../Utils/EventUtils.h"
 
+#include <tracy/Tracy.hpp>
 
 namespace UIScripting
 {

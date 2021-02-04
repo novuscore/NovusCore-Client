@@ -1,17 +1,17 @@
 #pragma once
 #include <NovusTypes.h>
-#include "../Descriptors/ModelDesc.h"
+#include "../BackendDispatch.h"
+#include "../Descriptors/DepthImageDesc.h"
 
 namespace Renderer
 {
     namespace Commands
     {
-        struct DrawBindless
+        struct DepthImageBarrier
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
 
-            u32 numVertices = 0;
-            u32 numInstances = 0;
+            DepthImageID image = DepthImageID::Invalid();
         };
     }
 }

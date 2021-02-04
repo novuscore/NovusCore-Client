@@ -129,7 +129,7 @@ namespace Renderer
 
             VkRenderPass renderPass;
             
-            BlitPipeline blitPipelines[IMAGE_COMPONENT_TYPE_COUNT];
+            BlitPipeline blitPipelines[static_cast<u8>(ImageComponentType::COUNT)];
 
             VkSampler sampler;
 

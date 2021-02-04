@@ -1,14 +1,11 @@
 #pragma once
 #include <NovusTypes.h>
-#include <vector>
-#include <queue>
-#include <vulkan/vulkan.h>
-#include "../../../FrameResource.h"
+#include <vulkan/vulkan_core.h>
 
+#include "../../../FrameResource.h"
 #include "../../../Descriptors/CommandListDesc.h"
 #include "../../../Descriptors/GraphicsPipelineDesc.h"
 #include "../../../Descriptors/ComputePipelineDesc.h"
-
 
 namespace tracy
 {
@@ -20,6 +17,8 @@ namespace Renderer
     namespace Backend
     {
         class RenderDeviceVK;
+
+        struct ICommandListHandlerVKData {};
 
         class CommandListHandlerVK
         {
@@ -48,20 +47,6 @@ namespace Renderer
             VkFence GetCurrentFence();
 
         private:
-            struct CommandList
-            {
-                std::vector<VkSemaphore> waitSemaphores;
-                std::vector<VkSemaphore> signalSemaphores;
-
-                VkCommandBuffer commandBuffer;
-                VkCommandPool commandPool;
-
-                tracy::VkCtxManualScope* tracyScope = nullptr;
-
-                GraphicsPipelineID boundGraphicsPipeline = GraphicsPipelineID::Invalid();
-                ComputePipelineID boundComputePipeline = ComputePipelineID::Invalid();
-            };
-
             CommandListID CreateCommandList();
 
         private:
@@ -69,13 +54,7 @@ namespace Renderer
         private:
             RenderDeviceVK* _device;
 
-            std::vector<CommandList> _commandLists;
-            std::queue<CommandListID> _availableCommandLists;
-            
-            u8 _frameIndex = 0;
-            FrameResource<std::queue<CommandListID>, 2> _closedCommandLists;
-
-            FrameResource<VkFence, 2> _frameFences;
+            ICommandListHandlerVKData* _data;
         };
     }
 }

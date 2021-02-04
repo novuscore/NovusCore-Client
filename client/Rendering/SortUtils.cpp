@@ -2,7 +2,7 @@
 #include "FFX_ParallelSort.h"
 
 #include <Renderer/Renderer.h>
-#include <Renderer/RenderGraphResources.h>
+#include <Renderer/RenderGraph.h>
 
 #include <Renderer/Descriptors/ComputeShaderDesc.h>
 #include <Renderer/Descriptors/ComputePipelineDesc.h>
@@ -25,11 +25,11 @@ void SortUtils::Sort(Renderer::Renderer* renderer, Renderer::RenderGraphResource
         Renderer::BufferDesc desc;
         desc.name = "SortKeysCount";
         desc.size = sizeof(u32);
-        desc.usage = Renderer::BUFFER_USAGE_UNIFORM_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::UNIFORM_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         
         buffers.numKeysBuffer = renderer->CreateTemporaryBuffer(desc, 2);
 
-        desc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
         Renderer::BufferID staging = renderer->CreateBuffer(desc);
 
@@ -121,7 +121,7 @@ SortUtils::SortBuffers SortUtils::InitBuffers(Renderer::Renderer* renderer, Rend
         Renderer::BufferDesc desc;
         desc.name = "SortConstantBuffer";
         desc.size = sizeof(FFX_ParallelSortCB);
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_UNIFORM_BUFFER;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::UNIFORM_BUFFER;
 
         sortBuffers.constantBuffer = renderer->CreateTemporaryBuffer(desc, 2);
     }
@@ -131,7 +131,7 @@ SortUtils::SortBuffers SortUtils::InitBuffers(Renderer::Renderer* renderer, Rend
         Renderer::BufferDesc desc;
         desc.name = "SortCountScatterArgs";
         desc.size = sizeof(u32) * 3;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER;
 
         sortBuffers.countScatterArgsBuffer = renderer->CreateTemporaryBuffer(desc, 2);
     }
@@ -141,7 +141,7 @@ SortUtils::SortBuffers SortUtils::InitBuffers(Renderer::Renderer* renderer, Rend
         Renderer::BufferDesc desc;
         desc.name = "SortKeyCountsBuffer";
         desc.size = sizeof(u32) * 3;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER;
 
         sortBuffers.reduceScanArgsBuffer = renderer->CreateTemporaryBuffer(desc, 2);
     }
@@ -154,7 +154,7 @@ SortUtils::SortBuffers SortUtils::InitBuffers(Renderer::Renderer* renderer, Rend
         Renderer::BufferDesc desc;
 
         desc.size = keysBufferSize;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION | Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::TRANSFER_SOURCE;
 
         for (u32 i = 0; i < sortBuffers.keysBuffers.Num; i++)
         {
@@ -179,7 +179,7 @@ SortUtils::SortBuffers SortUtils::InitBuffers(Renderer::Renderer* renderer, Rend
         Renderer::BufferDesc desc;
         desc.name = "SortSumTable";
         desc.size = sumTableSize;
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER;
 
         sortBuffers.sumTableBuffer = renderer->CreateTemporaryBuffer(desc, 2);
 

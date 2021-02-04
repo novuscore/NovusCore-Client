@@ -182,7 +182,7 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         if (!registry->has<UIComponent::Root>(_entityId))
         {
-            NC_LOG_WARNING("UI: Can't set depthLayer on non-root element.");
+            DebugHandler::PrintWarning("UI: Can't set depthLayer on non-root element.");
             return;
         }
 
@@ -202,7 +202,7 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry(); 
         if (!registry->has<UIComponent::Root>(_entityId))
         {
-            NC_LOG_WARNING("UI: Can't set depth on non-root element.");
+            DebugHandler::PrintWarning("UI: Can't set depth on non-root element.");
             return;
         }
 
@@ -233,7 +233,7 @@ namespace UIScripting
 
         if (relation->parent != entt::null)
         {
-            NC_LOG_ERROR("Tried calling SetParent() on Element(ID: %d, Type: %d) with a parent. You must call UnsetParent() first.", entt::to_integral(_entityId), _elementType)
+            DebugHandler::PrintError("Tried calling SetParent() on Element(ID: %d, Type: %d) with a parent. You must call UnsetParent() first.", entt::to_integral(_entityId), _elementType);
             return;
         }
         registry->remove<UIComponent::Root>(_entityId);

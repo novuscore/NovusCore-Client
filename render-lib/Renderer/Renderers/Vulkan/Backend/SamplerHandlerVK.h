@@ -1,8 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include <vector>
-#include <vulkan/vulkan.h>
-#include <robin_hood.h>
+#include <vulkan/vulkan_core.h>
 
 #include "../../../Descriptors/SamplerDesc.h"
 #include "../../../Descriptors/GraphicsPipelineDesc.h"
@@ -15,6 +13,8 @@ namespace Renderer
         class TextureHandlerVK;
         class PipelineHandlerVK;
 
+        struct ISamplerHandlerVKData {};
+
         class SamplerHandlerVK
         {
         public:
@@ -25,16 +25,6 @@ namespace Renderer
             VkSampler& GetSampler(const SamplerID samplerID);
 
             const SamplerDesc& GetSamplerDesc(const SamplerID samplerID);
-            
-        private:
-            using _SamplerID = type_safe::underlying_type<SamplerID>;
-            struct Sampler
-            {
-                u64 samplerHash;
-                SamplerDesc desc;
-
-                VkSampler sampler;
-            };
 
         private:
             u64 CalculateSamplerHash(const SamplerDesc& desc);
@@ -44,7 +34,7 @@ namespace Renderer
         private:
             RenderDeviceVK* _device;
 
-            std::vector<Sampler> _samplers;
+            ISamplerHandlerVKData* _data;
         };
     }
 }

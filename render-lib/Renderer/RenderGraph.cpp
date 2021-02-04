@@ -1,11 +1,38 @@
 #include "RenderGraph.h"
-#include "RenderGraphBuilder.h"
-#include <tracy/Tracy.hpp>
-
 #include "Renderer.h"
+
+#include <tracy/Tracy.hpp>
+#include <Memory/Allocator.h>
+#include <Containers/DynamicArray.h>
 
 namespace Renderer
 {
+    struct RenderGraphData : IRenderGraphData
+    {
+        RenderGraphData(Memory::Allocator* allocator)
+            : passes(allocator, 32)
+            , executingPasses(allocator, 32)
+            , signalSemaphores(allocator, 4)
+            , waitSemaphores(allocator, 4)
+        {
+
+        }
+
+        DynamicArray<IRenderPass*> passes;
+        DynamicArray<IRenderPass*> executingPasses;
+
+        DynamicArray<GPUSemaphoreID> signalSemaphores;
+        DynamicArray<GPUSemaphoreID> waitSemaphores;
+    };
+
+    RenderGraph::RenderGraph(Memory::Allocator* allocator, Renderer* renderer)
+        : _data(Memory::Allocator::New<RenderGraphData>(allocator, allocator))
+        , _renderer(renderer)
+        , _renderGraphBuilder(nullptr)
+    {
+
+    } // This gets friend-created by Renderer
+
     bool RenderGraph::Init(RenderGraphDesc& desc)
     {
         _desc = desc;
@@ -16,67 +43,73 @@ namespace Renderer
         return true;
     }
 
+    void RenderGraph::AddPass(IRenderPass* pass)
+    {
+        RenderGraphData* data = static_cast<RenderGraphData*>(_data);
+        data->passes.Insert(pass);
+    }
+
     RenderGraph::~RenderGraph()
     {
-        for (IRenderPass* pass : _passes)
+        RenderGraphData* data = static_cast<RenderGraphData*>(_data);
+        for (IRenderPass* pass : data->passes)
         {
             pass->DeInit();
         }
     }
 
-    /*void RenderGraph::AddPass(RenderPass& pass)
-    {
-        _passes.push_back(pass);
-    }*/
-
     void RenderGraph::AddSignalSemaphore(GPUSemaphoreID semaphoreID)
     {
-        _signalSemaphores.Insert(semaphoreID);
+        RenderGraphData* data = static_cast<RenderGraphData*>(_data);
+        data->signalSemaphores.Insert(semaphoreID);
     }
 
     void RenderGraph::AddWaitSemaphore(GPUSemaphoreID semaphoreID)
     {
-        _waitSemaphores.Insert(semaphoreID);
+        RenderGraphData* data = static_cast<RenderGraphData*>(_data);
+        data->waitSemaphores.Insert(semaphoreID);
     }
 
     void RenderGraph::Setup()
     {
         ZoneScopedNC("RenderGraph::Setup", tracy::Color::Red2)
-        for (IRenderPass* pass : _passes)
+
+        RenderGraphData* data = static_cast<RenderGraphData*>(_data);
+        for (IRenderPass* pass : data->passes)
         {
             ZoneScopedC(tracy::Color::Red2)
             ZoneName(pass->_name, pass->_nameLength)
 
             if (pass->Setup(_renderGraphBuilder))
             {
-                _executingPasses.Insert(pass);
+                data->executingPasses.Insert(pass);
             }
         }
     }
 
     void RenderGraph::Execute()
     {
-
         ZoneScopedNC("RenderGraph::Execute", tracy::Color::Red2);
 
+        RenderGraphData* data = static_cast<RenderGraphData*>(_data);
         RenderGraphResources& resources = _renderGraphBuilder->GetResources();
         
         CommandList commandList(_renderer, _desc.allocator);
 
         // Add semaphores
-        for (GPUSemaphoreID signalSemaphore : _signalSemaphores)
+        for (GPUSemaphoreID signalSemaphore : data->signalSemaphores)
         {
             commandList.AddSignalSemaphore(signalSemaphore);
         }
 
-        for (GPUSemaphoreID waitSemaphore : _waitSemaphores)
+        for (GPUSemaphoreID waitSemaphore : data->waitSemaphores)
         {
             commandList.AddWaitSemaphore(waitSemaphore);
         }
 
         // TODO: Parallel_for this
         commandList.PushMarker("RenderGraph", Color(0.0f, 0.0f, 0.4f));
-        for (IRenderPass* pass : _executingPasses)
+        for (IRenderPass* pass : data->executingPasses)
         {
             ZoneScopedC(tracy::Color::Red2)
             ZoneName(pass->_name, pass->_nameLength)

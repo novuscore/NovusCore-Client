@@ -8,7 +8,6 @@
 #include <Renderer/Descriptors/SamplerDesc.h>
 #include <Renderer/Descriptors/ImageDesc.h>
 #include <Renderer/Descriptors/DepthImageDesc.h>
-#include <Renderer/Descriptors/ModelDesc.h>
 #include <Renderer/Descriptors/BufferDesc.h>
 
 #include "ViewConstantBuffer.h"
