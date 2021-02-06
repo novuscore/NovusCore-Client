@@ -14,8 +14,6 @@ namespace Renderer
         static void ClearDepthImage(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void Draw(Renderer* renderer, CommandListID commandList, const void* data);
-        static void DrawBindless(Renderer* renderer, CommandListID commandList, const void* data);
-        static void DrawIndexedBindless(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawIndexed(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawIndexedIndirect(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawIndexedIndirectCount(Renderer* renderer, CommandListID commandList, const void* data);
@@ -52,6 +50,7 @@ namespace Renderer
 
         static void PipelineBarrier(Renderer* renderer, CommandListID commandList, const void* data);
         static void ImageBarrier(Renderer* renderer, CommandListID commandList, const void* data);
+        static void DepthImageBarrier(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void DrawImgui(Renderer* renderer, CommandListID commandList, const void* data);
 

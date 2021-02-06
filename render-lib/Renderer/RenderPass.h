@@ -1,11 +1,8 @@
 #pragma once
 #include <NovusTypes.h>
-#include <vector>
 #include <functional>
 
 #include "CommandList.h"
-#include "Descriptors/GraphicsPipelineDesc.h"
-#include "Descriptors/ComputePipelineDesc.h"
 
 namespace Renderer
 {
@@ -39,7 +36,7 @@ namespace Renderer
         {
             if (name.length() >= 16)
             {
-                NC_LOG_FATAL("We encountered a render pass name (%s) that is longer than 15 characters, we have this limit because we store the string internally and not on the heap.", name.c_str());
+                DebugHandler::PrintFatal("We encountered a render pass name (%s) that is longer than 15 characters, we have this limit because we store the string internally and not on the heap.", name.c_str());
             }
 
             strcpy_s(_name, name.c_str());

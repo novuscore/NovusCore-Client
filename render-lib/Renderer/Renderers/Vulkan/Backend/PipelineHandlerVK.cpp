@@ -1,6 +1,9 @@
 #include "PipelineHandlerVK.h"
+
 #include <Utils/DebugHandler.h>
 #include <Utils/XXHash64.h>
+#include <vulkan/vulkan.h>
+
 #include "FormatConverterVK.h"
 #include "RenderDeviceVK.h"
 #include "ShaderHandlerVK.h"
@@ -8,21 +11,79 @@
 #include "SpirvReflect.h"
 #include "DescriptorSetBuilderVK.h"
 
-
 namespace Renderer
 {
     namespace Backend
     {
+        struct GraphicsPipelineCacheDesc
+        {
+            GraphicsPipelineDesc::States states;
+
+            ImageID renderTargets[MAX_RENDER_TARGETS] = { ImageID::Invalid(), ImageID::Invalid(), ImageID::Invalid(), ImageID::Invalid(), ImageID::Invalid(), ImageID::Invalid(), ImageID::Invalid(), ImageID::Invalid() };
+            DepthImageID depthStencil = DepthImageID::Invalid();
+        };
+
+        struct GraphicsPipeline
+        {
+            GraphicsPipelineDesc desc;
+            u64 cacheDescHash;
+
+            VkRenderPass renderPass;
+
+            VkPipelineLayout pipelineLayout;
+            VkPipeline pipeline;
+
+            u32 numRenderTargets = 0;
+            VkFramebuffer framebuffer;
+
+            std::vector<DescriptorSetLayoutData> descriptorSetLayoutDatas;
+            std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
+
+            std::vector<VkPushConstantRange> pushConstantRanges;
+
+            DescriptorSetBuilderVK* descriptorSetBuilder;
+        };
+
+        struct ComputePipelineCacheDesc
+        {
+            ComputeShaderID shader;
+        };
+
+        struct ComputePipeline
+        {
+            ComputePipelineDesc desc;
+            u64 cacheDescHash;
+
+            VkPipelineLayout pipelineLayout;
+            VkPipeline pipeline;
+
+            std::vector<DescriptorSetLayoutData> descriptorSetLayoutDatas;
+            std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
+
+            std::vector<VkPushConstantRange> pushConstantRanges;
+
+            DescriptorSetBuilderVK* descriptorSetBuilder;
+        };
+
+        struct PipelineHandlerVKData : IPipelineHandlerVKData
+        {
+            std::vector<GraphicsPipeline> graphicsPipelines;
+            std::vector<ComputePipeline> computePipelines;
+        };
+
         void PipelineHandlerVK::Init(RenderDeviceVK* device, ShaderHandlerVK* shaderHandler, ImageHandlerVK* imageHandler)
         {
             _device = device;
             _shaderHandler = shaderHandler;
             _imageHandler = imageHandler;
+            _data = new PipelineHandlerVKData();
         }
 
         void PipelineHandlerVK::DiscardPipelines()
         {
-            for (GraphicsPipeline& pipeline : _graphicsPipelines)
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+
+            for (GraphicsPipeline& pipeline : data.graphicsPipelines)
             {
                 vkDestroyRenderPass(_device->_device, pipeline.renderPass, nullptr);
                 vkDestroyPipeline(_device->_device, pipeline.pipeline, nullptr);
@@ -33,15 +94,16 @@ namespace Renderer
                 {
                     vkDestroyDescriptorSetLayout(_device->_device, layout, nullptr);
                 }
+
                 pipeline.descriptorSetLayouts.clear();
                 pipeline.descriptorSetLayoutDatas.clear();
                 pipeline.pushConstantRanges.clear();
 
                 delete pipeline.descriptorSetBuilder;
             }
-            _graphicsPipelines.clear();
+            data.graphicsPipelines.clear();
 
-            for (ComputePipeline& pipeline : _computePipelines)
+            for (ComputePipeline& pipeline : data.computePipelines)
             {
                 vkDestroyPipeline(_device->_device, pipeline.pipeline, nullptr);
                 vkDestroyPipelineLayout(_device->_device, pipeline.pipelineLayout, nullptr);
@@ -56,12 +118,13 @@ namespace Renderer
 
                 delete pipeline.descriptorSetBuilder;
             }
-            _computePipelines.clear();
+            data.computePipelines.clear();
         }
 
         void PipelineHandlerVK::OnWindowResize()
         {
-            for (auto& pipeline : _graphicsPipelines)
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            for (auto& pipeline : data.graphicsPipelines)
             {
                 vkDestroyFramebuffer(_device->_device, pipeline.framebuffer, nullptr);
                 CreateFramebuffer(pipeline);
@@ -70,6 +133,8 @@ namespace Renderer
 
         GraphicsPipelineID PipelineHandlerVK::CreatePipeline(const GraphicsPipelineDesc& desc)
         {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+
             // Check the cache
             size_t nextID;
             u64 cacheDescHash = CalculateCacheDescHash(desc);
@@ -77,7 +142,7 @@ namespace Renderer
             {
                 return GraphicsPipelineID(static_cast<gIDType>(nextID));
             }
-            nextID = _graphicsPipelines.size();
+            nextID = data.graphicsPipelines.size();
 
             // Make sure we haven't exceeded the limit of the GraphicsPipelineID type, if this hits you need to change type of GraphicsPipelineID to something bigger
             assert(nextID < GraphicsPipelineID::MaxValue());
@@ -179,7 +244,7 @@ namespace Renderer
 
             if (vkCreateRenderPass(_device->_device, &renderPassInfo, nullptr, &pipeline.renderPass) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create render pass!");
+                DebugHandler::PrintFatal("Failed to create render pass!");
             }
 
             // -- Create Framebuffer --
@@ -220,7 +285,7 @@ namespace Renderer
                             else
                             {
                                 // Else somethings is really bad, lets fatal log
-                                NC_LOG_FATAL("Vertex Shader and Pixel Shader tries to use the same descriptor set and binding, but they don't seem to match");
+                                DebugHandler::PrintFatal("Vertex Shader and Pixel Shader tries to use the same descriptor set and binding, but they don't seem to match");
                             }
                             found = true;
                             break;
@@ -262,7 +327,7 @@ namespace Renderer
 
                 if (vkCreateDescriptorSetLayout(_device->_device, &pipeline.descriptorSetLayoutDatas[i].createInfo, nullptr, &pipeline.descriptorSetLayouts[i]) != VK_SUCCESS)
                 {
-                    NC_LOG_FATAL("Failed to create descriptor set layout!");
+                    DebugHandler::PrintFatal("Failed to create descriptor set layout!");
                 }
             }
 
@@ -311,7 +376,7 @@ namespace Renderer
                 if (!inputLayout.enabled)
                     break;
 
-                if (inputLayout.inputClassification == Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX)
+                if (inputLayout.inputClassification == Renderer::InputClassification::PER_VERTEX)
                 {
                     numVertexAttributes++;
                     vertexStride += FormatConverterVK::ToByteSize(inputLayout.format);
@@ -361,7 +426,7 @@ namespace Renderer
                 if (!inputLayout.enabled)
                     break;
 
-                bool isPerVertex = inputLayout.inputClassification == Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
+                bool isPerVertex = inputLayout.inputClassification == Renderer::InputClassification::PER_VERTEX;
 
                 u8 binding = (isPerVertex) ? vertexBinding : instanceBinding;
 
@@ -487,7 +552,7 @@ namespace Renderer
 
             if (vkCreatePipelineLayout(_device->_device, &pipelineLayoutInfo, nullptr, &pipeline.pipelineLayout) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create pipeline layout!");
+                DebugHandler::PrintFatal("Failed to create pipeline layout!");
             }
 
             // Set up dynamic viewport and scissor
@@ -522,22 +587,23 @@ namespace Renderer
 
             if (vkCreateGraphicsPipelines(_device->_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline.pipeline) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create graphics pipeline!");
+                DebugHandler::PrintFatal("Failed to create graphics pipeline!");
             }
 
             GraphicsPipelineID pipelineID = GraphicsPipelineID(static_cast<gIDType>(nextID));
             pipeline.descriptorSetBuilder = new DescriptorSetBuilderVK(pipelineID, this, _shaderHandler, _device->_descriptorMegaPool);
 
-            _graphicsPipelines.push_back(pipeline);
+            data.graphicsPipelines.push_back(pipeline);
 
             pipeline.descriptorSetBuilder->InitReflectData(); // Needs to happen after push_back
-
 
             return pipelineID;
         }
 
         ComputePipelineID PipelineHandlerVK::CreatePipeline(const ComputePipelineDesc& desc)
         {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+
             // Check the cache
             size_t nextID;
             u64 cacheDescHash = CalculateCacheDescHash(desc);
@@ -545,7 +611,7 @@ namespace Renderer
             {
                 return ComputePipelineID(static_cast<ComputePipelineID::type>(nextID));
             }
-            nextID = _computePipelines.size();
+            nextID = data.computePipelines.size();
 
             ComputePipeline pipeline;
             pipeline.desc = desc;
@@ -589,7 +655,7 @@ namespace Renderer
 
                 if (vkCreateDescriptorSetLayout(_device->_device, &pipeline.descriptorSetLayoutDatas[i].createInfo, nullptr, &pipeline.descriptorSetLayouts[i]) != VK_SUCCESS)
                 {
-                    NC_LOG_FATAL("Failed to create descriptor set layout!");
+                    DebugHandler::PrintFatal("Failed to create descriptor set layout!");
                 }
             }
 
@@ -602,7 +668,7 @@ namespace Renderer
 
             if (vkCreatePipelineLayout(_device->_device, &pipelineLayoutInfo, nullptr, &pipeline.pipelineLayout) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create pipeline layout!");
+                DebugHandler::PrintFatal("Failed to create pipeline layout!");
             }
 
             VkPipelineShaderStageCreateInfo shaderStage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
@@ -616,17 +682,95 @@ namespace Renderer
 
             if (vkCreateComputePipelines(_device->_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline.pipeline) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create compute pipeline!");
+                DebugHandler::PrintFatal("Failed to create compute pipeline!");
             }
 
             ComputePipelineID pipelineID = ComputePipelineID(static_cast<cIDType>(nextID));
             pipeline.descriptorSetBuilder = new DescriptorSetBuilderVK(pipelineID, this, _shaderHandler, _device->_descriptorMegaPool);
 
-            _computePipelines.push_back(pipeline);
+            data.computePipelines.push_back(pipeline);
 
             pipeline.descriptorSetBuilder->InitReflectData(); // Needs to happen after push_back
 
             return pipelineID;
+        }
+
+        const GraphicsPipelineDesc& PipelineHandlerVK::GetDescriptor(GraphicsPipelineID id)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.graphicsPipelines[static_cast<gIDType>(id)].desc;
+        }
+
+        const ComputePipelineDesc& PipelineHandlerVK::GetDescriptor(ComputePipelineID id)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.computePipelines[static_cast<gIDType>(id)].desc;
+        }
+
+        VkPipeline PipelineHandlerVK::GetPipeline(GraphicsPipelineID id)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.graphicsPipelines[static_cast<gIDType>(id)].pipeline;
+        }
+
+        VkPipeline PipelineHandlerVK::GetPipeline(ComputePipelineID id)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.computePipelines[static_cast<cIDType>(id)].pipeline;
+        }
+
+        VkRenderPass PipelineHandlerVK::GetRenderPass(GraphicsPipelineID id)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.graphicsPipelines[static_cast<gIDType>(id)].renderPass;
+        }
+
+        VkFramebuffer PipelineHandlerVK::GetFramebuffer(GraphicsPipelineID id)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.graphicsPipelines[static_cast<gIDType>(id)].framebuffer;
+        }
+
+        DescriptorSetLayoutData& PipelineHandlerVK::GetDescriptorSetLayoutData(GraphicsPipelineID id, u32 index)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.graphicsPipelines[static_cast<gIDType>(id)].descriptorSetLayoutDatas[index];
+        }
+
+        VkDescriptorSetLayout& PipelineHandlerVK::GetDescriptorSetLayout(GraphicsPipelineID id, u32 index)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.graphicsPipelines[static_cast<gIDType>(id)].descriptorSetLayouts[index];
+        }
+
+        VkDescriptorSetLayout& PipelineHandlerVK::GetDescriptorSetLayout(ComputePipelineID id, u32 index)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.computePipelines[static_cast<cIDType>(id)].descriptorSetLayouts[index];
+        }
+
+        VkPipelineLayout& PipelineHandlerVK::GetPipelineLayout(GraphicsPipelineID id)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.graphicsPipelines[static_cast<gIDType>(id)].pipelineLayout;
+        }
+
+        VkPipelineLayout& PipelineHandlerVK::GetPipelineLayout(ComputePipelineID id)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.computePipelines[static_cast<cIDType>(id)].pipelineLayout;
+        }
+
+        DescriptorSetBuilderVK* PipelineHandlerVK::GetDescriptorSetBuilder(GraphicsPipelineID id)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.graphicsPipelines[static_cast<gIDType>(id)].descriptorSetBuilder;
+        }
+
+        DescriptorSetBuilderVK* PipelineHandlerVK::GetDescriptorSetBuilder(ComputePipelineID id)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.computePipelines[static_cast<cIDType>(id)].descriptorSetBuilder;
         }
 
         u64 PipelineHandlerVK::CalculateCacheDescHash(const GraphicsPipelineDesc& desc)
@@ -664,9 +808,10 @@ namespace Renderer
 
         bool PipelineHandlerVK::TryFindExistingGPipeline(u64 descHash, size_t& id)
         {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
             id = 0;
 
-            for (auto& pipeline : _graphicsPipelines)
+            for (auto& pipeline : data.graphicsPipelines)
             {
                 if (descHash == pipeline.cacheDescHash)
                 {
@@ -680,9 +825,10 @@ namespace Renderer
 
         bool PipelineHandlerVK::TryFindExistingCPipeline(u64 descHash, size_t& id)
         {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
             id = 0;
 
-            for (auto& pipeline : _computePipelines)
+            for (auto& pipeline : data.computePipelines)
             {
                 if (descHash == pipeline.cacheDescHash)
                 {
@@ -746,7 +892,7 @@ namespace Renderer
 
             if (vkCreateFramebuffer(_device->_device, &framebufferInfo, nullptr, &pipeline.framebuffer) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create framebuffer!");
+                DebugHandler::PrintFatal("Failed to create framebuffer!");
             }
         }
     }

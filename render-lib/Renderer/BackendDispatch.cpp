@@ -4,8 +4,6 @@
 
 #include "Commands/Clear.h"
 #include "Commands/Draw.h"
-#include "Commands/DrawBindless.h"
-#include "Commands/DrawIndexedBindless.h"
 #include "Commands/DrawIndexed.h"
 #include "Commands/DrawIndexedIndirect.h"
 #include "Commands/DrawIndexedIndirectCount.h"
@@ -29,6 +27,7 @@
 #include "Commands/FillBuffer.h"
 #include "Commands/PipelineBarrier.h"
 #include "Commands/ImageBarrier.h"
+#include "Commands/DepthImageBarrier.h"
 #include "Commands/DrawImgui.h"
 #include "Commands/PushConstant.h"
 
@@ -40,6 +39,7 @@ namespace Renderer
         const Commands::ClearImage* actualData = static_cast<const Commands::ClearImage*>(data);
         renderer->Clear(commandList, actualData->image, actualData->color);
     }
+
     void BackendDispatch::ClearDepthImage(Renderer* renderer, CommandListID commandList, const void* data)
     {
         ZoneScopedC(tracy::Color::Red3);
@@ -52,20 +52,6 @@ namespace Renderer
         ZoneScopedC(tracy::Color::Red3);
         const Commands::Draw* actualData = static_cast<const Commands::Draw*>(data);
         renderer->Draw(commandList, actualData->vertexCount, actualData->instanceCount, actualData->vertexOffset, actualData->instanceOffset);
-    }
-
-    void BackendDispatch::DrawBindless(Renderer * renderer, CommandListID commandList, const void* data)
-    {
-        ZoneScopedC(tracy::Color::Red3);
-        const Commands::DrawBindless* actualData = static_cast<const Commands::DrawBindless*>(data);
-        renderer->DrawBindless(commandList, actualData->numVertices, actualData->numInstances);
-    }
-
-    void BackendDispatch::DrawIndexedBindless(Renderer* renderer, CommandListID commandList, const void* data)
-    {
-        ZoneScopedC(tracy::Color::Red3);
-        const Commands::DrawIndexedBindless* actualData = static_cast<const Commands::DrawIndexedBindless*>(data);
-        renderer->DrawIndexedBindless(commandList, actualData->modelID, actualData->numVertices, actualData->numInstances);
     }
 
     void BackendDispatch::DrawIndexed(Renderer* renderer, CommandListID commandList, const void* data)
@@ -246,6 +232,13 @@ namespace Renderer
         ZoneScopedC(tracy::Color::Red3);
         const Commands::ImageBarrier* actualData = static_cast<const Commands::ImageBarrier*>(data);
         renderer->ImageBarrier(commandList, actualData->image);
+    }
+
+    void BackendDispatch::DepthImageBarrier(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::DepthImageBarrier* actualData = static_cast<const Commands::DepthImageBarrier*>(data);
+        renderer->DepthImageBarrier(commandList, actualData->image);
     }
 
     void BackendDispatch::DrawImgui(Renderer* renderer, CommandListID commandList, const void* data)

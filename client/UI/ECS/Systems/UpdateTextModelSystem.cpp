@@ -1,5 +1,6 @@
 #include "UpdateTextModelSystem.h"
 #include <entity/registry.hpp>
+#include <tracy/Tracy.hpp>
 #include "../../UITypes.h"
 #include "../../../Utils/ServiceLocator.h"
 #include "../../render-lib/Renderer/Renderer.h"
@@ -67,7 +68,7 @@ namespace UISystem
             std::vector<f32> lineWidths;
             std::vector<size_t> lineBreakPoints;
             const size_t finalCharacter = UIUtils::Text::CalculateLineWidthsAndBreaks(&text, transform.size.x, transform.size.y, lineWidths, lineBreakPoints);
-            const size_t textLengthWithoutSpaces = std::count_if(text.text.begin() + text.pushback, text.text.end() - (text.text.length() - finalCharacter), [](char c) { return !std::isspace(c); });
+            const size_t textLengthWithoutSpaces = std::count_if(text.text.begin() + text.pushback, text.text.begin() + finalCharacter, [](char c) { return !std::isspace(c); });
 
             // If textLengthWithoutSpaces is bigger than the amount of glyphs we allocated in our buffer we need to reallocate the buffer
             constexpr u32 perGlyphVertexSize = sizeof(UI::UIVertex) * 4; // 4 vertices per glyph
@@ -82,12 +83,12 @@ namespace UISystem
                     renderer->QueueDestroyBuffer(text.textureIDBufferID);
                 }
 
-                Renderer::BufferDesc vertexBufferDesc { "TextView", Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER, Renderer::BufferCPUAccess::WriteOnly };
+                Renderer::BufferDesc vertexBufferDesc { "TextView", Renderer::BufferUsage::STORAGE_BUFFER, Renderer::BufferCPUAccess::WriteOnly };
                 vertexBufferDesc.size = textLengthWithoutSpaces * perGlyphVertexSize;
 
                 text.vertexBufferID = renderer->CreateBuffer(vertexBufferDesc);
 
-                Renderer::BufferDesc textureIDBufferDesc { "TexturesIDs", Renderer::BufferUsage::BUFFER_USAGE_STORAGE_BUFFER, Renderer::BufferCPUAccess::WriteOnly };
+                Renderer::BufferDesc textureIDBufferDesc { "TexturesIDs", Renderer::BufferUsage::STORAGE_BUFFER, Renderer::BufferCPUAccess::WriteOnly };
                 textureIDBufferDesc.size = textLengthWithoutSpaces * sizeof(u32); // 1 u32 per glyph
 
                 text.textureIDBufferID = renderer->CreateBuffer(textureIDBufferDesc);
@@ -150,7 +151,7 @@ namespace UISystem
 
             // Create constant buffer if necessary
             if (!text.constantBuffer)
-                text.constantBuffer = new Renderer::Buffer<UIComponent::Text::TextConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
+                text.constantBuffer = new Renderer::Buffer<UIComponent::Text::TextConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
             text.constantBuffer->resource.textColor = text.style.color;
             text.constantBuffer->resource.outlineColor = text.style.outlineColor;

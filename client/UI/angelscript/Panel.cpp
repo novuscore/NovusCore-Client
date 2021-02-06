@@ -6,6 +6,8 @@
 #include "../ECS/Components/ImageEventStyles.h"
 #include "../ECS/Components/Renderable.h"
 
+#include <tracy/Tracy.hpp>
+
 namespace UIScripting
 {
     Panel::Panel(bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_PANEL, collisionEnabled)

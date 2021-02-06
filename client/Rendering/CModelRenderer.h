@@ -6,7 +6,6 @@
 #include <Renderer/Descriptors/DepthImageDesc.h>
 #include <Renderer/Descriptors/TextureDesc.h>
 #include <Renderer/Descriptors/TextureArrayDesc.h>
-#include <Renderer/Descriptors/ModelDesc.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
 #include <Renderer/Descriptors/BufferDesc.h>
 #include <Renderer/Buffer.h>

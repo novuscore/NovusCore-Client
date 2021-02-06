@@ -1,5 +1,6 @@
 #include "UpdateImageModelSystem.h"
 #include <entity/registry.hpp>
+#include <tracy/Tracy.hpp>
 #include "../../UITypes.h"
 #include "../../../Utils/ServiceLocator.h"
 #include "../../render-lib/Renderer/Descriptors/ModelDesc.h"
@@ -61,7 +62,7 @@ namespace UISystem
             auto constantBuffer = image.constantBuffer;
             if (constantBuffer == nullptr)
             {
-                constantBuffer = new Renderer::Buffer<UIComponent::Image::ImageConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
+                constantBuffer = new Renderer::Buffer<UIComponent::Image::ImageConstantBuffer>(renderer, "UpdateElementSystemConstantBuffer", Renderer::UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
                 image.constantBuffer = constantBuffer;
             }
             constantBuffer->resource.color = image.style.color;
@@ -83,7 +84,7 @@ namespace UISystem
 
             if (image.vertexBufferID == Renderer::BufferID::Invalid())
             {
-                Renderer::BufferDesc desc { "ImageVertices", Renderer::BufferUsage::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly };
+                Renderer::BufferDesc desc { "ImageVertices", Renderer::BufferUsage::UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly };
                 desc.size = bufferSize;
 
                 image.vertexBufferID = renderer->CreateBuffer(desc);

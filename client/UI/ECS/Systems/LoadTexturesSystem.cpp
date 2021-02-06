@@ -1,5 +1,6 @@
 #include "LoadTexturesSystem.h"
 #include <entity/registry.hpp>
+#include <tracy/Tracy.hpp>
 #include "../../../Utils/ServiceLocator.h"
 #include "../../render-lib/Renderer/Renderer.h"
 

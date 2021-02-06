@@ -26,7 +26,7 @@ public:
         fs::path absolutePath = std::filesystem::absolute("Data/extracted/maps");
         if (!fs::is_directory(absolutePath))
         {
-            NC_LOG_ERROR("Failed to find maps folder");
+            DebugHandler::PrintError("Failed to find maps folder");
             return false;
         }
 
@@ -46,21 +46,21 @@ public:
         NDBC::File* mapsNDBC = ndbcSingleton.GetNDBCFile("Maps"_h);
         if (!mapsNDBC)
         {
-            NC_LOG_ERROR("Maps.ndbc has not been loaded, please check your data folder.");
+            DebugHandler::PrintError("Maps.ndbc has not been loaded, please check your data folder.");
             return false;
         }
 
         NDBC::File* areaTableNDBC = ndbcSingleton.GetNDBCFile("AreaTable"_h);
         if (!areaTableNDBC)
         {
-            NC_LOG_ERROR("AreaTable.ndbc has not been loaded, please check your data folder.");
+            DebugHandler::PrintError("AreaTable.ndbc has not been loaded, please check your data folder.");
             return false;
         }
 
         NDBC::File* lightNDBC = ndbcSingleton.GetNDBCFile("Light"_h);
         if (!lightNDBC)
         {
-            NC_LOG_ERROR("Light.ndbc has not been loaded, please check your data folder.");
+            DebugHandler::PrintError("Light.ndbc has not been loaded, please check your data folder.");
             return false;
         }
 

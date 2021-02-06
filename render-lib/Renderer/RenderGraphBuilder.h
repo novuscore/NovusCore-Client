@@ -1,7 +1,5 @@
 #pragma once
 #include <NovusTypes.h>
-#include <vector>
-#include <functional>
 
 #include "RenderGraphResources.h"
 
@@ -28,25 +26,25 @@ namespace Renderer
     public:
         RenderGraphBuilder(Memory::Allocator* allocator, Renderer* renderer);
 
-        enum WriteMode
+        enum class WriteMode : u8
         {
-            WRITE_MODE_RENDERTARGET,
-            WRITE_MODE_UAV
+            RENDERTARGET,
+            UAV
         };
 
-        enum LoadMode
+        enum class LoadMode : u8
         {
-            LOAD_MODE_LOAD, // Load the contents of the resource
-            LOAD_MODE_DISCARD, // Load the contents of the resource, but we don't really care
-            LOAD_MODE_CLEAR // Clear the resource of existing data
+            LOAD, // Load the contents of the resource
+            DISCARD, // We don't really care
+            CLEAR // Clear the resource of existing data
         };
 
-        enum ShaderStage
+        enum class ShaderStage : u8
         {
-            SHADER_STAGE_NONE = 0,
-            SHADER_STAGE_VERTEX = 1,
-            SHADER_STAGE_PIXEL = 2,
-            SHADER_STAGE_COMPUTE = 4
+            NONE,
+            VERTEX,
+            PIXEL,
+            COMPUTE
         };
 
         // Create transient resources
@@ -62,18 +60,12 @@ namespace Renderer
         RenderPassMutableResource Write(ImageID id, WriteMode writeMode, LoadMode loadMode);
         RenderPassMutableResource Write(DepthImageID id, WriteMode writeMode, LoadMode loadMode);
 
-        // Render states
-        void SetRasterizerState(RasterizerState& rasterizerState) { _rasterizerState = rasterizerState; }
-        void SetDepthStencilState(DepthStencilState& depthStencilState) { _depthStencilState = depthStencilState; }
-
     private:
         void Compile(CommandList* commandList);
         RenderGraphResources& GetResources();
 
     private:
         Memory::Allocator* _allocator;
-        RasterizerState _rasterizerState;
-        DepthStencilState _depthStencilState;
         Renderer* _renderer;
 
         RenderGraphResources _resources;

@@ -11,6 +11,7 @@
 #include "../Utils/EventUtils.h"
 
 #include <GLFW/glfw3.h>
+#include <tracy/Tracy.hpp>
 
 namespace UIScripting
 {
@@ -83,6 +84,7 @@ namespace UIScripting
 
         text.text.insert(inputField.writeHeadIndex, 1, input); 
         inputField.writeHeadIndex++;
+        MarkSelfDirty();
 
         return true;
     }

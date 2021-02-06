@@ -1,8 +1,11 @@
 #pragma once
+#include <NovusTypes.h>
+#include "../../UITypes.h"
+#include "../../Stylesheets/TextStylesheet.h"
 #include <Renderer/Renderer.h>
 #include <Renderer/Buffer.h>
-#include <NovusTypes.h>
-#include "../../Stylesheets/TextStylesheet.h"
+#include <Renderer/Font.h>
+#include <vector>
 
 namespace UIComponent
 {

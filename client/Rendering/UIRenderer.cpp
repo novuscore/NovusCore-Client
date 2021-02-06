@@ -1,15 +1,17 @@
 #include "UIRenderer.h"
 #include "DebugRenderer.h"
+#include "GLFW/glfw3.h"
+#include "CVar/CVarSystem.h"
+
 #include <Renderer/Renderer.h>
+#include <Renderer/RenderGraph.h>
 #include <Renderer/Descriptors/FontDesc.h>
 #include <Renderer/Descriptors/TextureDesc.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
 #include <Renderer/Buffer.h>
-#include "../../render-lib/Window/Window.h"
-#include "GLFW/glfw3.h"
+#include <Window/Window.h>
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyVulkan.hpp>
-#include "CVar/CVarSystem.h"
 
 #include "../Utils/ServiceLocator.h"
 
@@ -132,7 +134,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
     renderGraph->AddPass<UIPassData>("UIPass",
         [=](UIPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
-            data.renderTarget = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_LOAD);
+            data.renderTarget = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
 
             return true; // Return true from setup to enable this pass, return false to disable it
         },
@@ -145,18 +147,18 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
             resources.InitializePipelineDesc(pipelineDesc);
 
             // Rasterizer state
-            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
-            //pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
+            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::BACK;
+            //pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
 
             // Render targets
             pipelineDesc.renderTargets[0] = data.renderTarget;
 
             // Blending
             pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;
-            pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::BLEND_MODE_SRC_ALPHA;
-            pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::BLEND_MODE_INV_SRC_ALPHA;
-            pipelineDesc.states.blendState.renderTargets[0].srcBlendAlpha = Renderer::BlendMode::BLEND_MODE_ZERO;
-            pipelineDesc.states.blendState.renderTargets[0].destBlendAlpha = Renderer::BlendMode::BLEND_MODE_ONE;
+            pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::SRC_ALPHA;
+            pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::INV_SRC_ALPHA;
+            pipelineDesc.states.blendState.renderTargets[0].srcBlendAlpha = Renderer::BlendMode::ZERO;
+            pipelineDesc.states.blendState.renderTargets[0].destBlendAlpha = Renderer::BlendMode::ONE;
 
             // Panel Shaders
             Renderer::VertexShaderDesc vertexShaderDesc;
@@ -262,7 +264,7 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
                         break;
                     }
                 default:
-                    NC_LOG_FATAL("Renderable widget tried to render with invalid render type.");
+                    DebugHandler::PrintFatal("Renderable widget tried to render with invalid render type.");
                 }
             });
 
@@ -281,7 +283,7 @@ void UIRenderer::AddImguiPass(Renderer::RenderGraph* renderGraph, Renderer::Imag
     renderGraph->AddPass<UIPassData>("ImguiPass",
         [=](UIPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
-            data.renderTarget = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_LOAD);
+            data.renderTarget = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
 
             return true; // Return true from setup to enable this pass, return false to disable it
         },
@@ -293,17 +295,18 @@ void UIRenderer::AddImguiPass(Renderer::RenderGraph* renderGraph, Renderer::Imag
             resources.InitializePipelineDesc(pipelineDesc);
 
             // Rasterizer state
-            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
+            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::BACK;
+            //pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
 
             // Render targets
             pipelineDesc.renderTargets[0] = data.renderTarget;
 
             // Blending
             pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;
-            pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::BLEND_MODE_SRC_ALPHA;
-            pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::BLEND_MODE_INV_SRC_ALPHA;
-            pipelineDesc.states.blendState.renderTargets[0].srcBlendAlpha = Renderer::BlendMode::BLEND_MODE_ZERO;
-            pipelineDesc.states.blendState.renderTargets[0].destBlendAlpha = Renderer::BlendMode::BLEND_MODE_ONE;
+            pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::SRC_ALPHA;
+            pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::INV_SRC_ALPHA;
+            pipelineDesc.states.blendState.renderTargets[0].srcBlendAlpha = Renderer::BlendMode::ZERO;
+            pipelineDesc.states.blendState.renderTargets[0].destBlendAlpha = Renderer::BlendMode::ONE;
 
             // Panel Shaders
             Renderer::VertexShaderDesc vertexShaderDesc;
@@ -327,11 +330,11 @@ void UIRenderer::CreatePermanentResources()
     // Sampler
     Renderer::SamplerDesc samplerDesc;
     samplerDesc.enabled = true;
-    samplerDesc.filter = Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_MIP_LINEAR;
-    samplerDesc.addressU = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc.addressV = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc.addressW = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_CLAMP;
-    samplerDesc.shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_PIXEL;
+    samplerDesc.filter = Renderer::SamplerFilter::MIN_MAG_MIP_LINEAR;
+    samplerDesc.addressU = Renderer::TextureAddressMode::WRAP;
+    samplerDesc.addressV = Renderer::TextureAddressMode::WRAP;
+    samplerDesc.addressW = Renderer::TextureAddressMode::CLAMP;
+    samplerDesc.shaderVisibility = Renderer::ShaderVisibility::PIXEL;
 
     _linearSampler = _renderer->CreateSampler(samplerDesc);
     _passDescriptorSet.Bind("_sampler"_h, _linearSampler);
@@ -342,7 +345,7 @@ void UIRenderer::CreatePermanentResources()
     Renderer::BufferDesc bufferDesc;
     bufferDesc.name = "IndexBuffer";
     bufferDesc.size = indexBufferSize;
-    bufferDesc.usage = Renderer::BufferUsage::BUFFER_USAGE_INDEX_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_DESTINATION;
+    bufferDesc.usage = Renderer::BufferUsage::INDEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
     bufferDesc.cpuAccess = Renderer::BufferCPUAccess::None;
 
     _indexBuffer = _renderer->CreateBuffer(bufferDesc);
@@ -350,7 +353,7 @@ void UIRenderer::CreatePermanentResources()
     Renderer::BufferDesc stagingBufferDesc;
     stagingBufferDesc.name = "StagingBuffer";
     stagingBufferDesc.size = indexBufferSize;
-    stagingBufferDesc.usage = Renderer::BufferUsage::BUFFER_USAGE_INDEX_BUFFER | Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+    stagingBufferDesc.usage = Renderer::BufferUsage::INDEX_BUFFER | Renderer::BufferUsage::TRANSFER_SOURCE;
     stagingBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
     Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(stagingBufferDesc);
@@ -372,7 +375,7 @@ void UIRenderer::CreatePermanentResources()
     emptyBorderDesc.debugName = "EmptyBorder";
     emptyBorderDesc.width = 1;
     emptyBorderDesc.height = 1;
-    emptyBorderDesc.format = Renderer::ImageFormat::IMAGE_FORMAT_R8G8B8A8_UNORM;
+    emptyBorderDesc.format = Renderer::ImageFormat::R8G8B8A8_UNORM;
     emptyBorderDesc.data = new u8[4]{ 0, 0, 0, 0 };
     
     _emptyBorder = _renderer->CreateDataTexture(emptyBorderDesc);

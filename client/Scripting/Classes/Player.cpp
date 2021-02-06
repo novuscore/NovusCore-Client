@@ -3,7 +3,7 @@
 
 void Player::Print()
 {
-    NC_LOG_MESSAGE("Player (%f, %f, %f)", x, y, z);
+    DebugHandler::Print("Player (%f, %f, %f)", x, y, z);
 }
 
 void Player::RegisterType()

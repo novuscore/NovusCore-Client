@@ -1,6 +1,7 @@
 #include "DebugRenderer.h"
 
 #include <Renderer/Renderer.h>
+#include <Renderer/RenderGraph.h>
 #include <Renderer/CommandList.h>
 
 #include <tracy/Tracy.hpp>
@@ -16,7 +17,7 @@ DebugRenderer::DebugRenderer(Renderer::Renderer* renderer)
 	Renderer::BufferDesc bufferDesc;
 	bufferDesc.name = "DebugVertexBuffer";
 	bufferDesc.size = 128 * 1024 * 1024;
-	bufferDesc.usage = Renderer::BUFFER_USAGE_VERTEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+	bufferDesc.usage = Renderer::BufferUsage::VERTEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
 	_debugVertexBuffer = _renderer->CreateBuffer(bufferDesc);
 }
 
@@ -42,7 +43,7 @@ void DebugRenderer::Flush(Renderer::CommandList* commandList)
 	stagingBufferDesc.name = "DebugVertexUploadBuffer";
 	stagingBufferDesc.size = totalBufferSize;
 	stagingBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-	stagingBufferDesc.usage = Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+	stagingBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
 
 	Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(stagingBufferDesc);
 	_renderer->QueueDestroyBuffer(stagingBuffer);
@@ -80,7 +81,7 @@ void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 	renderGraph->AddPass<Debug2DPassData>("DebugRender2D",
 		[=](Debug2DPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
 		{
-			data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_LOAD);
+			data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
 
 			return true;// Return true from setup to enable this pass, return false to disable it
 		},
@@ -92,7 +93,7 @@ void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 			resources.InitializePipelineDesc(pipelineDesc);
 
 			// Rasterizer state
-			pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
+			pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::BACK;
 
 			// Render targets.
 			pipelineDesc.renderTargets[0] = data.mainColor;
@@ -110,14 +111,14 @@ void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 			// Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
 			pipelineDesc.states.inputLayouts[0].enabled = true;
 			pipelineDesc.states.inputLayouts[0].SetName("Position");
-			pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::INPUT_FORMAT_R32G32B32_FLOAT;
-			pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
+			pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::R32G32B32_FLOAT;
+			pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::PER_VERTEX;
 			pipelineDesc.states.inputLayouts[0].alignedByteOffset = 0;
 
 			pipelineDesc.states.inputLayouts[1].enabled = true;
 			pipelineDesc.states.inputLayouts[1].SetName("Color");
-			pipelineDesc.states.inputLayouts[1].format = Renderer::InputFormat::INPUT_FORMAT_R8G8B8A8_UNORM;
-			pipelineDesc.states.inputLayouts[1].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
+			pipelineDesc.states.inputLayouts[1].format = Renderer::InputFormat::R8G8B8A8_UNORM;
+			pipelineDesc.states.inputLayouts[1].inputClassification = Renderer::InputClassification::PER_VERTEX;
 			pipelineDesc.states.inputLayouts[1].alignedByteOffset = 12;
 
 			pipelineDesc.states.primitiveTopology = Renderer::PrimitiveTopology::Lines;
@@ -146,8 +147,8 @@ void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 	renderGraph->AddPass<Debug3DPassData>("DebugRender3D",
 		[=](Debug3DPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
 		{
-			data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_LOAD);
-			data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_LOAD);
+			data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
+			data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
 
 			return true;// Return true from setup to enable this pass, return false to disable it
 		},
@@ -173,14 +174,14 @@ void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 			// Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
 			pipelineDesc.states.inputLayouts[0].enabled = true;
 			pipelineDesc.states.inputLayouts[0].SetName("Position");
-			pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::INPUT_FORMAT_R32G32B32_FLOAT;
-			pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
+			pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::R32G32B32_FLOAT;
+			pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::PER_VERTEX;
 			pipelineDesc.states.inputLayouts[0].alignedByteOffset = 0;
 
 			pipelineDesc.states.inputLayouts[1].enabled = true;
 			pipelineDesc.states.inputLayouts[1].SetName("Color");
-			pipelineDesc.states.inputLayouts[1].format = Renderer::InputFormat::INPUT_FORMAT_R8G8B8A8_UNORM;
-			pipelineDesc.states.inputLayouts[1].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
+			pipelineDesc.states.inputLayouts[1].format = Renderer::InputFormat::R8G8B8A8_UNORM;
+			pipelineDesc.states.inputLayouts[1].inputClassification = Renderer::InputClassification::PER_VERTEX;
 			pipelineDesc.states.inputLayouts[1].alignedByteOffset = 12;
 
 			pipelineDesc.states.primitiveTopology = Renderer::PrimitiveTopology::Lines;
@@ -188,11 +189,11 @@ void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 			// Depth state
 			pipelineDesc.states.depthStencilState.depthEnable = true;
 			pipelineDesc.states.depthStencilState.depthWriteEnable = false;
-			pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_GREATER;
+			pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::GREATER;
 
 			// Rasterizer state
-			pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
-			pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
+			pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::BACK;
+			pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
 
 			pipelineDesc.renderTargets[0] = data.mainColor;
 

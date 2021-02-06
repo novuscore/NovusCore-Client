@@ -1,9 +1,4 @@
 
-struct Constants
-{
-    uint maxDrawCount;
-};
-
 struct DrawCall
 {
     uint indexCount;
@@ -13,7 +8,6 @@ struct DrawCall
     uint firstInstance;
 };
 
-[[vk::push_constant]] Constants _constants;
 [[vk::binding(0, PER_PASS)]] StructuredBuffer<uint> _sortValues;
 
 [[vk::binding(1, PER_PASS)]] StructuredBuffer<uint> _culledDrawCount;

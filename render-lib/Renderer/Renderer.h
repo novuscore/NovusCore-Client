@@ -1,12 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include <Utils/StringUtils.h>
-#include <robin_hood.h>
-#include "RenderGraph.h"
-#include "RenderGraphBuilder.h"
-#include "RenderPass.h"
-#include "RenderStates.h"
-#include "Font.h"
+
 #include "DescriptorSet.h"
 
 // Descriptors
@@ -15,14 +9,14 @@
 #include "Descriptors/VertexShaderDesc.h"
 #include "Descriptors/PixelShaderDesc.h"
 #include "Descriptors/ComputeShaderDesc.h"
+#include "Descriptors/GraphicsPipelineDesc.h"
+#include "Descriptors/ComputePipelineDesc.h"
 #include "Descriptors/ImageDesc.h"
+#include "Descriptors/DepthImageDesc.h"
 #include "Descriptors/TextureDesc.h"
 #include "Descriptors/TextureArrayDesc.h"
-#include "Descriptors/DepthImageDesc.h"
-#include "Descriptors/ModelDesc.h"
 #include "Descriptors/SamplerDesc.h"
 #include "Descriptors/GPUSemaphoreDesc.h"
-#include "Descriptors/FontDesc.h"
 
 class Window;
 
@@ -30,8 +24,17 @@ namespace tracy
 {
     struct SourceLocationData;
 }
+
+namespace Memory
+{
+    class Allocator;
+}
+
 namespace Renderer
 {
+    class RenderGraph;
+    struct RenderGraphDesc;
+
     class Renderer
     {
     public:
@@ -42,7 +45,7 @@ namespace Renderer
 
         virtual ~Renderer();
 
-        RenderGraph CreateRenderGraph(RenderGraphDesc& desc);
+        RenderGraph& CreateRenderGraph(RenderGraphDesc& desc);
 
         // Creation
         virtual BufferID CreateBuffer(BufferDesc& desc) = 0;
@@ -58,17 +61,12 @@ namespace Renderer
         virtual GraphicsPipelineID CreatePipeline(GraphicsPipelineDesc& desc) = 0;
         virtual ComputePipelineID CreatePipeline(ComputePipelineDesc& desc) = 0;
 
-        virtual ModelID CreatePrimitiveModel(PrimitiveModelDesc& desc) = 0;
-        virtual void UpdatePrimitiveModel(ModelID model, PrimitiveModelDesc& desc) = 0;
-
         virtual TextureArrayID CreateTextureArray(TextureArrayDesc& desc) = 0;
 
         virtual TextureID CreateDataTexture(DataTextureDesc& desc) = 0;
         virtual TextureID CreateDataTextureIntoArray(DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) = 0;
 
         // Loading
-        virtual ModelID LoadModel(ModelDesc& desc) = 0;
-
         virtual TextureID LoadTexture(TextureDesc& desc) = 0;
         virtual TextureID LoadTextureIntoArray(TextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) = 0;
 
@@ -86,8 +84,6 @@ namespace Renderer
         virtual void Clear(CommandListID commandListID, ImageID image, Color color) = 0;
         virtual void Clear(CommandListID commandListID, DepthImageID image, DepthClearFlags clearFlags, f32 depth, u8 stencil) = 0;
         virtual void Draw(CommandListID commandListID, u32 numVertices, u32 numInstances, u32 vertexOffset, u32 instanceOffset) = 0;
-        virtual void DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances) = 0;
-        virtual void DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances) = 0;
         virtual void DrawIndexed(CommandListID commandListID, u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset) = 0;
         virtual void DrawIndexedIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount) = 0;
         virtual void DrawIndexedIndirectCount(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount) = 0;
@@ -113,6 +109,7 @@ namespace Renderer
         virtual void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
         virtual void PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer) = 0;
         virtual void ImageBarrier(CommandListID commandListID, ImageID image) = 0;
+        virtual void DepthImageBarrier(CommandListID commandListID, DepthImageID image) = 0;
         virtual void PushConstant(CommandListID commandListID, void* data, u32 offset, u32 size) = 0;
         virtual void FillBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, u32 data) = 0;
 

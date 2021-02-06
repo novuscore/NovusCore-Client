@@ -4,6 +4,8 @@
 #include "../ECS/Components/Text.h"
 #include "../ECS/Components/Renderable.h"
 
+#include <tracy/Tracy.hpp>
+
 namespace UIScripting
 {
     Label::Label() : BaseElement(UI::ElementType::UITYPE_LABEL, false)

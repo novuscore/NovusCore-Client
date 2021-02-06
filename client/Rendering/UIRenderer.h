@@ -2,7 +2,6 @@
 #include <NovusTypes.h>
 
 #include <Renderer/Descriptors/ImageDesc.h>
-#include <Renderer/Descriptors/ModelDesc.h>
 #include <Renderer/DescriptorSet.h>
 
 namespace Renderer

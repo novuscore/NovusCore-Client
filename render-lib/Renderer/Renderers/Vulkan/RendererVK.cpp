@@ -9,7 +9,6 @@
 #include "Backend/BufferHandlerVK.h"
 #include "Backend/ImageHandlerVK.h"
 #include "Backend/TextureHandlerVK.h"
-#include "Backend/ModelHandlerVK.h"
 #include "Backend/ShaderHandlerVK.h"
 #include "Backend/PipelineHandlerVK.h"
 #include "Backend/CommandListHandlerVK.h"
@@ -31,7 +30,6 @@ namespace Renderer
         _bufferHandler = new Backend::BufferHandlerVK();
         _imageHandler = new Backend::ImageHandlerVK();
         _textureHandler = new Backend::TextureHandlerVK();
-        _modelHandler = new Backend::ModelHandlerVK();
         _shaderHandler = new Backend::ShaderHandlerVK();
         _pipelineHandler = new Backend::PipelineHandlerVK();
         _commandListHandler = new Backend::CommandListHandlerVK();
@@ -43,7 +41,6 @@ namespace Renderer
         _bufferHandler->Init(_device);
         _imageHandler->Init(_device);
         _textureHandler->Init(_device, _bufferHandler);
-        _modelHandler->Init(_device, _bufferHandler);
         _shaderHandler->Init(_device);
         _pipelineHandler->Init(_device, _shaderHandler, _imageHandler);
         _commandListHandler->Init(_device);
@@ -68,7 +65,6 @@ namespace Renderer
         delete(_bufferHandler);
         delete(_imageHandler);
         delete(_textureHandler);
-        delete(_modelHandler);
         delete(_shaderHandler);
         delete(_pipelineHandler);
         delete(_commandListHandler);
@@ -134,16 +130,6 @@ namespace Renderer
         return _pipelineHandler->CreatePipeline(desc);
     }
 
-    ModelID RendererVK::CreatePrimitiveModel(PrimitiveModelDesc& desc)
-    {
-        return _modelHandler->CreatePrimitiveModel(desc);
-    }
-
-    void RendererVK::UpdatePrimitiveModel(ModelID model, PrimitiveModelDesc& desc)
-    {
-        _modelHandler->UpdatePrimitiveModel(model, desc);
-    }
-
     TextureArrayID RendererVK::CreateTextureArray(TextureArrayDesc& desc)
     {
         return _textureHandler->CreateTextureArray(desc);
@@ -157,11 +143,6 @@ namespace Renderer
     TextureID RendererVK::CreateDataTextureIntoArray(DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex)
     {
         return _textureHandler->CreateDataTextureIntoArray(desc, textureArray, arrayIndex);
-    }
-
-    ModelID RendererVK::LoadModel(ModelDesc& desc)
-    {
-        return _modelHandler->LoadModel(desc);
     }
 
     TextureID RendererVK::LoadTexture(TextureDesc& desc)
@@ -223,7 +204,7 @@ namespace Renderer
 
             if (result == VK_TIMEOUT)
             {
-                NC_LOG_FATAL("Waiting for frame fence took longer than 5 seconds, something is wrong!");
+                DebugHandler::PrintFatal("Waiting for frame fence took longer than 5 seconds, something is wrong!");
             }
 
             vkResetFences(_device->_device, 1, &frameFence);
@@ -262,7 +243,7 @@ namespace Renderer
     {
         if (_renderPassOpenCount != 0)
         {
-            NC_LOG_FATAL("We found unmatched calls to BeginPipeline in your commandlist, for every BeginPipeline you need to also EndPipeline!");
+            DebugHandler::PrintFatal("We found unmatched calls to BeginPipeline in your commandlist, for every BeginPipeline you need to also EndPipeline!");
         }
 
         _commandListHandler->EndCommandList(commandListID, VK_NULL_HANDLE);
@@ -305,13 +286,13 @@ namespace Renderer
         VkClearDepthStencilValue clearDepthValue = {};
         VkImageSubresourceRange range = {};
 
-        if (clearFlags == DepthClearFlags::DEPTH_CLEAR_DEPTH || clearFlags == DepthClearFlags::DEPTH_CLEAR_BOTH)
+        if (clearFlags == DepthClearFlags::DEPTH || clearFlags == DepthClearFlags::BOTH)
         {
             clearDepthValue.depth = depth;
             range.aspectMask |= VK_IMAGE_ASPECT_DEPTH_BIT;
         }
 
-        if (clearFlags == DepthClearFlags::DEPTH_CLEAR_STENCIL || clearFlags == DepthClearFlags::DEPTH_CLEAR_BOTH)
+        if (clearFlags == DepthClearFlags::STENCIL || clearFlags == DepthClearFlags::BOTH)
         {
             clearDepthValue.stencil = stencil;
             range.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
@@ -327,7 +308,7 @@ namespace Renderer
 
         vkCmdClearDepthStencilImage(commandBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearDepthValue, 1, &range);
 
-        // Transition image back to DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        // Transition image back to DEPTH_STENCIL_READ_ONLY_OPTIMAL
         _device->TransitionImageLayout(commandBuffer, image, range.aspectMask, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, 1, 1);
     }
 
@@ -337,45 +318,10 @@ namespace Renderer
 
         if (_renderPassOpenCount <= 0)
         {
-            NC_LOG_FATAL("You tried to draw without first calling BeginPipeline!");
+            DebugHandler::PrintFatal("You tried to draw without first calling BeginPipeline!");
         }
 
         vkCmdDraw(commandBuffer, numVertices, numInstances, vertexOffset, instanceOffset);
-    }
-
-    void RendererVK::DrawBindless(CommandListID commandListID, u32 numVertices, u32 numInstances)
-    {
-        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
-
-        if (_renderPassOpenCount <= 0)
-        {
-            NC_LOG_FATAL("You tried to draw without first calling BeginPipeline!");
-        }
-
-        // Draw
-        vkCmdDraw(commandBuffer, numVertices, numInstances, 0, 0);
-    }
-
-    void RendererVK::DrawIndexedBindless(CommandListID commandListID, ModelID modelID, u32 numVertices, u32 numInstances)
-    {
-        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
-
-        if (_renderPassOpenCount <= 0)
-        {
-            NC_LOG_FATAL("You tried to draw without first calling BeginPipeline!");
-        }
-
-        if (_boundModelIndexBuffer != modelID)
-        {
-            // Bind index buffer
-            VkBuffer indexBuffer = _modelHandler->GetIndexBuffer(modelID);
-            vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-            _boundModelIndexBuffer = modelID;
-        }
-        
-        // Draw
-        vkCmdDrawIndexed(commandBuffer, numVertices, numInstances, 0, 0, 0);
     }
 
     void RendererVK::DrawIndexed(CommandListID commandListID, u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset)
@@ -384,7 +330,7 @@ namespace Renderer
 
         if (_renderPassOpenCount <= 0)
         {
-            NC_LOG_FATAL("You tried to draw without first calling BeginPipeline!");
+            DebugHandler::PrintFatal("You tried to draw without first calling BeginPipeline!");
         }
 
         vkCmdDrawIndexed(commandBuffer, numIndices, numInstances, indexOffset, vertexOffset, instanceOffset);
@@ -396,7 +342,7 @@ namespace Renderer
 
         if (_renderPassOpenCount <= 0)
         {
-            NC_LOG_FATAL("You tried to draw without first calling BeginPipeline!");
+            DebugHandler::PrintFatal("You tried to draw without first calling BeginPipeline!");
         }
 
         VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
@@ -410,7 +356,7 @@ namespace Renderer
 
         if (_renderPassOpenCount <= 0)
         {
-            NC_LOG_FATAL("You tried to draw without first calling BeginPipeline!");
+            DebugHandler::PrintFatal("You tried to draw without first calling BeginPipeline!");
         }
 
         VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
@@ -457,7 +403,7 @@ namespace Renderer
 
         if (_renderPassOpenCount != 0)
         {
-            NC_LOG_FATAL("You need to match your BeginPipeline calls with a EndPipeline call before beginning another pipeline!");
+            DebugHandler::PrintFatal("You need to match your BeginPipeline calls with a EndPipeline call before beginning another pipeline!");
         }
         _renderPassOpenCount++;
 
@@ -491,9 +437,6 @@ namespace Renderer
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
         _commandListHandler->SetBoundGraphicsPipeline(commandListID, pipelineID);
-
-
-        _boundModelIndexBuffer = ModelID::Invalid();
     }
 
     void RendererVK::EndPipeline(CommandListID commandListID, GraphicsPipelineID pipelineID)
@@ -502,7 +445,7 @@ namespace Renderer
 
         if (_renderPassOpenCount <= 0)
         {
-            NC_LOG_FATAL("You tried to call EndPipeline without first calling BeginPipeline!");
+            DebugHandler::PrintFatal("You tried to call EndPipeline without first calling BeginPipeline!");
         }
         _renderPassOpenCount--;
 
@@ -532,7 +475,7 @@ namespace Renderer
 
         if (_renderPassOpenCount != 0)
         {
-            NC_LOG_FATAL("You need to match your BeginPipeline calls with a EndPipeline call before beginning another pipeline!");
+            DebugHandler::PrintFatal("You need to match your BeginPipeline calls with a EndPipeline call before beginning another pipeline!");
         }
         _renderPassOpenCount++;
 
@@ -547,7 +490,7 @@ namespace Renderer
 
         if (_renderPassOpenCount <= 0)
         {
-            NC_LOG_FATAL("You tried to call EndPipeline without first calling BeginPipeline!");
+            DebugHandler::PrintFatal("You tried to call EndPipeline without first calling BeginPipeline!");
         }
         _renderPassOpenCount--;
 
@@ -628,7 +571,7 @@ namespace Renderer
                 {
                     if (set != bindInfo.set)
                     {
-                        NC_LOG_ERROR("While creating DescriptorSet, we found BindInfo with matching name (%s) and type (%u), but it didn't match the location (%i != %i)", bindInfo.name, bindInfo.descriptorType, bindInfo.set, set);
+                        DebugHandler::PrintError("While creating DescriptorSet, we found BindInfo with matching name (%s) and type (%u), but it didn't match the location (%i != %i)", bindInfo.name, bindInfo.descriptorType, bindInfo.set, set);
                     }
                 }
                 else
@@ -649,7 +592,7 @@ namespace Renderer
             }
         }
 
-        NC_LOG_ERROR("While creating DescriptorSet we encountered binding (%s) of type (%u) which did not have a matching BindInfo in the bound shaders", name.c_str(), type);
+        DebugHandler::PrintError("While creating DescriptorSet we encountered binding (%s) of type (%u) which did not have a matching BindInfo in the bound shaders", name.c_str(), type);
         return false;
     }
 
@@ -858,7 +801,7 @@ namespace Renderer
 
         if (tracyScope != nullptr)
         {
-            NC_LOG_FATAL("Tried to begin GPU trace on a commandlist that already had a begun GPU trace");
+            DebugHandler::PrintFatal("Tried to begin GPU trace on a commandlist that already had a begun GPU trace");
         }
 
         tracyScope = new tracy::VkCtxManualScope(_device->_tracyContext, sourceLocation, true);
@@ -877,7 +820,7 @@ namespace Renderer
 
         if (tracyScope == nullptr)
         {
-            NC_LOG_FATAL("Tried to end GPU trace on a commandlist that didn't have a running trace");
+            DebugHandler::PrintFatal("Tried to end GPU trace on a commandlist that didn't have a running trace");
         }
 
         tracyScope->End();
@@ -1012,7 +955,19 @@ namespace Renderer
         const VkImage& vkImage = _imageHandler->GetImage(image);
         const ImageDesc& imageDesc = _imageHandler->GetImageDesc(image);
 
-        _device->TransitionImageLayout(commandBuffer, vkImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, imageDesc.depth, 1);
+        _device->TransitionImageLayout(commandBuffer, vkImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, imageDesc.depth, imageDesc.mipLevels);
+    }
+
+    void RendererVK::DepthImageBarrier(CommandListID commandListID, DepthImageID image)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+        const VkImage& vkImage = _imageHandler->GetImage(image);
+        const DepthImageDesc& imageDesc = _imageHandler->GetDepthImageDesc(image);
+
+        u32 imageAspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+        // TODO: If we add stencil support we need to selectively add VK_IMAGE_ASPECT_STENCIL_BIT to imageAspect if the depthStencil has a stencil
+
+        _device->TransitionImageLayout(commandBuffer, vkImage, imageAspect, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, 1, 1);
     }
 
     void RendererVK::PushConstant(CommandListID commandListID, void* data, u32 offset, u32 size)
@@ -1048,7 +1003,7 @@ namespace Renderer
             ZoneScopedNC("Present::TracyScope", tracy::Color::Red);
             if (tracyScope != nullptr)
             {
-                NC_LOG_FATAL("Tried to begin GPU trace on a commandlist that already had a begun GPU trace");
+                DebugHandler::PrintFatal("Tried to begin GPU trace on a commandlist that already had a begun GPU trace");
             }
 
 #if TRACY_ENABLE
@@ -1078,7 +1033,7 @@ namespace Renderer
             }
             else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
             {
-                NC_LOG_FATAL("Failed to acquire swap chain image!");
+                DebugHandler::PrintFatal("Failed to acquire swap chain image!");
             }
         }
         
@@ -1098,7 +1053,7 @@ namespace Renderer
         ImageDesc imageDesc = _imageHandler->GetImageDesc(imageID);
         ImageComponentType componentType = ToImageComponentType(imageDesc.format);
 
-        Backend::BlitPipeline& pipeline = swapChain->blitPipelines[componentType];
+        Backend::BlitPipeline& pipeline = swapChain->blitPipelines[static_cast<u8>(componentType)];
 
         VkImage image = _imageHandler->GetImage(imageID);
 
@@ -1197,13 +1152,13 @@ namespace Renderer
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
             {
-                NC_LOG_WARNING("Recreated swapchain!");
+                DebugHandler::PrintWarning("Recreated swapchain!");
                 RecreateSwapChain(swapChain);
                 return;
             }
             else if (result != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to present swap chain image!");
+                DebugHandler::PrintFatal("Failed to present swap chain image!");
             }
         }
 
@@ -1246,7 +1201,7 @@ namespace Renderer
         VkResult result = vmaMapMemory(_device->_allocator, _bufferHandler->GetBufferAllocation(buffer), &mappedMemory);
         if (result != VK_SUCCESS)
         {
-            NC_LOG_ERROR("vmaMapMemory failed!\n");
+            DebugHandler::PrintError("vmaMapMemory failed!\n");
             return nullptr;
         }
         return mappedMemory;

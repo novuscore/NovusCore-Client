@@ -1,9 +1,7 @@
 #include "../BackendDispatch.h"
 #include "Clear.h"
 #include "Draw.h"
-#include "DrawBindless.h"
 #include "DrawIndexed.h"
-#include "DrawIndexedBindless.h"
 #include "DrawIndexedIndirect.h"
 #include "DrawIndexedIndirectCount.h"
 #include "Dispatch.h"
@@ -26,6 +24,7 @@
 #include "FillBuffer.h"
 #include "PipelineBarrier.h"
 #include "ImageBarrier.h"
+#include "DepthImageBarrier.h"
 #include "DrawImgui.h"
 #include "PushConstant.h"
 
@@ -36,8 +35,6 @@ namespace Renderer
         const BackendDispatchFunction ClearImage::DISPATCH_FUNCTION = &BackendDispatch::ClearImage;
         const BackendDispatchFunction ClearDepthImage::DISPATCH_FUNCTION = &BackendDispatch::ClearDepthImage;
         const BackendDispatchFunction Draw::DISPATCH_FUNCTION = &BackendDispatch::Draw;
-        const BackendDispatchFunction DrawBindless::DISPATCH_FUNCTION = &BackendDispatch::DrawBindless;
-        const BackendDispatchFunction DrawIndexedBindless::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexedBindless;
         const BackendDispatchFunction DrawIndexed::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexed;
         const BackendDispatchFunction DrawIndexedIndirect::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexedIndirect;
         const BackendDispatchFunction DrawIndexedIndirectCount::DISPATCH_FUNCTION = &BackendDispatch::DrawIndexedIndirectCount;
@@ -64,6 +61,7 @@ namespace Renderer
         const BackendDispatchFunction FillBuffer::DISPATCH_FUNCTION = &BackendDispatch::FillBuffer;
         const BackendDispatchFunction PipelineBarrier::DISPATCH_FUNCTION = &BackendDispatch::PipelineBarrier;
         const BackendDispatchFunction ImageBarrier::DISPATCH_FUNCTION = &BackendDispatch::ImageBarrier;
+        const BackendDispatchFunction DepthImageBarrier::DISPATCH_FUNCTION = &BackendDispatch::DepthImageBarrier;
         const BackendDispatchFunction DrawImgui::DISPATCH_FUNCTION = &BackendDispatch::DrawImgui;
         const BackendDispatchFunction PushConstant::DISPATCH_FUNCTION = &BackendDispatch::PushConstant;
     }

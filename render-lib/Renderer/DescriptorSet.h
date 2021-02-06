@@ -1,13 +1,12 @@
 #pragma once
 #include <NovusTypes.h>
+#include <Utils/StringUtils.h>
 #include "Descriptors/BufferDesc.h"
 #include "Descriptors/SamplerDesc.h"
 #include "Descriptors/TextureDesc.h"
 #include "Descriptors/ImageDesc.h"
 #include "Descriptors/DepthImageDesc.h"
 #include "Descriptors/TextureArrayDesc.h"
-
-#include <Utils/StringUtils.h>
 
 namespace Renderer
 {

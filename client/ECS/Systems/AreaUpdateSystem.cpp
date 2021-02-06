@@ -7,6 +7,8 @@
 #include "../Components/Singletons/NDBCSingleton.h"
 #include "../Components/Singletons/DayNightSingleton.h"
 
+#include <glm/glm.hpp>
+
 void AreaUpdateSystem::Init(entt::registry& registry)
 {
     registry.set<AreaUpdateSingleton>();

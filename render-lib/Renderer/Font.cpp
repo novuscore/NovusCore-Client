@@ -20,7 +20,7 @@ namespace Renderer
             FontChar fontChar;
             if (!InitChar(character, fontChar))
             {
-                NC_LOG_FATAL("The font does not support this character");
+                DebugHandler::PrintFatal("The font does not support this character");
             }
 
             _chars[character] = fontChar;
@@ -44,7 +44,7 @@ namespace Renderer
             FileReader file(path.string(), path.filename().string());
             if (!file.Open())
             {
-                NC_LOG_FATAL("Could not open Font file %s", fontPath.c_str());
+                DebugHandler::PrintFatal("Could not open Font file %s", fontPath.c_str());
             }
 
             std::shared_ptr<Bytebuffer> buffer = Bytebuffer::Borrow<1048576>();
@@ -91,7 +91,7 @@ namespace Renderer
         DataTextureDesc textureDesc;
         textureDesc.width = fontChar.width;
         textureDesc.height = fontChar.height;
-        textureDesc.format = IMAGE_FORMAT_R8_UNORM;
+        textureDesc.format = ImageFormat::R8_UNORM;
         textureDesc.data = fontChar.data;
         textureDesc.debugName = desc.path + " " + character;
 

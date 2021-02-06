@@ -1,6 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include <Renderer/Descriptors/BufferDesc.h>
+#include "../Descriptors/BufferDesc.h"
 
 namespace Renderer
 {

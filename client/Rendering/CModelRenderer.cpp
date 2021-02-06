@@ -10,6 +10,8 @@
 
 #include <InputManager.h>
 #include <Renderer/Renderer.h>
+#include <Renderer/RenderGraph.h>
+#include <Renderer/RenderGraphBuilder.h>
 #include <Utils/FileReader.h>
 #include <Utils/ByteBuffer.h>
 
@@ -156,9 +158,9 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
     renderGraph->AddPass<CModelPassData>("CModel Pass",
         [=](CModelPassData& data, Renderer::RenderGraphBuilder& builder)
     {
-        data.mainColor = builder.Write(colorTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-        data.mainObject = builder.Write(objectTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-        data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+        data.mainColor = builder.Write(colorTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+        data.mainObject = builder.Write(objectTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+        data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
 
         return true; // Return true from setup to enable this pass, return false to disable it
     },
@@ -188,11 +190,11 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
         // Depth state
         pipelineDesc.states.depthStencilState.depthEnable = true;
         pipelineDesc.states.depthStencilState.depthWriteEnable = true;
-        pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_GREATER;
+        pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::GREATER;
 
         // Rasterizer state
-        pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
-        pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
+        pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::BACK;
+        pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
         // Render targets
         pipelineDesc.renderTargets[0] = data.mainColor;
         pipelineDesc.renderTargets[1] = data.mainObject;
@@ -247,14 +249,14 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
                 _cullingDescriptorSet.Bind("_cullingDatas", _cullingDataBuffer);
 
                 Renderer::SamplerDesc samplerDesc;
-                samplerDesc.filter = Renderer::SAMPLER_FILTER_MINIMUM_MIN_MAG_MIP_LINEAR;
+                samplerDesc.filter = Renderer::SamplerFilter::MINIMUM_MIN_MAG_MIP_LINEAR;
 
-                samplerDesc.addressU = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
-                samplerDesc.addressV = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
-                samplerDesc.addressW = Renderer::TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.addressU = Renderer::TextureAddressMode::CLAMP;
+                samplerDesc.addressV = Renderer::TextureAddressMode::CLAMP;
+                samplerDesc.addressW = Renderer::TextureAddressMode::CLAMP;
                 samplerDesc.minLOD = 0.f;
                 samplerDesc.maxLOD = 16.f;
-                samplerDesc.mode = Renderer::SAMPLER_REDUCTION_MIN;
+                samplerDesc.mode = Renderer::SamplerReductionMode::MIN;
 
                 Renderer::SamplerID occlusionSampler = _renderer->CreateSampler(samplerDesc);
 
@@ -421,16 +423,6 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
                     Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(pipelineDesc);
                     commandList.BeginPipeline(pipeline);
 
-                    struct ApplySortConstants
-                    {
-                        u32 maxDrawCount;
-                    };
-
-                    ApplySortConstants* applySortConstants = resources.FrameNew<ApplySortConstants>();
-                    applySortConstants->maxDrawCount = numTransparentDrawCalls;
-
-                    commandList.PushConstant(applySortConstants, 0, sizeof(ApplySortConstants));
-
                     _sortingDescriptorSet.Bind("_sortKeys", _transparentSortKeys);
                     _sortingDescriptorSet.Bind("_sortValues", _transparentSortValues);
                     _sortingDescriptorSet.Bind("_culledDrawCount", _transparentDrawCountBuffer);
@@ -478,9 +470,9 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
 
             // ColorTarget
             pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;
-            pipelineDesc.states.blendState.renderTargets[0].blendOp = Renderer::BlendOp::BLEND_OP_ADD;
-            pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::BLEND_MODE_SRC_ALPHA;
-            pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::BLEND_MODE_ONE;
+            pipelineDesc.states.blendState.renderTargets[0].blendOp = Renderer::BlendOp::ADD;
+            pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::SRC_ALPHA;
+            pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::ONE;
 
             Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
             commandList.BeginPipeline(pipeline);
@@ -630,11 +622,11 @@ void CModelRenderer::CreatePermanentResources()
 
     Renderer::SamplerDesc samplerDesc;
     samplerDesc.enabled = true;
-    samplerDesc.filter = Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_MIP_LINEAR;
-    samplerDesc.addressU = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc.addressV = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc.addressW = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_CLAMP;
-    samplerDesc.shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_PIXEL;
+    samplerDesc.filter = Renderer::SamplerFilter::MIN_MAG_MIP_LINEAR;
+    samplerDesc.addressU = Renderer::TextureAddressMode::WRAP;
+    samplerDesc.addressV = Renderer::TextureAddressMode::WRAP;
+    samplerDesc.addressW = Renderer::TextureAddressMode::CLAMP;
+    samplerDesc.shaderVisibility = Renderer::ShaderVisibility::PIXEL;
 
     _sampler = _renderer->CreateSampler(samplerDesc);
     _passDescriptorSet.Bind("_sampler", _sampler);
@@ -644,11 +636,11 @@ void CModelRenderer::CreatePermanentResources()
         Renderer::BufferDesc desc;
         desc.name = "CModelOpaqueDrawCountBuffer";
         desc.size = sizeof(u32);
-        desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION | Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::TRANSFER_SOURCE;
         _opaqueDrawCountBuffer = _renderer->CreateBuffer(desc);
 
         desc.name = "CModelOpaqueDrawCountRBBuffer";
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         desc.cpuAccess = Renderer::BufferCPUAccess::ReadOnly;
         _opaqueDrawCountReadBackBuffer = _renderer->CreateBuffer(desc);
     }
@@ -658,11 +650,11 @@ void CModelRenderer::CreatePermanentResources()
         Renderer::BufferDesc desc;
         desc.name = "CModelTransparentDrawCountBuffer";
         desc.size = sizeof(u32);
-        desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION | Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::TRANSFER_SOURCE;
         _transparentDrawCountBuffer = _renderer->CreateBuffer(desc);
 
         desc.name = "CModelTransparentDrawCountRBBuffer";
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         desc.cpuAccess = Renderer::BufferCPUAccess::ReadOnly;
         _transparentDrawCountReadBackBuffer = _renderer->CreateBuffer(desc);
     }
@@ -672,7 +664,7 @@ void CModelRenderer::CreatePermanentResources()
         Renderer::BufferDesc desc;
         desc.name = "CModelOpaqueTriangleCountBuffer";
         desc.size = sizeof(u32);
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION | Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::TRANSFER_SOURCE;
         _opaqueTriangleCountBuffer = _renderer->CreateBuffer(desc);
 
         desc.cpuAccess = Renderer::BufferCPUAccess::ReadOnly;
@@ -684,7 +676,7 @@ void CModelRenderer::CreatePermanentResources()
         Renderer::BufferDesc desc;
         desc.name = "CModelTransparentTriangleCountBuffer";
         desc.size = sizeof(u32);
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION | Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::TRANSFER_SOURCE;
         _transparentTriangleCountBuffer = _renderer->CreateBuffer(desc);
 
         desc.cpuAccess = Renderer::BufferCPUAccess::ReadOnly;
@@ -813,7 +805,7 @@ bool CModelRenderer::LoadFile(const std::string& cModelPathString, CModel::Compl
 {
     if (!StringUtils::EndsWith(cModelPathString, ".cmodel"))
     {
-        NC_LOG_FATAL("Tried to call 'LoadCModel' with a reference to a file that didn't end with '.cmodel'");
+        DebugHandler::PrintFatal("Tried to call 'LoadCModel' with a reference to a file that didn't end with '.cmodel'");
         return false;
     }
 
@@ -824,7 +816,7 @@ bool CModelRenderer::LoadFile(const std::string& cModelPathString, CModel::Compl
     FileReader cModelFile(cModelPath.string(), cModelPath.filename().string());
     if (!cModelFile.Open())
     {
-        NC_LOG_FATAL("Failed to open CModel file: %s", cModelPath.string().c_str());
+        DebugHandler::PrintFatal("Failed to open CModel file: %s", cModelPath.string().c_str());
         return false;
     }
 
@@ -837,18 +829,18 @@ bool CModelRenderer::LoadFile(const std::string& cModelPathString, CModel::Compl
 
     if (cModel.header.typeID != CModel::COMPLEX_MODEL_TOKEN)
     {
-        NC_LOG_FATAL("We opened ComplexModel file (%s) with invalid token %u instead of expected token %u", cModelPath.string().c_str(), cModel.header.typeID, CModel::COMPLEX_MODEL_TOKEN);
+        DebugHandler::PrintFatal("We opened ComplexModel file (%s) with invalid token %u instead of expected token %u", cModelPath.string().c_str(), cModel.header.typeID, CModel::COMPLEX_MODEL_TOKEN);
     }
 
     if (cModel.header.typeVersion != CModel::COMPLEX_MODEL_VERSION)
     {
         if (cModel.header.typeVersion < CModel::COMPLEX_MODEL_VERSION)
         {
-            NC_LOG_FATAL("Loaded ComplexModel file (%s) with too old version %u instead of expected version of %u, rerun dataextractor", cModelPath.string().c_str(), cModel.header.typeVersion, CModel::COMPLEX_MODEL_VERSION);
+            DebugHandler::PrintFatal("Loaded ComplexModel file (%s) with too old version %u instead of expected version of %u, rerun dataextractor", cModelPath.string().c_str(), cModel.header.typeVersion, CModel::COMPLEX_MODEL_VERSION);
         }
         else
         {
-            NC_LOG_FATAL("Loaded ComplexModel file (%s) with too new version %u instead of expected version of %u, update your client", cModelPath.string().c_str(), cModel.header.typeVersion, CModel::COMPLEX_MODEL_VERSION);
+            DebugHandler::PrintFatal("Loaded ComplexModel file (%s) with too new version %u instead of expected version of %u, update your client", cModelPath.string().c_str(), cModel.header.typeVersion, CModel::COMPLEX_MODEL_VERSION);
         }
     }
 
@@ -1146,12 +1138,12 @@ void CModelRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "CModelVertexBuffer";
         desc.size = sizeof(CModel::ComplexVertex) * _vertices.size();
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _vertexBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "CModelVertexStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -1176,12 +1168,12 @@ void CModelRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "CModelIndexBuffer";
         desc.size = sizeof(u16) * _indices.size();
-        desc.usage = Renderer::BUFFER_USAGE_INDEX_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::INDEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _indexBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "CModelIndexStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -1206,12 +1198,12 @@ void CModelRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "CModelTextureUnitBuffer";
         desc.size = sizeof(TextureUnit) * _textureUnits.size();
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _textureUnitBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "CModelTextureUnitStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -1236,12 +1228,12 @@ void CModelRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "CModelInstanceBuffer";
         desc.size = sizeof(Instance) * _instances.size();
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _instanceBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "CModelInstanceStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -1266,12 +1258,12 @@ void CModelRenderer::CreateBuffers()
         Renderer::BufferDesc desc;
         desc.name = "CModelCullDataBuffer";
         desc.size = sizeof(CModel::CullingData) * _cullingDatas.size();
-        desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _cullingDataBuffer = _renderer->CreateBuffer(desc);
 
         // Create staging buffer
         desc.name = "CModelCullDataStaging";
-        desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
         desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
         Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -1306,14 +1298,14 @@ void CModelRenderer::CreateBuffers()
             Renderer::BufferDesc desc;
             desc.name = "CModelOpaqueDrawCallBuffer";
             desc.size = sizeof(DrawCall) * _opaqueDrawCalls.size();
-            desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+            desc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
             _opaqueDrawCallBuffer = _renderer->CreateBuffer(desc);
             desc.name = "CModelOpaqueCullDrawCallBuffer";
             _opaqueCulledDrawCallBuffer = _renderer->CreateBuffer(desc);
 
             // Create staging buffer
             desc.name = "CModelOpaqueDrawCallStaging";
-            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
             desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
             Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -1340,12 +1332,12 @@ void CModelRenderer::CreateBuffers()
             Renderer::BufferDesc desc;
             desc.name = "CModelOpaqueDrawCallDataBuffer";
             desc.size = sizeof(DrawCallData) * _opaqueDrawCallDatas.size();
-            desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
             _opaqueDrawCallDataBuffer = _renderer->CreateBuffer(desc);
 
             // Create staging buffer
             desc.name = "CModelOpaqueDrawCallDataStaging";
-            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
             desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
             Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -1389,19 +1381,19 @@ void CModelRenderer::CreateBuffers()
             Renderer::BufferDesc desc;
             desc.name = "CModelAlphaCullDrawCalls";
             desc.size = size;
-            desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+            desc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
             _transparentCulledDrawCallBuffer = _renderer->CreateBuffer(desc);
 
             desc.name = "CModelAlphaSortCullDrawCalls";
             _transparentSortedCulledDrawCallBuffer = _renderer->CreateBuffer(desc);
 
             desc.name = "CModelAlphaDrawCalls";
-            desc.usage |= Renderer::BUFFER_USAGE_TRANSFER_SOURCE;
+            desc.usage |= Renderer::BufferUsage::TRANSFER_SOURCE;
             _transparentDrawCallBuffer = _renderer->CreateBuffer(desc);
 
             // Create staging buffer
             desc.name = "CModelAlphaDrawCallStaging";
-            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
             desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
             Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -1428,12 +1420,12 @@ void CModelRenderer::CreateBuffers()
             Renderer::BufferDesc desc;
             desc.name = "CModelAlphaDrawCallDataBuffer";
             desc.size = sizeof(DrawCallData) * _transparentDrawCallDatas.size();
-            desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
             _transparentDrawCallDataBuffer = _renderer->CreateBuffer(desc);
 
             // Create staging buffer
             desc.name = "CModelAlphaDrawCallDataStaging";
-            desc.usage = Renderer::BufferUsage::BUFFER_USAGE_TRANSFER_SOURCE;
+            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
             desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
 
             Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
@@ -1470,7 +1462,7 @@ void CModelRenderer::CreateBuffers()
             Renderer::BufferDesc desc;
             desc.name = "CModelAlphaSortKeys";
             desc.size = keysSize;
-            desc.usage = Renderer::BUFFER_USAGE_STORAGE_BUFFER | Renderer::BUFFER_USAGE_TRANSFER_SOURCE | Renderer::BUFFER_USAGE_TRANSFER_DESTINATION;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_SOURCE | Renderer::BufferUsage::TRANSFER_DESTINATION;
 
             _transparentSortKeys = _renderer->CreateBuffer(desc);
 

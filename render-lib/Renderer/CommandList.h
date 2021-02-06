@@ -1,7 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
 #include "BackendDispatch.h"
-#include <vector>
 #include <Memory/StackAllocator.h>
 #include <Containers/DynamicArray.h>
 
@@ -10,7 +9,6 @@
 #include <Renderer/DescriptorSet.h>
 
 #include "Descriptors/BufferDesc.h"
-#include "Descriptors/ModelDesc.h"
 #include "Descriptors/CommandListDesc.h"
 #include "Descriptors/GraphicsPipelineDesc.h"
 #include "Descriptors/ComputePipelineDesc.h"
@@ -73,10 +71,8 @@ namespace Renderer
         void SetBuffer(u32 slot, BufferID buffer);
 
         void Clear(ImageID imageID, Color color);
-        void Clear(DepthImageID imageID, f32 depth, DepthClearFlags flags = DepthClearFlags::DEPTH_CLEAR_DEPTH, u8 stencil = 0);
+        void Clear(DepthImageID imageID, f32 depth, DepthClearFlags flags = DepthClearFlags::DEPTH, u8 stencil = 0);
 
-        void DrawBindless(u32 numVertices, u32 numInstances);
-        void DrawIndexedBindless(ModelID modelID, u32 numVertices, u32 numInstances);
         void Draw(u32 numVertices, u32 numInstances, u32 vertexOffset, u32 instanceOffset);
         void DrawIndexed(u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset);
         void DrawIndexedIndirect(BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount);
@@ -93,6 +89,7 @@ namespace Renderer
 
         void PipelineBarrier(PipelineBarrierType type, BufferID buffer);
         void ImageBarrier(ImageID image);
+        void ImageBarrier(DepthImageID image);
 
         void DrawImgui();
 
@@ -146,22 +143,5 @@ namespace Renderer
 #endif
 
         friend class RenderGraph;
-    };
-
-    class ScopedMarker
-    {
-    public:
-        ScopedMarker(CommandList& commandList, std::string marker, const Color& color)
-            : _commandList(commandList)
-        {
-            _commandList.PushMarker(marker, color);
-        }
-        ~ScopedMarker()
-        {
-            _commandList.PopMarker();
-        }
-
-    private:
-        CommandList& _commandList;
     };
 }

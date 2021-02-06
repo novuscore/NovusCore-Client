@@ -56,12 +56,12 @@ namespace AuthSocket
 
         if (!authenticationSingleton.srp.VerifySession(logonResponse.HAMK))
         {
-            NC_LOG_WARNING("Unsuccessful Login");
+            DebugHandler::PrintWarning("Unsuccessful Login");
             return false;
         }
         else
         {
-            NC_LOG_SUCCESS("Successful Login");
+            DebugHandler::PrintSuccess("Successful Login");
         }
 
         // Send CMSG_CONNECTED (This will be changed in the future)

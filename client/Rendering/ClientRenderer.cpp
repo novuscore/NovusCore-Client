@@ -8,7 +8,9 @@
 #include "../Utils/ServiceLocator.h"
 #include "../ECS/Components/Singletons/MapSingleton.h"
 
+#include <Memory/StackAllocator.h>
 #include <Renderer/Renderer.h>
+#include <Renderer/RenderGraph.h>
 #include <Renderer/Renderers/Vulkan/RendererVK.h>
 #include <Window/Window.h>
 #include <InputManager.h>
@@ -161,25 +163,24 @@ void ClientRenderer::Render()
     _globalDescriptorSet.Bind("_viewData"_h, _viewConstantBuffer->GetBuffer(_frameIndex));
     _globalDescriptorSet.Bind("_lightData"_h, _lightConstantBuffer->GetBuffer(_frameIndex));
 
-    // Depth Prepass
+    // Clear Pass
     {
-        struct DepthPrepassData
+        struct ClearPassData
         {
             Renderer::RenderPassMutableResource mainDepth;
         };
 
-        renderGraph.AddPass<DepthPrepassData>("DepthPrepass",
-            [=](DepthPrepassData& data, Renderer::RenderGraphBuilder& builder) // Setup
+        renderGraph.AddPass<ClearPassData>("ClearPass",
+            [=](ClearPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
-            data.mainDepth = builder.Write(_mainDepth, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+            data.mainDepth = builder.Write(_mainDepth, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
 
-            return true;
+            return true; // Return true from setup to enable this pass, return false to disable it
         },
-            [&](DepthPrepassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
+            [&](ClearPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
         {
+            GPU_SCOPED_PROFILER_ZONE(commandList, MainPass);
             commandList.MarkFrameStart(_frameIndex);
-
-            GPU_SCOPED_PROFILER_ZONE(commandList, DepthPrepass);
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
             resources.InitializePipelineDesc(pipelineDesc);
@@ -189,125 +190,27 @@ void ClientRenderer::Render()
             vertexShaderDesc.path = "depthprepass.vs.hlsl";
             pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
-            // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
-            pipelineDesc.states.inputLayouts[0].enabled = true;
-            pipelineDesc.states.inputLayouts[0].SetName("POSITION");
-            pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::INPUT_FORMAT_R32G32B32_FLOAT;
-            pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
-            pipelineDesc.states.inputLayouts[1].enabled = true;
-            pipelineDesc.states.inputLayouts[1].SetName("NORMAL");
-            pipelineDesc.states.inputLayouts[1].format = Renderer::InputFormat::INPUT_FORMAT_R32G32B32_FLOAT;
-            pipelineDesc.states.inputLayouts[1].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
-            pipelineDesc.states.inputLayouts[2].enabled = true;
-            pipelineDesc.states.inputLayouts[2].SetName("TEXCOORD");
-            pipelineDesc.states.inputLayouts[2].format = Renderer::InputFormat::INPUT_FORMAT_R32G32_FLOAT;
-            pipelineDesc.states.inputLayouts[2].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
-
             // Depth state
             pipelineDesc.states.depthStencilState.depthEnable = true;
             pipelineDesc.states.depthStencilState.depthWriteEnable = true;
-            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_GREATER;
-
-            // Rasterizer state
-            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
-            pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
+            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::GREATER;
 
             // Render targets
             pipelineDesc.depthStencil = data.mainDepth;
 
-            // Clear mainColor TODO: This should be handled by the parameter in Setup, and it should definitely not act on ImageID and DepthImageID
+            // Clear TODO: This should be handled by the parameters in Setup, and it should definitely not act on ImageID and DepthImageID
+            commandList.Clear(_mainColor, Color(135.0f / 255.0f, 206.0f / 255.0f, 250.0f / 255.0f, 1));
+            commandList.Clear(_objectIDs, Color(0.0f, 0.0f, 0.0f, 0.0f));
             commandList.Clear(_mainDepth, 0.0f);
 
-            // Set pipeline
-            Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
-            commandList.BeginPipeline(pipeline);
-
+            // Set viewport
             commandList.SetViewport(0, 0, static_cast<f32>(WIDTH), static_cast<f32>(HEIGHT), 0.0f, 1.0f);
             commandList.SetScissorRect(0, WIDTH, 0, HEIGHT);
 
-            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, &_globalDescriptorSet, _frameIndex);
-
-            
-            commandList.EndPipeline(pipeline);
-        });
-    }
-
-    // Main Pass
-    {
-        struct MainPassData
-        {
-            Renderer::RenderPassMutableResource mainColor;
-            Renderer::RenderPassMutableResource mainDepth;
-            Renderer::RenderPassResource cubeTexture;
-        };
-
-        renderGraph.AddPass<MainPassData>("MainPass",
-            [=](MainPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
-        {
-            data.mainColor = builder.Write(_mainColor, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-            data.mainDepth = builder.Write(_mainDepth, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-            data.cubeTexture = builder.Read(_cubeTexture, Renderer::RenderGraphBuilder::ShaderStage::SHADER_STAGE_PIXEL);
-
-            return true; // Return true from setup to enable this pass, return false to disable it
-        },
-            [&](MainPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
-        {
-            GPU_SCOPED_PROFILER_ZONE(commandList, MainPass);
-
-            Renderer::GraphicsPipelineDesc pipelineDesc;
-            resources.InitializePipelineDesc(pipelineDesc);
-
-            // Shaders
-            Renderer::VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "test.vs.hlsl";
-            pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
-
-            Renderer::PixelShaderDesc pixelShaderDesc;
-            pixelShaderDesc.path = "test.ps.hlsl";
-            pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
-
-            // Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
-            pipelineDesc.states.inputLayouts[0].enabled = true;
-            pipelineDesc.states.inputLayouts[0].SetName("POSITION");
-            pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::INPUT_FORMAT_R32G32B32_FLOAT;
-            pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
-            pipelineDesc.states.inputLayouts[1].enabled = true;
-            pipelineDesc.states.inputLayouts[1].SetName("NORMAL");
-            pipelineDesc.states.inputLayouts[1].format = Renderer::InputFormat::INPUT_FORMAT_R32G32B32_FLOAT;
-            pipelineDesc.states.inputLayouts[1].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
-            pipelineDesc.states.inputLayouts[2].enabled = true;
-            pipelineDesc.states.inputLayouts[2].SetName("TEXCOORD");
-            pipelineDesc.states.inputLayouts[2].format = Renderer::InputFormat::INPUT_FORMAT_R32G32_FLOAT;
-            pipelineDesc.states.inputLayouts[2].inputClassification = Renderer::InputClassification::INPUT_CLASSIFICATION_PER_VERTEX;
-
-            // Depth state
-            pipelineDesc.states.depthStencilState.depthEnable = true;
-            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::COMPARISON_FUNC_EQUAL;
-
-            // Rasterizer state
-            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::CULL_MODE_BACK;
-            pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::FRONT_FACE_STATE_COUNTERCLOCKWISE;
-
-            // Render targets
-            pipelineDesc.renderTargets[0] = data.mainColor;
-
-            pipelineDesc.depthStencil = data.mainDepth;
-
-            // Clear mainColor TODO: This should be handled by the parameter in Setup, and it should definitely not act on ImageID and DepthImageID
-            commandList.Clear(_mainColor, Color(135.0f/255.0f, 206.0f/255.0f, 250.0f/255.0f, 1));
-            commandList.Clear(_objectIDs, Color(0.0f, 0.0f, 0.0f, 0.0f));
-
-            // Set pipeline
-            Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+            /*Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
             commandList.BeginPipeline(pipeline);
-
-            _drawDescriptorSet.Bind("_texture", _cubeTexture); // TODO: Actually select textures etc per draw
-
-            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, &_globalDescriptorSet, _frameIndex);
-            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, _frameIndex);
-
-           
-            commandList.EndPipeline(pipeline);
+            
+            commandList.EndPipeline(pipeline);*/
         });
     }
 
@@ -322,7 +225,7 @@ void ClientRenderer::Render()
     renderGraph.AddPass<PyramidPassData>("PyramidPass",
         [=](PyramidPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
-            data.mainDepth = builder.Read(_mainDepth, Renderer::RenderGraphBuilder::SHADER_STAGE_PIXEL);
+            data.mainDepth = builder.Read(_mainDepth, Renderer::RenderGraphBuilder::ShaderStage::PIXEL);
 
             return true; // Return true from setup to enable this pass, return false to disable it
         },
@@ -368,6 +271,10 @@ void ClientRenderer::Render()
     _frameIndex = !_frameIndex;
 }
 
+uvec2 ClientRenderer::GetRenderResolution()
+{
+    return _renderer->GetImageDimension(_mainColor);
+}
 
 void ClientRenderer::InitImgui()
 {
@@ -405,8 +312,8 @@ void ClientRenderer::CreatePermanentResources()
     mainColorDesc.debugName = "MainColor";
     mainColorDesc.dimensions = vec2(1.0f, 1.0f);
     mainColorDesc.dimensionType = Renderer::ImageDimensionType::DIMENSION_SCALE;
-    mainColorDesc.format = Renderer::IMAGE_FORMAT_R16G16B16A16_FLOAT;
-    mainColorDesc.sampleCount = Renderer::SAMPLE_COUNT_1;
+    mainColorDesc.format = Renderer::ImageFormat::R16G16B16A16_FLOAT;
+    mainColorDesc.sampleCount = Renderer::SampleCount::SAMPLE_COUNT_1;
 
     _mainColor = _renderer->CreateImage(mainColorDesc);
 
@@ -415,8 +322,8 @@ void ClientRenderer::CreatePermanentResources()
     objectIDsDesc.debugName = "ObjectIDs";
     objectIDsDesc.dimensions = vec2(1.0f, 1.0f);
     objectIDsDesc.dimensionType = Renderer::ImageDimensionType::DIMENSION_SCALE;
-    objectIDsDesc.format = Renderer::IMAGE_FORMAT_R32_UINT;
-    objectIDsDesc.sampleCount = Renderer::SAMPLE_COUNT_1;
+    objectIDsDesc.format = Renderer::ImageFormat::R32_UINT;
+    objectIDsDesc.sampleCount = Renderer::SampleCount::SAMPLE_COUNT_1;
 
     _objectIDs = _renderer->CreateImage(objectIDsDesc);
 
@@ -425,8 +332,8 @@ void ClientRenderer::CreatePermanentResources()
     pyramidDesc.debugName = "DepthPyramid";
     pyramidDesc.dimensions = vec2(1.0f, 1.0f);
     pyramidDesc.dimensionType = Renderer::ImageDimensionType::DIMENSION_PYRAMID;
-    pyramidDesc.format = Renderer::IMAGE_FORMAT_R32_FLOAT;
-    pyramidDesc.sampleCount = Renderer::SAMPLE_COUNT_1; 
+    pyramidDesc.format = Renderer::ImageFormat::R32_FLOAT;
+    pyramidDesc.sampleCount = Renderer::SampleCount::SAMPLE_COUNT_1;
     _depthPyramid = _renderer->CreateImage(pyramidDesc);
 
     // Main depth rendertarget
@@ -434,39 +341,16 @@ void ClientRenderer::CreatePermanentResources()
     mainDepthDesc.debugName = "MainDepth";
     mainDepthDesc.dimensions = vec2(1.0f, 1.0f);
     mainDepthDesc.dimensionType = Renderer::ImageDimensionType::DIMENSION_SCALE;
-    mainDepthDesc.format = Renderer::DEPTH_IMAGE_FORMAT_D32_FLOAT;
-    mainDepthDesc.sampleCount = Renderer::SAMPLE_COUNT_1;
+    mainDepthDesc.format = Renderer::DepthImageFormat::D32_FLOAT;
+    mainDepthDesc.sampleCount = Renderer::SampleCount::SAMPLE_COUNT_1;
 
     _mainDepth = _renderer->CreateDepthImage(mainDepthDesc);
 
-    // Cube model TODO: This is unnecessary once we have some kind of Scene abstraction
-    Renderer::ModelDesc modelDesc;
-    modelDesc.path = "Data/models/Cube.novusmodel";
-
-    _cubeModel = _renderer->LoadModel(modelDesc);
-
-    Renderer::TextureDesc textureDesc;
-    textureDesc.path = "Data/textures/debug.jpg";
-    
-    _cubeTexture = _renderer->LoadTexture(textureDesc);
-
-    // Sampler
-    Renderer::SamplerDesc samplerDesc;
-    samplerDesc.enabled = true;
-    samplerDesc.filter = Renderer::SamplerFilter::SAMPLER_FILTER_MIN_MAG_MIP_LINEAR;
-    samplerDesc.addressU = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc.addressV = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_WRAP;
-    samplerDesc.addressW = Renderer::TextureAddressMode::TEXTURE_ADDRESS_MODE_CLAMP;
-    samplerDesc.shaderVisibility = Renderer::ShaderVisibility::SHADER_VISIBILITY_PIXEL;
-
-    _linearSampler = _renderer->CreateSampler(samplerDesc);
-    _passDescriptorSet.Bind("_sampler"_h, _linearSampler);
-
     // View Constant Buffer (for camera data)
-    _viewConstantBuffer = new Renderer::Buffer<ViewConstantBuffer>(_renderer, "ViewConstantBuffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
+    _viewConstantBuffer = new Renderer::Buffer<ViewConstantBuffer>(_renderer, "ViewConstantBuffer", Renderer::BufferUsage::UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
     // Light Constant Buffer
-    _lightConstantBuffer = new Renderer::Buffer<LightConstantBuffer>(_renderer, "LightConstantBufffer", Renderer::BUFFER_USAGE_UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
+    _lightConstantBuffer = new Renderer::Buffer<LightConstantBuffer>(_renderer, "LightConstantBufffer", Renderer::BufferUsage::UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
     // Frame allocator, this is a fast allocator for data that is only needed this frame
     _frameAllocator = new Memory::StackAllocator(FRAME_ALLOCATOR_SIZE);

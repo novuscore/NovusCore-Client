@@ -1,69 +1,104 @@
 #include "CommandListHandlerVK.h"
-#include <Utils/DebugHandler.h>
-#include <cassert>
 #include "RenderDeviceVK.h"
-#include <tracy/Tracy.hpp>
+
+#include <queue>
+#include <vector>
+#include <cassert>
+#include <vulkan/vulkan.h>
+#include <Utils/DebugHandler.h>
 #include <tracy/TracyVulkan.hpp>
+#include <tracy/Tracy.hpp>
 
 namespace Renderer
 {
     namespace Backend
     {
+        struct CommandList
+        {
+            std::vector<VkSemaphore> waitSemaphores;
+            std::vector<VkSemaphore> signalSemaphores;
+
+            VkCommandBuffer commandBuffer;
+            VkCommandPool commandPool;
+
+            tracy::VkCtxManualScope* tracyScope = nullptr;
+
+            GraphicsPipelineID boundGraphicsPipeline = GraphicsPipelineID::Invalid();
+            ComputePipelineID boundComputePipeline = ComputePipelineID::Invalid();
+        };
+
+        struct CommandListHandlerVKData : ICommandListHandlerVKData
+        {
+            std::vector<CommandList> commandLists;
+            std::queue<CommandListID> availableCommandLists;
+
+            u8 frameIndex = 0;
+            FrameResource<std::queue<CommandListID>, 2> closedCommandLists;
+
+            FrameResource<VkFence, 2> frameFences;
+        };
+
         void CommandListHandlerVK::Init(RenderDeviceVK* device)
         {
             _device = device;
+
+            CommandListHandlerVKData* data = new CommandListHandlerVKData();
+            _data = data;
 
             VkFenceCreateInfo fenceInfo = {};
             fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
             fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-            for (u32 i = 0; i < _frameFences.Num; i++)
+            for (u32 i = 0; i < data->frameFences.Num; i++)
             {
-                vkCreateFence(_device->_device, &fenceInfo, nullptr, &_frameFences.Get(i));
+                vkCreateFence(_device->_device, &fenceInfo, nullptr, &data->frameFences.Get(i));
             }
         }
 
         void CommandListHandlerVK::FlipFrame()
         {
-            _frameIndex++;
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
 
-            if (_frameIndex >= _closedCommandLists.Num)
+            data.frameIndex++;
+
+            if (data.frameIndex >= data.closedCommandLists.Num)
             {
-                _frameIndex = 0;
+                data.frameIndex = 0;
             }
         }
 
         void CommandListHandlerVK::ResetCommandBuffers()
         {
-            using type = type_safe::underlying_type<CommandListID>;
-            std::queue<CommandListID>& closedCommandLists = _closedCommandLists.Get(_frameIndex);
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
+
+            std::queue<CommandListID>& closedCommandLists = data.closedCommandLists.Get(data.frameIndex);
 
             while (!closedCommandLists.empty())
             {
                 CommandListID commandListID = closedCommandLists.front();
                 closedCommandLists.pop();
 
-                CommandList& commandList = _commandLists[static_cast<type>(commandListID)];
+                CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(commandListID)];
 
                 // Reset commandlist
                 vkResetCommandPool(_device->_device, commandList.commandPool, 0);
 
                 // Push the commandlist into availableCommandLists
-                _availableCommandLists.push(commandListID);
+                data.availableCommandLists.push(commandListID);
             }
         }
 
         CommandListID CommandListHandlerVK::BeginCommandList()
         {
-            using type = type_safe::underlying_type<CommandListID>;
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
 
             CommandListID id;
-            if (!_availableCommandLists.empty())
+            if (!data.availableCommandLists.empty())
             {
-                id = _availableCommandLists.front();
-                _availableCommandLists.pop();
+                id = data.availableCommandLists.front();
+                data.availableCommandLists.pop();
 
-                CommandList& commandList = _commandLists[static_cast<type>(id)];
+                CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(id)];
 
                 VkCommandBufferBeginInfo beginInfo = {};
                 beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -72,7 +107,7 @@ namespace Renderer
 
                 if (vkBeginCommandBuffer(commandList.commandBuffer, &beginInfo) != VK_SUCCESS)
                 {
-                    NC_LOG_FATAL("Failed to begin recording command buffer!");
+                    DebugHandler::PrintFatal("Failed to begin recording command buffer!");
                 }
             }
             else
@@ -85,10 +120,11 @@ namespace Renderer
 
         void CommandListHandlerVK::EndCommandList(CommandListID id, VkFence fence)
         {
-            ZoneScopedC(tracy::Color::Red3)
+            ZoneScopedC(tracy::Color::Red3);
 
-            using type = type_safe::underlying_type<CommandListID>;
-            CommandList& commandList = _commandLists[static_cast<type>(id)];
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
+
+            CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(id)];
 
             {
                 ZoneScopedNC("Submit", tracy::Color::Red3)
@@ -96,7 +132,7 @@ namespace Renderer
                 // Close command list
                 if (vkEndCommandBuffer(commandList.commandBuffer) != VK_SUCCESS)
                 {
-                    NC_LOG_FATAL("Failed to record command buffer!");
+                    DebugHandler::PrintFatal("Failed to record command buffer!");
                 }
 
                 // Execute command list
@@ -127,105 +163,111 @@ namespace Renderer
             commandList.signalSemaphores.clear();
             commandList.boundGraphicsPipeline = GraphicsPipelineID::Invalid();
 
-            _closedCommandLists.Get(_frameIndex).push(id);
+            data.closedCommandLists.Get(data.frameIndex).push(id);
         }
 
         VkCommandBuffer CommandListHandlerVK::GetCommandBuffer(CommandListID id)
         {
-            using type = type_safe::underlying_type<CommandListID>;
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_commandLists.size() > static_cast<type>(id));
+            assert(data.commandLists.size() > static_cast<CommandListID::type>(id));
 
-            CommandList& commandList = _commandLists[static_cast<type>(id)];
+            CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(id)];
 
             return commandList.commandBuffer;
         }
 
         void CommandListHandlerVK::AddWaitSemaphore(CommandListID id, VkSemaphore semaphore)
         {
-            using type = type_safe::underlying_type<CommandListID>;
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_commandLists.size() > static_cast<type>(id));
+            assert(data.commandLists.size() > static_cast<CommandListID::type>(id));
 
-            CommandList& commandList = _commandLists[static_cast<type>(id)];
+            CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(id)];
 
             commandList.waitSemaphores.push_back(semaphore);
         }
 
         void CommandListHandlerVK::AddSignalSemaphore(CommandListID id, VkSemaphore semaphore)
         {
-            using type = type_safe::underlying_type<CommandListID>;
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_commandLists.size() > static_cast<type>(id));
+            assert(data.commandLists.size() > static_cast<CommandListID::type>(id));
 
-            CommandList& commandList = _commandLists[static_cast<type>(id)];
+            CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(id)];
 
             commandList.signalSemaphores.push_back(semaphore);
         }
 
         void CommandListHandlerVK::SetBoundGraphicsPipeline(CommandListID id, GraphicsPipelineID pipelineID)
         {
-            using type = type_safe::underlying_type<CommandListID>;
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_commandLists.size() > static_cast<type>(id));
+            assert(data.commandLists.size() > static_cast<CommandListID::type>(id));
 
-            CommandList& commandList = _commandLists[static_cast<type>(id)];
+            CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(id)];
 
             commandList.boundGraphicsPipeline = pipelineID;
         }
 
         void CommandListHandlerVK::SetBoundComputePipeline(CommandListID id, ComputePipelineID pipelineID)
         {
-            // Lets make sure this id exists
-            assert(_commandLists.size() > static_cast<CommandListID::type>(id));
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
 
-            CommandList& commandList = _commandLists[static_cast<CommandListID::type>(id)];
+            // Lets make sure this id exists
+            assert(data.commandLists.size() > static_cast<CommandListID::type>(id));
+
+            CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(id)];
 
             commandList.boundComputePipeline = pipelineID;
         }
 
         GraphicsPipelineID CommandListHandlerVK::GetBoundGraphicsPipeline(CommandListID id)
         {
-            using type = type_safe::underlying_type<CommandListID>;
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_commandLists.size() > static_cast<type>(id));
+            assert(data.commandLists.size() > static_cast<CommandListID::type>(id));
 
-            return _commandLists[static_cast<type>(id)].boundGraphicsPipeline;
+            return data.commandLists[static_cast<CommandListID::type>(id)].boundGraphicsPipeline;
         }
 
         ComputePipelineID CommandListHandlerVK::GetBoundComputePipeline(CommandListID id)
         {
-            // Lets make sure this id exists
-            assert(_commandLists.size() > static_cast<CommandListID::type>(id));
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
 
-            return _commandLists[static_cast<CommandListID::type>(id)].boundComputePipeline;
+            // Lets make sure this id exists
+            assert(data.commandLists.size() > static_cast<CommandListID::type>(id));
+
+            return data.commandLists[static_cast<CommandListID::type>(id)].boundComputePipeline;
         }
 
         tracy::VkCtxManualScope*& CommandListHandlerVK::GetTracyScope(CommandListID id)
         {
-            using type = type_safe::underlying_type<CommandListID>;
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(_commandLists.size() > static_cast<type>(id));
+            assert(data.commandLists.size() > static_cast<CommandListID::type>(id));
 
-            return _commandLists[static_cast<type>(id)].tracyScope;
+            return data.commandLists[static_cast<CommandListID::type>(id)].tracyScope;
         }
 
         VkFence CommandListHandlerVK::GetCurrentFence()
         {
-            return _frameFences.Get(_frameIndex);
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
+            return data.frameFences.Get(data.frameIndex);
         }
 
         CommandListID CommandListHandlerVK::CreateCommandList()
         {
-            size_t id = _commandLists.size();
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
+
+            size_t id = data.commandLists.size();
             assert(id < CommandListID::MaxValue());
-            using type = type_safe::underlying_type<CommandListID>;
 
             CommandList commandList;
 
@@ -239,7 +281,7 @@ namespace Renderer
 
             if (vkCreateCommandPool(_device->_device, &poolInfo, nullptr, &commandList.commandPool) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to create command pool!");
+                DebugHandler::PrintFatal("Failed to create command pool!");
             }
 
             // Create commandlist
@@ -251,7 +293,7 @@ namespace Renderer
 
             if (vkAllocateCommandBuffers(_device->_device, &allocInfo, &commandList.commandBuffer) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to allocate command buffers!");
+                DebugHandler::PrintFatal("Failed to allocate command buffers!");
             }
 
             // Open commandlist
@@ -262,12 +304,12 @@ namespace Renderer
 
             if (vkBeginCommandBuffer(commandList.commandBuffer, &beginInfo) != VK_SUCCESS)
             {
-                NC_LOG_FATAL("Failed to begin recording command buffer!");
+                DebugHandler::PrintFatal("Failed to begin recording command buffer!");
             }
 
-            _commandLists.push_back(commandList);
+            data.commandLists.push_back(commandList);
 
-            return CommandListID(static_cast<type>(id));
+            return CommandListID(static_cast<CommandListID::type>(id));
         }
     }
 }

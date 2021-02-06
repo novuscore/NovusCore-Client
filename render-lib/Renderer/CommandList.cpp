@@ -1,13 +1,10 @@
 #pragma once
 #include "CommandList.h"
 #include "Renderer.h"
-#include <tracy/Tracy.hpp>
 
 // Commands
 #include "Commands/Clear.h"
 #include "Commands/Draw.h"
-#include "Commands/DrawBindless.h"
-#include "Commands/DrawIndexedBindless.h"
 #include "Commands/DrawIndexed.h"
 #include "Commands/DrawIndexedIndirect.h"
 #include "Commands/DrawIndexedIndirectCount.h"
@@ -31,11 +28,29 @@
 #include "Commands/FillBuffer.h"
 #include "Commands/PipelineBarrier.h"
 #include "Commands/ImageBarrier.h"
+#include "Commands/DepthImageBarrier.h"
 #include "Commands/DrawImgui.h"
 #include "Commands/PushConstant.h"
 
 namespace Renderer
 {
+    class ScopedMarker
+    {
+    public:
+        ScopedMarker(CommandList& commandList, std::string marker, const Color& color)
+            : _commandList(commandList)
+        {
+            _commandList.PushMarker(marker, color);
+        }
+        ~ScopedMarker()
+        {
+            _commandList.PopMarker();
+        }
+
+    private:
+        CommandList& _commandList;
+    };
+
     ScopedGPUProfilerZone::ScopedGPUProfilerZone(CommandList& commandList, const tracy::SourceLocationData* sourceLocation)
         : _commandList(commandList)
     {
@@ -279,34 +294,6 @@ namespace Renderer
 #endif
     }
 
-    void CommandList::DrawBindless(u32 numVertices, u32 numInstances)
-    {
-        assert(numVertices > 0);
-        assert(numInstances > 0);
-        Commands::DrawBindless* command = AddCommand<Commands::DrawBindless>();
-        command->numVertices = numVertices;
-        command->numInstances = numInstances;
-
-#if COMMANDLIST_DEBUG_IMMEDIATE_MODE
-        Commands::DrawBindless::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
-#endif
-    }
-
-    void CommandList::DrawIndexedBindless(ModelID modelID, u32 numVertices, u32 numInstances)
-    {
-        assert(modelID != ModelID::Invalid());
-        assert(numVertices > 0);
-        assert(numInstances > 0);
-        Commands::DrawIndexedBindless* command = AddCommand<Commands::DrawIndexedBindless>();
-        command->modelID = modelID;
-        command->numVertices = numVertices;
-        command->numInstances = numInstances;
-
-#if COMMANDLIST_DEBUG_IMMEDIATE_MODE
-        Commands::DrawIndexedBindless::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
-#endif
-    }
-
     void CommandList::Draw(u32 numVertices, u32 numInstances, u32 vertexOffset, u32 instanceOffset)
     {
         Commands::Draw* command = AddCommand<Commands::Draw>();
@@ -460,6 +447,17 @@ namespace Renderer
 
 #if COMMANDLIST_DEBUG_IMMEDIATE_MODE
         Commands::ImageBarrier::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
+#endif
+    }
+
+    void CommandList::ImageBarrier(DepthImageID image)
+    {
+        assert(image != DepthImageID::Invalid());
+        Commands::DepthImageBarrier* command = AddCommand<Commands::DepthImageBarrier>();
+        command->image = image;
+
+#if COMMANDLIST_DEBUG_IMMEDIATE_MODE
+        Commands::DepthImageBarrier::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
 #endif
     }
 

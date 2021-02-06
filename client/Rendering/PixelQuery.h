@@ -1,5 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
+#include <robin_hood.h>
 #include <random>
 #include <set>
 

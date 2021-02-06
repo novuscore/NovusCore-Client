@@ -1,6 +1,10 @@
 #pragma once
 #include <NovusTypes.h>
-#include "../Renderer/Swapchain.h"
+
+namespace Renderer
+{
+    struct SwapChain;
+}
 
 struct GLFWwindow;
 class Window

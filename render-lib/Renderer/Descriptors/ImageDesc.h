@@ -14,8 +14,8 @@ namespace Renderer
 
         u32 depth = 1;
         u32 mipLevels = 1;
-        ImageFormat format = IMAGE_FORMAT_UNKNOWN;
-        SampleCount sampleCount = SAMPLE_COUNT_1;
+        ImageFormat format = ImageFormat::UNKNOWN;
+        SampleCount sampleCount = SampleCount::SAMPLE_COUNT_1;
         Color clearColor = Color::Clear;
     };
 

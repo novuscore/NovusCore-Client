@@ -1,10 +1,12 @@
 #pragma once
-#include "../../../Descriptors/GraphicsPipelineDesc.h"
-#include "../../../Descriptors/ComputePipelineDesc.h"
+#include <NovusTypes.h>
 #include <vector>
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
+
 #include "DescriptorAllocatorVK.h"
 #include "ShaderHandlerVK.h"
+#include "../../../Descriptors/GraphicsPipelineDesc.h"
+#include "../../../Descriptors/ComputePipelineDesc.h"
 
 namespace Renderer
 {

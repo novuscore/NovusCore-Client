@@ -1,7 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include <vector>
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 #include "../../../Descriptors/GPUSemaphoreDesc.h"
 
@@ -16,6 +15,8 @@ namespace Renderer
     namespace Backend
     {
         class RenderDeviceVK;
+
+        struct ISemaphoreHandlerVKData {};
 
         class SemaphoreHandlerVK
         {
@@ -34,7 +35,7 @@ namespace Renderer
         private:
             RenderDeviceVK* _device;
 
-            std::vector<VkSemaphore> _semaphores;
+            ISemaphoreHandlerVKData* _data;
         };
     }
 }

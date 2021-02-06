@@ -1,26 +1,25 @@
 #pragma once
 #include <NovusTypes.h>
 #include <Utils/DebugHandler.h>
-#include <cassert>
 
 namespace Renderer
 {
     static const int MAX_RENDER_TARGETS = 8;
 
-    enum FillMode
+    enum class FillMode
     {
-        FILL_MODE_SOLID,
-        FILL_MODE_WIREFRAME
+        SOLID,
+        WIREFRAME
     };
 
-    enum CullMode
+    enum class CullMode
     {
-        CULL_MODE_NONE,
-        CULL_MODE_FRONT,
-        CULL_MODE_BACK
+        NONE,
+        FRONT,
+        BACK
     };
 
-    enum SampleCount
+    enum class SampleCount
     {
         SAMPLE_COUNT_1,
         SAMPLE_COUNT_2,
@@ -32,32 +31,32 @@ namespace Renderer
     {
         switch (sampleCount)
         {
-            case SAMPLE_COUNT_1: return 1;
-            case SAMPLE_COUNT_2: return 2;
-            case SAMPLE_COUNT_4: return 4;
-            case SAMPLE_COUNT_8: return 8;
+            case SampleCount::SAMPLE_COUNT_1: return 1;
+            case SampleCount::SAMPLE_COUNT_2: return 2;
+            case SampleCount::SAMPLE_COUNT_4: return 4;
+            case SampleCount::SAMPLE_COUNT_8: return 8;
             default:
-                assert(false); // Invalid sample count, did we just add to the enum?
+                DebugHandler::PrintFatal("Invalid sample count, did we just add to the enum?");
         }
         return 0;
     }
 
-    enum FrontFaceState
+    enum class FrontFaceState
     {
-        FRONT_FACE_STATE_CLOCKWISE,
-        FRONT_FACE_STATE_COUNTERCLOCKWISE
+        CLOCKWISE,
+        COUNTERCLOCKWISE
     };
 
     struct RasterizerState
     {
-        FillMode fillMode = FILL_MODE_SOLID;
-        CullMode cullMode = CULL_MODE_BACK;
-        FrontFaceState frontFaceMode = FRONT_FACE_STATE_CLOCKWISE;
+        FillMode fillMode = FillMode::SOLID;
+        CullMode cullMode = CullMode::BACK;
+        FrontFaceState frontFaceMode = FrontFaceState::CLOCKWISE;
         bool depthBiasEnabled = false;
         i32 depthBias = 0;
         f32 depthBiasClamp = 0.0f;
         f32 depthBiasSlopeFactor = 0.0f;
-        SampleCount sampleCount = SAMPLE_COUNT_1;
+        SampleCount sampleCount = SampleCount::SAMPLE_COUNT_1;
     };
 
     enum class PrimitiveTopology
@@ -68,54 +67,54 @@ namespace Renderer
         LineStrip,
     };
 
-    enum BlendMode
+    enum class BlendMode
     {
-        BLEND_MODE_ZERO,
-        BLEND_MODE_ONE,
-        BLEND_MODE_SRC_COLOR,
-        BLEND_MODE_INV_SRC_COLOR,
-        BLEND_MODE_SRC_ALPHA,
-        BLEND_MODE_INV_SRC_ALPHA,
-        BLEND_MODE_DEST_ALPHA,
-        BLEND_MODE_INV_DEST_ALPHA,
-        BLEND_MODE_DEST_COLOR,
-        BLEND_MODE_INV_DEST_COLOR,
-        BLEND_MODE_SRC_ALPHA_SAT,
-        BLEND_MODE_BLEND_FACTOR,
-        BLEND_MODE_INV_BLEND_FACTOR,
-        BLEND_MODE_SRC1_COLOR,
-        BLEND_MODE_INV_SRC1_COLOR,
-        BLEND_MODE_SRC1_ALPHA,
-        BLEND_MODE_INV_SRC1_ALPHA
+        ZERO,
+        ONE,
+        SRC_COLOR,
+        INV_SRC_COLOR,
+        SRC_ALPHA,
+        INV_SRC_ALPHA,
+        DEST_ALPHA,
+        INV_DEST_ALPHA,
+        DEST_COLOR,
+        INV_DEST_COLOR,
+        SRC_ALPHA_SAT,
+        BLEND_FACTOR,
+        INV_BLEND_FACTOR,
+        SRC1_COLOR,
+        INV_SRC1_COLOR,
+        SRC1_ALPHA,
+        INV_SRC1_ALPHA
     };
 
-    enum BlendOp
+    enum class BlendOp
     {
-        BLEND_OP_ADD,
-        BLEND_OP_SUBTRACT,
-        BLEND_OP_REV_SUBTRACT,
-        BLEND_OP_MIN,
-        BLEND_OP_MAX
+        ADD,
+        SUBTRACT,
+        REV_SUBTRACT,
+        MIN,
+        MAX
     };
 
-    enum LogicOp
+    enum class LogicOp
     {
-        LOGIC_OP_CLEAR,
-        LOGIC_OP_SET,
-        LOGIC_OP_COPY,
-        LOGIC_OP_COPY_INVERTED,
-        LOGIC_OP_NOOP,
-        LOGIC_OP_INVERT,
-        LOGIC_OP_AND,
-        LOGIC_OP_NAND,
-        LOGIC_OP_OR,
-        LOGIC_OP_NOR,
-        LOGIC_OP_XOR,
-        LOGIC_OP_EQUIV,
-        LOGIC_OP_AND_REVERSE,
-        LOGIC_OP_AND_INVERTED,
-        LOGIC_OP_OR_REVERSE,
-        LOGIC_OP_OR_INVERTED
+        CLEAR,
+        SET,
+        COPY,
+        COPY_INVERTED,
+        NOOP,
+        INVERT,
+        AND,
+        NAND,
+        OR,
+        NOR,
+        XOR,
+        EQUIV,
+        AND_REVERSE,
+        AND_INVERTED,
+        OR_REVERSE,
+        OR_INVERTED
     };
 
     enum ColorWriteEnable
@@ -132,16 +131,16 @@ namespace Renderer
         bool blendEnable = false;
         bool logicOpEnable = false;
 
-        BlendMode srcBlend = BLEND_MODE_ONE;
-        BlendMode destBlend = BLEND_MODE_ZERO;
-        BlendOp blendOp = BLEND_OP_ADD;
+        BlendMode srcBlend = BlendMode::ONE;
+        BlendMode destBlend = BlendMode::ZERO;
+        BlendOp blendOp = BlendOp::ADD;
 
-        BlendMode srcBlendAlpha = BLEND_MODE_ONE;
-        BlendMode destBlendAlpha = BLEND_MODE_ZERO;
-        BlendOp blendOpAlpha = BLEND_OP_ADD;
+        BlendMode srcBlendAlpha = BlendMode::ONE;
+        BlendMode destBlendAlpha = BlendMode::ZERO;
+        BlendOp blendOpAlpha = BlendOp::ADD;
 
-        LogicOp logicOp = LOGIC_OP_NOOP;
-        u8 renderTargetWriteMask = COLOR_WRITE_ENABLE_ALL;
+        LogicOp logicOp = LogicOp::NOOP;
+        u8 renderTargetWriteMask = ColorWriteEnable::COLOR_WRITE_ENABLE_ALL;
     };
 
     struct BlendState
@@ -151,43 +150,43 @@ namespace Renderer
         RTBlendState renderTargets[MAX_RENDER_TARGETS];
     };
 
-    enum ComparisonFunc
+    enum class ComparisonFunc
     {
-        COMPARISON_FUNC_NEVER,
-        COMPARISON_FUNC_LESS,
-        COMPARISON_FUNC_EQUAL,
-        COMPARISON_FUNC_LESS_EQUAL,
-        COMPARISON_FUNC_GREATER,
-        COMPARISON_FUNC_NOT_EQUAL,
-        COMPARISON_FUNC_GREATER_EQUAL,
-        COMPARISON_FUNC_ALWAYS
+       NEVER,
+       LESS,
+       EQUAL,
+       LESS_EQUAL,
+       GREATER,
+       NOT_EQUAL,
+       GREATER_EQUAL,
+       ALWAYS
     };
 
-    enum StencilOp
+    enum class StencilOp
     {
-        STENCIL_OP_KEEP,
-        STENCIL_OP_ZERO,
-        STENCIL_OP_REPLACE,
-        STENCIL_OP_INCR_SAT,
-        STENCIL_OP_DECR_SAT,
-        STENCIL_OP_INVERT,
-        STENCIL_OP_INCR,
-        STENCIL_OP_DECR
+        KEEP,
+        ZERO,
+        REPLACE,
+        INCR_SAT,
+        DECR_SAT,
+        INVERT,
+        INCR,
+        DECR
     };
 
     struct DepthStencilOpDesc
     {
-        StencilOp stencilFailOp = STENCIL_OP_KEEP;
-        StencilOp stencilDepthFailOp = STENCIL_OP_KEEP;
-        StencilOp stencilPassOp = STENCIL_OP_KEEP;
-        ComparisonFunc stencilFunc = COMPARISON_FUNC_ALWAYS;
+        StencilOp stencilFailOp = StencilOp::KEEP;
+        StencilOp stencilDepthFailOp = StencilOp::KEEP;
+        StencilOp stencilPassOp = StencilOp::KEEP;
+        ComparisonFunc stencilFunc = ComparisonFunc::ALWAYS;
     };
 
     struct DepthStencilState
     {
         bool depthEnable = false;
         bool depthWriteEnable = false;
-        ComparisonFunc depthFunc = COMPARISON_FUNC_LESS;
+        ComparisonFunc depthFunc = ComparisonFunc::LESS;
         bool stencilEnable = false;
         u8 stencilReadMask = 255;
         u8 stencilWriteMask = 255;
@@ -195,63 +194,61 @@ namespace Renderer
         DepthStencilOpDesc backFace;
     };
 
-    enum ShaderVisibility
+    enum class ShaderVisibility
     {
-        SHADER_VISIBILITY_ALL,
-        SHADER_VISIBILITY_VERTEX,
-        SHADER_VISIBILITY_HULL,
-        SHADER_VISIBILITY_DOMAIN,
-        SHADER_VISIBILITY_GEOMETRY,
-        SHADER_VISIBILITY_PIXEL
+        ALL,
+        VERTEX,
+        GEOMETRY,
+        PIXEL
     };
 
     struct ConstantBufferState
     {
         bool enabled = false;
-        ShaderVisibility shaderVisibility = SHADER_VISIBILITY_ALL;
+        ShaderVisibility shaderVisibility = ShaderVisibility::ALL;
     };
 
-    enum InputFormat
+    enum class InputFormat
     {
-        INPUT_FORMAT_UNKNOWN,
+        UNKNOWN,
         // 32 bit per component
-        INPUT_FORMAT_R32G32B32A32_FLOAT,
-        INPUT_FORMAT_R32G32B32A32_UINT,
-        INPUT_FORMAT_R32G32B32A32_SINT,
-        INPUT_FORMAT_R32G32B32_FLOAT,
-        INPUT_FORMAT_R32G32B32_UINT,
-        INPUT_FORMAT_R32G32B32_SINT,
-        INPUT_FORMAT_R32G32_FLOAT,
-        INPUT_FORMAT_R32G32_UINT,
-        INPUT_FORMAT_R32G32_SINT,
-        INPUT_FORMAT_R32_FLOAT,
-        INPUT_FORMAT_R32_UINT,
-        INPUT_FORMAT_R32_SINT,
+        R32G32B32A32_FLOAT,
+        R32G32B32A32_UINT,
+        R32G32B32A32_SINT,
+        R32G32B32_FLOAT,
+        R32G32B32_UINT,
+        R32G32B32_SINT,
+        R32G32_FLOAT,
+        R32G32_UINT,
+        R32G32_SINT,
+        R32_FLOAT,
+        R32_UINT,
+        R32_SINT,
         // 16 bit per component
-        INPUT_FORMAT_R16G16B16A16_FLOAT,
-        INPUT_FORMAT_R16G16B16A16_UINT,
-        INPUT_FORMAT_R16G16B16A16_SINT,
-        INPUT_FORMAT_R16G16_FLOAT,
-        INPUT_FORMAT_R16G16_UINT,
-        INPUT_FORMAT_R16G16_SINT,
-        INPUT_FORMAT_R16_FLOAT,
-        INPUT_FORMAT_R16_UINT,
-        INPUT_FORMAT_R16_SINT,
+        R16G16B16A16_FLOAT,
+        R16G16B16A16_UINT,
+        R16G16B16A16_SINT,
+        R16G16_FLOAT,
+        R16G16_UINT,
+        R16G16_SINT,
+        R16_FLOAT,
+        R16_UINT,
+        R16_SINT,
         // 8 bit per component
-        INPUT_FORMAT_R8G8B8A8_UNORM,
-        INPUT_FORMAT_R8G8B8A8_UINT,
-        INPUT_FORMAT_R8G8B8A8_SINT,
-        INPUT_FORMAT_R8G8_UINT,
-        INPUT_FORMAT_R8G8_SINT,
-        INPUT_FORMAT_R8_UINT,
-        INPUT_FORMAT_R8_SINT,
+        R8G8B8A8_UNORM,
+        R8G8B8A8_UINT,
+        R8G8B8A8_SINT,
+        R8G8_UINT,
+        R8G8_SINT,
+        R8_UINT,
+        R8_SINT,
 
     };
 
-    enum InputClassification
+    enum class InputClassification
     {
-        INPUT_CLASSIFICATION_PER_VERTEX,
-        INPUT_CLASSIFICATION_PER_INSTANCE
+        PER_VERTEX,
+        PER_INSTANCE
     };
 
     constexpr int INPUT_LAYOUT_NAME_MAX_LENGTH = 16;
@@ -259,10 +256,10 @@ namespace Renderer
     {
         bool enabled = false;
         u32 index = 0;
-        InputFormat format = INPUT_FORMAT_UNKNOWN;
+        InputFormat format = InputFormat::UNKNOWN;
         u32 slot = 0;
         u32 alignedByteOffset = 0;
-        InputClassification inputClassification = INPUT_CLASSIFICATION_PER_VERTEX;
+        InputClassification inputClassification = InputClassification::PER_VERTEX;
         u32 instanceDataStepRate = 0;
 
         const char* GetName() const
@@ -280,11 +277,11 @@ namespace Renderer
         char _name[INPUT_LAYOUT_NAME_MAX_LENGTH] = {};
     };
 
-    enum DepthClearFlags
+    enum class DepthClearFlags
     {
-        DEPTH_CLEAR_DEPTH,
-        DEPTH_CLEAR_STENCIL,
-        DEPTH_CLEAR_BOTH
+        DEPTH,
+        STENCIL,
+        BOTH
     };
 
     struct Viewport
@@ -305,205 +302,205 @@ namespace Renderer
         i32 bottom;
     };
 
-    enum SamplerFilter
+    enum class SamplerFilter
     {
-        SAMPLER_FILTER_MIN_MAG_MIP_POINT,
-        SAMPLER_FILTER_MIN_MAG_POINT_MIP_LINEAR,
-        SAMPLER_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT,
-        SAMPLER_FILTER_MIN_POINT_MAG_MIP_LINEAR,
-        SAMPLER_FILTER_MIN_LINEAR_MAG_MIP_POINT,
-        SAMPLER_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
-        SAMPLER_FILTER_MIN_MAG_LINEAR_MIP_POINT,
-        SAMPLER_FILTER_MIN_MAG_MIP_LINEAR,
-        SAMPLER_FILTER_ANISOTROPIC,
-        SAMPLER_FILTER_COMPARISON_MIN_MAG_MIP_POINT,
-        SAMPLER_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR,
-        SAMPLER_FILTER_COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT,
-        SAMPLER_FILTER_COMPARISON_MIN_POINT_MAG_MIP_LINEAR,
-        SAMPLER_FILTER_COMPARISON_MIN_LINEAR_MAG_MIP_POINT,
-        SAMPLER_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
-        SAMPLER_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
-        SAMPLER_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR,
-        SAMPLER_FILTER_COMPARISON_ANISOTROPIC,
-        SAMPLER_FILTER_MINIMUM_MIN_MAG_MIP_POINT,
-        SAMPLER_FILTER_MINIMUM_MIN_MAG_POINT_MIP_LINEAR,
-        SAMPLER_FILTER_MINIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT,
-        SAMPLER_FILTER_MINIMUM_MIN_POINT_MAG_MIP_LINEAR,
-        SAMPLER_FILTER_MINIMUM_MIN_LINEAR_MAG_MIP_POINT,
-        SAMPLER_FILTER_MINIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
-        SAMPLER_FILTER_MINIMUM_MIN_MAG_LINEAR_MIP_POINT,
-        SAMPLER_FILTER_MINIMUM_MIN_MAG_MIP_LINEAR,
-        SAMPLER_FILTER_MINIMUM_ANISOTROPIC,
-        SAMPLER_FILTER_MAXIMUM_MIN_MAG_MIP_POINT,
-        SAMPLER_FILTER_MAXIMUM_MIN_MAG_POINT_MIP_LINEAR,
-        SAMPLER_FILTER_MAXIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT,
-        SAMPLER_FILTER_MAXIMUM_MIN_POINT_MAG_MIP_LINEAR,
-        SAMPLER_FILTER_MAXIMUM_MIN_LINEAR_MAG_MIP_POINT,
-        SAMPLER_FILTER_MAXIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
-        SAMPLER_FILTER_MAXIMUM_MIN_MAG_LINEAR_MIP_POINT,
-        SAMPLER_FILTER_MAXIMUM_MIN_MAG_MIP_LINEAR,
-        SAMPLER_FILTER_MAXIMUM_ANISOTROPIC
+        MIN_MAG_MIP_POINT,
+        MIN_MAG_POINT_MIP_LINEAR,
+        MIN_POINT_MAG_LINEAR_MIP_POINT,
+        MIN_POINT_MAG_MIP_LINEAR,
+        MIN_LINEAR_MAG_MIP_POINT,
+        MIN_LINEAR_MAG_POINT_MIP_LINEAR,
+        MIN_MAG_LINEAR_MIP_POINT,
+        MIN_MAG_MIP_LINEAR,
+        ANISOTROPIC,
+        COMPARISON_MIN_MAG_MIP_POINT,
+        COMPARISON_MIN_MAG_POINT_MIP_LINEAR,
+        COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT,
+        COMPARISON_MIN_POINT_MAG_MIP_LINEAR,
+        COMPARISON_MIN_LINEAR_MAG_MIP_POINT,
+        COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
+        COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+        COMPARISON_MIN_MAG_MIP_LINEAR,
+        COMPARISON_ANISOTROPIC,
+        MINIMUM_MIN_MAG_MIP_POINT,
+        MINIMUM_MIN_MAG_POINT_MIP_LINEAR,
+        MINIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT,
+        MINIMUM_MIN_POINT_MAG_MIP_LINEAR,
+        MINIMUM_MIN_LINEAR_MAG_MIP_POINT,
+        MINIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
+        MINIMUM_MIN_MAG_LINEAR_MIP_POINT,
+        MINIMUM_MIN_MAG_MIP_LINEAR,
+        MINIMUM_ANISOTROPIC,
+        MAXIMUM_MIN_MAG_MIP_POINT,
+        MAXIMUM_MIN_MAG_POINT_MIP_LINEAR,
+        MAXIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT,
+        MAXIMUM_MIN_POINT_MAG_MIP_LINEAR,
+        MAXIMUM_MIN_LINEAR_MAG_MIP_POINT,
+        MAXIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
+        MAXIMUM_MIN_MAG_LINEAR_MIP_POINT,
+        MAXIMUM_MIN_MAG_MIP_LINEAR,
+        MAXIMUM_ANISOTROPIC
     };
 
-    enum TextureAddressMode
+    enum class TextureAddressMode
     {
-        TEXTURE_ADDRESS_MODE_WRAP,
-        TEXTURE_ADDRESS_MODE_MIRROR,
-        TEXTURE_ADDRESS_MODE_CLAMP,
-        TEXTURE_ADDRESS_MODE_BORDER,
-        TEXTURE_ADDRESS_MODE_MIRROR_ONCE
+        WRAP,
+        MIRROR,
+        CLAMP,
+        BORDER,
+        MIRROR_ONCE
     };
 
-    enum SamplerReductionMode
+    enum class SamplerReductionMode
     {
-        SAMPLER_REDUCTION_NONE,
-        SAMPLER_REDUCTION_MAX,
-        SAMPLER_REDUCTION_MIN
+        NONE,
+        MAX,
+        MIN
     };
 
-    enum StaticBorderColor
+    enum class StaticBorderColor
     {
-        STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
-        STATIC_BORDER_COLOR_OPAQUE_BLACK,
-        STATIC_BORDER_COLOR_OPAQUE_WHITE
+        TRANSPARENT_BLACK,
+        OPAQUE_BLACK,
+        OPAQUE_WHITE
     };
 
     struct Sampler
     {
         bool enabled = false;
-        SamplerFilter filter = SAMPLER_FILTER_MIN_MAG_MIP_POINT;
-        TextureAddressMode addressU = TEXTURE_ADDRESS_MODE_CLAMP;
-        TextureAddressMode addressV = TEXTURE_ADDRESS_MODE_CLAMP;
-        TextureAddressMode addressW = TEXTURE_ADDRESS_MODE_CLAMP;
-        SamplerReductionMode mode = SAMPLER_REDUCTION_NONE;
+        SamplerFilter filter = SamplerFilter::MIN_MAG_MIP_POINT;
+        TextureAddressMode addressU = TextureAddressMode::CLAMP;
+        TextureAddressMode addressV = TextureAddressMode::CLAMP;
+        TextureAddressMode addressW = TextureAddressMode::CLAMP;
+        SamplerReductionMode mode = SamplerReductionMode::NONE;
         f32 mipLODBias = 0.0f;
         u32 maxAnisotropy = 0;
-        ComparisonFunc comparisonFunc = COMPARISON_FUNC_NEVER;
-        StaticBorderColor borderColor = STATIC_BORDER_COLOR_OPAQUE_BLACK;
+        ComparisonFunc comparisonFunc = ComparisonFunc::NEVER;
+        StaticBorderColor borderColor = StaticBorderColor::OPAQUE_BLACK;
         f32 minLOD = 0.0f;
         f32 maxLOD = std::numeric_limits<f32>::max();
-        ShaderVisibility shaderVisibility = SHADER_VISIBILITY_PIXEL;
+        ShaderVisibility shaderVisibility = ShaderVisibility::PIXEL;
         bool unnormalizedCoordinates = false;
     };
 
-    enum ImageFormat
+    enum class ImageFormat
     {
-        IMAGE_FORMAT_UNKNOWN,
-        IMAGE_FORMAT_R32G32B32A32_FLOAT,
-        IMAGE_FORMAT_R32G32B32A32_UINT,
-        IMAGE_FORMAT_R32G32B32A32_SINT,
-        IMAGE_FORMAT_R32G32B32_FLOAT,
-        IMAGE_FORMAT_R32G32B32_UINT,
-        IMAGE_FORMAT_R32G32B32_SINT,
-        IMAGE_FORMAT_R16G16B16A16_FLOAT,
-        IMAGE_FORMAT_R16G16B16A16_UNORM,
-        IMAGE_FORMAT_R16G16B16A16_UINT,
-        IMAGE_FORMAT_R16G16B16A16_SNORM,
-        IMAGE_FORMAT_R16G16B16A16_SINT,
-        IMAGE_FORMAT_R32G32_FLOAT,
-        IMAGE_FORMAT_R32G32_UINT,
-        IMAGE_FORMAT_R32G32_SINT,
-        IMAGE_FORMAT_R10G10B10A2_UNORM,
-        IMAGE_FORMAT_R10G10B10A2_UINT,
-        IMAGE_FORMAT_R11G11B10_FLOAT,
-        IMAGE_FORMAT_R8G8B8A8_UNORM,
-        IMAGE_FORMAT_R8G8B8A8_UNORM_SRGB,
-        IMAGE_FORMAT_R8G8B8A8_UINT,
-        IMAGE_FORMAT_R8G8B8A8_SNORM,
-        IMAGE_FORMAT_R8G8B8A8_SINT,
+        UNKNOWN,
+        R32G32B32A32_FLOAT,
+        R32G32B32A32_UINT,
+        R32G32B32A32_SINT,
+        R32G32B32_FLOAT,
+        R32G32B32_UINT,
+        R32G32B32_SINT,
+        R16G16B16A16_FLOAT,
+        R16G16B16A16_UNORM,
+        R16G16B16A16_UINT,
+        R16G16B16A16_SNORM,
+        R16G16B16A16_SINT,
+        R32G32_FLOAT,
+        R32G32_UINT,
+        R32G32_SINT,
+        R10G10B10A2_UNORM,
+        R10G10B10A2_UINT,
+        R11G11B10_FLOAT,
+        R8G8B8A8_UNORM,
+        R8G8B8A8_UNORM_SRGB,
+        R8G8B8A8_UINT,
+        R8G8B8A8_SNORM,
+        R8G8B8A8_SINT,
 
-        IMAGE_FORMAT_B8G8R8A8_UNORM,
-        IMAGE_FORMAT_B8G8R8A8_UNORM_SRGB,
-        IMAGE_FORMAT_B8G8R8A8_SNORM,
-        IMAGE_FORMAT_B8G8R8A8_UINT,
-        IMAGE_FORMAT_B8G8R8A8_SINT,
+        B8G8R8A8_UNORM,
+        B8G8R8A8_UNORM_SRGB,
+        B8G8R8A8_SNORM,
+        B8G8R8A8_UINT,
+        B8G8R8A8_SINT,
 
-        IMAGE_FORMAT_R16G16_FLOAT,
-        IMAGE_FORMAT_R16G16_UNORM,
-        IMAGE_FORMAT_R16G16_UINT,
-        IMAGE_FORMAT_R16G16_SNORM,
-        IMAGE_FORMAT_R16G16_SINT,
-        IMAGE_FORMAT_R32_FLOAT,
-        IMAGE_FORMAT_R32_UINT,
-        IMAGE_FORMAT_R32_SINT,
-        IMAGE_FORMAT_R8G8_UNORM,
-        IMAGE_FORMAT_R8G8_UINT,
-        IMAGE_FORMAT_R8G8_SNORM,
-        IMAGE_FORMAT_R8G8_SINT,
-        IMAGE_FORMAT_R16_FLOAT,
-        IMAGE_FORMAT_D16_UNORM,
-        IMAGE_FORMAT_R16_UNORM,
-        IMAGE_FORMAT_R16_UINT,
-        IMAGE_FORMAT_R16_SNORM,
-        IMAGE_FORMAT_R16_SINT,
-        IMAGE_FORMAT_R8_UNORM,
-        IMAGE_FORMAT_R8_UINT,
-        IMAGE_FORMAT_R8_SNORM,
-        IMAGE_FORMAT_R8_SINT
+        R16G16_FLOAT,
+        R16G16_UNORM,
+        R16G16_UINT,
+        R16G16_SNORM,
+        R16G16_SINT,
+        R32_FLOAT,
+        R32_UINT,
+        R32_SINT,
+        R8G8_UNORM,
+        R8G8_UINT,
+        R8G8_SNORM,
+        R8G8_SINT,
+        R16_FLOAT,
+        D16_UNORM,
+        R16_UNORM,
+        R16_UINT,
+        R16_SNORM,
+        R16_SINT,
+        R8_UNORM,
+        R8_UINT,
+        R8_SNORM,
+        R8_SINT
     };
 
-    enum class IndexFormat : u8
+    enum class IndexFormat
     {
         UInt16,
         UInt32,
     };
 
-    enum DepthImageFormat
+    enum class DepthImageFormat
     {
-        DEPTH_IMAGE_FORMAT_UNKNOWN,
+        UNKNOWN,
 
         // 32-bit Z w/ Stencil
-        DEPTH_IMAGE_FORMAT_D32_FLOAT_S8X24_UINT,
+        D32_FLOAT_S8X24_UINT,
 
         // No Stencil
-        DEPTH_IMAGE_FORMAT_D32_FLOAT,
-        DEPTH_IMAGE_FORMAT_R32_FLOAT,
+        D32_FLOAT,
+        R32_FLOAT,
 
         // 24-bit Z
-        DEPTH_IMAGE_FORMAT_D24_UNORM_S8_UINT,
+        D24_UNORM_S8_UINT,
 
         // 16-bit Z w/o Stencil
-        DEPTH_IMAGE_FORMAT_D16_UNORM,
-        DEPTH_IMAGE_FORMAT_R16_UNORM
+        D16_UNORM,
+        R16_UNORM
     };
 
-    enum ImageComponentType
+    enum class ImageComponentType
     {
-        IMAGE_COMPONENT_TYPE_FLOAT,
-        IMAGE_COMPONENT_TYPE_UINT,
-        IMAGE_COMPONENT_TYPE_SINT,
-        IMAGE_COMPONENT_TYPE_UNORM,
-        IMAGE_COMPONENT_TYPE_SNORM,
+        FLOAT,
+        UINT,
+        SINT,
+        UNORM,
+        SNORM,
 
-        IMAGE_COMPONENT_TYPE_COUNT
+        COUNT
     };
 
-    enum ImageDimensionType
+    enum class ImageDimensionType
     {
         DIMENSION_ABSOLUTE, // vec2(1,1) means 1x1 pixels
-        DIMENSION_SCALE,     // vec2(1,1) means 100% of window size
+        DIMENSION_SCALE,  // vec2(1,1) means 100% of window size
         DIMENSION_PYRAMID //vec2(1,1) means 100% of window size, does POW2 and mip levels
     };
 
     enum BufferUsage
     {
-        BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER   = (1 << 0),
-        BUFFER_USAGE_STORAGE_BUFFER             = (1 << 1),
-        BUFFER_USAGE_VERTEX_BUFFER              = (1 << 2),
-        BUFFER_USAGE_INDEX_BUFFER               = (1 << 3),
-        BUFFER_USAGE_UNIFORM_BUFFER             = (1 << 4),
-        BUFFER_USAGE_TRANSFER_SOURCE            = (1 << 5),
-        BUFFER_USAGE_TRANSFER_DESTINATION       = (1 << 6),
+        INDIRECT_ARGUMENT_BUFFER   = (1 << 0),
+        STORAGE_BUFFER             = (1 << 1),
+        VERTEX_BUFFER              = (1 << 2),
+        INDEX_BUFFER               = (1 << 3),
+        UNIFORM_BUFFER             = (1 << 4),
+        TRANSFER_SOURCE            = (1 << 5),
+        TRANSFER_DESTINATION       = (1 << 6),
     };
 
-    enum class BufferCPUAccess : u8
+    enum class BufferCPUAccess
     {
         None,
         WriteOnly,
         ReadOnly,
     };
 
-    enum class PipelineBarrierType : u8
+    enum class PipelineBarrierType
     {
         TransferDestToIndirectArguments,
         TransferDestToComputeShaderRW,
@@ -522,72 +519,73 @@ namespace Renderer
     {
         switch (imageFormat)
         {
-            case IMAGE_FORMAT_R32G32B32A32_FLOAT:
-            case IMAGE_FORMAT_R32G32B32_FLOAT:
-            case IMAGE_FORMAT_R16G16B16A16_FLOAT:
-            case IMAGE_FORMAT_R32G32_FLOAT:
-            case IMAGE_FORMAT_R11G11B10_FLOAT:
-            case IMAGE_FORMAT_R16G16_FLOAT:
-            case IMAGE_FORMAT_R32_FLOAT:
-            case IMAGE_FORMAT_R16_FLOAT:
-                return IMAGE_COMPONENT_TYPE_FLOAT;
+            case ImageFormat::R32G32B32A32_FLOAT:
+            case ImageFormat::R32G32B32_FLOAT:
+            case ImageFormat::R16G16B16A16_FLOAT:
+            case ImageFormat::R32G32_FLOAT:
+            case ImageFormat::R11G11B10_FLOAT:
+            case ImageFormat::R16G16_FLOAT:
+            case ImageFormat::R32_FLOAT:
+            case ImageFormat::R16_FLOAT:
+                return ImageComponentType::FLOAT;
 
-            case IMAGE_FORMAT_R32G32B32A32_UINT:
-            case IMAGE_FORMAT_R32G32B32_UINT:
-            case IMAGE_FORMAT_R16G16B16A16_UINT:
-            case IMAGE_FORMAT_R32G32_UINT:
-            case IMAGE_FORMAT_R10G10B10A2_UINT:
-            case IMAGE_FORMAT_R8G8B8A8_UINT:
-            case IMAGE_FORMAT_B8G8R8A8_UINT:
-            case IMAGE_FORMAT_R16G16_UINT:
-            case IMAGE_FORMAT_R32_UINT:
-            case IMAGE_FORMAT_R8G8_UINT:
-            case IMAGE_FORMAT_R16_UINT:
-            case IMAGE_FORMAT_R8_UINT:
-                return IMAGE_COMPONENT_TYPE_UINT;
+            case ImageFormat::R32G32B32A32_UINT:
+            case ImageFormat::R32G32B32_UINT:
+            case ImageFormat::R16G16B16A16_UINT:
+            case ImageFormat::R32G32_UINT:
+            case ImageFormat::R10G10B10A2_UINT:
+            case ImageFormat::R8G8B8A8_UINT:
+            case ImageFormat::B8G8R8A8_UINT:
+            case ImageFormat::R16G16_UINT:
+            case ImageFormat::R32_UINT:
+            case ImageFormat::R8G8_UINT:
+            case ImageFormat::R16_UINT:
+            case ImageFormat::R8_UINT:
+                return ImageComponentType::UINT;
 
-            case IMAGE_FORMAT_R32G32B32A32_SINT:
-            case IMAGE_FORMAT_R32G32B32_SINT:
-            case IMAGE_FORMAT_R16G16B16A16_SINT:
-            case IMAGE_FORMAT_R32G32_SINT:
-            case IMAGE_FORMAT_R8G8B8A8_SINT:
-            case IMAGE_FORMAT_B8G8R8A8_SINT:
-            case IMAGE_FORMAT_R16G16_SINT:
-            case IMAGE_FORMAT_R32_SINT:
-            case IMAGE_FORMAT_R8G8_SINT:
-            case IMAGE_FORMAT_R16_SINT:
-            case IMAGE_FORMAT_R8_SINT:
-                return IMAGE_COMPONENT_TYPE_SINT;
+            case ImageFormat::R32G32B32A32_SINT:
+            case ImageFormat::R32G32B32_SINT:
+            case ImageFormat::R16G16B16A16_SINT:
+            case ImageFormat::R32G32_SINT:
+            case ImageFormat::R8G8B8A8_SINT:
+            case ImageFormat::B8G8R8A8_SINT:
+            case ImageFormat::R16G16_SINT:
+            case ImageFormat::R32_SINT:
+            case ImageFormat::R8G8_SINT:
+            case ImageFormat::R16_SINT:
+            case ImageFormat::R8_SINT:
+                return ImageComponentType::SINT;
             
-            case IMAGE_FORMAT_R16G16B16A16_UNORM:
-            case IMAGE_FORMAT_R10G10B10A2_UNORM:
-            case IMAGE_FORMAT_R8G8B8A8_UNORM:
-            case IMAGE_FORMAT_R8G8B8A8_UNORM_SRGB:
-            case IMAGE_FORMAT_B8G8R8A8_UNORM:
-            case IMAGE_FORMAT_B8G8R8A8_UNORM_SRGB:
-            case IMAGE_FORMAT_R16G16_UNORM:
-            case IMAGE_FORMAT_R8G8_UNORM:
-            case IMAGE_FORMAT_D16_UNORM:
-            case IMAGE_FORMAT_R16_UNORM:
-            case IMAGE_FORMAT_R8_UNORM:
-                return IMAGE_COMPONENT_TYPE_UNORM;
+            case ImageFormat::R16G16B16A16_UNORM:
+            case ImageFormat::R10G10B10A2_UNORM:
+            case ImageFormat::R8G8B8A8_UNORM:
+            case ImageFormat::R8G8B8A8_UNORM_SRGB:
+            case ImageFormat::B8G8R8A8_UNORM:
+            case ImageFormat::B8G8R8A8_UNORM_SRGB:
+            case ImageFormat::R16G16_UNORM:
+            case ImageFormat::R8G8_UNORM:
+            case ImageFormat::D16_UNORM:
+            case ImageFormat::R16_UNORM:
+            case ImageFormat::R8_UNORM:
+                return ImageComponentType::UNORM;
 
-            case IMAGE_FORMAT_R16G16B16A16_SNORM:
-            case IMAGE_FORMAT_R8G8B8A8_SNORM:
-            case IMAGE_FORMAT_B8G8R8A8_SNORM:
-            case IMAGE_FORMAT_R16G16_SNORM:
-            case IMAGE_FORMAT_R8G8_SNORM:
-            case IMAGE_FORMAT_R16_SNORM:
-            case IMAGE_FORMAT_R8_SNORM:
-                return IMAGE_COMPONENT_TYPE_SNORM;
+            case ImageFormat::R16G16B16A16_SNORM:
+            case ImageFormat::R8G8B8A8_SNORM:
+            case ImageFormat::B8G8R8A8_SNORM:
+            case ImageFormat::R16G16_SNORM:
+            case ImageFormat::R8G8_SNORM:
+            case ImageFormat::R16_SNORM:
+            case ImageFormat::R8_SNORM:
+                return ImageComponentType::SNORM;
 
-            case IMAGE_FORMAT_UNKNOWN:
-                NC_LOG_FATAL("This should never hit, we should catch unknowns earlier!");
+            case ImageFormat::UNKNOWN:
+                DebugHandler::PrintFatal("This should never hit, we should catch unknowns earlier!");
+                break;
 
             default:
-                NC_LOG_FATAL("This should never hit, did we forget to add more cases after updating ImageFormat?");
+                DebugHandler::PrintFatal("This should never hit, did we forget to add more cases after updating ImageFormat?");
                 
         }
-        return IMAGE_COMPONENT_TYPE_FLOAT;
+        return ImageComponentType::FLOAT;
     }
 }

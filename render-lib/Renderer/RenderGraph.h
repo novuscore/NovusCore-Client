@@ -2,18 +2,16 @@
 #include <NovusTypes.h>
 #include "Descriptors/RenderGraphDesc.h"
 #include "RenderPass.h"
-#include <Memory/StackAllocator.h>
-#include <Containers/DynamicArray.h>
+#include "RenderGraphBuilder.h"
 
-namespace Memory
-{
-    class Allocator;
-}
+#include <Memory/Allocator.h>
 
 namespace Renderer
 {
     class Renderer;
     class RenderGraphBuilder;
+
+    struct IRenderGraphData {};
 
     // Acyclic Graph for rendering
     class RenderGraph
@@ -25,7 +23,7 @@ namespace Renderer
         void AddPass(std::string name, std::function<bool(PassData&, RenderGraphBuilder&)> onSetup, std::function<void(PassData&, RenderGraphResources&, CommandList&)> onExecute)
         {
             IRenderPass* pass = Memory::Allocator::New<RenderPass<PassData>>(_desc.allocator, name, onSetup, onExecute);
-            _passes.Insert(pass);
+            AddPass(pass);
         }
 
         void AddSignalSemaphore(GPUSemaphoreID semaphoreID);
@@ -37,33 +35,20 @@ namespace Renderer
         RenderGraphBuilder* GetBuilder() { return _renderGraphBuilder; }
 
     private:
-        RenderGraph(Memory::Allocator* allocator, Renderer* renderer)
-            : _renderer(renderer)
-            , _renderGraphBuilder(nullptr)
-            , _passes(allocator, 32)
-            , _executingPasses(allocator, 32)
-            , _signalSemaphores(allocator, 4)
-            , _waitSemaphores(allocator, 4)
-        {
-        
-        } // This gets friend-created by Renderer
+        RenderGraph(Memory::Allocator* allocator, Renderer* renderer);
         bool Init(RenderGraphDesc& desc);
 
+        void AddPass(IRenderPass* pass);
+
     private:
+        IRenderGraphData* _data;
+
         RenderGraphDesc _desc;
-
-        //std::vector<IRenderPass*> _passes;
-        //std::vector<IRenderPass*> _executingPasses;
-
-        DynamicArray<IRenderPass*> _passes;
-        DynamicArray<IRenderPass*> _executingPasses;
-
-        DynamicArray<GPUSemaphoreID> _signalSemaphores;
-        DynamicArray<GPUSemaphoreID> _waitSemaphores;
 
         Renderer* _renderer;
         RenderGraphBuilder* _renderGraphBuilder;
 
         friend class Renderer; // To have access to the constructor
+        friend class Memory::Allocator;
     };
 }

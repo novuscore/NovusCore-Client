@@ -1,6 +1,7 @@
 #include "PixelQuery.h"
 #include "../Utils/ServiceLocator.h"
 
+#include <Renderer/RenderGraph.h>
 #include <tracy/Tracy.hpp>
 
 PixelQuery::PixelQuery(Renderer::Renderer* renderer) : _renderer(renderer)
@@ -14,7 +15,7 @@ void PixelQuery::CreatePermanentResources()
         Renderer::BufferDesc desc;
         desc.name = "PixelQueryResultBuffer";
         desc.size = sizeof(PixelQuery::PixelData) * MaxQueryRequestPerFrame;
-        desc.usage = Renderer::BUFFER_USAGE_INDIRECT_ARGUMENT_BUFFER | Renderer::BUFFER_USAGE_STORAGE_BUFFER;
+        desc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::STORAGE_BUFFER;
         desc.cpuAccess = Renderer::BufferCPUAccess::ReadOnly;
         _pixelResultBuffer = _renderer->CreateBuffer(desc);
     }
@@ -63,9 +64,9 @@ void PixelQuery::AddPixelQueryPass(Renderer::RenderGraph* renderGraph, Renderer:
         renderGraph->AddPass<PixelQueryPassData>("Query Pass",
             [=](PixelQueryPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
             {
-                data.mainColor = builder.Write(colorTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-                data.mainObject = builder.Write(objectTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
-                data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::WRITE_MODE_RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD_MODE_CLEAR);
+                data.mainColor = builder.Write(colorTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+                data.mainObject = builder.Write(objectTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+                data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
 
                 return true; // Return true from setup to enable this pass, return false to disable it
             },

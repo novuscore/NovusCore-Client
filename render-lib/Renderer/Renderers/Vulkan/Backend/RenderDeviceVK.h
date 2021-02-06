@@ -2,9 +2,9 @@
 #include <NovusTypes.h>
 #include <vector>
 #include <optional>
-#include <vulkan/vulkan.h>
-#include "vk_mem_alloc.h"
+#include <vulkan/vulkan_core.h>
 
+#include "vk_mem_alloc.h"
 #include "../../../Descriptors/ImageDesc.h"
 #include "../../../Descriptors/DepthImageDesc.h"
 

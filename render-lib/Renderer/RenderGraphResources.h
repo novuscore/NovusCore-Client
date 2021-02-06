@@ -1,12 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
-#include <vector>
-#include <functional>
-
-#include <Containers/DynamicArray.h>
 #include <Memory/Allocator.h>
 
-#include "RenderStates.h"
 #include "RenderPassResources.h"
 
 #include "Descriptors/TextureDesc.h"
@@ -17,6 +12,8 @@ namespace Renderer
 {
     struct GraphicsPipelineDesc;
     struct ComputePipelineDesc;
+
+    struct IRenderGraphResourcesData {};
 
     class RenderGraphResources
     {
@@ -47,9 +44,7 @@ namespace Renderer
     private:
         Memory::Allocator* _allocator = nullptr;
 
-        DynamicArray<ImageID> _trackedImages;
-        DynamicArray<TextureID> _trackedTextures;
-        DynamicArray<DepthImageID> _trackedDepthImages;
+        IRenderGraphResourcesData* _data = nullptr;
 
         friend class RenderGraphBuilder;
     };
