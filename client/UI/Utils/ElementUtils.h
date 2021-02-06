@@ -2,7 +2,6 @@
 #include <NovusTypes.h>
 #include <entity/fwd.hpp>
 #include "../ECS/Components/Dirty.h"
-#include "../ECS/Components/BoundsDirty.h"
 
 namespace UIUtils
 {

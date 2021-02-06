@@ -12,7 +12,7 @@ namespace UIUtils::Collision
         ZoneScoped;
         auto[collision, transform, relation] = registry->get<UIComponent::Collision, UIComponent::Transform, UIComponent::Relation>(entityId);
 
-        const hvec2 screenPosition = UIUtils::Transform::GetScreenPosition(&transform);
+        const hvec2 screenPosition = UIUtils::Transform::GetScreenPosition(transform);
         const hvec2 offset = transform.localAnchor * transform.size;
 
         hvec2 minBound = screenPosition - offset;
@@ -48,8 +48,8 @@ namespace UIUtils::Collision
     {
         ZoneScoped;
         auto [collision, transform, relation] = registry->get<UIComponent::Collision, UIComponent::Transform, UIComponent::Relation>(entityId);
-        collision.minBound = UIUtils::Transform::GetMinBounds(&transform);
-        collision.maxBound = UIUtils::Transform::GetMaxBounds(&transform);
+        collision.minBound = UIUtils::Transform::GetMinBounds(transform);
+        collision.maxBound = UIUtils::Transform::GetMaxBounds(transform);
 
         if (collision.HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
         {

@@ -72,8 +72,8 @@ namespace UISystem
             constantBuffer->ApplyAll();
 
             // Transform Updates.
-            const vec2& pos = UIUtils::Transform::GetMinBounds(&transform);
-            const vec2& size = transform.size;
+            const vec2 pos = UIUtils::Transform::GetMinBounds(transform);
+            const vec2 size = transform.size;
             const UI::FBox& texCoords = image.style.texCoord;
 
             std::array<UI::UIVertex, 4> vertices;

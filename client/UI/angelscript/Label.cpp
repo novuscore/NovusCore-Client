@@ -1,5 +1,4 @@
 #include "Label.h"
-#include "../../Scripting/ScriptEngine.h"
 #include "../../Utils/ServiceLocator.h"
 
 #include "../ECS/Components/Text.h"
@@ -9,7 +8,6 @@ namespace UIScripting
 {
     Label::Label() : BaseElement(UI::ElementType::UITYPE_LABEL, false)
     {
-        ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Text>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Text;

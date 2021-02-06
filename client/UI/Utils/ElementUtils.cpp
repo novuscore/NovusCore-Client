@@ -1,9 +1,9 @@
 #include "ElementUtils.h"
 #include <entity/registry.hpp>
 #include "../../Utils/ServiceLocator.h"
-#include "../angelscript/BaseElement.h"
 
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
+#include "../ECS/Components/ElementInfo.h"
 #include "../ECS/Components/Relation.h"
 #include "../ECS/Components/Transform.h"
 #include "../ECS/Components/Destroy.h"
@@ -16,24 +16,24 @@ namespace UIUtils
     void ClearAllElements()
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UISingleton::UIDataSingleton* dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();
 
-        std::vector<entt::entity> entityIds;
-        entityIds.reserve(dataSingleton->entityToElement.size());
-
-        for (auto& pair : dataSingleton->entityToElement)
-        {
-            entityIds.push_back(pair.first);
-            delete pair.second;
-        }
-        dataSingleton->entityToElement.clear();
+        auto deleteView = registry->view<UIComponent::ElementInfo>();
+        deleteView.each([&](UIComponent::ElementInfo& elementInfo)
+            {
+                delete elementInfo.scriptingObject;
+            });
+        registry->destroy(deleteView.begin(), deleteView.end());
 
         // Delete entities.
-        registry->destroy(entityIds.begin(), entityIds.end());
+        UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
+        dataSingleton.entityToElement.clear();
 
-        dataSingleton->focusedElement = entt::null;
-        dataSingleton->hoveredElement = entt::null;
-        dataSingleton->draggedElement = entt::null;
+        dataSingleton.focusedElement = entt::null;
+        dataSingleton.hoveredElement = entt::null;
+        dataSingleton.pressedElement = entt::null;
+
+        dataSingleton.resizedElement = entt::null;
+        dataSingleton.draggedElement = entt::null;
     }
 
     void MarkChildrenDirty(entt::registry* registry, const entt::entity entityId)

@@ -7,6 +7,7 @@
 #include "../ECS/Components/Transform.h"
 #include "../ECS/Components/Relation.h"
 #include "../ECS/Components/SortKey.h"
+#include "../ECS/Components/SortKeyDirty.h"
 #include "../ECS/Components/Visibility.h"
 #include "../ECS/Components/Visible.h"
 #include "../ECS/Components/Collision.h"
@@ -25,15 +26,12 @@ namespace UIScripting
 {
     BaseElement::BaseElement(UI::ElementType elementType, bool collisionEnabled) : _elementType(elementType)
     {
-        ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         _entityId = registry->create();
         registry->ctx<UISingleton::UIDataSingleton>().entityToElement[_entityId] = this;
 
         // Set up base components.
-        UIComponent::ElementInfo* elementInfo = &registry->emplace<UIComponent::ElementInfo>(_entityId);
-        elementInfo->type = elementType;
-        elementInfo->scriptingObject = this;
+        registry->emplace<UIComponent::ElementInfo>(_entityId, elementType, this);
 
         registry->emplace<UIComponent::Transform>(_entityId);
         registry->emplace<UIComponent::Relation>(_entityId);
@@ -54,38 +52,37 @@ namespace UIScripting
 
     vec2 BaseElement::GetScreenPosition() const
     {
-        const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        const UIComponent::Transform& transform = ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
         return UIUtils::Transform::GetScreenPosition(transform);
     }
     vec2 BaseElement::GetLocalPosition() const
     {
-        const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
-        return transform->position;
+        const UIComponent::Transform& transform = ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        return transform.position;
     }
     void BaseElement::SetPosition(const vec2& position)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Transform* transform = &registry->get<UIComponent::Transform>(_entityId);
+        UIComponent::Transform& transform = registry->get<UIComponent::Transform>(_entityId);
+        transform.position = position;
 
-        transform->position = position;
-
-        UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
+        UIUtils::Transform::UpdateChildPositions(registry, _entityId);
     }
 
     vec2 BaseElement::GetSize() const
     {
-        const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
-        return transform->size;
+        const UIComponent::Transform& transform = ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        return transform.size;
     }
     void BaseElement::SetSize(const vec2& size)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        auto transform = &registry->get<UIComponent::Transform>(_entityId);
+        UIComponent::Transform& transform = registry->get<UIComponent::Transform>(_entityId);
 
         // Early out if we are just filling parent size.
-        if (transform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
+        if (transform.HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
             return;
-        transform->size = size;
+        transform.size = size;
 
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
@@ -115,19 +112,19 @@ namespace UIScripting
     void BaseElement::SetTransform(const vec2& position, const vec2& size)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        auto transform = &registry->get<UIComponent::Transform>(_entityId);
+        UIComponent::Transform& transform = registry->get<UIComponent::Transform>(_entityId);
 
-        transform->position = position;
-        if (!transform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
-            transform->size = size;
+        transform.position = position;
+        if (!transform.HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
+            transform.size = size;
 
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
 
     vec2 BaseElement::GetAnchor() const
     {
-        const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
-        return transform->anchor;
+        const UIComponent::Transform& transform = ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        return transform.anchor;
     }
     void BaseElement::SetAnchor(const vec2& anchor)
     {
@@ -141,15 +138,15 @@ namespace UIScripting
         if (relation.parent == entt::null)
             transform.anchorPosition = UIUtils::Transform::GetAnchorPositionOnScreen(anchor);
         else
-            transform.anchorPosition = UIUtils::Transform::GetAnchorPositionInElement(&registry->get<UIComponent::Transform>(relation.parent), anchor);
+            transform.anchorPosition = UIUtils::Transform::GetAnchorPositionInElement(registry->get<UIComponent::Transform>(relation.parent), anchor);
 
-        UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
+        UIUtils::Transform::UpdateChildPositions(registry, _entityId);
     }
 
     vec2 BaseElement::GetLocalAnchor() const
     {
-        const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
-        return transform->localAnchor;
+        const UIComponent::Transform& transform = ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
+        return transform.localAnchor;
     }
     void BaseElement::SetLocalAnchor(const vec2& localAnchor)
     {
@@ -174,87 +171,80 @@ namespace UIScripting
 
     UI::DepthLayer BaseElement::GetDepthLayer() const
     {
-        const auto sortKey = &ServiceLocator::GetUIRegistry()->get<UIComponent::SortKey>(_entityId);
-        return sortKey->data.depthLayer;
+        const UIComponent::SortKey& sortKey = ServiceLocator::GetUIRegistry()->get<UIComponent::SortKey>(_entityId);
+        return sortKey.data.depthLayer;
     }
     void BaseElement::SetDepthLayer(const UI::DepthLayer layer)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         if (!registry->has<UIComponent::Root>(_entityId))
         {
-            NC_LOG_WARNING("UI: Can't set depthLayer on non-root element.");
+            DebugHandler::PrintWarning("UI: Can't set depthLayer on non-root element (ID: %u, Type: %u).", entt::to_integral(_entityId), static_cast<u32>(_elementType));
             return;
         }
 
         auto sortKey = &registry->get<UIComponent::SortKey>(_entityId);
         sortKey->data.depthLayer = layer;
 
-        UIUtils::Sort::MarkSortTreeDirty(registry, _entityId);
+        if (!registry->has<UIComponent::SortKeyDirty>(_entityId))
+            registry->emplace<UIComponent::SortKeyDirty>(_entityId);
     }
 
     u16 BaseElement::GetDepth() const
     {
-        const auto sortKey = &ServiceLocator::GetUIRegistry()->get<UIComponent::SortKey>(_entityId);
-        return sortKey->data.depth;
+        const UIComponent::SortKey& sortKey = ServiceLocator::GetUIRegistry()->get<UIComponent::SortKey>(_entityId);
+        return sortKey.data.depth;
     }
     void BaseElement::SetDepth(const u16 depth)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry(); 
         if (!registry->has<UIComponent::Root>(_entityId))
         {
-            NC_LOG_WARNING("UI: Can't set depth on non-root element.");
+            DebugHandler::PrintWarning("UI: Can't set depth on non-root element.");
             return;
         }
 
         auto sortKey = &registry->get<UIComponent::SortKey>(_entityId);
         sortKey->data.depth = depth;
 
-        UIUtils::Sort::MarkSortTreeDirty(registry, _entityId);
+        if (!registry->has<UIComponent::SortKeyDirty>(_entityId))
+            registry->emplace<UIComponent::SortKeyDirty>(_entityId);
     }
 
     BaseElement* BaseElement::GetParent() const
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        const auto dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();
-        const auto relation = &registry->get<UIComponent::Relation>(_entityId);
-        if (relation->parent != entt::null)
-            return dataSingleton->entityToElement[relation->parent];
+        const UIComponent::Relation& relation = registry->get<UIComponent::Relation>(_entityId);
+        if (relation.parent == entt::null)
+            return nullptr;
 
-        return nullptr;
+        return reinterpret_cast<BaseElement*>(registry->get<UIComponent::ElementInfo>(relation.parent).scriptingObject);
     }
 
     void BaseElement::SetParent(BaseElement* parent)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        auto relation = &registry->get<UIComponent::Relation>(_entityId);
+        UIComponent::Relation& relation = registry->get<UIComponent::Relation>(_entityId);
 
-        if (relation->parent == parent->GetEntityId())
-            return;
-
-        if (relation->parent != entt::null)
+        if (relation.parent != entt::null)
         {
-            NC_LOG_ERROR("Tried calling SetParent() on Element(ID: %d, Type: %d) with a parent. You must call UnsetParent() first.", entt::to_integral(_entityId), _elementType)
+            DebugHandler::PrintError("Tried calling SetParent() on Element(ID: %d, Type: %d) with a parent. You must call UnsetParent() first.", entt::to_integral(_entityId), _elementType);
             return;
         }
         registry->remove<UIComponent::Root>(_entityId);
-        relation->parent = parent->GetEntityId();
+        relation.parent = parent->GetEntityId();
 
-        auto [parentRelation, parentTransform, parentSortKey] = registry->get<UIComponent::Relation, UIComponent::Transform, UIComponent::SortKey>(relation->parent);
+        auto [parentRelation, parentTransform, parentSortKey] = registry->get<UIComponent::Relation, UIComponent::Transform, UIComponent::SortKey>(relation.parent);
         parentRelation.children.push_back({ _entityId, _elementType });
 
         auto [transform, sortKey] = registry->get<UIComponent::Transform, UIComponent::SortKey>(_entityId);
 
-        transform.anchorPosition = UIUtils::Transform::GetAnchorPositionInElement(&parentTransform, transform.anchor);
+        transform.anchorPosition = UIUtils::Transform::GetAnchorPositionInElement(parentTransform, transform.anchor);
         if (transform.HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
             transform.size = UIUtils::Transform::GetInnerSize(&parentTransform);
 
-        // Keep relative offsets for all child depths, adding onto it how much we moved in depth.
-        sortKey.data.depthLayer = parentSortKey.data.depthLayer;
-        sortKey.data.depth = parentSortKey.data.depth;
-        UIUtils::Sort::MarkSortTreeDirty(registry, parent->GetEntityId());
-
-        if (relation->children.size())
-            UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
+        UIUtils::Sort::MarkSortTreeDirty(registry, relation.parent);
+        UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
     void BaseElement::UnsetParent()
     {
@@ -266,6 +256,8 @@ namespace UIScripting
 
         UIUtils::RemoveFromParent(registry, _entityId);
         registry->emplace<UIComponent::Root>(_entityId);
+        if (!registry->has<UIComponent::SortKeyDirty>(_entityId))
+            registry->emplace<UIComponent::SortKeyDirty>(_entityId);
     }
 
     bool BaseElement::GetCollisionIncludesChildren() const

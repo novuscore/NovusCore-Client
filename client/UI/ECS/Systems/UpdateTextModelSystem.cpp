@@ -99,7 +99,7 @@ namespace UISystem
             if (textLengthWithoutSpaces > 0)
             {
                 const vec2 alignment = UIUtils::Text::GetAlignment(&text);
-                vec2 currentPosition = UIUtils::Transform::GetAnchorPositionInElement(&transform, alignment);
+                vec2 currentPosition = UIUtils::Transform::GetAnchorPositionInElement(transform, alignment);
                 const f32 startX = currentPosition.x;
                 currentPosition.x -= lineWidths[0] * alignment.x;
                 currentPosition.y += text.style.fontSize * (1 - alignment.y) * lineWidths.size();
@@ -129,8 +129,8 @@ namespace UISystem
                     }
 
                     const Renderer::FontChar& fontChar = text.font->GetChar(character);
-                    const vec2& pos = currentPosition + vec2(fontChar.xOffset, fontChar.yOffset);
-                    const vec2& size = vec2(fontChar.width, fontChar.height);
+                    const vec2 pos = currentPosition + vec2(fontChar.xOffset, fontChar.yOffset);
+                    const vec2 size = vec2(fontChar.width, fontChar.height);
                     constexpr UI::FBox texCoords{ 0.f, 1.f, 1.f, 0.f };
 
                     std::array<UI::UIVertex, 4> vertices;

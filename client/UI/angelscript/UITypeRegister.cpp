@@ -1,6 +1,7 @@
 #include "UITypeRegister.h"
 #include "UIUtils.h"
 #include "BaseElement.h"
+#include "EventElement.h"
 #include "Panel.h"
 #include "Label.h"
 #include "Button.h"
@@ -15,18 +16,12 @@ namespace UI
 {
     static void Construct_BOX(u32 top, u32 right, u32 bottom, u32 left, Box* out)
     {
-        out->top = top;
-        out->right = right;
-        out->bottom = bottom;
-        out->left = left;
+        *out = { top, right, bottom, left };
     }
 
     static void Construct_FBOX(f32 top, f32 right, f32 bottom, f32 left, FBox* out)
     {
-        out->top = top;
-        out->right = right;
-        out->bottom = bottom;
-        out->left = left;
+        *out = { top, right, bottom, left };
     }
 
     void RegisterTypes()
@@ -62,6 +57,7 @@ namespace UI
         UI::TextStylesheet::RegisterType();
 
         UIScripting::BaseElement::RegisterType();
+        UIScripting::EventElement::RegisterType();
         UIScripting::Panel::RegisterType();
         UIScripting::Label::RegisterType();
         UIScripting::Button::RegisterType();

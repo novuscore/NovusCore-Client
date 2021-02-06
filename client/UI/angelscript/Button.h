@@ -1,6 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include "BaseElement.h"
+#include "EventElement.h"
 
 #include "../Stylesheets/ImageStylesheet.h"
 #include "../Stylesheets/TextStylesheet.h"
@@ -9,16 +9,12 @@ namespace UIScripting
 {
     class Label;
 
-    class Button : public BaseElement
+    class Button : public EventElement
     {
     public:
         Button();
 
         static void RegisterType();
-
-        //Button Functions.
-        const bool IsClickable() const;
-        void SetOnClickCallback(asIScriptFunction* callback);
 
         //Label Functions
         const std::string GetText() const;

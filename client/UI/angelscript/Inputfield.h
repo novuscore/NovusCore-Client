@@ -1,24 +1,19 @@
 #pragma once
 #include <NovusTypes.h>
+#include "EventElement.h"
 #include "../Stylesheets/TextStylesheet.h"
-#include "BaseElement.h"
 
 namespace UIScripting
 {
-    class Label;
-    class Panel;
-
-    class InputField : public BaseElement
+    class InputField : public EventElement
     {
     public:
         InputField();
 
         static void RegisterType();
 
-        void HandleKeyInput(i32 key);
-
-        //InputField Functions
-        void HandleCharInput(const char input);
+        bool OnKeyInput(i32 key) override;
+        bool OnCharInput(char c) override;
 
         void RemovePreviousCharacter();
         void RemoveNextCharacter();
@@ -29,12 +24,6 @@ namespace UIScripting
         void SetWriteHeadPosition(size_t position);
 
         void SetOnSubmitCallback(asIScriptFunction* callback);
-
-        // TransformEvents Functions
-        const bool IsFocusable() const;
-        void SetFocusable(bool focusable);
-        void SetOnFocusGainedCallback(asIScriptFunction* callback);
-        void SetOnFocusLostCallback(asIScriptFunction* callback);
 
         //Label Functions
         const std::string GetText() const;

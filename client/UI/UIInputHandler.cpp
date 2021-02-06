@@ -22,10 +22,7 @@
 #include "Utils/ColllisionUtils.h"
 #include "Utils/EventUtils.h"
 
-#include "angelscript/Inputfield.h"
-#include "angelscript/Checkbox.h"
-#include "angelscript/Slider.h"
-#include "angelscript/SliderHandle.h"
+#include "angelscript/EventElement.h"
 
 namespace UIInput
 {
@@ -130,16 +127,7 @@ namespace UIInput
                 // Click element.
                 if (events.HasFlag(UI::TransformEventsFlags::FLAG_CLICKABLE))
                 {
-                    if (elementInfo.type == UI::ElementType::UITYPE_CHECKBOX)
-                    {
-                        UIScripting::Checkbox* checkBox = reinterpret_cast<UIScripting::Checkbox*>(elementInfo.scriptingObject);
-                        checkBox->ToggleChecked();
-                    } 
-                    else if(elementInfo.type == UI::ElementType::UITYPE_SLIDER)
-                    {
-                        UIScripting::Slider* slider = reinterpret_cast<UIScripting::Slider*>(elementInfo.scriptingObject);
-                        slider->OnClicked(mouse);
-                    }
+                    reinterpret_cast<UIScripting::EventElement*>(elementInfo.scriptingObject)->OnClick(mouse);
 
                     UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onClickCallback);
                 }
@@ -172,11 +160,7 @@ namespace UIInput
             transform.position = newPos;
 
             // Handle OnDrag(s)
-            if (elementInfo.type == UI::ElementType::UITYPE_SLIDERHANDLE)
-            {
-                UIScripting::SliderHandle* sliderHandle = reinterpret_cast<UIScripting::SliderHandle*>(elementInfo.scriptingObject);
-                sliderHandle->OnDragged();
-            }
+            reinterpret_cast<UIScripting::EventElement*>(elementInfo.scriptingObject)->OnDrag();
 
             UIUtils::MarkDirty(registry, dataSingleton.draggedElement);
             UIUtils::MarkChildrenDirty(registry, dataSingleton.draggedElement);
@@ -239,34 +223,19 @@ namespace UIInput
             return false;
         else if (action == GLFW_RELEASE) // We handle PRESS & REPEAT events.
             return true;
-
         auto [elementInfo, events] = registry->get<UIComponent::ElementInfo, UIComponent::TransformEvents>(dataSingleton.focusedElement);
-        if (key == GLFW_KEY_ESCAPE)
+
+        bool keyHandled = reinterpret_cast<UIScripting::EventElement*>(elementInfo.scriptingObject)->OnKeyInput(key);
+        if (keyHandled)
+            return true;
+
+        if (key == GLFW_KEY_ENTER && events.HasFlag(UI::TransformEventsFlags::FLAG_CLICKABLE))
+        {
+            UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onClickCallback);
+        }
+        else if (key == GLFW_KEY_ESCAPE)
         {
             UnFocusElement(registry, dataSingleton, elementInfo, events);
-            return true;
-        }
-
-        switch (elementInfo.type)
-        {
-        case UI::ElementType::UITYPE_INPUTFIELD:
-        {
-            UIScripting::InputField* inputFieldAS = reinterpret_cast<UIScripting::InputField*>(elementInfo.scriptingObject);
-            inputFieldAS->HandleKeyInput(key);
-            break;
-        }
-        case UI::ElementType::UITYPE_CHECKBOX:
-        {
-            UIScripting::Checkbox* checkBoxAS = reinterpret_cast<UIScripting::Checkbox*>(elementInfo.scriptingObject);
-            checkBoxAS->HandleKeyInput(key);
-            break;
-        }
-        default:
-            if (key == GLFW_KEY_ENTER && events.HasFlag(UI::TransformEventsFlags::FLAG_CLICKABLE))
-            {
-                UIUtils::ExecuteEvent(elementInfo.scriptingObject, events.onClickCallback);
-            }
-            break;
         }
 
         return true;
@@ -282,12 +251,7 @@ namespace UIInput
             return false;
 
         const UIComponent::ElementInfo& elementInfo = registry->get<UIComponent::ElementInfo>(dataSingleton.focusedElement);
-        if (elementInfo.type == UI::ElementType::UITYPE_INPUTFIELD)
-        {
-            UIScripting::InputField* inputField = reinterpret_cast<UIScripting::InputField*>(elementInfo.scriptingObject);
-            inputField->HandleCharInput((char)unicodeKey);
-            inputField->MarkSelfDirty();
-        }
+        reinterpret_cast<UIScripting::EventElement*>(elementInfo.scriptingObject)->OnCharInput(unicodeKey);
 
         return true;
     }
@@ -299,8 +263,5 @@ namespace UIInput
         inputManager->RegisterMousePositionCallback("UI Mouse Position Checker", std::bind(&OnMousePositionUpdate, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
         inputManager->RegisterKeyboardInputCallback("UI Keyboard Input Checker"_h, std::bind(&OnKeyboardInput, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
         inputManager->RegisterCharInputCallback("UI Char Input Checker"_h, std::bind(&OnCharInput, std::placeholders::_1, std::placeholders::_2));
-
-        // Create mouse group upfront. Reduces hitching from first mouse input.
-        auto eventGroup = ServiceLocator::GetUIRegistry()->group<>(entt::get<UIComponent::TransformEvents, UIComponent::ElementInfo, UIComponent::SortKey, UIComponent::Collision, UIComponent::Collidable, UIComponent::Visible, UIComponent::NotCulled>);
     }
 }

@@ -24,11 +24,11 @@ namespace UISystem
 
         cullView.each([&](entt::entity entity, UIComponent::Transform& transform)
         {
-            const vec2 screenPosition = UIUtils::Transform::GetScreenPosition(&transform);
-            const vec2 offset = transform.localAnchor * transform.size;
+            const hvec2 screenPosition = UIUtils::Transform::GetScreenPosition(transform);
+            const hvec2 offset = transform.localAnchor * transform.size;
 
-            const vec2 minBounds = screenPosition - offset;
-            const vec2 maxBounds = minBounds + vec2(transform.size);
+            const hvec2 minBounds = screenPosition - offset;
+            const hvec2 maxBounds = minBounds + transform.size;
 
             if (maxBounds.x < 0 || maxBounds.y < 0 || minBounds.x > dataSingleton.UIRESOLUTION.x || minBounds.y > dataSingleton.UIRESOLUTION.y)
                 return;

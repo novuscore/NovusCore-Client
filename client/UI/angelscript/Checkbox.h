@@ -1,40 +1,33 @@
 #pragma once
-#include "BaseElement.h"
+#include "EventElement.h"
 
-#include "../ECS/Components/Image.h"
+#include "../Stylesheets/ImageStylesheet.h"
 
 namespace UIScripting
 {
     class Panel;
 
-    class Checkbox : public BaseElement
+    class Checkbox : public EventElement
     {
     public:
         Checkbox();
 
         static void RegisterType();
 
-        // TransformEvents Functions
-        const bool IsClickable() const;
-        const bool IsFocusable() const;
-        void SetOnClickCallback(asIScriptFunction* callback);
-        void SetOnFocusGainedCallback(asIScriptFunction* callback);
-        void SetOnFocusLostCallback(asIScriptFunction* callback);
-
         // Background Functions
-        void SetStylesheet(UI::ImageStylesheet styleSheet);
+        void SetStylesheet(const UI::ImageStylesheet& styleSheet);
 
         // Check Functions
-        void SetCheckStylesheet(UI::ImageStylesheet styleSheet);
+        void SetCheckStylesheet(const UI::ImageStylesheet& styleSheet);
 
         // Checkbox Functions
         void SetOnCheckedCallback(asIScriptFunction* callback);
         void SetOnUncheckedCallback(asIScriptFunction* callback);
         const bool IsChecked() const;
         void SetChecked(bool checked);
-        void ToggleChecked();
 
-        void HandleKeyInput(i32 key);
+        void OnClick(vec2 mousePosition) override;
+        bool OnKeyInput(i32 key) override;
 
         static Checkbox* CreateCheckbox();
 

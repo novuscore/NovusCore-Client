@@ -7,23 +7,23 @@ namespace UIUtils::Transform
 {
     const hvec2 WindowPositionToUIPosition(const hvec2& WindowPosition);
 
-    inline static const hvec2 GetScreenPosition(const UIComponent::Transform* transform)
+    inline static const hvec2 GetScreenPosition(const UIComponent::Transform& transform)
     {
-        return transform->anchorPosition + transform->position;
+        return transform.anchorPosition + transform.position;
     };
 
-    inline static const hvec2 GetMinBounds(const UIComponent::Transform* transform)
+    inline static const hvec2 GetMinBounds(const UIComponent::Transform& transform)
     {
         const hvec2 screenPosition = GetScreenPosition(transform);
 
-        return screenPosition - (transform->localAnchor * transform->size);
+        return screenPosition - (transform.localAnchor * transform.size);
     };
 
-    inline static const hvec2 GetMaxBounds(const UIComponent::Transform* transform)
+    inline static const hvec2 GetMaxBounds(const UIComponent::Transform& transform)
     {
         const hvec2 screenPosition = GetScreenPosition(transform);
 
-        return screenPosition + transform->size - (transform->localAnchor * transform->size);
+        return screenPosition + transform.size - (transform.localAnchor * transform.size);
     }
 
     inline static const hvec2 GetInnerSize(const UIComponent::Transform* transform)
@@ -33,10 +33,10 @@ namespace UIUtils::Transform
         return transform->size - totalPadding;
     }
 
-    inline static const hvec2 GetAnchorPositionInElement(const UIComponent::Transform* transform, hvec2 anchor)
+    inline static const hvec2 GetAnchorPositionInElement(const UIComponent::Transform& transform, hvec2 anchor)
     {
-        hvec2 minAnchorBound = GetMinBounds(transform) + hvec2(transform->padding.left, transform->padding.top);
-        hvec2 adjustedSize = transform->size - hvec2(transform->padding.right, transform->padding.bottom);
+        hvec2 minAnchorBound = GetMinBounds(transform) + hvec2(transform.padding.left, transform.padding.top);
+        hvec2 adjustedSize = transform.size - hvec2(transform.padding.right, transform.padding.bottom);
         return minAnchorBound + adjustedSize * anchor;
     }
 

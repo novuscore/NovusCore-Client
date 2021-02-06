@@ -35,7 +35,7 @@ namespace UIUtils::Transform
         if (!relation.children.size())
             return;
         
-        const hvec2 minAnchorBound = GetMinBounds(&transform) + hvec2(transform.padding.left, transform.padding.top);
+        const hvec2 minAnchorBound = GetMinBounds(transform) + hvec2(transform.padding.left, transform.padding.top);
         const hvec2 adjustedSize = transform.size - hvec2(transform.padding.right, transform.padding.bottom);
 
         for (const UI::UIChild& child : relation.children)
@@ -57,7 +57,7 @@ namespace UIUtils::Transform
         if (!relation.children.size())
             return;
 
-        const hvec2 minAnchorBound = GetMinBounds(&transform) + hvec2(transform.padding.left, transform.padding.top);
+        const hvec2 minAnchorBound = GetMinBounds(transform) + hvec2(transform.padding.left, transform.padding.top);
         const hvec2 adjustedSize = transform.size - hvec2(transform.padding.right, transform.padding.bottom);
 
         for (const UI::UIChild& child : relation.children)
