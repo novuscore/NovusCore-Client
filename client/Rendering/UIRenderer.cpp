@@ -95,6 +95,11 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRendere
     registry->reserve<UIComponent::Checkbox>(ENTITIES_TO_PREALLOCATE);
     registry->reserve<UIComponent::Slider>(ENTITIES_TO_PREALLOCATE);
 
+    using namespace entt::literals;
+    auto tMeta = entt::meta<UIComponent::Transform>().type().prop("Name"_hs, "Transform");
+    tMeta.data<&UIComponent::Transform::flags>(entt::hashed_string("Flags")).prop("Name"_hs, "Flags");
+    tMeta.func<entt::overload<UIComponent::Transform &(entt::entity)>(&entt::registry::get<UIComponent::Transform>), entt::as_ref_t>("get"_hs);
+
     UIInput::RegisterCallbacks();
 }
 
