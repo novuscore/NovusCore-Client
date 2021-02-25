@@ -9,7 +9,6 @@ namespace UIUtils::Sort
 {
     void UpdateChildDepths(entt::registry* registry, entt::entity parent, u32& compoundDepth)
     {
-        ZoneScoped;
         auto [parentRelation, parentSortKey] = registry->get<UIComponent::Relation, UIComponent::SortKey>(parent);
 
         for (const UI::UIChild& child : parentRelation.children)

@@ -897,34 +897,9 @@ void EngineLoop::DrawUIStats()
             ImGui::Text("%s Element : Id: %d, Type: %s",
                 elementName,
                 entt::to_integral(entId),
-                UI::GetElementTypeAsString(registry->get<UIComponent::ElementInfo>(entId).type).c_str()
+                UI::GetElementTypeAsString(registry->get<UIComponent::ElementInfo>(entId).type)
             );
-
-            registry->visit(entId, [&](entt::type_info info)
-                {
-                    entt::meta_type type = entt::resolve(info);
-                    if (type)
-                    {
-                        entt::meta_any obj = type.invoke("get"_hs, {}, std::ref(*registry), entId);
-
-                        for (entt::meta_data data : type.data())
-                        {
-                            char* dataName = "UNKNOWN NAME";
-                            auto name = data.prop("Name"_hs);
-                            if (name)
-                                dataName = *static_cast<char**>(name.value().data());
-                            ImGui::Text("%s:", dataName);
-
-                            std::string value = "UNKNOWN";
-                            void* dataPtr = data.get(entt::meta_handle(obj)).data();
-                            u8 data = *static_cast<u8*>(dataPtr);
-                            if (ImGui::InputScalar(" : ", ImGuiDataType_U8, &data))
-                                *static_cast<u8*>(dataPtr) = data;
-                        }
-                    }
-                });
         }
-            
     };
 
     DisplayElementInfo("Focused", dataSingleton->focusedElement);

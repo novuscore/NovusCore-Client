@@ -40,7 +40,7 @@ namespace UIScripting
         void SetHandleHoverStylesheet(const UI::ImageStylesheet& styleSheet);
         void SetHandlePressedStylesheet(const UI::ImageStylesheet& styleSheet);
 
-        void OnClick(hvec2 mousePosition);
+        void OnClick(vec2 mousePosition) override;
 
         void SetHandleSize(const vec2& size);
         void UpdateHandlePosition();

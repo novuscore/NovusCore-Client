@@ -171,7 +171,7 @@ namespace UIScripting
         image.styleMap[UI::TransformEventState::STATE_PRESSED] = styleSheet;
     }
 
-    void Slider::OnClick(hvec2 mousePosition)
+    void Slider::OnClick(vec2 mousePosition)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto [transform, slider] = registry->get<UIComponent::Transform, UIComponent::Slider>(_entityId);

@@ -17,7 +17,7 @@ namespace UI
         UITYPE_INPUTFIELD
     };
 
-    static std::string GetElementTypeAsString(ElementType type)
+    static char* GetElementTypeAsString(ElementType type)
     {
         switch (type)
         {
