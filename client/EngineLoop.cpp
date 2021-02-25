@@ -10,6 +10,7 @@
 #include "Rendering/TerrainRenderer.h"
 #include "Rendering/MapObjectRenderer.h"
 #include "Rendering/CModelRenderer.h"
+#include "Rendering/RendertargetVisualizer.h"
 #include "Rendering/CameraFreelook.h"
 #include "Rendering/CameraOrbital.h"
 #include "Editor/Editor.h"
@@ -261,6 +262,8 @@ void EngineLoop::Run()
         
         DrawEngineStats(&statsSingleton);
         DrawImguiMenuBar();
+        RendertargetVisualizer* rendertargetVisualizer = _clientRenderer->GetRendertargetVisualizer();
+        rendertargetVisualizer->DrawImgui();
 
         timings.simulationFrameTime = updateTimer.GetLifeTime();
         
@@ -888,11 +891,23 @@ void EngineLoop::DrawMemoryStats()
 
     ImGui::Text("VRAM Usage (Min specs): %luMB / %luMB (%.2f%%)", vramUsage, vramMinBudget, vramMinPercent);
 }
+
 void EngineLoop::DrawImguiMenuBar()
 {
     if (ImGui::BeginMainMenuBar())
     {
         _editor->DrawImguiMenuBar();
+
+        if (ImGui::BeginMenu("Panels"))
+        {
+            if (ImGui::Button("Rendertarget Visualizer"))
+            {
+                RendertargetVisualizer* rendertargetVisualizer = _clientRenderer->GetRendertargetVisualizer();
+                rendertargetVisualizer->SetVisible(true);
+            }
+
+            ImGui::EndMenu();
+        }
 
         if (ImGui::BeginMenu("Debug"))
         {
@@ -914,6 +929,7 @@ void EngineLoop::DrawImguiMenuBar()
 
             ImGui::EndMenu();
         }
+
         ImGui::EndMainMenuBar();
     }
 }

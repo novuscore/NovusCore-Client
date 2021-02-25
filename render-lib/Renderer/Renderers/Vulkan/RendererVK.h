@@ -92,6 +92,7 @@ namespace Renderer
         void EndTrace(CommandListID commandListID) override;
         void AddSignalSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) override;
         void AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) override;
+        void CopyImage(CommandListID commandListID, ImageID dstImageID, uvec2 dstPos, u32 dstMipLevel, ImageID srcImageID, uvec2 srcPos, u32 srcMipLevel, uvec2 size) override;
         void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
         void PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer) override;
         void ImageBarrier(CommandListID commandListID, ImageID image) override;
@@ -109,7 +110,7 @@ namespace Renderer
         ImageDesc GetImageDesc(ImageID ID) override;
         DepthImageDesc GetDepthImageDesc(DepthImageID ID) override;
 
-        uvec2 GetImageDimension(const ImageID id)override;
+        uvec2 GetImageDimension(const ImageID id, u32 mipLevel) override;
 
         void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
 
@@ -123,6 +124,9 @@ namespace Renderer
 
         void InitImgui() override;
         void DrawImgui(CommandListID commandListID) override;
+
+        u32 GetNumImages() override;
+        u32 GetNumDepthImages() override;
 
     private:
         bool ReflectDescriptorSet(const std::string& name, u32 nameHash, u32 type, i32& set, const std::vector<Backend::BindInfo>& bindInfos, u32& outBindInfoIndex, VkDescriptorSetLayoutBinding* outDescriptorLayoutBinding);
@@ -144,6 +148,9 @@ namespace Renderer
 
         GraphicsPipelineID _globalDummyPipeline = GraphicsPipelineID::Invalid();
         Backend::DescriptorSetBuilderVK* _descriptorSetBuilder = nullptr;
+
+        Viewport _lastViewport;
+        ScissorRect _lastScissorRect;
 
         i8 _renderPassOpenCount = 0; // TODO: Move these into CommandListHandler I guess?
 

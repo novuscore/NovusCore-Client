@@ -23,7 +23,7 @@ add_dependencies(${PROJECT_NAME} shaders)
 
 # Add shader location defines
 set(SHADER_BIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/../Data/shaders/ CACHE PATH "Output Directory for shaders")
-add_compile_definitions(SHADER_SOURCE_DIR="${shaders_SOURCE_DIR}" SHADER_BIN_DIR="${SHADER_BIN_DIR}")
+add_compile_definitions(SHADER_SOURCE_DIR="${shaders_SOURCE_DIR}")
 
 #add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 #	COMMENT "Compiling shaders..."

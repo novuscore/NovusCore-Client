@@ -40,6 +40,10 @@ namespace Renderer
             const GraphicsPipelineDesc& GetDescriptor(GraphicsPipelineID id);
             const ComputePipelineDesc& GetDescriptor(ComputePipelineID id);
 
+            // Be careful with these
+            GraphicsPipelineDesc& GetMutableDescriptor(GraphicsPipelineID id);
+            ComputePipelineDesc& GetMutableDescriptor(ComputePipelineID id);
+
             VkPipeline GetPipeline(GraphicsPipelineID id);
             VkPipeline GetPipeline(ComputePipelineID id);
 

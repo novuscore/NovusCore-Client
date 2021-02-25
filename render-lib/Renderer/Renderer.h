@@ -106,6 +106,7 @@ namespace Renderer
         virtual void EndTrace(CommandListID commandListID) = 0;
         virtual void AddSignalSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) = 0;
         virtual void AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) = 0;
+        virtual void CopyImage(CommandListID commandListID, ImageID dstImageID, uvec2 dstPos, u32 dstMipLevel, ImageID srcImageID, uvec2 srcPos, u32 srcMipLevel, uvec2 size) = 0;
         virtual void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
         virtual void PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer) = 0;
         virtual void ImageBarrier(CommandListID commandListID, ImageID image) = 0;
@@ -118,10 +119,9 @@ namespace Renderer
         virtual void Present(Window* window, DepthImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) = 0;
 
         // Utils
-        
         virtual ImageDesc GetImageDesc(ImageID ID) = 0;
         virtual DepthImageDesc GetDepthImageDesc(DepthImageID ID) = 0;
-        virtual uvec2 GetImageDimension(const ImageID id) = 0;
+        virtual uvec2 GetImageDimension(const ImageID id, u32 mipLevel) = 0;
 
         virtual void FlipFrame(u32 frameIndex) = 0;
 
@@ -137,6 +137,9 @@ namespace Renderer
 
         virtual void InitImgui() = 0;
         virtual void DrawImgui(CommandListID commandListID) = 0;
+
+        virtual u32 GetNumImages() = 0;
+        virtual u32 GetNumDepthImages() = 0;
 
     protected:
         Renderer() {}; // Pure virtual class, disallow creation of it

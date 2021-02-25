@@ -2,7 +2,8 @@
 #include "vk_format_utils.h"
 #include "DebugMarkerUtilVK.h"
 #include "SwapChainVK.h"
-#include "ShaderHandlerVK.h"
+#include "ImageHandlerVK.h"
+#include "SemaphoreHandlerVK.h"
 #include "DescriptorSetBuilderVK.h"
 #include "../../../../Window/Window.h"
 #include "../../../Descriptors/VertexShaderDesc.h"
@@ -66,7 +67,7 @@ namespace Renderer
                 InitOnce();
         }
 
-        void RenderDeviceVK::InitWindow(ShaderHandlerVK* shaderHandler, Window* window)
+        void RenderDeviceVK::InitWindow(ImageHandlerVK* imageHandler, SemaphoreHandlerVK* semaphoreHandler, Window* window)
         {
             if (!_initialized)
             {
@@ -88,22 +89,12 @@ namespace Renderer
 
             // -- Create the swapchain --
             CreateSurface(glfwWindow, swapChain);
-            CreateSwapChain(size, swapChain);
-            CreateImageViews(swapChain);
-            CreateFrameBuffers(swapChain);
-            CreateBlitPipeline(shaderHandler, swapChain, "blitFloat", ImageComponentType::FLOAT);
-            CreateBlitPipeline(shaderHandler, swapChain, "blitUint", ImageComponentType::UINT);
-            CreateBlitPipeline(shaderHandler, swapChain, "blitInt", ImageComponentType::SINT);
-        }
 
-        void RenderDeviceVK::ReloadShaders(ShaderHandlerVK* shaderHandler)
-        {
-            for (SwapChainVK* swapChain : _swapChains)
-            {
-                CreateBlitPipeline(shaderHandler, swapChain, "blitFloat", ImageComponentType::FLOAT);
-                CreateBlitPipeline(shaderHandler, swapChain, "blitUint", ImageComponentType::UINT);
-                CreateBlitPipeline(shaderHandler, swapChain, "blitInt", ImageComponentType::SINT);
-            }
+            VkFormat format;
+            CreateSwapChain(size, swapChain, format);
+
+            CreateImages(swapChain, imageHandler, format);
+            CreateSemaphores(swapChain, semaphoreHandler);
         }
 
         void RenderDeviceVK::FlushGPU()
@@ -532,7 +523,7 @@ namespace Renderer
             }
         }
 
-        void RenderDeviceVK::CreateSwapChain(const ivec2& windowSize, SwapChainVK* swapChain)
+        void RenderDeviceVK::CreateSwapChain(const ivec2& windowSize, SwapChainVK* swapChain, VkFormat& format)
         {
             SwapChainSupportDetails swapChainSupport = swapChain->QuerySwapChainSupport(_physicalDevice);
 
@@ -544,6 +535,8 @@ namespace Renderer
             VkSurfaceFormatKHR surfaceFormat = swapChain->ChooseSwapSurfaceFormat(swapChainSupport.formats);
             VkPresentModeKHR presentMode = swapChain->ChooseSwapPresentMode(swapChainSupport.presentModes);
             VkExtent2D extent = swapChain->ChooseSwapExtent(windowSize, swapChainSupport.capabilities);
+
+            format = surfaceFormat.format;
 
             VkSwapchainCreateInfoKHR createInfo = {};
             createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -592,399 +585,38 @@ namespace Renderer
             {
                 DebugHandler::PrintFatal("Failed to create swap chain!");
             }
-            
+        }
+
+        void RenderDeviceVK::CreateSemaphores(SwapChainVK* swapChain, SemaphoreHandlerVK* semaphoreHandler)
+        {
+            for (u32 i = 0; i < SwapChainVK::FRAME_BUFFER_COUNT; i++)
+            {
+                swapChain->imageAvailableSemaphores.Get(i) = semaphoreHandler->CreateGPUSemaphore();
+                swapChain->blitFinishedSemaphores.Get(i) = semaphoreHandler->CreateGPUSemaphore();
+            }
+        }
+
+        void RenderDeviceVK::CreateImages(SwapChainVK* swapChain, ImageHandlerVK* imageHandler, VkFormat format)
+        {
             u32 imageCount = SwapChainVK::FRAME_BUFFER_COUNT;
             vkGetSwapchainImagesKHR(_device, swapChain->swapChain, &imageCount, nullptr);
-            vkGetSwapchainImagesKHR(_device, swapChain->swapChain, &imageCount, swapChain->images.items.data());
 
-            swapChain->imageFormat = surfaceFormat.format;
-            swapChain->extent = extent;
-        }
-
-        void RenderDeviceVK::CreateImageViews(SwapChainVK* swapChain)
-        {
-            VkSemaphoreCreateInfo semaphoreInfo = {};
-            semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-            for (size_t i = 0; i < SwapChainVK::FRAME_BUFFER_COUNT; i++)
+            for (u32 i = 0; i < imageCount; i++)
             {
-                VkImageViewCreateInfo viewInfo = {};
-                viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-                viewInfo.image = swapChain->images.Get(i);
-                viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-                viewInfo.format = swapChain->imageFormat;
-                viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                viewInfo.subresourceRange.baseMipLevel = 0;
-                viewInfo.subresourceRange.levelCount = 1;
-                viewInfo.subresourceRange.baseArrayLayer = 0;
-                viewInfo.subresourceRange.layerCount = 1;
+                ImageDesc imageDesc;
+                imageDesc.format = ImageFormat::B8G8R8A8_UNORM;
+                imageDesc.debugName = "SwapChain" + std::to_string(i);
+                imageDesc.dimensions = vec2(1, 1);
+                imageDesc.dimensionType = ImageDimensionType::DIMENSION_SCALE;
+                imageDesc.mipLevels = 1;
+                imageDesc.sampleCount = SampleCount::SAMPLE_COUNT_1;
 
-                if (vkCreateImageView(_device, &viewInfo, nullptr, &swapChain->imageViews.Get(i)) != VK_SUCCESS)
-                {
-                    DebugHandler::PrintFatal("Failed to create texture image view!");
-                }
-
-                if (vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &swapChain->imageAvailableSemaphores.Get(i)) != VK_SUCCESS)
-                {
-                    DebugHandler::PrintFatal("Failed to create image available semaphore!");
-                }
-
-                if (vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &swapChain->blitFinishedSemaphores.Get(i)) != VK_SUCCESS)
-                {
-                    DebugHandler::PrintFatal("Failed to create blit finished semaphore!");
-                }
-            }
-        }
-
-        void RenderDeviceVK::CreateFrameBuffers(SwapChainVK* swapChain)
-        {
-            // Create a dummy renderpass
-            VkAttachmentDescription colorAttachment = {};
-            colorAttachment.format = swapChain->imageFormat;
-            colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-            colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-            VkAttachmentReference colorAttachmentRef = {};
-            colorAttachmentRef.attachment = 0;
-            colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-            VkSubpassDescription subpass = {};
-            subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-            subpass.colorAttachmentCount = 1;
-            subpass.pColorAttachments = &colorAttachmentRef;
-
-            VkSubpassDependency dependency = {};
-            dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-            dependency.dstSubpass = 0;
-            dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependency.srcAccessMask = 0;
-            dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;// | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-            dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;// | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-            VkRenderPassCreateInfo renderPassInfo = {};
-            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-            renderPassInfo.attachmentCount = 1;
-            renderPassInfo.pAttachments = &colorAttachment;
-            renderPassInfo.subpassCount = 1;
-            renderPassInfo.pSubpasses = &subpass;
-            renderPassInfo.dependencyCount = 1;
-            renderPassInfo.pDependencies = &dependency;
-
-            if (vkCreateRenderPass(_device, &renderPassInfo, nullptr, &swapChain->renderPass) != VK_SUCCESS)
-            {
-                DebugHandler::PrintFatal("Failed to create render pass!");
-            }
-
-            // Create framebuffers
-            for (size_t i = 0; i < SwapChainVK::FRAME_BUFFER_COUNT; i++)
-            {
-                VkFramebufferCreateInfo framebufferInfo = {};
-                framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-                framebufferInfo.renderPass = swapChain->renderPass;
-                framebufferInfo.attachmentCount = 1;
-                framebufferInfo.pAttachments = &swapChain->imageViews.Get(i);
-                framebufferInfo.width = swapChain->extent.width;
-                framebufferInfo.height = swapChain->extent.height;
-                framebufferInfo.layers = 1;
-
-                if (vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &swapChain->framebuffers.Get(i)) != VK_SUCCESS)
-                {
-                    DebugHandler::PrintFatal("Failed to create framebuffer!");
-                }
-            }
-
-            // Create sampler
-            VkSamplerCreateInfo samplerInfo = {};
-            samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-            samplerInfo.magFilter = VK_FILTER_NEAREST;
-            samplerInfo.minFilter = VK_FILTER_NEAREST;
-            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            samplerInfo.anisotropyEnable = VK_TRUE;
-            samplerInfo.maxAnisotropy = 16;
-            samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-            samplerInfo.unnormalizedCoordinates = VK_FALSE;
-            samplerInfo.compareEnable = VK_FALSE;
-            samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-            samplerInfo.mipLodBias = 0.0f;
-            samplerInfo.minLod = 0.0f;
-            samplerInfo.maxLod = 0.0f;
-
-            if (vkCreateSampler(_device, &samplerInfo, nullptr, &swapChain->sampler) != VK_SUCCESS)
-            {
-                DebugHandler::PrintFatal("Failed to create texture sampler!");
-            }
-        }
-
-        void RenderDeviceVK::CreateBlitPipeline(ShaderHandlerVK* shaderHandler, SwapChainVK* swapChain, std::string fragShaderName, ImageComponentType componentType)
-        {
-            BlitPipeline& pipeline = swapChain->blitPipelines[static_cast<u8>(componentType)];
-
-            // Load shaders
-            VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "Blitting/blit.vs.hlsl";
-            VertexShaderID vertexShader = shaderHandler->LoadShader(vertexShaderDesc);
-
-            PixelShaderDesc pixelShaderDesc;
-            pixelShaderDesc.path = "Blitting/" + fragShaderName + ".ps.hlsl";
-            PixelShaderID pixelShader = shaderHandler->LoadShader(pixelShaderDesc);
-
-            // Create shader stage infos
-            VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
-            vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-            vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-
-            vertShaderStageInfo.module = shaderHandler->GetShaderModule(vertexShader);
-            vertShaderStageInfo.pName = "main";
-
-            VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
-            fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-            fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            fragShaderStageInfo.module = shaderHandler->GetShaderModule(pixelShader);
-            fragShaderStageInfo.pName = "main";
-
-            VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
-
-            // Create Descriptor Set Layout from reflected SPIR-V
-            std::vector<BindInfo> bindInfos;
-            {
-                const BindReflection& bindReflection = shaderHandler->GetBindReflection(vertexShader);
-                bindInfos.insert(bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
-            }
-            {
-                const BindReflection& bindReflection = shaderHandler->GetBindReflection(pixelShader);
-                bindInfos.insert(bindInfos.end(), bindReflection.dataBindings.begin(), bindReflection.dataBindings.end());
-            }
-
-            std::vector<VkDescriptorSetLayoutBinding> bindings;
-
-            for (BindInfo& bindInfo : bindInfos)
-            {
-                VkDescriptorSetLayoutBinding layoutBinding = {};
-
-                layoutBinding.binding = bindInfo.binding;
-                layoutBinding.descriptorType = bindInfo.descriptorType;
-                layoutBinding.descriptorCount = bindInfo.count;
-                layoutBinding.stageFlags = bindInfo.stageFlags;
-
-                bindings.push_back(layoutBinding);
-            }
-
-            VkDescriptorSetLayoutCreateInfo layoutInfo = {};
-            layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            layoutInfo.bindingCount = static_cast<u32>(bindings.size());
-            layoutInfo.pBindings = bindings.data();
-
-            if (vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &pipeline.descriptorSetLayout) != VK_SUCCESS)
-            {
-                DebugHandler::PrintFatal("Failed to create descriptor set layout!");
-            }
-
-            // Create descriptor pool
-            VkDescriptorPoolSize descriptorPoolSizes[2] = {};
-            descriptorPoolSizes[0].type = VK_DESCRIPTOR_TYPE_SAMPLER;
-            descriptorPoolSizes[0].descriptorCount = 3;
-            descriptorPoolSizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            descriptorPoolSizes[1].descriptorCount = 3;
-
-            VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
-            descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-            descriptorPoolInfo.poolSizeCount = 2;
-            descriptorPoolInfo.pPoolSizes = descriptorPoolSizes;
-            descriptorPoolInfo.maxSets = 2;
-
-            if (vkCreateDescriptorPool(_device, &descriptorPoolInfo, nullptr, &pipeline.descriptorPool) != VK_SUCCESS)
-            {
-                DebugHandler::PrintFatal("Failed to create descriptor pool!");
-            }
-
-            // Create descriptor set
-            VkDescriptorSetAllocateInfo allocInfo = {};
-            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            allocInfo.descriptorPool = pipeline.descriptorPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = &pipeline.descriptorSetLayout;
-
-            for (u32 i = 0; i < pipeline.descriptorSets.Num; i++)
-            {
-                VkResult result = vkAllocateDescriptorSets(_device, &allocInfo, &pipeline.descriptorSets.Get(i));
-                if (result != VK_SUCCESS)
-                {
-                    DebugHandler::PrintFatal("Failed to allocate descriptor sets!");
-                }
-            }
-
-            // No vertex info
-            VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
-            vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-            vertexInputInfo.vertexBindingDescriptionCount = 0;
-            vertexInputInfo.pVertexBindingDescriptions = nullptr;
-            vertexInputInfo.vertexAttributeDescriptionCount = 0;
-            vertexInputInfo.pVertexAttributeDescriptions = nullptr;
-
-            VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
-            inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-            inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-            inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-            // Set viewport and scissor rect
-            VkViewport viewport = {};
-            viewport.x = 0;
-            viewport.y = 0;
-            viewport.width = static_cast<f32>(swapChain->extent.width);
-            viewport.height = static_cast<f32>(swapChain->extent.height);
-            viewport.minDepth = 0.0f;
-            viewport.maxDepth = 1.0f;
-
-            VkRect2D scissor = {};
-            scissor.offset = { 0, 0 };
-            scissor.extent = swapChain->extent;
-
-            VkPipelineViewportStateCreateInfo viewportState = {};
-            viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-            viewportState.viewportCount = 1;
-            viewportState.pViewports = &viewport;
-            viewportState.scissorCount = 1;
-            viewportState.pScissors = &scissor;
-
-            // Rasterizer
-            VkPipelineRasterizationStateCreateInfo rasterizer = {};
-            rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-            rasterizer.depthClampEnable = VK_FALSE;
-            rasterizer.rasterizerDiscardEnable = VK_FALSE;
-            rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-            rasterizer.lineWidth = 1.0f;
-            rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-            rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
-            rasterizer.depthBiasEnable = false;
-            rasterizer.depthBiasConstantFactor = 0.0f;
-            rasterizer.depthBiasClamp = 0.0f;
-            rasterizer.depthBiasSlopeFactor = 1.0f;
-
-            // Multisampling
-            VkPipelineMultisampleStateCreateInfo multisampling = {};
-            multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-            multisampling.sampleShadingEnable = VK_FALSE;
-            multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-            multisampling.minSampleShading = 1.0f;
-            multisampling.pSampleMask = nullptr;
-            multisampling.alphaToCoverageEnable = VK_FALSE;
-            multisampling.alphaToOneEnable = VK_FALSE;
-
-            // Blender
-            VkPipelineColorBlendAttachmentState colorBlendAttachment;
-            colorBlendAttachment.blendEnable = false;
-            colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-            colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-            colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-            colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-            colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-            colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-            colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-
-            VkPipelineColorBlendStateCreateInfo colorBlending = {};
-            colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-            colorBlending.logicOpEnable = false;
-            colorBlending.logicOp = VK_LOGIC_OP_NO_OP;
-            colorBlending.attachmentCount = 1;
-            colorBlending.pAttachments = &colorBlendAttachment;
-            colorBlending.blendConstants[0] = 0.0f;
-            colorBlending.blendConstants[1] = 0.0f;
-            colorBlending.blendConstants[2] = 0.0f;
-            colorBlending.blendConstants[3] = 0.0f;
-
-            VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
-            pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-            pipelineLayoutInfo.setLayoutCount = 1;
-            pipelineLayoutInfo.pSetLayouts = &pipeline.descriptorSetLayout;
-            pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
-            pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
-
-            if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &pipeline.pipelineLayout) != VK_SUCCESS)
-            {
-                DebugHandler::PrintFatal("Failed to create pipeline layout!");
-            }
-
-            VkGraphicsPipelineCreateInfo pipelineInfo = {};
-            pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-            pipelineInfo.stageCount = 2;
-            pipelineInfo.pStages = shaderStages;
-            pipelineInfo.pVertexInputState = &vertexInputInfo;
-            pipelineInfo.pInputAssemblyState = &inputAssembly;
-            pipelineInfo.pViewportState = &viewportState;
-            pipelineInfo.pRasterizationState = &rasterizer;
-            pipelineInfo.pMultisampleState = &multisampling;
-            pipelineInfo.pDepthStencilState = nullptr; // Optional
-            pipelineInfo.pColorBlendState = &colorBlending;
-            pipelineInfo.pDynamicState = nullptr; // Optional
-            pipelineInfo.layout = pipeline.pipelineLayout;
-            pipelineInfo.renderPass = swapChain->renderPass;
-            pipelineInfo.subpass = 0;
-            pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
-            pipelineInfo.basePipelineIndex = -1; // Optional
-
-            if (vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline.pipeline) != VK_SUCCESS)
-            {
-                DebugHandler::PrintFatal("Failed to create graphics pipeline!");
+                swapChain->imageIDs.Get(i) = imageHandler->CreateImageFromSwapchain(imageDesc, format, swapChain->swapChain, imageCount, i);
             }
         }
 
         void RenderDeviceVK::CleanupSwapChain(SwapChainVK* swapChain)
         {
-            // Destroy frame buffers
-            for (u32 i = 0; i < swapChain->framebuffers.Num; i++)
-            {
-                vkDestroyFramebuffer(_device, swapChain->framebuffers.Get(i), nullptr);
-            }
-
-            // Free command buffers *NOT SURE IF NEEDED?*
-
-            // Destroy blit pipelines
-            for (u32 i = 0; i < 3; i++)
-            {
-                BlitPipeline& pipeline = swapChain->blitPipelines[i];
-
-                // Destroy pipeline
-                vkDestroyPipeline(_device, pipeline.pipeline, nullptr);
-
-                // Destroy pipeline layout
-                vkDestroyPipelineLayout(_device, pipeline.pipelineLayout, nullptr);
-
-                // Destroy descriptor set layout
-                vkDestroyDescriptorSetLayout(_device, pipeline.descriptorSetLayout, nullptr);
-
-                // Destroy descriptor pool
-                vkDestroyDescriptorPool(_device, pipeline.descriptorPool, nullptr);
-            }
-
-            // Destroy renderpass
-            vkDestroyRenderPass(_device, swapChain->renderPass, nullptr);
-
-            // Destroy imageviews
-            for (u32 i = 0; i < swapChain->imageViews.Num; i++)
-            {
-                vkDestroyImageView(_device, swapChain->imageViews.Get(i), nullptr);
-                
-            }
-
-            // Destroy semaphores
-            for (u32 i = 0; i < swapChain->imageAvailableSemaphores.Num; i++)
-            {
-                vkDestroySemaphore(_device, swapChain->imageAvailableSemaphores.Get(i), nullptr);
-            }
-            for (u32 i = 0; i < swapChain->blitFinishedSemaphores.Num; i++)
-            {
-                vkDestroySemaphore(_device, swapChain->blitFinishedSemaphores.Get(i), nullptr);
-            }
-            
             // Destroy swap chain
             vkDestroySwapchainKHR(_device, swapChain->swapChain, nullptr);
 
@@ -992,7 +624,7 @@ namespace Renderer
             vkDestroySurfaceKHR(_instance, swapChain->surface, nullptr);
         }
 
-        void RenderDeviceVK::RecreateSwapChain(ShaderHandlerVK* shaderHandler, SwapChainVK* swapChain)
+        void RenderDeviceVK::RecreateSwapChain(ImageHandlerVK* imageHandler, SemaphoreHandlerVK* semaphoreHandler, SwapChainVK* swapChain)
         {
             // Get the new size
             ivec2 size;
@@ -1010,14 +642,12 @@ namespace Renderer
 
             // Recreate the swapchain
             CreateSurface(swapChain->window, swapChain);
-            CreateSwapChain(size, swapChain);
-            CreateImageViews(swapChain);
-            CreateFrameBuffers(swapChain);
 
-            // Recreate blit pipelines
-            CreateBlitPipeline(shaderHandler, swapChain, "blitFloat", ImageComponentType::FLOAT);
-            CreateBlitPipeline(shaderHandler, swapChain, "blitUint", ImageComponentType::UINT);
-            CreateBlitPipeline(shaderHandler, swapChain, "blitInt", ImageComponentType::SINT);
+            VkFormat format;
+            CreateSwapChain(size, swapChain, format);
+
+            CreateImages(swapChain, imageHandler, format);
+            CreateSemaphores(swapChain, semaphoreHandler);
         }
 
         int RenderDeviceVK::RateDeviceSuitability(VkPhysicalDevice device)

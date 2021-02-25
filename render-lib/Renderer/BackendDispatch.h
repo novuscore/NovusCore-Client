@@ -45,6 +45,8 @@ namespace Renderer
         static void AddSignalSemaphore(Renderer* renderer, CommandListID commandList, const void* data);
         static void AddWaitSemaphore(Renderer* renderer, CommandListID commandList, const void* data);
 
+        static void CopyImage(Renderer* renderer, CommandListID commandList, const void* data);
+
         static void CopyBuffer(Renderer* renderer, CommandListID commandList, const void* data);
         static void FillBuffer(Renderer* renderer, CommandListID commandList, const void* data);
 

@@ -43,6 +43,7 @@ namespace Renderer
             VmaAllocation allocation;
             VkImage image;
             VkImageView colorView;
+            bool isSwapchain = false;
         };
 
         struct DepthImage
@@ -88,7 +89,9 @@ namespace Renderer
                     vmaDestroyImage(_device->_allocator, image.image, image.allocation);
                     
                     // Create new
-                    CreateImage(image);
+                    VkFormat format;
+                    CreateImage(image, format);
+                    CreateImageViews(image, format);
                 }
             }
 
@@ -124,7 +127,45 @@ namespace Renderer
             assert(desc.depth > 0); // Make sure the depth is valid
             assert(desc.format != ImageFormat::UNKNOWN); // Make sure the format is valid
 
-            CreateImage(image);
+            VkFormat format;
+            CreateImage(image, format);
+            CreateImageViews(image, format);
+
+            // Transition image from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_GENERAL
+            _device->TransitionImageLayout(image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, image.desc.depth, image.desc.mipLevels);
+
+            data.images.push_back(image);
+
+            return ImageID(static_cast<ImageID::type>(nextHandle));
+        }
+
+        ImageID ImageHandlerVK::CreateImageFromSwapchain(const ImageDesc& desc, VkFormat format, VkSwapchainKHR swapChain, u32 imageCount, u32 index)
+        {
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
+
+            size_t nextHandle = data.images.size();
+
+            // Make sure we haven't exceeded the limit of the ImageID type, if this hits you need to change type of ImageID to something bigger
+            assert(nextHandle < ImageID::MaxValue());
+
+            Image image;
+            image.desc = desc;
+            image.isSwapchain = true;
+
+            assert(desc.dimensions.x > 0); // Make sure the width is valid
+            assert(desc.dimensions.y > 0); // Make sure the height is valid
+            assert(desc.depth > 0); // Make sure the depth is valid
+            assert(desc.format != ImageFormat::UNKNOWN); // Make sure the format is valid
+
+            // Get VkImage from swapchain
+            VkImage images[3];
+            vkGetSwapchainImagesKHR(_device->_device, swapChain, &imageCount, images);
+            image.image = images[index];
+
+            CreateImageViews(image, format);
+
+            // Transition image from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_GENERAL
+            _device->TransitionImageLayout(image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, image.desc.depth, image.desc.mipLevels);
 
             data.images.push_back(image);
 
@@ -168,7 +209,7 @@ namespace Renderer
             return data.depthImages[static_cast<DepthImageID::type>(id)].desc;
         }
 
-        uvec2 ImageHandlerVK::GetDimension(const ImageID id)
+        uvec2 ImageHandlerVK::GetDimension(const ImageID id, u32 mipLevel)
         {
             auto desc = GetImageDesc(id);
 
@@ -203,7 +244,9 @@ namespace Renderer
                 mips = (GetImageMipLevels(uwidth, uheight));
             }
 
-            return { uwidth,uheight };
+            u32 mip = glm::min(mips, mipLevel);
+
+            return { uwidth >> mip, uheight >> mip };
         }
 
         VkImage ImageHandlerVK::GetImage(const ImageID id)
@@ -269,7 +312,30 @@ namespace Renderer
             return data.depthImages[static_cast<DepthImageID::type>(id)].depthView;
         }
 
-        void ImageHandlerVK::CreateImage(Image& image)
+        bool ImageHandlerVK::IsSwapChainImage(const ImageID id)
+        {
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
+
+            // Lets make sure this id exists
+            assert(data.images.size() > static_cast<ImageID::type>(id));
+            return data.images[static_cast<ImageID::type>(id)].isSwapchain;
+        }
+
+        u32 ImageHandlerVK::GetNumImages()
+        {
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
+
+            return static_cast<u32>(data.images.size());
+        }
+
+        u32 ImageHandlerVK::GetNumDepthImages()
+        {
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
+
+            return static_cast<u32>(data.depthImages.size());
+        }
+
+        void ImageHandlerVK::CreateImage(Image& image, VkFormat& format)
         {
             ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
 
@@ -325,7 +391,9 @@ namespace Renderer
                 image.desc.mipLevels = mips;
             }
 
-            imageInfo.format = FormatConverterVK::ToVkFormat(image.desc.format);
+            format = FormatConverterVK::ToVkFormat(image.desc.format);
+
+            imageInfo.format = format;
             imageInfo.extent.width = uwidth;
             imageInfo.extent.height = uheight;
             imageInfo.extent.depth = image.desc.depth;
@@ -351,62 +419,6 @@ namespace Renderer
             {
                 DebugHandler::PrintFatal("Failed to create image!");
             }
-
-            // Create Color View
-            VkImageViewCreateInfo colorViewInfo = {};
-            colorViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            colorViewInfo.image = image.image;
-            if (image.desc.depth == 1)
-            {
-                colorViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            }
-            else
-            {
-                DebugHandler::PrintFatal("Non-3d images is currently unsupported");
-            }
-
-            colorViewInfo.format = imageInfo.format;
-            colorViewInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
-            colorViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            colorViewInfo.subresourceRange.baseMipLevel = 0;
-            colorViewInfo.subresourceRange.levelCount = mips;
-            colorViewInfo.subresourceRange.baseArrayLayer = 0;
-            colorViewInfo.subresourceRange.layerCount = 1;
-
-            //we want a full mip chain of views
-            if (image.desc.dimensionType == ImageDimensionType::DIMENSION_PYRAMID)
-            {
-                std::vector<ExtraViews> views;
-
-                for (u32 i = 0; i < mips; ++i)
-                {
-                    VkImageViewCreateInfo pyramidLevelInfo = colorViewInfo;
-                    pyramidLevelInfo.subresourceRange.baseMipLevel = i;
-                    pyramidLevelInfo.subresourceRange.levelCount = 1;
-
-                    VkImageView newView;
-                    if (vkCreateImageView(_device->_device, &pyramidLevelInfo, nullptr, &newView) != VK_SUCCESS)
-                    {
-                        DebugHandler::PrintFatal("Failed to create color image view!");
-                    }
-                    ExtraViews v;
-                    v.view = newView;
-                    v.mip = i;
-                    views.push_back(v);
-                }
-
-                data.extraViews[(static_cast<u16>(data.images.size()))] = std::move(views);
-            }
-
-            if (vkCreateImageView(_device->_device, &colorViewInfo, nullptr, &image.colorView) != VK_SUCCESS)
-            {
-                DebugHandler::PrintFatal("Failed to create color image view!");
-            }
-
-            DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)image.colorView, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, image.desc.debugName.c_str());
-
-            // Transition image from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_GENERAL
-            _device->TransitionImageLayout(image.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, image.desc.depth, mips);
         }
 
         void ImageHandlerVK::CreateImage(DepthImage& image)
@@ -482,6 +494,64 @@ namespace Renderer
 
             // Transition image from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
             _device->TransitionImageLayout(image.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, 1, 1);
+        }
+
+        void ImageHandlerVK::CreateImageViews(Image& image, VkFormat format)
+        {
+            ImageHandlerVKData& data = static_cast<ImageHandlerVKData&>(*_data);
+
+            // Create Color View
+            VkImageViewCreateInfo colorViewInfo = {};
+            colorViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            colorViewInfo.image = image.image;
+            if (image.desc.depth == 1)
+            {
+                colorViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            }
+            else
+            {
+                DebugHandler::PrintFatal("Non-3d images is currently unsupported");
+            }
+
+            colorViewInfo.format = format;
+            colorViewInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
+            colorViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            colorViewInfo.subresourceRange.baseMipLevel = 0;
+            colorViewInfo.subresourceRange.levelCount = image.desc.mipLevels;
+            colorViewInfo.subresourceRange.baseArrayLayer = 0;
+            colorViewInfo.subresourceRange.layerCount = 1;
+
+            //we want a full mip chain of views
+            if (image.desc.dimensionType == ImageDimensionType::DIMENSION_PYRAMID)
+            {
+                std::vector<ExtraViews> views;
+
+                for (u32 i = 0; i < image.desc.mipLevels; ++i)
+                {
+                    VkImageViewCreateInfo pyramidLevelInfo = colorViewInfo;
+                    pyramidLevelInfo.subresourceRange.baseMipLevel = i;
+                    pyramidLevelInfo.subresourceRange.levelCount = 1;
+
+                    VkImageView newView;
+                    if (vkCreateImageView(_device->_device, &pyramidLevelInfo, nullptr, &newView) != VK_SUCCESS)
+                    {
+                        DebugHandler::PrintFatal("Failed to create color image view!");
+                    }
+                    ExtraViews v;
+                    v.view = newView;
+                    v.mip = i;
+                    views.push_back(v);
+                }
+                
+                data.extraViews[(static_cast<u16>(data.images.size()))] = std::move(views);
+            }
+
+            if (vkCreateImageView(_device->_device, &colorViewInfo, nullptr, &image.colorView) != VK_SUCCESS)
+            {
+                DebugHandler::PrintFatal("Failed to create color image view!");
+            }
+
+            DebugMarkerUtilVK::SetObjectName(_device->_device, (u64)image.colorView, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, image.desc.debugName.c_str());
         }
     }
 }
