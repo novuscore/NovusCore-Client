@@ -84,6 +84,8 @@ namespace Renderer
         void AddSignalSemaphore(GPUSemaphoreID semaphoreID);
         void AddWaitSemaphore(GPUSemaphoreID semaphoreID);
 
+        void CopyImage(ImageID dstImage, uvec2 dstPos, u32 dstMipLevel, ImageID srcImage, uvec2 srcPos, u32 srcMipLevel, uvec2 size);
+
         void CopyBuffer(BufferID dstBuffer, u64 dstBufferOffset, BufferID srcBuffer, u64 srcBufferOffset, u64 region);
         void FillBuffer(BufferID dstBuffer, u64 dstBufferOffset, u64 size, u32 data);
 

@@ -23,6 +23,7 @@
 #include "Commands/EndTrace.h"
 #include "Commands/AddSignalSemaphore.h"
 #include "Commands/AddWaitSemaphore.h"
+#include "Commands/CopyImage.h"
 #include "Commands/CopyBuffer.h"
 #include "Commands/FillBuffer.h"
 #include "Commands/PipelineBarrier.h"
@@ -204,6 +205,13 @@ namespace Renderer
         ZoneScopedC(tracy::Color::Red3);
         const Commands::AddWaitSemaphore* actualData = static_cast<const Commands::AddWaitSemaphore*>(data);
         renderer->AddWaitSemaphore(commandList, actualData->semaphore);
+    }
+
+    void BackendDispatch::CopyImage(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::CopyImage* actualData = static_cast<const Commands::CopyImage*>(data);
+        renderer->CopyImage(commandList, actualData->dstImage, actualData->dstPos, actualData->dstMipLevel, actualData->srcImage, actualData->srcPos, actualData->srcMipLevel, actualData->size);
     }
 
     void BackendDispatch::CopyBuffer(Renderer* renderer, CommandListID commandList, const void* data)

@@ -581,11 +581,126 @@ namespace Renderer
             case ImageFormat::UNKNOWN:
                 DebugHandler::PrintFatal("This should never hit, we should catch unknowns earlier!");
                 break;
-
-            default:
-                DebugHandler::PrintFatal("This should never hit, did we forget to add more cases after updating ImageFormat?");
-                
         }
+        DebugHandler::PrintFatal("This should never hit, did we forget to add more cases after updating ImageFormat?");
         return ImageComponentType::FLOAT;
+    }
+
+    inline ImageComponentType ToImageComponentType(DepthImageFormat imageFormat)
+    {
+        switch (imageFormat)
+        {
+            case DepthImageFormat::D32_FLOAT_S8X24_UINT:
+            case DepthImageFormat::D32_FLOAT:
+            case DepthImageFormat::R32_FLOAT:
+                return ImageComponentType::FLOAT;
+
+            case DepthImageFormat::D24_UNORM_S8_UINT:
+            case DepthImageFormat::D16_UNORM:
+            case DepthImageFormat::R16_UNORM:
+                return ImageComponentType::UNORM;
+
+            case DepthImageFormat::UNKNOWN:
+                DebugHandler::PrintFatal("This should never hit, we should catch unknowns earlier!");
+                break;
+        }
+        DebugHandler::PrintFatal("This should never hit, did we forget to add more cases after updating DepthImageFormat?");
+        return ImageComponentType::FLOAT;
+    }
+
+    inline u8 ToImageComponentCount(ImageFormat imageFormat)
+    {
+        switch (imageFormat)
+        {
+            // 4 components
+            case ImageFormat::R32G32B32A32_FLOAT:
+            case ImageFormat::R32G32B32A32_UINT:
+            case ImageFormat::R32G32B32A32_SINT:
+            case ImageFormat::R16G16B16A16_FLOAT:
+            case ImageFormat::R16G16B16A16_UNORM:
+            case ImageFormat::R16G16B16A16_UINT:
+            case ImageFormat::R16G16B16A16_SNORM:
+            case ImageFormat::R16G16B16A16_SINT:
+            case ImageFormat::R10G10B10A2_UNORM:
+            case ImageFormat::R10G10B10A2_UINT:
+            case ImageFormat::R8G8B8A8_UNORM:
+            case ImageFormat::R8G8B8A8_UNORM_SRGB:
+            case ImageFormat::R8G8B8A8_UINT:
+            case ImageFormat::R8G8B8A8_SNORM:
+            case ImageFormat::R8G8B8A8_SINT:
+            case ImageFormat::B8G8R8A8_UNORM:
+            case ImageFormat::B8G8R8A8_UNORM_SRGB:
+            case ImageFormat::B8G8R8A8_SNORM:
+            case ImageFormat::B8G8R8A8_UINT:
+            case ImageFormat::B8G8R8A8_SINT:
+                return 4;
+        
+            // 3 components
+            case ImageFormat::R32G32B32_FLOAT:
+            case ImageFormat::R32G32B32_UINT:
+            case ImageFormat::R32G32B32_SINT:
+            case ImageFormat::R11G11B10_FLOAT:
+                return 3;
+        
+            // 2 components
+            case ImageFormat::R32G32_FLOAT:
+            case ImageFormat::R32G32_UINT:
+            case ImageFormat::R32G32_SINT:
+            case ImageFormat::R16G16_FLOAT:
+            case ImageFormat::R16G16_UNORM:
+            case ImageFormat::R16G16_UINT:
+            case ImageFormat::R16G16_SNORM:
+            case ImageFormat::R16G16_SINT:
+            case ImageFormat::R8G8_UNORM:
+            case ImageFormat::R8G8_UINT:
+            case ImageFormat::R8G8_SNORM:
+            case ImageFormat::R8G8_SINT:
+                return 2;
+        
+            // 1 component
+            case ImageFormat::R32_FLOAT:
+            case ImageFormat::R32_UINT:
+            case ImageFormat::R32_SINT:
+            case ImageFormat::R16_FLOAT:
+            case ImageFormat::D16_UNORM:
+            case ImageFormat::R16_UNORM:
+            case ImageFormat::R16_UINT:
+            case ImageFormat::R16_SNORM:
+            case ImageFormat::R16_SINT:
+            case ImageFormat::R8_UNORM:
+            case ImageFormat::R8_UINT:
+            case ImageFormat::R8_SNORM:
+            case ImageFormat::R8_SINT:
+                return 1;
+
+            case ImageFormat::UNKNOWN:
+                DebugHandler::PrintFatal("This should never hit, we should catch unknowns earlier!");
+                break;
+        }
+
+        DebugHandler::PrintFatal("This should never hit, did we forget to add more cases after updating ImageFormat?");
+        return 1;
+    }
+
+    inline u8 ToImageComponentCount(DepthImageFormat imageFormat)
+    {
+        switch (imageFormat)
+        {
+            case DepthImageFormat::D32_FLOAT_S8X24_UINT:
+            case DepthImageFormat::D24_UNORM_S8_UINT:
+                return 2;
+
+            case DepthImageFormat::D16_UNORM:
+            case DepthImageFormat::R16_UNORM:
+            case DepthImageFormat::D32_FLOAT:
+            case DepthImageFormat::R32_FLOAT:
+                return 1;
+
+            case DepthImageFormat::UNKNOWN:
+                DebugHandler::PrintFatal("This should never hit, we should catch unknowns earlier!");
+                break;
+        }
+        DebugHandler::PrintFatal("This should never hit, did we forget to add more cases after updating DepthImageFormat?");
+        return 1;
     }
 }

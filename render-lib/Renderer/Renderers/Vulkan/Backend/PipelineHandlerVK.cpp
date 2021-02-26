@@ -135,6 +135,27 @@ namespace Renderer
         {
             PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
 
+            // -- Get number of render targets and attachments --
+            u8 numAttachments = 0;
+            for (int i = 0; i < MAX_RENDER_TARGETS; i++)
+            {
+                if (desc.renderTargets[i] == RenderPassMutableResource::Invalid())
+                    break;
+
+                numAttachments++;
+            }
+
+            if (numAttachments > 0)
+            {
+                if (desc.ResourceToImageID == nullptr ||
+                    desc.ResourceToDepthImageID == nullptr ||
+                    desc.MutableResourceToImageID == nullptr ||
+                    desc.MutableResourceToDepthImageID == nullptr)
+                {
+                    DebugHandler::PrintFatal("Tried to create a pipeline with uninitialized pipelineDesc, try using RenderGraphResources::InitializePipelineDesc!");
+                }
+            }
+            
             // Check the cache
             size_t nextID;
             u64 cacheDescHash = CalculateCacheDescHash(desc);
@@ -143,32 +164,14 @@ namespace Renderer
                 return GraphicsPipelineID(static_cast<gIDType>(nextID));
             }
             nextID = data.graphicsPipelines.size();
-
+            
             // Make sure we haven't exceeded the limit of the GraphicsPipelineID type, if this hits you need to change type of GraphicsPipelineID to something bigger
             assert(nextID < GraphicsPipelineID::MaxValue());
 
             GraphicsPipeline pipeline;
             pipeline.desc = desc;
             pipeline.cacheDescHash = cacheDescHash;
-
-            // -- Get number of render targets and attachments --
-            u8 numAttachments = 0;
-            for (int i = 0; i < MAX_RENDER_TARGETS; i++)
-            {
-                if (desc.renderTargets[i] == RenderPassMutableResource::Invalid())
-                    break;
-
-                pipeline.numRenderTargets++;
-                numAttachments++;
-            }
-
-            if (numAttachments > 0)
-            {
-                assert(desc.ResourceToImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
-                assert(desc.ResourceToDepthImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
-                assert(desc.MutableResourceToImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
-                assert(desc.MutableResourceToDepthImageID != nullptr); // You need to bind this function pointer before creating pipeline, maybe use RenderGraph::InitializePipelineDesc?
-            }
+            pipeline.numRenderTargets = numAttachments;
 
             // -- Create Render Pass --
             std::vector<VkAttachmentDescription> attachments(numAttachments);
@@ -176,16 +179,28 @@ namespace Renderer
             for (int i = 0; i < numAttachments; i++)
             {
                 ImageID imageID = desc.MutableResourceToImageID(desc.renderTargets[i]);
+
                 const ImageDesc& imageDesc = _imageHandler->GetImageDesc(imageID);
+                bool isSwapchain = _imageHandler->IsSwapChainImage(imageID);
+
                 attachments[i].format = FormatConverterVK::ToVkFormat(imageDesc.format);
                 attachments[i].samples = FormatConverterVK::ToVkSampleCount(imageDesc.sampleCount);
                 attachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
                 attachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 attachments[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
                 attachments[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                attachments[i].initialLayout = VK_IMAGE_LAYOUT_GENERAL;
-                attachments[i].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
 
+                if (isSwapchain)
+                {
+                    attachments[i].initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                    attachments[i].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                }
+                else
+                {
+                    attachments[i].initialLayout = VK_IMAGE_LAYOUT_GENERAL;
+                    attachments[i].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+                }
+                
                 colorAttachmentRefs[i].attachment = i;
                 colorAttachmentRefs[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             }
@@ -704,7 +719,19 @@ namespace Renderer
         const ComputePipelineDesc& PipelineHandlerVK::GetDescriptor(ComputePipelineID id)
         {
             PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
-            return data.computePipelines[static_cast<gIDType>(id)].desc;
+            return data.computePipelines[static_cast<cIDType>(id)].desc;
+        }
+
+        GraphicsPipelineDesc& PipelineHandlerVK::GetMutableDescriptor(GraphicsPipelineID id)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.graphicsPipelines[static_cast<gIDType>(id)].desc;
+        }
+
+        ComputePipelineDesc& PipelineHandlerVK::GetMutableDescriptor(ComputePipelineID id)
+        {
+            PipelineHandlerVKData& data = static_cast<PipelineHandlerVKData&>(*_data);
+            return data.computePipelines[static_cast<cIDType>(id)].desc;
         }
 
         VkPipeline PipelineHandlerVK::GetPipeline(GraphicsPipelineID id)

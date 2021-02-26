@@ -20,6 +20,7 @@
 #include "EndTrace.h"
 #include "AddSignalSemaphore.h"
 #include "AddWaitSemaphore.h"
+#include "CopyImage.h"
 #include "CopyBuffer.h"
 #include "FillBuffer.h"
 #include "PipelineBarrier.h"
@@ -57,6 +58,7 @@ namespace Renderer
         const BackendDispatchFunction EndTrace::DISPATCH_FUNCTION = &BackendDispatch::EndTrace;
         const BackendDispatchFunction AddSignalSemaphore::DISPATCH_FUNCTION = &BackendDispatch::AddSignalSemaphore;
         const BackendDispatchFunction AddWaitSemaphore::DISPATCH_FUNCTION = &BackendDispatch::AddWaitSemaphore;
+        const BackendDispatchFunction CopyImage::DISPATCH_FUNCTION = &BackendDispatch::CopyImage;
         const BackendDispatchFunction CopyBuffer::DISPATCH_FUNCTION = &BackendDispatch::CopyBuffer;
         const BackendDispatchFunction FillBuffer::DISPATCH_FUNCTION = &BackendDispatch::FillBuffer;
         const BackendDispatchFunction PipelineBarrier::DISPATCH_FUNCTION = &BackendDispatch::PipelineBarrier;

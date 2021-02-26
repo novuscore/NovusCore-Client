@@ -10,6 +10,7 @@
 #include "Rendering/TerrainRenderer.h"
 #include "Rendering/MapObjectRenderer.h"
 #include "Rendering/CModelRenderer.h"
+#include "Rendering/RendertargetVisualizer.h"
 #include "Rendering/CameraFreelook.h"
 #include "Rendering/CameraOrbital.h"
 #include "Editor/Editor.h"
@@ -268,6 +269,8 @@ void EngineLoop::Run()
         
         DrawEngineStats(&statsSingleton);
         DrawImguiMenuBar();
+        RendertargetVisualizer* rendertargetVisualizer = _clientRenderer->GetRendertargetVisualizer();
+        rendertargetVisualizer->DrawImgui();
 
         timings.simulationFrameTime = updateTimer.GetLifeTime();
         
@@ -888,8 +891,6 @@ void EngineLoop::DrawUIStats()
 
     auto DisplayElementInfo = [&](char* elementName, entt::entity entId)
     {
-        using namespace entt::literals;
-
         if (entId == entt::null)
             ImGui::Text("%s Element : Id: None, Type: None", elementName);
         else
@@ -913,11 +914,11 @@ void EngineLoop::DrawUIStats()
     ImGui::Spacing();
 
     size_t count = registry->size<UIComponent::Transform>();
-    size_t notCulled = registry->size<UIComponent::NotCulled>();
+    size_t culled = count - registry->size<UIComponent::NotCulled>();
     bool* drawCollisionBounds = reinterpret_cast<bool*>(CVarSystem::Get()->GetIntCVar("ui.drawCollisionBounds"));
 
     ImGui::Text("Total Elements : %d", count);
-    ImGui::Text("Culled elements : %d", (count-notCulled));
+    ImGui::Text("Culled elements : %d", culled);
     ImGui::Text("UI Resolution : (%.0f, %.0f)", static_cast<f32>(dataSingleton->UIRESOLUTION.x), static_cast<f32>(dataSingleton->UIRESOLUTION.y));
     ImGui::Spacing();
 
@@ -959,11 +960,23 @@ void EngineLoop::DrawMemoryStats()
 
     ImGui::Text("VRAM Usage (Min specs): %luMB / %luMB (%.2f%%)", vramUsage, vramMinBudget, vramMinPercent);
 }
+
 void EngineLoop::DrawImguiMenuBar()
 {
     if (ImGui::BeginMainMenuBar())
     {
         _editor->DrawImguiMenuBar();
+
+        if (ImGui::BeginMenu("Panels"))
+        {
+            if (ImGui::Button("Rendertarget Visualizer"))
+            {
+                RendertargetVisualizer* rendertargetVisualizer = _clientRenderer->GetRendertargetVisualizer();
+                rendertargetVisualizer->SetVisible(true);
+            }
+
+            ImGui::EndMenu();
+        }
 
         if (ImGui::BeginMenu("Debug"))
         {
@@ -985,6 +998,7 @@ void EngineLoop::DrawImguiMenuBar()
 
             ImGui::EndMenu();
         }
+
         ImGui::EndMainMenuBar();
     }
 }

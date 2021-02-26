@@ -21,7 +21,8 @@ namespace Renderer
     namespace Backend
     {
         struct SwapChainVK;
-        class ShaderHandlerVK;
+        class ImageHandlerVK;
+        class SemaphoreHandlerVK;
         struct DescriptorMegaPoolVK;
 
         struct QueueFamilyIndices
@@ -41,9 +42,7 @@ namespace Renderer
             ~RenderDeviceVK();
 
             void Init();
-            void InitWindow(ShaderHandlerVK* shaderHandler, Window* window);
-
-            void ReloadShaders(ShaderHandlerVK* shaderHandler);
+            void InitWindow(ImageHandlerVK* imageHandler, SemaphoreHandlerVK* semaphoreHandler, Window* window);
 
             u32 GetFrameIndex() { return _frameIndex; }
             void EndFrame() { _frameIndex = (_frameIndex + 1) % FRAME_INDEX_COUNT; }
@@ -67,14 +66,12 @@ namespace Renderer
 
             // InitWindow helper functions
             void CreateSurface(GLFWwindow* window, SwapChainVK* swapChain);
-            void CreateSwapChain(const ivec2& windowSize, SwapChainVK* swapChain);
-            void CreateImageViews(SwapChainVK* swapChain);
-            void CreateFrameBuffers(SwapChainVK* swapChain);
-            void CreateBlitPipeline(ShaderHandlerVK* shaderHandler, SwapChainVK* swapChain, std::string fragShaderName, ImageComponentType componentType);
-            
+            void CreateSwapChain(const ivec2& windowSize, SwapChainVK* swapChain, VkFormat& format);
+            void CreateSemaphores(SwapChainVK* swapChain, SemaphoreHandlerVK* semaphoreHandler);
+            void CreateImages(SwapChainVK* swapChain, ImageHandlerVK* imageHandler, VkFormat format);
 
             void CleanupSwapChain(SwapChainVK* swapChain);
-            void RecreateSwapChain(ShaderHandlerVK* shaderHandler, SwapChainVK* swapChain);
+            void RecreateSwapChain(ImageHandlerVK* imageHandler, SemaphoreHandlerVK* semaphoreHandler, SwapChainVK* swapChain);
 
             int RateDeviceSuitability(VkPhysicalDevice device);
             QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);

@@ -15,7 +15,8 @@
 
 namespace ShaderCooker
 {
-    class ShaderCooker;
+    class ShaderCompiler;
+    class ShaderCache;
 }
 
 namespace Renderer
@@ -88,6 +89,8 @@ namespace Renderer
                 std::string path;
                 std::string sourcePath;
 
+                std::vector<PermutationField> permutationFields;
+
                 VkShaderModule module;
                 ShaderBinary spirv;
 
@@ -96,13 +99,15 @@ namespace Renderer
 
         private:
             template <typename T>
-            T LoadShader(const std::string& shaderPath, std::vector<Shader>& shaders)
+            T LoadShader(const std::string& shaderPath, const std::vector<PermutationField>& permutationFields, std::vector<Shader>& shaders)
             {
                 size_t id;
                 using idType = type_safe::underlying_type<T>;
 
+                std::string permutationPath = GetPermutationPath(shaderPath, permutationFields);
+
                 // If shader is already loaded, return ID of already loaded version
-                if (TryFindExistingShader(shaderPath, shaders, id))
+                if (TryFindExistingShader(permutationPath, shaders, id))
                 {
                     return T(static_cast<idType>(id));
                 }
@@ -110,14 +115,14 @@ namespace Renderer
                 // Check if we need to compile it before loading
                 if (NeedsCompile(shaderPath))
                 {
-                    DebugHandler::Print("[ShaderCooker]: Compiling %s", shaderPath.c_str());
+                    //DebugHandler::Print("[ShaderCooker]: Compiling %s", shaderPath.c_str());
                     if (!CompileShader(shaderPath))
                     {
                         DebugHandler::PrintWarning("[ShaderCooker]: Compiling %s failed, using old version", shaderPath.c_str());
                     }
                 }
 
-                std::string shaderBinPath = GetShaderBinPathString(shaderPath);
+                std::string shaderBinPath = GetShaderBinPathString(permutationPath);
 
                 id = shaders.size();
                 assert(id < T::MaxValue());
@@ -125,8 +130,9 @@ namespace Renderer
                 shaders.emplace_back();
                 Shader& shader = shaders.back();
                 ReadFile(shaderBinPath, shader.spirv);
-                shader.path = shaderPath;
+                shader.path = permutationPath;
                 shader.module = CreateShaderModule(shader.spirv);
+                shader.permutationFields = permutationFields;
 
                 // Reflect descriptor sets
                 SpvReflectShaderModule reflectModule;
@@ -145,7 +151,6 @@ namespace Renderer
                     DebugHandler::PrintFatal("We failed to reflect the spirv descriptor set count of %s", shaderPath.c_str());
                 }
 
-                
                 if (descriptorSetCount > 0)
                 {
                     std::vector<SpvReflectDescriptorSet*> descriptorSets(descriptorSetCount);
@@ -208,6 +213,7 @@ namespace Renderer
             bool TryFindExistingShader(const std::string& shaderPath, std::vector<Shader>& shaders, size_t& id);
 
             std::string GetShaderBinPathString(const std::string& shaderPath);
+            std::string GetPermutationPath(const std::string& shaderPathString, const std::vector<PermutationField>& permutationFields);
 
             bool NeedsCompile(const std::string& shaderPath);
             bool CompileShader(const std::string& shaderPath);
@@ -215,7 +221,8 @@ namespace Renderer
         private:
             RenderDeviceVK* _device;
 
-            ShaderCooker::ShaderCooker* _shaderCooker;
+            ShaderCooker::ShaderCache* _shaderCache;
+            ShaderCooker::ShaderCompiler* _shaderCompiler;
             bool _forceRecompileAll = false;
 
             std::vector<Shader> _vertexShaders;

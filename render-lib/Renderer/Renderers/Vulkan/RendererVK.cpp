@@ -54,7 +54,7 @@ namespace Renderer
 
     void RendererVK::InitWindow(Window* window)
     {
-        _device->InitWindow(_shaderHandler, window);
+        _device->InitWindow(_imageHandler, _semaphoreHandler, window);
     }
 
     void RendererVK::Deinit()
@@ -81,8 +81,6 @@ namespace Renderer
         _pipelineHandler->DiscardPipelines();
 
         CreateDummyPipeline();
-
-        _device->ReloadShaders(_shaderHandler);
     }
 
     BufferID RendererVK::CreateBuffer(BufferDesc& desc)
@@ -224,9 +222,9 @@ namespace Renderer
     }
 
 
-    uvec2 RendererVK::GetImageDimension(const ImageID id)
+    uvec2 RendererVK::GetImageDimension(const ImageID id, u32 mipLevel)
     {
-        return _imageHandler->GetDimension(id);
+        return _imageHandler->GetDimension(id, mipLevel);
     }
 
     DepthImageDesc RendererVK::GetDepthImageDesc(DepthImageID ID)
@@ -503,6 +501,8 @@ namespace Renderer
 
     void RendererVK::SetScissorRect(CommandListID commandListID, ScissorRect scissorRect)
     {
+        _lastScissorRect = scissorRect;
+
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
         VkRect2D vkScissorRect = {};
@@ -514,6 +514,8 @@ namespace Renderer
 
     void RendererVK::SetViewport(CommandListID commandListID, Viewport viewport)
     {
+        _lastViewport = viewport;
+
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
         VkViewport vkViewport = {};
@@ -695,7 +697,7 @@ namespace Renderer
 
     void RendererVK::RecreateSwapChain(Backend::SwapChainVK* swapChain)
     {
-        _device->RecreateSwapChain(_shaderHandler, swapChain);
+        _device->RecreateSwapChain(_imageHandler, _semaphoreHandler, swapChain);
         _pipelineHandler->OnWindowResize();
         _imageHandler->OnWindowResize();
     }
@@ -839,6 +841,33 @@ namespace Renderer
     {
         VkSemaphore semaphore = _semaphoreHandler->GetVkSemaphore(semaphoreID);
         _commandListHandler->AddWaitSemaphore(commandListID, semaphore);
+    }
+
+    void RendererVK::CopyImage(CommandListID commandListID, ImageID dstImageID, uvec2 dstPos, u32 dstMipLevel, ImageID srcImageID, uvec2 srcPos, u32 srcMipLevel, uvec2 size)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        VkImage dstImage = _imageHandler->GetImage(dstImageID);
+        VkImage srcImage = _imageHandler->GetImage(srcImageID);
+
+        VkImageCopy imageCopy = {};
+        imageCopy.dstOffset.x = dstPos.x;
+        imageCopy.dstOffset.y = dstPos.y;
+        imageCopy.dstSubresource.mipLevel = dstMipLevel;
+        imageCopy.dstSubresource.layerCount = 1;
+        imageCopy.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+        imageCopy.srcOffset.x = srcPos.x;
+        imageCopy.srcOffset.y = srcPos.y;
+        imageCopy.srcSubresource.mipLevel = srcMipLevel;
+        imageCopy.srcSubresource.layerCount = 1;
+        imageCopy.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+        imageCopy.extent.width = size.x;
+        imageCopy.extent.height = size.y;
+        imageCopy.extent.depth = 1;
+        
+        vkCmdCopyImage(commandBuffer, srcImage, VK_IMAGE_LAYOUT_GENERAL, dstImage, VK_IMAGE_LAYOUT_GENERAL, 1, &imageCopy);
     }
 
     void RendererVK::CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range)
@@ -1023,8 +1052,9 @@ namespace Renderer
         u32 frameIndex;
         {
             ZoneScopedNC("Present::AcquireNextImage", tracy::Color::Red);
+            VkSemaphore imageAvailableSemaphore = _semaphoreHandler->GetVkSemaphore(swapChain->imageAvailableSemaphores.Get(semaphoreIndex));
 
-            result = vkAcquireNextImageKHR(_device->_device, swapChain->swapChain, UINT64_MAX, swapChain->imageAvailableSemaphores.Get(semaphoreIndex), VK_NULL_HANDLE, &frameIndex);
+            result = vkAcquireNextImageKHR(_device->_device, swapChain->swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &frameIndex);
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR)
             {
@@ -1046,82 +1076,129 @@ namespace Renderer
                 _commandListHandler->AddWaitSemaphore(commandListID, semaphore); // Wait for the provided semaphore to finish
             }
 
-            _commandListHandler->AddWaitSemaphore(commandListID, swapChain->imageAvailableSemaphores.Get(semaphoreIndex)); // Wait for swapchain image to be available
-            _commandListHandler->AddSignalSemaphore(commandListID, swapChain->blitFinishedSemaphores.Get(semaphoreIndex)); // Signal that blitting is done
+            VkSemaphore imageAvailableSemaphore = _semaphoreHandler->GetVkSemaphore(swapChain->imageAvailableSemaphores.Get(semaphoreIndex));
+            VkSemaphore blitFinishedSemaphore = _semaphoreHandler->GetVkSemaphore(swapChain->blitFinishedSemaphores.Get(semaphoreIndex));
+
+            _commandListHandler->AddWaitSemaphore(commandListID, imageAvailableSemaphore); // Wait for swapchain image to be available
+            _commandListHandler->AddSignalSemaphore(commandListID, blitFinishedSemaphore); // Signal that blitting is done
         }
         
-        ImageDesc imageDesc = _imageHandler->GetImageDesc(imageID);
-        ImageComponentType componentType = ToImageComponentType(imageDesc.format);
-
-        Backend::BlitPipeline& pipeline = swapChain->blitPipelines[static_cast<u8>(componentType)];
-
         VkImage image = _imageHandler->GetImage(imageID);
 
-        // Update SRV descriptor
-        {
-            ZoneScopedNC("Present::UpdateSRVDescriptor", tracy::Color::Red);
+        // Create sampler
+        SamplerDesc samplerDesc;
+        samplerDesc.enabled = true;
+        samplerDesc.filter = SamplerFilter::MIN_MAG_MIP_LINEAR;
+        samplerDesc.addressU = TextureAddressMode::WRAP;
+        samplerDesc.addressV = TextureAddressMode::WRAP;
+        samplerDesc.addressW = TextureAddressMode::CLAMP;
+        samplerDesc.shaderVisibility = ShaderVisibility::PIXEL;
 
-            VkDescriptorImageInfo imageInfos[2] = {};
-            imageInfos[0].sampler = swapChain->sampler;
-
-            imageInfos[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfos[1].imageView = _imageHandler->GetColorView(imageID);
-
-            VkWriteDescriptorSet descriptorWrites[2] = {};
-            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[0].dstSet = pipeline.descriptorSets.Get(swapChain->frameIndex);
-            descriptorWrites[0].dstBinding = 0;
-            descriptorWrites[0].dstArrayElement = 0;
-            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-            descriptorWrites[0].descriptorCount = 1;
-            descriptorWrites[0].pBufferInfo = nullptr;
-            descriptorWrites[0].pImageInfo = &imageInfos[0];
-            descriptorWrites[0].pTexelBufferView = nullptr;
-
-            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[1].dstSet = pipeline.descriptorSets.Get(swapChain->frameIndex);
-            descriptorWrites[1].dstBinding = 1;
-            descriptorWrites[1].dstArrayElement = 0;
-            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            descriptorWrites[1].descriptorCount = 1;
-            descriptorWrites[1].pBufferInfo = nullptr;
-            descriptorWrites[1].pImageInfo = &imageInfos[1];
-            descriptorWrites[1].pTexelBufferView = nullptr;
-
-            vkUpdateDescriptorSets(_device->_device, 2, descriptorWrites, 0, nullptr);
-        }
+        SamplerID samplerID = _samplerHandler->CreateSampler(samplerDesc);
         
         {
             ZoneScopedNC("Present::Blit", tracy::Color::Red);
 
-            // Set up renderpass
-            VkRenderPassBeginInfo renderPassInfo = {};
-            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            renderPassInfo.renderPass = swapChain->renderPass;
-            renderPassInfo.framebuffer = swapChain->framebuffers.Get(frameIndex);
-            renderPassInfo.renderArea.offset = { 0, 0 };
-            renderPassInfo.renderArea.extent = swapChain->extent;
+            // Load shaders
+            VertexShaderDesc vertexShaderDesc;
+            vertexShaderDesc.path = "Blitting/blit.vs.hlsl";
 
-            VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
-            renderPassInfo.clearValueCount = 1;
-            renderPassInfo.pClearValues = &clearColor;
+            ImageDesc imageDesc = _imageHandler->GetImageDesc(imageID);
+            ImageComponentType componentType = ToImageComponentType(imageDesc.format);
+            std::string componentTypeName = "";
 
-            // Transition image from GENERAL to SHADER_READ_ONLY_OPTIMAL
-            _device->TransitionImageLayout(commandBuffer, image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, imageDesc.depth, 1);
+            switch (componentType)
+            {
+                case ImageComponentType::FLOAT:
+                    componentTypeName = "float";
+                    break;
+                case ImageComponentType::SINT:
+                case ImageComponentType::SNORM:
+                    componentTypeName = "int";
+                    break;
+                case ImageComponentType::UINT:
+                case ImageComponentType::UNORM:
+                    componentTypeName = "uint";
+                    break;
+            }
 
-            vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+            u8 componentCount = ToImageComponentCount(imageDesc.format);
+            if (componentCount > 1)
+            {
+                componentTypeName += std::to_string(componentCount);
+            }
 
-            // Bind pipeline and descriptors and render
-            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline);
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipelineLayout, 0, 1, &pipeline.descriptorSets.Get(swapChain->frameIndex), 0, nullptr);
+            PixelShaderDesc pixelShaderDesc;
+            pixelShaderDesc.path = "Blitting/blit.ps.hlsl";
+            pixelShaderDesc.AddPermutationField("TEX_TYPE", componentTypeName);
+
+            GraphicsPipelineDesc pipelineDesc;
+
+            // We define simple passthrough functions here because we don't have a rendergraph that keeps track of resources while presenting
+            pipelineDesc.ResourceToImageID = [](RenderPassResource resource)
+            {
+                return ImageID(static_cast<RenderPassResource::type>(resource));
+            };
+
+            pipelineDesc.ResourceToDepthImageID = [](RenderPassResource resource)
+            {
+                return DepthImageID(static_cast<RenderPassResource::type>(resource));
+            };
+
+            pipelineDesc.MutableResourceToImageID = [](RenderPassMutableResource resource)
+            {
+                return ImageID(static_cast<RenderPassResource::type>(resource));
+            };
+
+            pipelineDesc.MutableResourceToDepthImageID = [](RenderPassMutableResource resource)
+            {
+                return DepthImageID(static_cast<RenderPassResource::type>(resource));
+            };
+
+            pipelineDesc.states.vertexShader = _shaderHandler->LoadShader(vertexShaderDesc);
+            pipelineDesc.states.pixelShader = _shaderHandler->LoadShader(pixelShaderDesc);
+
+            pipelineDesc.states.rasterizerState.cullMode = CullMode::BACK;
+            pipelineDesc.states.rasterizerState.frontFaceMode = FrontFaceState::COUNTERCLOCKWISE;
+
+            pipelineDesc.renderTargets[0] = RenderPassMutableResource(static_cast<ImageID::type>(swapChain->imageIDs.Get(frameIndex)));
+
+            GraphicsPipelineID pipelineID = _pipelineHandler->CreatePipeline(pipelineDesc);
+            VkPipelineLayout pipelineLayout = _pipelineHandler->GetPipelineLayout(pipelineID);
+            Backend::DescriptorSetBuilderVK* builder = _pipelineHandler->GetDescriptorSetBuilder(pipelineID);
+            
+            BeginPipeline(commandListID, pipelineID);
+
+            SetViewport(commandListID, _lastViewport);
+            SetScissorRect(commandListID, _lastScissorRect);
+
+            // Set descriptors
+            VkDescriptorImageInfo samplerInfo = {};
+            samplerInfo.sampler = _samplerHandler->GetSampler(samplerID);
+            builder->BindSampler("_sampler"_h, samplerInfo);
+
+            VkDescriptorImageInfo imageInfo = {};
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            imageInfo.imageView = _imageHandler->GetColorView(imageID);
+            builder->BindImage("_texture"_h, imageInfo);
+
+            VkDescriptorSet descriptorSet = builder->BuildDescriptor(0, Backend::DescriptorLifetime::PerFrame);
+
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+
+            struct BlitConstant
+            {
+                vec4 colorMultiplier;
+                vec4 additiveColor;
+            } blitConstant;
+            blitConstant.colorMultiplier = vec4(1, 1, 1, 1);
+            blitConstant.additiveColor = vec4(0, 0, 0, 0);
+
+            vkCmdPushConstants(commandBuffer, pipelineLayout, VkShaderStageFlagBits::VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(BlitConstant), &blitConstant);
 
             vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
-            vkCmdEndRenderPass(commandBuffer);
-
-            // Transition image from SHADER_READ_ONLY_OPTIMAL to GENERAL
-            _device->TransitionImageLayout(commandBuffer, image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, imageDesc.depth, 1);
-            PopMarker(commandListID);
+            EndPipeline(commandListID, pipelineID);
 
 #if TRACY_ENABLE
             tracyScope->End();
@@ -1133,11 +1210,16 @@ namespace Renderer
 
         // Present
         {
+            ImageID swapchainImageID = swapChain->imageIDs.Get(frameIndex);
+            VkImage image = _imageHandler->GetImage(swapchainImageID);
+
+            VkSemaphore blitFinishedSemaphore = _semaphoreHandler->GetVkSemaphore(swapChain->blitFinishedSemaphores.Get(semaphoreIndex));
+
             ZoneScopedNC("Present::Present", tracy::Color::Red);
             VkPresentInfoKHR presentInfo = {};
             presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
             presentInfo.waitSemaphoreCount = 1;
-            presentInfo.pWaitSemaphores = &swapChain->blitFinishedSemaphores.Get(semaphoreIndex); // Wait for blitting to finish
+            presentInfo.pWaitSemaphores = &blitFinishedSemaphore; // Wait for blitting to finish
 
             presentInfo.swapchainCount = 1;
             presentInfo.pSwapchains = &swapChain->swapChain;
@@ -1241,5 +1323,15 @@ namespace Renderer
         VkCommandBuffer cmd = _commandListHandler->GetCommandBuffer(commandListID);
 
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+    }
+
+    u32 RendererVK::GetNumImages()
+    {
+        return _imageHandler->GetNumImages();
+    }
+
+    u32 RendererVK::GetNumDepthImages()
+    {
+        return _imageHandler->GetNumDepthImages();
     }
 }

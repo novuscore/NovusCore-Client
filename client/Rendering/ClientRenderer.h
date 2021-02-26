@@ -28,6 +28,8 @@ class CameraFreeLook;
 class UIRenderer;
 class TerrainRenderer;
 class CModelRenderer;
+class PostProcessRenderer;
+class RendertargetVisualizer;
 class InputManager;
 class DebugRenderer;
 class PixelQuery;
@@ -49,6 +51,7 @@ public:
     TerrainRenderer* GetTerrainRenderer() { return _terrainRenderer; }
     CModelRenderer* GetCModelRenderer() { return _cModelRenderer; }
     DebugRenderer* GetDebugRenderer() { return _debugRenderer; }
+    RendertargetVisualizer* GetRendertargetVisualizer() { return _rendertargetVisualizer; }
     PixelQuery* GetPixelQuery() { return _pixelQuery; }
 
     void ReloadShaders(bool forceRecompileAll);
@@ -91,6 +94,8 @@ private:
     UIRenderer* _uiRenderer;
     TerrainRenderer* _terrainRenderer;
     CModelRenderer* _cModelRenderer;
+    PostProcessRenderer* _postProcessRenderer;
+    RendertargetVisualizer* _rendertargetVisualizer;
 
     PixelQuery* _pixelQuery;
 

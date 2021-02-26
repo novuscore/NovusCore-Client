@@ -2,6 +2,8 @@
 #include "UIRenderer.h"
 #include "TerrainRenderer.h"
 #include "CModelRenderer.h"
+#include "PostProcessRenderer.h"
+#include "RendertargetVisualizer.h"
 #include "DebugRenderer.h"
 #include "PixelQuery.h"
 #include "CameraFreelook.h"
@@ -100,6 +102,8 @@ ClientRenderer::ClientRenderer()
     _debugRenderer = new DebugRenderer(_renderer);
     _uiRenderer = new UIRenderer(_renderer, _debugRenderer);
     _cModelRenderer = new CModelRenderer(_renderer, _debugRenderer);
+    _postProcessRenderer = new PostProcessRenderer(_renderer);
+    _rendertargetVisualizer = new RendertargetVisualizer(_renderer);
     _terrainRenderer = new TerrainRenderer(_renderer, _debugRenderer, _cModelRenderer);
     _pixelQuery = new PixelQuery(_renderer);
 
@@ -118,6 +122,8 @@ void ClientRenderer::Update(f32 deltaTime)
 
     _terrainRenderer->Update(deltaTime);
     _cModelRenderer->Update(deltaTime);
+    _postProcessRenderer->Update(deltaTime);
+    _rendertargetVisualizer->Update(deltaTime);
     _pixelQuery->Update(deltaTime);
     _uiRenderer->Update(deltaTime);
 
@@ -206,16 +212,14 @@ void ClientRenderer::Render()
             // Set viewport
             commandList.SetViewport(0, 0, static_cast<f32>(WIDTH), static_cast<f32>(HEIGHT), 0.0f, 1.0f);
             commandList.SetScissorRect(0, WIDTH, 0, HEIGHT);
-
-            /*Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
-            commandList.BeginPipeline(pipeline);
-            
-            commandList.EndPipeline(pipeline);*/
         });
     }
 
     _terrainRenderer->AddTerrainPass(&renderGraph, &_globalDescriptorSet, _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
-    _cModelRenderer->AddComplexModelPass(&renderGraph, &_globalDescriptorSet, _mainColor, _objectIDs, _mainDepth, _frameIndex, _depthPyramid);
+    _cModelRenderer->AddComplexModelPass(&renderGraph, &_globalDescriptorSet, _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
+    _postProcessRenderer->AddPostProcessPass(&renderGraph, &_globalDescriptorSet, _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
+    _rendertargetVisualizer->AddVisualizerPass(&renderGraph, &_globalDescriptorSet, _mainColor, _frameIndex);
+
     // UI Pass
     struct PyramidPassData
     {
@@ -237,7 +241,7 @@ void ClientRenderer::Render()
         });
 
     _pixelQuery->AddPixelQueryPass(&renderGraph, _mainColor, _objectIDs, _mainDepth, _frameIndex);
-    
+
     _debugRenderer->Add3DPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
 
     _uiRenderer->AddUIPass(&renderGraph, _mainColor, _frameIndex);
@@ -263,8 +267,8 @@ void ClientRenderer::Render()
     renderGraph.Execute();
     
     {
-        ZoneScopedNC("Present", tracy::Color::Red2)
-        _renderer->Present(_window, _mainColor, _sceneRenderedSemaphore); // Wait for the frame to render
+        ZoneScopedNC("Present", tracy::Color::Red2);
+        _renderer->Present(_window, _mainColor, _sceneRenderedSemaphore);
     }
 
     // Flip the frameIndex between 0 and 1
@@ -273,7 +277,7 @@ void ClientRenderer::Render()
 
 uvec2 ClientRenderer::GetRenderResolution()
 {
-    return _renderer->GetImageDimension(_mainColor);
+    return _renderer->GetImageDimension(_mainColor, 0);
 }
 
 void ClientRenderer::InitImgui()

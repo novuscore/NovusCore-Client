@@ -1,8 +1,11 @@
 #pragma once
 #include <NovusTypes.h>
+#include <vulkan/vulkan.h>
+
 #include "../../../SwapChain.h"
 #include "../../../FrameResource.h"
-#include <vulkan/vulkan.h>
+#include "../../../Descriptors/GraphicsPipelineDesc.h"
+#include "../../../Descriptors/GPUSemaphoreDesc.h"
 
 struct GLFWwindow;
 
@@ -18,15 +21,6 @@ namespace Renderer
             VkSurfaceCapabilitiesKHR capabilities;
             std::vector<VkSurfaceFormatKHR> formats;
             std::vector<VkPresentModeKHR> presentModes;
-        };
-
-        struct BlitPipeline
-        {
-            VkPipelineLayout pipelineLayout;
-            VkDescriptorPool descriptorPool;
-            VkDescriptorSetLayout descriptorSetLayout;
-            FrameResource<VkDescriptorSet, 2> descriptorSets;
-            VkPipeline pipeline;
         };
 
         struct SwapChainVK : public SwapChain
@@ -127,24 +121,13 @@ namespace Renderer
             u32 frameIndex = 0;
             u32 bufferCount;
 
-            VkRenderPass renderPass;
-            
-            BlitPipeline blitPipelines[static_cast<u8>(ImageComponentType::COUNT)];
-
-            VkSampler sampler;
-
             VkSurfaceKHR surface;
             VkSwapchainKHR swapChain;
 
             static const u32 FRAME_BUFFER_COUNT = 2;
-            FrameResource<VkImage, FRAME_BUFFER_COUNT> images;
-            VkFormat imageFormat;
-            VkExtent2D extent;
-            FrameResource<VkImageView, FRAME_BUFFER_COUNT> imageViews;
-            FrameResource<VkFramebuffer, FRAME_BUFFER_COUNT> framebuffers;
-
-            FrameResource<VkSemaphore, FRAME_BUFFER_COUNT> imageAvailableSemaphores;
-            FrameResource<VkSemaphore, FRAME_BUFFER_COUNT> blitFinishedSemaphores;
+            FrameResource<ImageID, FRAME_BUFFER_COUNT> imageIDs;
+            FrameResource<GPUSemaphoreID, FRAME_BUFFER_COUNT> imageAvailableSemaphores;
+            FrameResource<GPUSemaphoreID, FRAME_BUFFER_COUNT> blitFinishedSemaphores;
         };
     }
 }

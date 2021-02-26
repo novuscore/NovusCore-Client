@@ -2,7 +2,8 @@
 
 #include <Utils/StringUtils.h>
 #include <Utils/DebugHandler.h>
-#include <ShaderCooker/ShaderCooker.h>
+#include <ShaderCooker/ShaderCache.h>
+#include <ShaderCooker/ShaderCompiler.h>
 #include <vulkan/vulkan.h>
 #include <filesystem>
 #include <fstream>
@@ -13,14 +14,36 @@ namespace Renderer
 {
     namespace Backend
     {
+        const std::filesystem::path SHADER_CACHE_PATH = "Data/shaders/_shaders.cache";
+
         void ShaderHandlerVK::Init(RenderDeviceVK* device)
         {
             _device = device;
 
-            _shaderCooker = new ShaderCooker::ShaderCooker();
+            _shaderCache = new ShaderCooker::ShaderCache();
+            _shaderCompiler = new ShaderCooker::ShaderCompiler();
 
-            std::filesystem::path includePath = SHADER_SOURCE_DIR;
-            _shaderCooker->AddIncludeDir(includePath);
+            const bool debugSkipCache = false;
+            if (!debugSkipCache)
+            {
+                if (_shaderCache->Load(SHADER_CACHE_PATH))
+                {
+                    DebugHandler::PrintSuccess("Loaded shadercache from: %s", SHADER_CACHE_PATH.string().c_str());
+                }
+                else
+                {
+                    DebugHandler::Print("Creating shadercache at: %s", SHADER_CACHE_PATH.string().c_str());
+                }
+            }
+            else
+            {
+                DebugHandler::Print("Skipped loading shadercache due to debugSkipCache being true");
+            }
+
+            _shaderCompiler->SetSourceDirPath(SHADER_SOURCE_DIR);
+            _shaderCompiler->SetBinDirPath("Data/shaders");
+            _shaderCompiler->SetShaderCache(_shaderCache);
+            _shaderCompiler->SetShouldForceCompile(true); // ShaderHandler will only request compilation of files we want to compile, this might include force compiling something that is up to date.
         }
 
         void ShaderHandlerVK::ReloadShaders(bool forceRecompileAll)
@@ -34,17 +57,17 @@ namespace Renderer
 
         VertexShaderID ShaderHandlerVK::LoadShader(const VertexShaderDesc& desc)
         {
-            return LoadShader<VertexShaderID>(desc.path, _vertexShaders);
+            return LoadShader<VertexShaderID>(desc.path, desc.permutationFields, _vertexShaders);
         }
 
         PixelShaderID ShaderHandlerVK::LoadShader(const PixelShaderDesc& desc)
         {
-            return LoadShader<PixelShaderID>(desc.path, _pixelShaders);
+            return LoadShader<PixelShaderID>(desc.path, desc.permutationFields, _pixelShaders);
         }
 
         ComputeShaderID ShaderHandlerVK::LoadShader(const ComputeShaderDesc& desc)
         {
-            return LoadShader<ComputeShaderID>(desc.path, _computeShaders);
+            return LoadShader<ComputeShaderID>(desc.path, desc.permutationFields, _computeShaders);
         }
 
         void ShaderHandlerVK::ReadFile(const std::string& filename, ShaderBinary& binary)
@@ -98,10 +121,29 @@ namespace Renderer
             return false;
         }
         
+        std::string ShaderHandlerVK::GetPermutationPath(const std::string& shaderPathString, const std::vector<PermutationField>& permutationFields)
+        {
+            std::filesystem::path shaderPath = shaderPathString;
+            std::string filename = shaderPath.filename().string();
+
+            size_t firstExtensionOffset = filename.find_first_of('.');
+
+            std::string permutationName = filename.substr(0, firstExtensionOffset);
+            std::string extension = filename.substr(firstExtensionOffset);
+
+            for (const PermutationField& permutationField : permutationFields)
+            {
+                permutationName += "-" + permutationField.key + permutationField.value;
+            }
+
+            shaderPath = shaderPath.parent_path() / (permutationName + extension);
+            return shaderPath.string();
+        }
+
         std::filesystem::path GetShaderBinPath(const std::string& shaderPath)
         {
             std::string binShaderPath = shaderPath + ".spv";
-            std::filesystem::path binPath = std::filesystem::path(SHADER_BIN_DIR) / binShaderPath;
+            std::filesystem::path binPath = std::filesystem::path("Data/shaders/") / binShaderPath;
             return std::filesystem::absolute(binPath.make_preferred());
         }
 
@@ -132,32 +174,26 @@ namespace Renderer
                 return true; // If the shader binary does not exist, we want to compile it
             }
 
-            std::filesystem::file_time_type sourceModifiedTime = std::filesystem::last_write_time(sourcePath);
-            std::filesystem::file_time_type binModifiedTime = std::filesystem::last_write_time(binPath);
-
-            return sourceModifiedTime > binModifiedTime; // If sourceModifiedTime is newer we need to compile
+            return _shaderCache->HasChanged(sourcePath);
         }
 
         bool ShaderHandlerVK::CompileShader(const std::string& shaderPath)
         {
-            std::filesystem::path sourcePath = std::filesystem::path(SHADER_SOURCE_DIR) / shaderPath;
-            sourcePath = std::filesystem::absolute(sourcePath.make_preferred());
+            std::filesystem::path shaderAbsolutePath = std::filesystem::path(SHADER_SOURCE_DIR) / shaderPath;
+            shaderAbsolutePath = std::filesystem::absolute(shaderAbsolutePath.make_preferred());
 
-            std::filesystem::path binPath = GetShaderBinPath(shaderPath);
+            _shaderCompiler->Start();
+            _shaderCompiler->AddPath(shaderAbsolutePath);
+            _shaderCompiler->Process();
 
-            char* blob;
-            size_t size;
-            if (_shaderCooker->CompileFile(sourcePath, blob, size))
+            while (_shaderCompiler->GetStage() != ShaderCooker::ShaderCompiler::Stage::STOPPED)
             {
-                std::filesystem::create_directories(binPath.parent_path());
-
-                std::ofstream ofstream(binPath, std::ios::trunc | std::ofstream::binary);
-                ofstream.write(blob, size);
-                ofstream.close();
-
-                return true;
+                std::this_thread::yield();
             }
-            return false;
+
+            _shaderCache->Save(SHADER_CACHE_PATH);
+
+            return _shaderCompiler->GetNumCompiledShaders() > 0;
         }
     }
 }

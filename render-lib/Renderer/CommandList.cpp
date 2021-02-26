@@ -24,6 +24,7 @@
 #include "Commands/EndTrace.h"
 #include "Commands/AddSignalSemaphore.h"
 #include "Commands/AddWaitSemaphore.h"
+#include "Commands/CopyImage.h"
 #include "Commands/CopyBuffer.h"
 #include "Commands/FillBuffer.h"
 #include "Commands/PipelineBarrier.h"
@@ -394,6 +395,24 @@ namespace Renderer
 
 #if COMMANDLIST_DEBUG_IMMEDIATE_MODE
         Commands::AddWaitSemaphore::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
+#endif
+    }
+
+    void CommandList::CopyImage(ImageID dstImage, uvec2 dstPos, u32 dstMipLevel, ImageID srcImage, uvec2 srcPos, u32 srcMipLevel, uvec2 size)
+    {
+        assert(dstImage != ImageID::Invalid());
+        assert(srcImage != ImageID::Invalid());
+        Commands::CopyImage* command = AddCommand<Commands::CopyImage>();
+        command->dstImage = dstImage;
+        command->dstPos = dstPos;
+        command->dstMipLevel = dstMipLevel;
+        command->srcImage = srcImage;
+        command->srcPos = srcPos;
+        command->srcMipLevel = srcMipLevel;
+        command->size = size;
+
+#if COMMANDLIST_DEBUG_IMMEDIATE_MODE
+        Commands::CopyImage::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
 #endif
     }
 

@@ -31,7 +31,7 @@ void DepthPyramidUtils::BuildPyramid(Renderer::Renderer* renderer, Renderer::Ren
 
     Renderer::ImageDesc pyramidInfo = renderer->GetImageDesc(pyramidImage);
     Renderer::DepthImageDesc depthInfo = renderer->GetDepthImageDesc(depthImage);
-    uvec2 pyramidSize = renderer->GetImageDimension(pyramidImage);
+    uvec2 pyramidSize = renderer->GetImageDimension(pyramidImage, 0);
 
     Renderer::SamplerDesc samplerDesc;
     samplerDesc.filter = Renderer::SamplerFilter::MINIMUM_MIN_MAG_MIP_LINEAR;
