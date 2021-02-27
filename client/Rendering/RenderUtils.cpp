@@ -11,6 +11,7 @@ Renderer::DescriptorSet RenderUtils::_overlayDescriptorSet;
 void RenderUtils::Blit(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const BlitParams& params)
 {
     commandList.PushMarker("Blit", Color::White);
+    commandList.ImageBarrier(params.input);
 
     Renderer::ImageDesc imageDesc = renderer->GetImageDesc(params.input);
 
@@ -93,12 +94,14 @@ void RenderUtils::Blit(Renderer::Renderer* renderer, Renderer::RenderGraphResour
     commandList.Draw(3, 1, 0, 0);
 
     commandList.EndPipeline(pipeline);
+    commandList.ImageBarrier(params.input);
     commandList.PopMarker();
 }
 
 void RenderUtils::DepthBlit(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const DepthBlitParams& params)
 {
     commandList.PushMarker("Blit", Color::White);
+    commandList.ImageBarrier(params.input);
 
     Renderer::DepthImageDesc imageDesc = renderer->GetDepthImageDesc(params.input);
 
@@ -175,12 +178,14 @@ void RenderUtils::DepthBlit(Renderer::Renderer* renderer, Renderer::RenderGraphR
     commandList.Draw(3, 1, 0, 0);
 
     commandList.EndPipeline(pipeline);
+    commandList.ImageBarrier(params.input);
     commandList.PopMarker();
 }
 
 void RenderUtils::Overlay(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const OverlayParams& params)
 {
     commandList.PushMarker("Overlay", Color::White);
+    commandList.ImageBarrier(params.overlayImage);
 
     Renderer::ImageDesc imageDesc = renderer->GetImageDesc(params.overlayImage);
 
@@ -269,12 +274,14 @@ void RenderUtils::Overlay(Renderer::Renderer* renderer, Renderer::RenderGraphRes
     commandList.Draw(3, 1, 0, 0);
 
     commandList.EndPipeline(pipeline);
+    commandList.ImageBarrier(params.overlayImage);
     commandList.PopMarker();
 }
 
 void RenderUtils::DepthOverlay(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const DepthOverlayParams& params)
 {
     commandList.PushMarker("DepthOverlay", Color::White);
+    commandList.ImageBarrier(params.overlayImage);
 
     // Setup pipeline
     Renderer::VertexShaderDesc vertexShaderDesc;
@@ -357,5 +364,6 @@ void RenderUtils::DepthOverlay(Renderer::Renderer* renderer, Renderer::RenderGra
     commandList.Draw(3, 1, 0, 0);
 
     commandList.EndPipeline(pipeline);
+    commandList.ImageBarrier(params.overlayImage);
     commandList.PopMarker();
 }
