@@ -1190,9 +1190,14 @@ namespace Renderer
             {
                 vec4 colorMultiplier;
                 vec4 additiveColor;
+                u32 channelRedirectors;
             } blitConstant;
             blitConstant.colorMultiplier = vec4(1, 1, 1, 1);
             blitConstant.additiveColor = vec4(0, 0, 0, 0);
+            blitConstant.channelRedirectors = 0;
+            blitConstant.channelRedirectors |= (1 << 8);
+            blitConstant.channelRedirectors |= (2 << 16);
+            blitConstant.channelRedirectors |= (3 << 24);
 
             vkCmdPushConstants(commandBuffer, pipelineLayout, VkShaderStageFlagBits::VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(BlitConstant), &blitConstant);
 

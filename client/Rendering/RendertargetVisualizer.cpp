@@ -5,6 +5,7 @@
 #include <Renderer/RenderGraph.h>
 
 #include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
 
 RendertargetVisualizer::RendertargetVisualizer(Renderer::Renderer* renderer)
     : _renderer(renderer)
@@ -192,25 +193,119 @@ void RendertargetVisualizer::DrawImgui()
         ImGui::Separator();
 
         ImGui::PushID("OverrideMip");
+        ImGui::InputFloat4("Color Multiplier", &_overrideColorMultiplier.x, 3);
+        ImGui::InputFloat4("Additive Color", &_overrideAdditiveColor.x, 3);
         if (ImGui::InputInt("Mip Level", &_selectedOverrideMip, 1, 1))
         {
             if (_selectedOverrideMip < 0)
                 _selectedOverrideMip = 0;
+        }
+        
+        // Channel Redirectors
+        {
+            std::string channelNames[4] =
+            {
+                "R",
+                "G",
+                "B",
+                "A"
+            };
+
+            ImGui::BeginGroup();
+            ImGui::PushMultiItemsWidths(4, ImGui::CalcItemWidth());
+
+            // Dropdowns
+            for (u32 i = 0; i < 4; i++)
+            {
+                if (i > 0)
+                {
+                    ImGui::SameLine(0, 4);
+                }
+
+                std::string name = "OverrideChannel" + std::to_string(i);
+                ImGui::PushID(name.c_str());
+                if (ImGui::BeginCombo("", channelNames[_overrideChannelRedirector[i]].c_str())) // The second parameter is the label previewed before opening the combo.
+                {
+                    for (u32 j = 0; j < 4; j++)
+                    {
+                        bool isSelected = _overrideChannelRedirector[i] == j;
+
+                        if (ImGui::Selectable(channelNames[j].c_str(), &isSelected))
+                        {
+                            _overrideChannelRedirector[i] = j;
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+                ImGui::PopID();
+                ImGui::PopItemWidth();
+            }
+
+            // Dropdown label
+            ImGui::SameLine(0, 4);
+            ImGui::Text("Channel Redirector");
+            ImGui::EndGroup();
         }
         ImGui::PopID();
 
         ImGui::Text("Overlay controls");
         ImGui::Separator();
 
-        ImGui::InputFloat4("Color Multiplier", &_colorMultiplier.x, 3);
-        ImGui::InputFloat4("Additive Color", &_additiveColor.x, 3);
-
         ImGui::PushID("OverlayMip");
+        ImGui::InputFloat4("Color Multiplier", &_overlayColorMultiplier.x, 3);
+        ImGui::InputFloat4("Additive Color", &_overlayAdditiveColor.x, 3);
         if (ImGui::InputInt("Mip Level", &_selectedOverlayMip, 1, 1))
         {
             if (_selectedOverlayMip < 0)
                 _selectedOverlayMip = 0;
         }
+
+        // Channel Redirectors
+        {
+            std::string channelNames[4] =
+            {
+                "R",
+                "G",
+                "B",
+                "A"
+            };
+
+            ImGui::BeginGroup();
+            ImGui::PushMultiItemsWidths(4, ImGui::CalcItemWidth());
+
+            // Dropdowns
+            for (u32 i = 0; i < 4; i++)
+            {
+                if (i > 0)
+                {
+                    ImGui::SameLine(0, 4);
+                }
+
+                std::string name = "OverlayChannel" + std::to_string(i);
+                ImGui::PushID(name.c_str());
+                if (ImGui::BeginCombo("", channelNames[_overlayChannelRedirector[i]].c_str())) // The second parameter is the label previewed before opening the combo.
+                {
+                    for (u32 j = 0; j < 4; j++)
+                    {
+                        bool isSelected = _overlayChannelRedirector[i] == j;
+
+                        if (ImGui::Selectable(channelNames[j].c_str(), &isSelected))
+                        {
+                            _overlayChannelRedirector[i] = j;
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+                ImGui::PopID();
+                ImGui::PopItemWidth();
+            }
+
+            // Dropdown label
+            ImGui::SameLine(0, 4);
+            ImGui::Text("Channel Redirector");
+            ImGui::EndGroup();
+        }
+
         ImGui::PopID();
     }
     ImGui::End();
@@ -240,6 +335,10 @@ void RendertargetVisualizer::AddVisualizerPass(Renderer::RenderGraph* renderGrap
                 RenderUtils::BlitParams blitParams;
                 blitParams.input = _overridingImageID;
                 blitParams.inputMipLevel = _selectedOverrideMip;
+
+                blitParams.colorMultiplier = _overrideColorMultiplier;
+                blitParams.additiveColor = _overrideAdditiveColor;
+                blitParams.channelRedirectors = _overrideChannelRedirector;
                 
                 blitParams.output = data.target;
                 blitParams.sampler = _linearSampler;
@@ -250,6 +349,10 @@ void RendertargetVisualizer::AddVisualizerPass(Renderer::RenderGraph* renderGrap
             {
                 RenderUtils::DepthBlitParams blitParams;
                 blitParams.input = _overridingDepthImageID;
+
+                blitParams.colorMultiplier = _overrideColorMultiplier;
+                blitParams.additiveColor = _overrideAdditiveColor;
+                blitParams.channelRedirectors = _overrideChannelRedirector;
 
                 blitParams.output = data.target;
                 blitParams.sampler = _linearSampler;
@@ -263,10 +366,11 @@ void RendertargetVisualizer::AddVisualizerPass(Renderer::RenderGraph* renderGrap
                 RenderUtils::OverlayParams overlayParams;
                 overlayParams.overlayImage = _overlayingImageID;
 
-                overlayParams.overlayMipLevel = _selectedOverlayMip;
+                overlayParams.mipLevel = _selectedOverlayMip;
 
-                overlayParams.overlayColorMultiplier = _colorMultiplier;
-                overlayParams.overlayAdditiveColor = _additiveColor;
+                overlayParams.colorMultiplier = _overlayColorMultiplier;
+                overlayParams.additiveColor = _overlayAdditiveColor;
+                overlayParams.channelRedirectors = _overlayChannelRedirector;
 
                 overlayParams.baseImage = data.target;
                 overlayParams.sampler = _linearSampler;
@@ -278,8 +382,9 @@ void RendertargetVisualizer::AddVisualizerPass(Renderer::RenderGraph* renderGrap
                 RenderUtils::DepthOverlayParams overlayParams;
                 overlayParams.overlayImage = _overlayingDepthImageID;
 
-                overlayParams.overlayColorMultiplier = _colorMultiplier;
-                overlayParams.overlayAdditiveColor = _additiveColor;
+                overlayParams.colorMultiplier = _overlayColorMultiplier;
+                overlayParams.additiveColor = _overlayAdditiveColor;
+                overlayParams.channelRedirectors = _overlayChannelRedirector;
 
                 overlayParams.baseImage = data.target;
                 overlayParams.sampler = _linearSampler;

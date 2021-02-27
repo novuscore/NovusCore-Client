@@ -20,6 +20,9 @@ public:
     {
         Renderer::ImageID input;
         u32 inputMipLevel = 0;
+        vec4 colorMultiplier;
+        vec4 additiveColor;
+        ivec4 channelRedirectors;
 
         Renderer::RenderPassMutableResource output;
         Renderer::SamplerID sampler;
@@ -29,6 +32,9 @@ public:
     struct DepthBlitParams
     {
         Renderer::DepthImageID input;
+        vec4 colorMultiplier;
+        vec4 additiveColor;
+        ivec4 channelRedirectors;
 
         Renderer::RenderPassMutableResource output;
         Renderer::SamplerID sampler;
@@ -38,9 +44,10 @@ public:
     struct OverlayParams
     {
         Renderer::ImageID overlayImage;
-        u32 overlayMipLevel = 0;
-        vec4 overlayColorMultiplier;
-        vec4 overlayAdditiveColor;
+        u32 mipLevel = 0;
+        vec4 colorMultiplier;
+        vec4 additiveColor;
+        ivec4 channelRedirectors;
 
         Renderer::RenderPassMutableResource baseImage;
         Renderer::SamplerID sampler;
@@ -50,8 +57,9 @@ public:
     struct DepthOverlayParams
     {
         Renderer::DepthImageID overlayImage;
-        vec4 overlayColorMultiplier;
-        vec4 overlayAdditiveColor;
+        vec4 colorMultiplier;
+        vec4 additiveColor;
+        ivec4 channelRedirectors;
 
         Renderer::RenderPassMutableResource baseImage;
         Renderer::SamplerID sampler;

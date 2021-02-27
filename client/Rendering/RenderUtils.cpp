@@ -74,11 +74,19 @@ void RenderUtils::Blit(Renderer::Renderer* renderer, Renderer::RenderGraphResour
     {
         vec4 colorMultiplier;
         vec4 additiveColor;
+        u32 channelRedirectors;
     };
 
     BlitConstant* constants = resources.FrameNew<BlitConstant>();
-    constants->colorMultiplier = vec4(1,1,1,1);
-    constants->additiveColor = vec4(0,0,0,0);
+    constants->colorMultiplier = params.colorMultiplier;
+    constants->additiveColor = params.additiveColor;
+
+    u32 channelRedirectors = params.channelRedirectors.r;
+    channelRedirectors |= (params.channelRedirectors.g << 8);
+    channelRedirectors |= (params.channelRedirectors.b << 16);
+    channelRedirectors |= (params.channelRedirectors.a << 24);
+
+    constants->channelRedirectors = channelRedirectors;
 
     commandList.PushConstant(constants, 0, sizeof(BlitConstant));
 
@@ -148,11 +156,19 @@ void RenderUtils::DepthBlit(Renderer::Renderer* renderer, Renderer::RenderGraphR
     {
         vec4 colorMultiplier;
         vec4 additiveColor;
+        u32 channelRedirectors;
     };
 
     BlitConstant* constants = resources.FrameNew<BlitConstant>();
-    constants->colorMultiplier = vec4(1, 1, 1, 1);
-    constants->additiveColor = vec4(0, 0, 0, 0);
+    constants->colorMultiplier = params.colorMultiplier;
+    constants->additiveColor = params.additiveColor;
+
+    u32 channelRedirectors = params.channelRedirectors.r;
+    channelRedirectors |= (params.channelRedirectors.g << 8);
+    channelRedirectors |= (params.channelRedirectors.b << 16);
+    channelRedirectors |= (params.channelRedirectors.a << 24);
+
+    constants->channelRedirectors = channelRedirectors;
 
     commandList.PushConstant(constants, 0, sizeof(BlitConstant));
 
@@ -220,7 +236,7 @@ void RenderUtils::Overlay(Renderer::Renderer* renderer, Renderer::RenderGraphRes
 
     commandList.BeginPipeline(pipeline);
 
-    u32 mipLevel = params.overlayMipLevel;
+    u32 mipLevel = params.mipLevel;
     if (mipLevel >= imageDesc.mipLevels)
     {
         mipLevel = imageDesc.mipLevels - 1;
@@ -234,11 +250,19 @@ void RenderUtils::Overlay(Renderer::Renderer* renderer, Renderer::RenderGraphRes
     {
         vec4 colorMultiplier;
         vec4 additiveColor;
+        u32 channelRedirectors;
     };
 
     BlitConstant* constants = resources.FrameNew<BlitConstant>();
-    constants->colorMultiplier = params.overlayColorMultiplier;
-    constants->additiveColor = params.overlayAdditiveColor;
+    constants->colorMultiplier = params.colorMultiplier;
+    constants->additiveColor = params.additiveColor;
+
+    u32 channelRedirectors = params.channelRedirectors.r;
+    channelRedirectors |= (params.channelRedirectors.g << 8);
+    channelRedirectors |= (params.channelRedirectors.b << 16);
+    channelRedirectors |= (params.channelRedirectors.a << 24);
+
+    constants->channelRedirectors = channelRedirectors;
 
     commandList.PushConstant(constants, 0, sizeof(BlitConstant));
 
@@ -314,11 +338,19 @@ void RenderUtils::DepthOverlay(Renderer::Renderer* renderer, Renderer::RenderGra
     {
         vec4 colorMultiplier;
         vec4 additiveColor;
+        u32 channelRedirectors;
     };
 
     BlitConstant* constants = resources.FrameNew<BlitConstant>();
-    constants->colorMultiplier = params.overlayColorMultiplier;
-    constants->additiveColor = params.overlayAdditiveColor;
+    constants->colorMultiplier = params.colorMultiplier;
+    constants->additiveColor = params.additiveColor;
+
+    u32 channelRedirectors = params.channelRedirectors.r;
+    channelRedirectors |= (params.channelRedirectors.g << 8);
+    channelRedirectors |= (params.channelRedirectors.b << 16);
+    channelRedirectors |= (params.channelRedirectors.a << 24);
+
+    constants->channelRedirectors = channelRedirectors;
 
     commandList.PushConstant(constants, 0, sizeof(BlitConstant));
 

@@ -9,6 +9,7 @@ struct Constants
 {
     float4 colorMultiplier;
     float4 additiveColor;
+    uint channelRedirectors;
 };
 
 [[vk::push_constant]] Constants _constants;
@@ -27,5 +28,19 @@ float4 main(VSOutput input) : SV_Target
     int3 location = int3(uv * dimensions, 0);
 
     float4 color = ToFloat4(_texture.Load(location), 1.0f);
-    return color * _constants.colorMultiplier + _constants.additiveColor;
+
+    int rRedirector = _constants.channelRedirectors & 0xFF;
+    int gRedirector = (_constants.channelRedirectors >> 8) & 0xFF;
+    int bRedirector = (_constants.channelRedirectors >> 16) & 0xFF;
+    int aRedirector = (_constants.channelRedirectors >> 24) & 0xFF;
+
+    color = color * _constants.colorMultiplier + _constants.additiveColor;
+
+    float4 redirectedColor = float4(0, 0, 0, 0);
+    redirectedColor[rRedirector] += color.r;
+    redirectedColor[gRedirector] += color.g;
+    redirectedColor[bRedirector] += color.b;
+    redirectedColor[aRedirector] += color.a;
+
+    return redirectedColor;
 }
