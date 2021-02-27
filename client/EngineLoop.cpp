@@ -448,27 +448,27 @@ void EngineLoop::SetupUpdateFramework()
     });
 
     tf::Task uiAssembleImageStyleSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
-        {
-            ZoneScopedNC("AssembleImageStyleSystem::Update", tracy::Color::Gainsboro);
-            UISystem::AssembleImageStyleSystem::Update(uiRegistry);
-            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    {
+        ZoneScopedNC("AssembleImageStyleSystem::Update", tracy::Color::Gainsboro);
+        UISystem::AssembleImageStyleSystem::Update(uiRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
     uiAssembleImageStyleSystemTask.gather(uiDeleteElementSystem);
     tf::Task uiAssembleTextStyleSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
-        {
-            ZoneScopedNC("AssembleTextStyleSystem::Update", tracy::Color::Gainsboro);
-            UISystem::AssembleTextStyleSystem::Update(uiRegistry);
-            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
-        });
+    {
+        ZoneScopedNC("AssembleTextStyleSystem::Update", tracy::Color::Gainsboro);
+        UISystem::AssembleTextStyleSystem::Update(uiRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
     uiAssembleImageStyleSystemTask.gather(uiDeleteElementSystem);
 
     // LoadTextureSystem
     tf::Task uiLoadTexturesSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
-        {
-            ZoneScopedNC("LoadTextureSystem::Update", tracy::Color::Gainsboro);
-            UISystem::LoadTexturesSystem::Update(uiRegistry);
-            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
-        });
+    {
+        ZoneScopedNC("LoadTextureSystem::Update", tracy::Color::Gainsboro);
+        UISystem::LoadTexturesSystem::Update(uiRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
     uiLoadTexturesSystemTask.gather(uiAssembleImageStyleSystemTask);
     uiLoadTexturesSystemTask.gather(uiAssembleTextStyleSystemTask);
 
@@ -483,11 +483,11 @@ void EngineLoop::SetupUpdateFramework()
 
     // UpdateTextModelSystem
     tf::Task uiUpdateTextModelsSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
-        {
-            ZoneScopedNC("UpdateTextModelSystem::Update", tracy::Color::Gainsboro);
-            UISystem::UpdateTextModelSystem::Update(uiRegistry);
-            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
-        });
+    {
+        ZoneScopedNC("UpdateTextModelSystem::Update", tracy::Color::Gainsboro);
+        UISystem::UpdateTextModelSystem::Update(uiRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
     uiUpdateTextModelsSystemTask.gather(uiLoadTexturesSystemTask);
     uiUpdateTextModelsSystemTask.gather(uiUpdateImageModelsSystemTask); // Remove when buffers are fixed.
 

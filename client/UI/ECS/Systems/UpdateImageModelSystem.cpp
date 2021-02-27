@@ -13,7 +13,6 @@
 
 #include "../../Utils/TransformUtils.h"
 
-
 namespace UISystem
 {
     inline void CalculateVertices(const vec2& pos, const vec2& size, const UI::FBox& texCoords, std::array<UI::UIVertex, 4>& vertices)
