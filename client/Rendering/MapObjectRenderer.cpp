@@ -86,7 +86,7 @@ void MapObjectRenderer::Update(f32 deltaTime)
     _numSurvivingTriangles = _numTriangles;
 
     const bool cullingEnabled = CVAR_MapObjectCullingEnabled.Get();
-    if (cullingEnabled)
+    if (cullingEnabled && _drawCountReadBackBuffer != Renderer::BufferID::Invalid())
     {
         // Drawcalls
         {

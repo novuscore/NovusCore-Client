@@ -14,11 +14,52 @@ DebugRenderer::DebugRenderer(Renderer::Renderer* renderer)
 {
 	_renderer = renderer;
 
-	Renderer::BufferDesc bufferDesc;
-	bufferDesc.name = "DebugVertexBuffer";
-	bufferDesc.size = 128 * 1024 * 1024;
-	bufferDesc.usage = Renderer::BufferUsage::VERTEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-	_debugVertexBuffer = _renderer->CreateBuffer(bufferDesc);
+	const size_t debugBufferVertexCounts[DBG_VERTEX_BUFFER_COUNT] = {
+		4 * 1024,  // DBG_VERTEX_BUFFER_LINES_2D,
+		32 * 1024, // DBG_VERTEX_BUFFER_LINES_3D,
+		4 * 1024,  // DBG_VERTEX_BUFFER_TRIS_2D,
+		32 * 1024, // DBG_VERTEX_BUFFER_TRIS_3D,
+	};
+
+	size_t totalVertexCount = 0;
+	for (size_t i = 0; i < DBG_VERTEX_BUFFER_COUNT; ++i)
+	{
+		_debugVertexOffset[i] = static_cast<uint32_t>(totalVertexCount);
+		totalVertexCount += debugBufferVertexCounts[i];
+	}
+
+	{
+		Renderer::BufferDesc bufferDesc;
+		bufferDesc.name = "DebugVertexBuffer";
+		bufferDesc.size = totalVertexCount * sizeof(DebugVertex);
+		bufferDesc.usage = Renderer::BufferUsage::VERTEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::STORAGE_BUFFER;
+		_debugVertexBuffer = _renderer->CreateBuffer(bufferDesc);
+		
+	}
+
+	{
+		Renderer::BufferDesc bufferDesc;
+		bufferDesc.name = "DebugVertexOffsetBuffer";
+		bufferDesc.size = sizeof(u32) * DBG_VERTEX_BUFFER_COUNT;
+		bufferDesc.usage = Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::STORAGE_BUFFER;
+		_debugVertexCountBuffer = _renderer->CreateBuffer(bufferDesc);
+	}
+
+	{
+		Renderer::BufferDesc bufferDesc;
+		bufferDesc.name = "DebugVertexCountBuffer";
+		bufferDesc.size = sizeof(u32) * DBG_VERTEX_BUFFER_COUNT;
+		bufferDesc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::STORAGE_BUFFER;
+		_debugVertexCountBuffer = _renderer->CreateBuffer(bufferDesc);
+	}
+
+	{
+		Renderer::BufferDesc bufferDesc;
+		bufferDesc.name = "DebugDrawArgumentBuffer";
+		bufferDesc.size = sizeof(VkDrawIndirectCommand) * DBG_VERTEX_BUFFER_COUNT;
+		bufferDesc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::STORAGE_BUFFER;
+		_debugVertexCountBuffer = _renderer->CreateBuffer(bufferDesc);
+	}
 }
 
 void DebugRenderer::Flush(Renderer::CommandList* commandList)
@@ -27,7 +68,7 @@ void DebugRenderer::Flush(Renderer::CommandList* commandList)
 	for (size_t i = 0; i < DBG_VERTEX_BUFFER_COUNT; ++i)
 	{
 		const auto& vertices = _debugVertices[i];
-		_debugVertexOffset[i] = static_cast<uint32_t>(totalVertexCount);
+		//_debugVertexOffset[i] = static_cast<uint32_t>(totalVertexCount);
 		_debugVertexCount[i] = static_cast<uint32_t>(vertices.size());
 		totalVertexCount += vertices.size();
 	}
@@ -131,7 +172,7 @@ void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 			commandList.SetVertexBuffer(0, _debugVertexBuffer);
 
 			// Draw
-			commandList.Draw(_debugVertexCount[DBG_VERTEX_BUFFER_LINES_2D], 1, _debugVertexOffset[DBG_VERTEX_BUFFER_LINES_2D], 0);
+			commandList.DrawIndirect(_debugVertexCount[DBG_VERTEX_BUFFER_LINES_2D], 1, _debugVertexOffset[DBG_VERTEX_BUFFER_LINES_2D], 0);
 
 			commandList.EndPipeline(pipeline);
 		});

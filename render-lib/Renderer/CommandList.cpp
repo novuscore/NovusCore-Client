@@ -5,6 +5,7 @@
 // Commands
 #include "Commands/Clear.h"
 #include "Commands/Draw.h"
+#include "Commands/DrawIndirect.h"
 #include "Commands/DrawIndexed.h"
 #include "Commands/DrawIndexedIndirect.h"
 #include "Commands/DrawIndexedIndirectCount.h"
@@ -302,6 +303,18 @@ namespace Renderer
         command->instanceCount = numInstances;
         command->vertexOffset = vertexOffset;
         command->instanceOffset = instanceOffset;
+
+#if COMMANDLIST_DEBUG_IMMEDIATE_MODE
+        Commands::Draw::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
+#endif
+    }
+
+    void CommandList::DrawIndirect(BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount)
+    {
+        Commands::DrawIndirect* command = AddCommand<Commands::DrawIndirect>();
+        command->argumentBuffer = argumentBuffer;
+        command->argumentBufferOffset = argumentBufferOffset;
+        command->drawCount = drawCount;
 
 #if COMMANDLIST_DEBUG_IMMEDIATE_MODE
         Commands::Draw::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);

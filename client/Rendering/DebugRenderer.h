@@ -60,4 +60,7 @@ private:
 	uint32_t _debugVertexCount[DBG_VERTEX_BUFFER_COUNT];
 
 	Renderer::BufferID _debugVertexBuffer;
+	Renderer::BufferID _debugVertexOffsetBuffer;
+	Renderer::BufferID _debugVertexCountBuffer;
+	Renderer::BufferID _drawArgumentBuffer;
 };

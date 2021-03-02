@@ -74,6 +74,7 @@ namespace Renderer
         void Clear(DepthImageID imageID, f32 depth, DepthClearFlags flags = DepthClearFlags::DEPTH, u8 stencil = 0);
 
         void Draw(u32 numVertices, u32 numInstances, u32 vertexOffset, u32 instanceOffset);
+        void DrawIndirect(BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount);
         void DrawIndexed(u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset);
         void DrawIndexedIndirect(BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount);
         void DrawIndexedIndirectCount(BufferID argumentBuffer, u32 argumentBufferOffset, BufferID drawCountBuffer, u32 drawCountBufferOffset, u32 maxDrawCount);
