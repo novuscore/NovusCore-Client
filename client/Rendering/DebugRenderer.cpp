@@ -56,6 +56,8 @@ DebugRenderer::DebugRenderer(Renderer::Renderer* renderer)
 		void* mappedMemory = _renderer->MapBuffer(stagingBuffer);
 		memcpy(mappedMemory, _debugVertexRanges, sizeof(_debugVertexRanges));
 		_renderer->UnmapBuffer(stagingBuffer);
+
+		_renderer->CopyBuffer(_debugVertexRangeBuffer, 0, stagingBuffer, 0, bufferDesc.size);
 	}
 
 	{
@@ -127,7 +129,7 @@ void DebugRenderer::AddUploadPass(Renderer::RenderGraph* renderGraph)
 				for (size_t i = 0; i < DBG_VERTEX_BUFFER_COUNT; ++i)
 				{
 					const auto& vertices = _debugVertices[i];
-					const u32 targetOffset = _debugVertexRanges[i].x;
+					const u32 targetOffset = _debugVertexRanges[i].x * sizeof(DebugVertex);
 					const u32 sourceOffset = sourceVertexOffset[i] * sizeof(DebugVertex);
 					const u32 size = sourceVertexCount[i] * sizeof(DebugVertex);
 					if (size > 0)
