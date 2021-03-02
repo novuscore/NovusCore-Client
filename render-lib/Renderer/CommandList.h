@@ -14,7 +14,7 @@
 #include "Descriptors/ComputePipelineDesc.h"
 #include "Descriptors/GPUSemaphoreDesc.h"
 
-#define COMMANDLIST_DEBUG_IMMEDIATE_MODE 1 // This makes it easier to debug the renderer by providing better callstacks if it asserts or crashes inside of render-lib
+#define COMMANDLIST_DEBUG_IMMEDIATE_MODE 0 // This makes it easier to debug the renderer by providing better callstacks if it asserts or crashes inside of render-lib
 
 #if TRACY_ENABLE
 #define GPU_SCOPED_PROFILER_ZONE(commandList, name) \
