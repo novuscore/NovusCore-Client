@@ -14,6 +14,7 @@ namespace Renderer
         static void ClearDepthImage(Renderer* renderer, CommandListID commandList, const void* data);
 
         static void Draw(Renderer* renderer, CommandListID commandList, const void* data);
+        static void DrawIndirect(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawIndexed(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawIndexedIndirect(Renderer* renderer, CommandListID commandList, const void* data);
         static void DrawIndexedIndirectCount(Renderer* renderer, CommandListID commandList, const void* data);

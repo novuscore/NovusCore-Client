@@ -322,6 +322,20 @@ namespace Renderer
         vkCmdDraw(commandBuffer, numVertices, numInstances, vertexOffset, instanceOffset);
     }
 
+    void RendererVK::DrawIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        if (_renderPassOpenCount <= 0)
+        {
+            DebugHandler::PrintFatal("You tried to draw without first calling BeginPipeline!");
+        }
+
+        VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
+
+        vkCmdDrawIndirect(commandBuffer, vkArgumentBuffer, argumentBufferOffset, drawCount, sizeof(VkDrawIndirectCommand));
+    }
+
     void RendererVK::DrawIndexed(CommandListID commandListID, u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);

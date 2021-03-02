@@ -131,9 +131,9 @@ namespace Renderer
 
         void RenderDeviceVK::InitOnce()
         {
-#if _DEBUG
+//#if _DEBUG
             DebugMarkerUtilVK::SetDebugMarkersEnabled(true);
-#endif
+//#endif
             InitVulkan();
             SetupDebugMessenger();
             PickPhysicalDevice();
