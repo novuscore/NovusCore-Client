@@ -75,6 +75,10 @@ DebugRenderer::DebugRenderer(Renderer::Renderer* renderer)
 		bufferDesc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::STORAGE_BUFFER;
 		_drawArgumentBuffer = _renderer->CreateBuffer(bufferDesc);
 	}
+
+	_descriptorSet.Bind("_debug_rangeBuffer"_h, _debugVertexRangeBuffer);
+	_descriptorSet.Bind("_debug_counterBuffer"_h, _debugVertexCounterBuffer);
+	_descriptorSet.Bind("_debug_vertexBuffer"_h, _debugVertexBuffer);
 }
 
 static u32 GetDrawBufferOffset(DebugRenderer::DebugVertexBufferType bufferType)

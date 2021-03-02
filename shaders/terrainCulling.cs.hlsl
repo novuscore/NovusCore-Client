@@ -1,5 +1,6 @@
 #include "globalData.inc.hlsl"
 #include "terrain.inc.hlsl"
+#include "debug.inc.hlsl"
 
 #include "pyramidCulling.inc.hlsl"
 
@@ -18,10 +19,8 @@ struct Constants
 [[vk::binding(2, PER_PASS)]] RWStructuredBuffer<CellInstance> _culledInstances;
 [[vk::binding(3, PER_PASS)]] RWByteAddressBuffer _drawCount;
 
-
 [[vk::binding(4, PER_PASS)]] SamplerState _depthSampler; 
 [[vk::binding(5, PER_PASS)]] Texture2D<float> _depthPyramid;
-
 
 float2 ReadHeightRange(uint instanceIndex)
 {
@@ -107,6 +106,12 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
             return;
         }
     }
+
+    if (distance(_viewData.eye, (aabb.min + aabb.max) * 0.5) < 500)
+    {
+        debugDrawAABB3D(aabb.min, aabb.max, 0xff0000ff);
+    }
+
     uint outInstanceIndex;
     _drawCount.InterlockedAdd(4, 1, outInstanceIndex);
       

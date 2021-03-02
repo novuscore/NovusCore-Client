@@ -35,6 +35,11 @@ public:
 	void DrawRectangle2D(const vec2& min, const vec2& max, uint32_t color);
 	void DrawFrustum(const mat4x4& viewProjectionMatrix, uint32_t color);
 
+	inline const Renderer::DescriptorSet* GetDescriptorSet() const
+	{
+		return &_descriptorSet;
+	}
+
 	static vec3 UnProject(const vec3& point, const mat4x4& m);
 
 	enum DebugVertexBufferType
@@ -58,6 +63,8 @@ private:
 	std::vector<DebugVertex> _debugVertices[DBG_VERTEX_BUFFER_COUNT];
 	uvec2 _debugVertexRanges[DBG_VERTEX_BUFFER_COUNT]; // offset, count
 	
+	Renderer::DescriptorSet _descriptorSet;
+
 	Renderer::DescriptorSet _argumentsDescriptorSet;
 	
 	Renderer::BufferID _debugVertexBuffer;

@@ -1,5 +1,11 @@
 #include "common.inc.hlsl"
 
+#define SIZEOF_DEBUG_VERTEX 16
+
+[[vk::binding(0, DEBUG)]] ByteAddressBuffer _debug_rangeBuffer;
+[[vk::binding(1, DEBUG)]] RWByteAddressBuffer _debug_counterBuffer;
+[[vk::binding(2, DEBUG)]] RWByteAddressBuffer _debug_vertexBuffer;
+
 enum DebugVertexBufferType
 {
 	DBG_VERTEX_BUFFER_LINES_2D,
@@ -11,30 +17,70 @@ enum DebugVertexBufferType
 
 struct DebugDrawContext
 {
-	ByteAddressBuffer rangeBuffer; 
-	RWByteAddressBuffer counterBuffer;
-	RWByteAddressBuffer vertexBuffer;
+	uint offset;
 };
 
-#define SIZEOF_DEBUG_VERTEX 16
-
-void appendDebugVertex(DebugDrawContext ctx, DebugVertexBufferType type, float3 position, uint color)
+bool beginDebugDrawing(inout DebugDrawContext ctx, uint vertexCount)
 {
-	const uint2 vertexRange = ctx.rangeBuffer.Load2(type * SIZEOF_UINT2);
+	const uint2 vertexRange = _debug_rangeBuffer.Load2(DBG_VERTEX_BUFFER_LINES_3D * SIZEOF_UINT2);
 
 	uint counter;
-	ctx.counterBuffer.InterlockedAdd(type * SIZEOF_UINT, 1, counter);
-	if (counter > vertexRange.y) 
+	_debug_counterBuffer.InterlockedAdd(DBG_VERTEX_BUFFER_LINES_3D * SIZEOF_UINT, vertexCount, counter);
+	if (counter + vertexCount > vertexRange.y)
+	{
+		return false;
+	}
+
+	ctx.offset = (vertexRange.x + counter) * SIZEOF_DEBUG_VERTEX;
+	return true;
+}
+
+void appendDebugVertex(inout DebugDrawContext ctx, float3 position, uint color)
+{
+	_debug_vertexBuffer.Store4(ctx.offset, uint4(asuint(position), color));
+	ctx.offset += SIZEOF_DEBUG_VERTEX;
+}
+
+void appendDebugLine(inout DebugDrawContext ctx, float3 A, float3 B, uint color)
+{
+	appendDebugVertex(ctx, A, color);
+	appendDebugVertex(ctx, B, color);
+}
+
+void debugDrawLine3D(float3 A, float3 B, uint color)
+{
+	DebugDrawContext ctx;
+	if (!beginDebugDrawing(ctx, 2))
 	{
 		return;
 	}
-	
-	const uint offset = (vertexRange.x + counter) * SIZEOF_DEBUG_VERTEX;
-	ctx.vertexBuffer.Store4(offset, uint4(asuint(position), color));
+
+	appendDebugLine(ctx, A, B, color);
 }
 
-void debugDrawLine3D(DebugDrawContext ctx, float3 A, float3 B, uint color)
+void debugDrawAABB3D(float3 min, float3 max, uint color)
 {
-	appendDebugVertex(ctx, DBG_VERTEX_BUFFER_LINES_3D, A, color);
-	appendDebugVertex(ctx, DBG_VERTEX_BUFFER_LINES_3D, B, color);
+	DebugDrawContext ctx;
+	if (!beginDebugDrawing(ctx, 24))
+	{
+		return;
+	}
+
+	// bottom
+	appendDebugLine(ctx, float3(min.x, min.y, min.z), float3(max.x, min.y, min.z), color);
+	appendDebugLine(ctx, float3(min.x, min.y, min.z), float3(min.x, min.y, max.z), color);
+	appendDebugLine(ctx, float3(max.x, min.y, max.z), float3(max.x, min.y, min.z), color);
+	appendDebugLine(ctx, float3(max.x, min.y, max.z), float3(min.x, min.y, max.z), color);
+
+	// top
+	appendDebugLine(ctx, float3(min.x, max.y, min.z), float3(max.x, max.y, min.z), color);
+	appendDebugLine(ctx, float3(min.x, max.y, min.z), float3(min.x, max.y, max.z), color);
+	appendDebugLine(ctx, float3(max.x, max.y, max.z), float3(max.x, max.y, min.z), color);
+	appendDebugLine(ctx, float3(max.x, max.y, max.z), float3(min.x, max.y, max.z), color);
+
+	// sides
+	appendDebugLine(ctx, float3(min.x, min.y, min.z), float3(min.x, max.y, min.z), color);
+	appendDebugLine(ctx, float3(max.x, min.y, min.z), float3(max.x, max.y, min.z), color);
+	appendDebugLine(ctx, float3(max.x, min.y, max.z), float3(max.x, max.y, max.z), color);
+	appendDebugLine(ctx, float3(min.x, min.y, max.z), float3(min.x, max.y, max.z), color);
 }

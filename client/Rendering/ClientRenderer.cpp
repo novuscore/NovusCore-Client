@@ -217,7 +217,7 @@ void ClientRenderer::Render()
         });
     }
 
-    _terrainRenderer->AddTerrainPass(&renderGraph, &_globalDescriptorSet, _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
+    _terrainRenderer->AddTerrainPass(&renderGraph, &_globalDescriptorSet, _debugRenderer->GetDescriptorSet(), _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
     _cModelRenderer->AddComplexModelPass(&renderGraph, &_globalDescriptorSet, _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
     _postProcessRenderer->AddPostProcessPass(&renderGraph, &_globalDescriptorSet, _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
     _rendertargetVisualizer->AddVisualizerPass(&renderGraph, &_globalDescriptorSet, _mainColor, _frameIndex);

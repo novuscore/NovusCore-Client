@@ -192,7 +192,7 @@ namespace Renderer
 #endif
     }
 
-    void CommandList::BindDescriptorSet(DescriptorSetSlot slot, DescriptorSet* descriptorSet, u32 frameIndex)
+    void CommandList::BindDescriptorSet(DescriptorSetSlot slot, const DescriptorSet* descriptorSet, u32 frameIndex)
     {
         const std::vector<Descriptor>& descriptors = descriptorSet->GetDescriptors();
         size_t numDescriptors = descriptors.size();
@@ -317,7 +317,7 @@ namespace Renderer
         command->drawCount = drawCount;
 
 #if COMMANDLIST_DEBUG_IMMEDIATE_MODE
-        Commands::Draw::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
+        Commands::DrawIndirect::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
 #endif
     }
 

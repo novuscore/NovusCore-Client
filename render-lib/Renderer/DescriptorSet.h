@@ -37,9 +37,10 @@ namespace Renderer
 
     enum DescriptorSetSlot
     {
+        DEBUG,
         GLOBAL,
         PER_PASS,
-        PER_DRAW
+        PER_DRAW,
     };
 
     class DescriptorSet
@@ -69,7 +70,7 @@ namespace Renderer
         void Bind(const std::string& name, BufferID buffer);
         void Bind(u32 nameHash, BufferID buffer);
 
-        const std::vector<Descriptor>& GetDescriptors() { return _boundDescriptors; }
+        const std::vector<Descriptor>& GetDescriptors() const { return _boundDescriptors; }
 
     private:
 

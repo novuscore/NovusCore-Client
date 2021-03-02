@@ -14,7 +14,7 @@
 #include "Descriptors/ComputePipelineDesc.h"
 #include "Descriptors/GPUSemaphoreDesc.h"
 
-#define COMMANDLIST_DEBUG_IMMEDIATE_MODE 0 // This makes it easier to debug the renderer by providing better callstacks if it asserts or crashes inside of render-lib
+#define COMMANDLIST_DEBUG_IMMEDIATE_MODE 1 // This makes it easier to debug the renderer by providing better callstacks if it asserts or crashes inside of render-lib
 
 #if TRACY_ENABLE
 #define GPU_SCOPED_PROFILER_ZONE(commandList, name) \
@@ -61,7 +61,7 @@ namespace Renderer
         void BeginPipeline(ComputePipelineID pipelineID);
         void EndPipeline(ComputePipelineID pipelineID);
 
-        void BindDescriptorSet(DescriptorSetSlot slot, DescriptorSet* descriptorSet, u32 frameIndex);
+        void BindDescriptorSet(DescriptorSetSlot slot, const DescriptorSet* descriptorSet, u32 frameIndex);
 
         void SetScissorRect(u32 left, u32 right, u32 top, u32 bottom);
         void SetViewport(f32 topLeftX, f32 topLeftY, f32 width, f32 height, f32 minDepth, f32 maxDepth);
