@@ -86,7 +86,7 @@ void MapObjectRenderer::Update(f32 deltaTime)
     _numSurvivingTriangles = _numTriangles;
 
     const bool cullingEnabled = CVAR_MapObjectCullingEnabled.Get();
-    if (cullingEnabled)
+    if (cullingEnabled && _drawCountReadBackBuffer != Renderer::BufferID::Invalid())
     {
         // Drawcalls
         {
@@ -110,7 +110,7 @@ void MapObjectRenderer::Update(f32 deltaTime)
     }
 }
 
-void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID depthPyramid, u8 frameIndex)
+void MapObjectRenderer::AddMapObjectPass(Renderer::RenderGraph* renderGraph, const Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID depthPyramid, u8 frameIndex)
 {
     // Map Object Pass
     {

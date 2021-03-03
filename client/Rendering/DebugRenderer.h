@@ -22,8 +22,8 @@ class DebugRenderer
 public:
 	DebugRenderer(Renderer::Renderer* renderer);
 
-	void Flush(Renderer::CommandList* commandList);
-
+	void AddUploadPass(Renderer::RenderGraph* renderGraph);
+	void AddDrawArgumentPass(Renderer::RenderGraph* renderGraph, u8 frameIndex);
 	void Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 	void Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
 
@@ -35,14 +35,12 @@ public:
 	void DrawRectangle2D(const vec2& min, const vec2& max, uint32_t color);
 	void DrawFrustum(const mat4x4& viewProjectionMatrix, uint32_t color);
 
-	static vec3 UnProject(const vec3& point, const mat4x4& m);
-
-private:
-	struct DebugVertex
+	inline const Renderer::DescriptorSet* GetDescriptorSet() const
 	{
-		glm::vec3 pos;
-		uint32_t color;
-	};
+		return &_descriptorSet;
+	}
+
+	static vec3 UnProject(const vec3& point, const mat4x4& m);
 
 	enum DebugVertexBufferType
 	{
@@ -53,11 +51,24 @@ private:
 		DBG_VERTEX_BUFFER_COUNT,
 	};
 
+private:
+	struct DebugVertex
+	{
+		glm::vec3 pos;
+		uint32_t color;
+	};
+
 	Renderer::Renderer* _renderer = nullptr;
 
 	std::vector<DebugVertex> _debugVertices[DBG_VERTEX_BUFFER_COUNT];
-	uint32_t _debugVertexOffset[DBG_VERTEX_BUFFER_COUNT];
-	uint32_t _debugVertexCount[DBG_VERTEX_BUFFER_COUNT];
+	uvec2 _debugVertexRanges[DBG_VERTEX_BUFFER_COUNT]; // offset, count
+	
+	Renderer::DescriptorSet _descriptorSet;
 
+	Renderer::DescriptorSet _argumentsDescriptorSet;
+	
 	Renderer::BufferID _debugVertexBuffer;
+	Renderer::BufferID _debugVertexRangeBuffer;
+	Renderer::BufferID _debugVertexCounterBuffer;
+	Renderer::BufferID _drawArgumentBuffer;
 };

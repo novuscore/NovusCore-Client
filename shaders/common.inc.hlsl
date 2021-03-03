@@ -1,3 +1,8 @@
+#define SIZEOF_UINT  4
+#define SIZEOF_UINT2 8
+#define SIZEOF_UINT3 12
+#define SIZEOF_UINT4 16
+#define SIZEOF_DRAW_INDIRECT_ARGUMENTS 16
 
 float4 ToFloat4(int input, float defaultAlphaVal)
 {
