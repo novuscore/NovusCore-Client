@@ -17,13 +17,18 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
+#include <glm/gtx/quaternion.hpp>
 
+#include <entt.hpp>
+#include "../ECS/Components/Singletons/TimeSingleton.h"
 #include "../ECS/Components/Singletons/NDBCSingleton.h"
 #include "../ECS/Components/Singletons/TextureSingleton.h"
 
 #include "Camera.h"
 #include "../Gameplay/Map/Map.h"
 #include "CVar/CVarSystem.h"
+
+#
 
 namespace fs = std::filesystem;
 
@@ -32,7 +37,6 @@ AutoCVar_Int CVAR_ComplexModelSortingEnabled("complexModels.sortEnable", "enable
 AutoCVar_Int CVAR_ComplexModelLockCullingFrustum("complexModels.lockCullingFrustum", "lock frustrum for complex model culling", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_ComplexModelDrawBoundingBoxes("complexModels.drawBoundingBoxes", "draw bounding boxes for complex models", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_ComplexModelOcclusionCullEnabled("complexModels.occlusionCullEnable", "enable culling of complex models", 1, CVarFlags::EditCheckbox);
-
 
 constexpr u32 BITONIC_BLOCK_SIZE = 1024;
 const u32 TRANSPOSE_BLOCK_SIZE = 16;
@@ -141,7 +145,7 @@ void CModelRenderer::Update(f32 deltaTime)
     }
 }
 
-void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID occlusionPyramid, u8 frameIndex)
+void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, const Renderer::DescriptorSet* globalDescriptorSet, const Renderer::DescriptorSet* debugDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID occlusionPyramid, u8 frameIndex)
 {
     struct CModelPassData
     {
@@ -212,8 +216,62 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
             _cullConstants.cameraPos = camera->GetPosition();
         }
 
-        // Set Opaque Pipeline
         u32 numOpaqueDrawCalls = static_cast<u32>(_opaqueDrawCalls.size());
+        u32 numTransparentDrawCalls = static_cast<u32>(_transparentDrawCalls.size());
+
+        // Set Animation Prepass Pipeline
+        if (numOpaqueDrawCalls > 0 || numTransparentDrawCalls > 0)
+        {
+            Renderer::ComputePipelineDesc animationprepassPipelineDesc;
+            resources.InitializePipelineDesc(animationprepassPipelineDesc);
+
+            Renderer::ComputeShaderDesc shaderDesc;
+            shaderDesc.path = "CModelAnimationPrepass.cs.hlsl";
+            animationprepassPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
+
+            Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(animationprepassPipelineDesc);
+            commandList.BeginPipeline(pipeline);
+
+            entt::registry* registry = ServiceLocator::GetGameRegistry();
+            TimeSingleton& timeSingleton = registry->ctx<TimeSingleton>();
+
+            struct AnimationConstants
+            {
+                u32 numInstances;
+                f32 deltaTime;
+            };
+
+            u32 numInstances = static_cast<u32>(_instances.size());
+
+            AnimationConstants* deltaTimeConstant = resources.FrameNew<AnimationConstants>();
+            {
+                deltaTimeConstant->numInstances = numInstances;
+                deltaTimeConstant->deltaTime = timeSingleton.deltaTime;
+
+                commandList.PushConstant(deltaTimeConstant, 0, sizeof(AnimationConstants));
+            }
+
+            _animationPrepassDescriptorSet.Bind("_instances", _instanceBuffer);
+            _animationPrepassDescriptorSet.Bind("_animationModelBoneInfo", _animationModelBoneInfoBuffer);
+            _animationPrepassDescriptorSet.Bind("_animationBoneInfo", _animationBoneInfoBuffer);
+            _animationPrepassDescriptorSet.Bind("_animationBoneDeformInfo", _animationBoneDeformInfoBuffer);
+            _animationPrepassDescriptorSet.Bind("_animationTrackInfo", _animationSequenceInfoBuffer);
+            _animationPrepassDescriptorSet.Bind("_animationSequenceTimestamp", _animationSequenceTimestampBuffer);
+            _animationPrepassDescriptorSet.Bind("_animationSequenceValueVec3", _animationSequenceValueVec3Buffer);
+            _animationPrepassDescriptorSet.Bind("_animationSequenceValueVec4", _animationSequenceValueVec4Buffer);
+
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::DEBUG, debugDescriptorSet, frameIndex);
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_animationPrepassDescriptorSet, frameIndex);
+
+            commandList.Dispatch((numInstances + 31) / 32, 1, 1);
+
+            commandList.EndPipeline(pipeline);
+
+            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _instanceBuffer);
+            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToVertexShaderRead, _animationBoneDeformInfoBuffer);
+        }
+
+        // Set Opaque Pipeline
         if (numOpaqueDrawCalls > 0)
         {
             commandList.PushMarker("Opaque " + std::to_string(numOpaqueDrawCalls), Color::White);
@@ -295,6 +353,9 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
             _passDescriptorSet.Bind("_textures", _cModelTextures);
             _passDescriptorSet.Bind("_textureUnits", _textureUnitBuffer);
             _passDescriptorSet.Bind("_instances", _instanceBuffer);
+            _passDescriptorSet.Bind("_animationModelBoneInfo", _animationModelBoneInfoBuffer);
+            _passDescriptorSet.Bind("_animationBoneInfo", _animationBoneInfoBuffer);
+            _passDescriptorSet.Bind("_animationBoneDeformInfo", _animationBoneDeformInfoBuffer);
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
             Constants* constants = resources.FrameNew<Constants>();
@@ -321,7 +382,6 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
         }
 
         // Set Transparent Pipeline
-        u32 numTransparentDrawCalls = static_cast<u32>(_transparentDrawCalls.size());
         if (numTransparentDrawCalls > 0)
         {
             commandList.PushMarker("Transparent " + std::to_string(numTransparentDrawCalls), Color::White);
@@ -484,6 +544,9 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, Ren
             _passDescriptorSet.Bind("_textures", _cModelTextures);
             _passDescriptorSet.Bind("_textureUnits", _textureUnitBuffer);
             _passDescriptorSet.Bind("_instances", _instanceBuffer);
+            _passDescriptorSet.Bind("_animationModelBoneInfo", _animationModelBoneInfoBuffer);
+            _passDescriptorSet.Bind("_animationBoneInfo", _animationBoneInfoBuffer);
+            _passDescriptorSet.Bind("_animationBoneDeformInfo", _animationBoneDeformInfoBuffer);
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
             Constants* constants = resources.FrameNew<Constants>();
@@ -604,6 +667,14 @@ void CModelRenderer::Clear()
     _instances.clear();
     _cullingDatas.clear();
 
+    _animationModelBoneInfo.clear();
+    _animationBoneInfo.clear();
+    _animationBoneDeformInfo.clear();
+    _animationTrackInfo.clear();
+    _animationSequenceTimestamps.clear();
+    _animationSequenceValuesVec3.clear();
+    _animationSequenceValuesVec4.clear();
+
     _opaqueDrawCalls.clear();
     _opaqueDrawCallDatas.clear();
 
@@ -683,11 +754,13 @@ void CModelRenderer::CreatePermanentResources()
         _transparentTriangleCountReadBackBuffer = _renderer->CreateBuffer(desc);
     }
 
-    /*ComplexModelToBeLoaded& modelToBeLoaded = _complexModelsToBeLoaded.emplace_back();
+    ComplexModelToBeLoaded& modelToBeLoaded = _complexModelsToBeLoaded.emplace_back();
     modelToBeLoaded.placement = new Terrain::Placement();
-    modelToBeLoaded.name = new std::string("World/SkillActivated/CONTAINERS/TreasureChest01.cmodel");
+    //modelToBeLoaded.name = new std::string("Creature/Snake/Snake.cmodel");
+    modelToBeLoaded.name = new std::string("Creature/Murloc/Murloc.cmodel");
+    //modelToBeLoaded.name = new std::string("World/SkillActivated/CONTAINERS/TreasureChest01.cmodel");
     modelToBeLoaded.nameHash = 1337;
-    ExecuteLoad();*/
+    ExecuteLoad();
 }
 
 bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, LoadedComplexModel& complexModel)
@@ -697,11 +770,161 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
     complexModel.debugName = modelPath;
 
     CModel::ComplexModel cModel;
+    fs::path modelTexturePath = "Data/extracted/Textures/" + modelPath;
     if (!LoadFile(modelPath, cModel))
         return false;
 
+    vec3 minBounding = cModel.cullingData.minBoundingBox;
+    vec3 maxBounding = cModel.cullingData.maxBoundingBox;
     entt::registry* registry = ServiceLocator::GetGameRegistry();
     TextureSingleton& textureSingleton = registry->ctx<TextureSingleton>();
+
+    // Add Bones
+    {
+        size_t numBoneInfoBefore = _animationBoneInfo.size();
+        size_t numBonesToAdd = cModel.bones.size();
+
+        AnimationModelBoneInfo& modelBoneInfo = _animationModelBoneInfo.emplace_back();
+        modelBoneInfo.num = static_cast<u16>(numBonesToAdd);
+        modelBoneInfo.offset = static_cast<u32>(_animationBoneInfo.size());
+
+        _animationBoneInfo.resize(numBoneInfoBefore + numBonesToAdd);
+        for (u32 i = 0; i < numBonesToAdd; i++)
+        {
+            AnimationBoneInfo& boneInfo = _animationBoneInfo[numBoneInfoBefore + i];
+            CModel::ComplexBone& bone = cModel.bones[i];
+
+            boneInfo.numTranslationSequences = static_cast<u16>(bone.translation.tracks.size());
+            if (boneInfo.numTranslationSequences > 0)
+            {
+                boneInfo.translationSequenceOffset = static_cast<u32>(_animationTrackInfo.size());
+                for (u32 j = 0; j < boneInfo.numTranslationSequences; j++)
+                {
+                    CModel::ComplexAnimationTrack<vec3>& track = bone.translation.tracks[j];
+                    AnimationTrackInfo& trackInfo = _animationTrackInfo.emplace_back();
+
+                    trackInfo.sequenceIndex = track.sequenceId;
+                    trackInfo.duration = cModel.sequences[track.sequenceId].duration;
+
+                    trackInfo.numTimestamps = static_cast<u16>(track.timestamps.size());
+                    trackInfo.numValues = static_cast<u16>(track.values.size());
+
+                    trackInfo.timestampOffset = static_cast<u32>(_animationSequenceTimestamps.size());
+                    trackInfo.valueOffset = static_cast<u32>(_animationSequenceValuesVec3.size());
+
+                    // Add Timestamps
+                    {
+                        size_t numTimestampsBefore = _animationSequenceTimestamps.size();
+                        size_t numTimestampsToAdd = track.timestamps.size();
+
+                        _animationSequenceTimestamps.resize(numTimestampsBefore + numTimestampsToAdd);
+                        memcpy(&_animationSequenceTimestamps[numTimestampsBefore], track.timestamps.data(), numTimestampsToAdd * sizeof(u32));
+                    }
+
+                    // Add Values
+                    {
+                        size_t numValuesBefore = _animationSequenceValuesVec3.size();
+                        size_t numValuesToAdd = track.values.size();
+
+                        _animationSequenceValuesVec3.resize(numValuesBefore + numValuesToAdd);
+                        memcpy(&_animationSequenceValuesVec3[numValuesBefore], track.values.data(), numValuesToAdd * sizeof(vec3));
+                    }
+                }
+            }
+
+            boneInfo.numRotationSequences = static_cast<u16>(bone.rotation.tracks.size());
+            if (boneInfo.numRotationSequences > 0)
+            {
+                boneInfo.rotationSequenceOffset = static_cast<u32>(_animationTrackInfo.size());
+                for (u32 j = 0; j < boneInfo.numRotationSequences; j++)
+                {
+                    CModel::ComplexAnimationTrack<vec4>& track = bone.rotation.tracks[j];
+                    AnimationTrackInfo& trackInfo = _animationTrackInfo.emplace_back();
+
+                    trackInfo.sequenceIndex = track.sequenceId;
+                    trackInfo.duration = cModel.sequences[track.sequenceId].duration;
+
+                    trackInfo.numTimestamps = static_cast<u16>(track.timestamps.size());
+                    trackInfo.numValues = static_cast<u16>(track.values.size());
+
+                    trackInfo.timestampOffset = static_cast<u32>(_animationSequenceTimestamps.size());
+                    trackInfo.valueOffset = static_cast<u32>(_animationSequenceValuesVec4.size());
+
+                    // Add Timestamps
+                    {
+                        size_t numTimestampsBefore = _animationSequenceTimestamps.size();
+                        size_t numTimestampsToAdd = track.timestamps.size();
+
+                        _animationSequenceTimestamps.resize(numTimestampsBefore + numTimestampsToAdd);
+                        memcpy(&_animationSequenceTimestamps[numTimestampsBefore], track.timestamps.data(), numTimestampsToAdd * sizeof(u32));
+                    }
+
+                    // Add Values
+                    {
+                        size_t numValuesBefore = _animationSequenceValuesVec4.size();
+                        size_t numValuesToAdd = track.values.size();
+
+                        _animationSequenceValuesVec4.resize(numValuesBefore + numValuesToAdd);
+                        memcpy(&_animationSequenceValuesVec4[numValuesBefore], track.values.data(), numValuesToAdd * sizeof(vec4));
+                    }
+                }
+            }
+
+            boneInfo.numScaleSequences = static_cast<u16>(bone.scale.tracks.size());
+            if (boneInfo.numScaleSequences > 0)
+            {
+                boneInfo.scaleSequenceOffset = static_cast<u32>(_animationTrackInfo.size());
+                for (u32 j = 0; j < boneInfo.numScaleSequences; j++)
+                {
+                    CModel::ComplexAnimationTrack<vec3>& track = bone.scale.tracks[j];
+                    AnimationTrackInfo& trackInfo = _animationTrackInfo.emplace_back();
+
+                    trackInfo.sequenceIndex = track.sequenceId;
+                    trackInfo.duration = cModel.sequences[track.sequenceId].duration;
+
+                    trackInfo.numTimestamps = static_cast<u16>(track.timestamps.size());
+                    trackInfo.numValues = static_cast<u16>(track.values.size());
+
+                    trackInfo.timestampOffset = static_cast<u32>(_animationSequenceTimestamps.size());
+                    trackInfo.valueOffset = static_cast<u32>(_animationSequenceValuesVec3.size());
+
+                    // Add Timestamps
+                    {
+                        size_t numTimestampsBefore = _animationSequenceTimestamps.size();
+                        size_t numTimestampsToAdd = track.timestamps.size();
+
+                        _animationSequenceTimestamps.resize(numTimestampsBefore + numTimestampsToAdd);
+                        memcpy(&_animationSequenceTimestamps[numTimestampsBefore], track.timestamps.data(), numTimestampsToAdd * sizeof(u32));
+                    }
+
+                    // Add Values
+                    {
+                        size_t numValuesBefore = _animationSequenceValuesVec3.size();
+                        size_t numValuesToAdd = track.values.size();
+
+                        _animationSequenceValuesVec3.resize(numValuesBefore + numValuesToAdd);
+                        memcpy(&_animationSequenceValuesVec3[numValuesBefore], track.values.data(), numValuesToAdd * sizeof(vec3));
+                    }
+                }
+            }
+
+            boneInfo.flags.isTranslationTrackGlobalSequence = bone.translation.isGlobalSequence;
+            boneInfo.flags.isRotationTrackGlobalSequence = bone.rotation.isGlobalSequence;
+            boneInfo.flags.isScaleTrackGlobalSequence = bone.scale.isGlobalSequence;
+
+            boneInfo.parentBoneId = bone.parentBoneId;
+            boneInfo.flags.animate = (bone.flags.transformed | bone.flags.unk_0x80) > 0;
+            boneInfo.pivotPointX = bone.pivot.x;
+            boneInfo.pivotPointY = bone.pivot.y;
+            boneInfo.pivotPointZ = bone.pivot.z;
+        }
+
+        _animationBoneDeformInfo.resize(numBoneInfoBefore + numBonesToAdd);
+        for (u32 i = 0; i < numBonesToAdd; i++)
+        {
+            _animationBoneDeformInfo[numBoneInfoBefore + i].boneMatrix = glm::identity<mat4x4>();
+        }
+    }
 
     // Add vertices
     size_t numVerticesBeforeAdd = _vertices.size();
@@ -782,12 +1005,19 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
                     // Load Texture
                     CModel::ComplexTexture& complexTexture = cModel.textures[complexTextureUnit.textureIndices[t]];
 
-                    if (complexTexture.type != CModel::ComplexTextureType::NONE)
-                        continue;
-
-                    Renderer::TextureDesc textureDesc;
-                    textureDesc.path = textureSingleton.textureHashToPath[complexTexture.textureNameIndex];
-                    _renderer->LoadTextureIntoArray(textureDesc, _cModelTextures, textureUnit.textureIds[t]);
+                    if (complexTexture.type == CModel::ComplexTextureType::NONE)
+                    {
+                        Renderer::TextureDesc textureDesc;
+                        textureDesc.path = textureSingleton.textureHashToPath[complexTexture.textureNameIndex];
+                        _renderer->LoadTextureIntoArray(textureDesc, _cModelTextures, textureUnit.textureIds[t]);
+                    }
+                    else if (complexTexture.type == CModel::ComplexTextureType::COMPONENT_MONSTER_SKIN_1)
+                    {
+                        Renderer::TextureDesc textureDesc;
+                        textureDesc.path = modelTexturePath.replace_filename("SahauginskinBlue.dds").string();
+                        //textureDesc.path = modelTexturePath.replace_filename("SnakeSkinBlack.dds").string();
+                        _renderer->LoadTextureIntoArray(textureDesc, _cModelTextures, textureUnit.textureIds[t]);
+                    }
                 }
             }
         }
@@ -846,6 +1076,60 @@ bool CModelRenderer::LoadFile(const std::string& cModelPathString, CModel::Compl
 
     if (!cModelBuffer.Get(cModel.flags))
         return false;
+
+    // Read Sequences
+    {
+        u32 numSequences = 0;
+        if (!cModelBuffer.GetU32(numSequences))
+            return false;
+
+        if (numSequences > 0)
+        {
+            cModel.sequences.resize(numSequences);
+            cModelBuffer.GetBytes(reinterpret_cast<u8*>(cModel.sequences.data()), numSequences * sizeof(CModel::ComplexAnimationSequence));
+        }
+    }
+
+    // Read Bones
+    {
+        u32 numBones = 0;
+        if (!cModelBuffer.GetU32(numBones))
+            return false;
+
+        if (numBones > 0)
+        {
+            cModel.bones.resize(numBones);
+
+            for (u32 i = 0; i < numBones; i++)
+            {
+                CModel::ComplexBone& bone = cModel.bones[i];
+
+                if (!cModelBuffer.GetI32(bone.primaryBoneIndex))
+                    return false;
+
+                if (!cModelBuffer.Get(bone.flags))
+                    return false;
+
+                if (!cModelBuffer.GetI16(bone.parentBoneId))
+                    return false;
+
+                if (!cModelBuffer.GetU16(bone.submeshId))
+                    return false;
+
+                if (!bone.translation.Deserialize(&cModelBuffer))
+                    return false;
+
+                if (!bone.rotation.Deserialize(&cModelBuffer))
+                    return false;
+
+                if (!bone.scale.Deserialize(&cModelBuffer))
+                    return false;
+
+                if (!cModelBuffer.Get(bone.pivot))
+                    return false;
+            }
+        }
+    }
 
     // Read Vertices
     {
@@ -1064,11 +1348,13 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
 
     vec3 pos = placement.position;
     vec3 rot = glm::radians(placement.rotation);
-    vec3 scale = vec3(placement.scale) / 1024.0f;
+    vec3 scale = vec3(1.0f, 1.0f, 1.0f) * 5.0f;/// vec3(placement.scale) / 1024.0f;
 
     mat4x4 rotationMatrix = glm::eulerAngleZYX(rot.z, -rot.y, -rot.x);
     mat4x4 scaleMatrix = glm::scale(mat4x4(1.0f), scale);
 
+    instance.modelId = complexModel.objectID;
+    instance.activeSequenceId = 4;
     instance.instanceMatrix = glm::translate(mat4x4(1.0f), pos) * rotationMatrix * scaleMatrix;
 
     // Add the opaque DrawCalls and DrawCallDatas
@@ -1279,6 +1565,244 @@ void CModelRenderer::CreateBuffers()
         _renderer->CopyBuffer(_cullingDataBuffer, 0, stagingBuffer, 0, desc.size);
     }
 
+    // Create AnimationModelBoneInfo buffer
+    if (_animationModelBoneInfoBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_animationModelBoneInfoBuffer);
+    }
+    {
+        size_t numModelBoneInfo = _animationModelBoneInfo.size();
+        if (numModelBoneInfo > 0)
+        {
+            Renderer::BufferDesc desc;
+            desc.name = "AnimationModelBoneInfoBuffer";
+            desc.size = sizeof(AnimationModelBoneInfo) * numModelBoneInfo;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
+            _animationModelBoneInfoBuffer = _renderer->CreateBuffer(desc);
+
+            // Create staging buffer
+            desc.name = "AnimationModelBoneInfoStaging";
+            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+            // Upload to staging buffer
+            void* dst = _renderer->MapBuffer(stagingBuffer);
+            memcpy(dst, _animationModelBoneInfo.data(), desc.size);
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(_animationModelBoneInfoBuffer, 0, stagingBuffer, 0, desc.size);
+        }
+    }    
+    
+    // Create AnimationBoneInfo buffer
+    if (_animationBoneInfoBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_animationBoneInfoBuffer);
+    }
+    {
+        size_t numBoneInfo = _animationBoneInfo.size();
+        if (numBoneInfo > 0)
+        {
+            Renderer::BufferDesc desc;
+            desc.name = "AnimationBoneInfoBuffer";
+            desc.size = sizeof(AnimationBoneInfo) * numBoneInfo;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
+            _animationBoneInfoBuffer = _renderer->CreateBuffer(desc);
+
+            // Create staging buffer
+            desc.name = "AnimationBoneInfoStaging";
+            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+            // Upload to staging buffer
+            void* dst = _renderer->MapBuffer(stagingBuffer);
+            memcpy(dst, _animationBoneInfo.data(), desc.size);
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(_animationBoneInfoBuffer, 0, stagingBuffer, 0, desc.size);
+        }
+    }
+    
+    // Create AnimationBoneDeformInfo buffer
+    if (_animationBoneDeformInfoBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_animationBoneDeformInfoBuffer);
+    }
+    {
+        size_t numBoneDeformInfo = _animationBoneInfo.size();
+        if (numBoneDeformInfo > 0)
+        {
+            Renderer::BufferDesc desc;
+            desc.name = "AnimationBoneDeformInfoBuffer";
+            desc.size = sizeof(AnimationBoneDeformInfo) * numBoneDeformInfo;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
+            _animationBoneDeformInfoBuffer = _renderer->CreateBuffer(desc);
+
+            // Create staging buffer
+            desc.name = "AnimationBoneDeformInfoStaging";
+            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+            // Upload to staging buffer
+            void* dst = _renderer->MapBuffer(stagingBuffer);
+            memcpy(dst, _animationBoneDeformInfo.data(), desc.size);
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(_animationBoneDeformInfoBuffer, 0, stagingBuffer, 0, desc.size);
+        }
+    }
+
+    // Create AnimationSequence buffer
+    if (_animationSequenceInfoBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_animationSequenceInfoBuffer);
+    }
+    {
+        size_t numSequenceInfo = _animationTrackInfo.size();
+        if (numSequenceInfo > 0)
+        {
+            Renderer::BufferDesc desc;
+            desc.name = "AnimationSequenceBuffer";
+            desc.size = sizeof(AnimationTrackInfo) * numSequenceInfo;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
+            _animationSequenceInfoBuffer = _renderer->CreateBuffer(desc);
+
+            // Create staging buffer
+            desc.name = "AnimationSequenceStaging";
+            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+            // Upload to staging buffer
+            void* dst = _renderer->MapBuffer(stagingBuffer);
+            memcpy(dst, _animationTrackInfo.data(), desc.size);
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(_animationSequenceInfoBuffer, 0, stagingBuffer, 0, desc.size);
+        }
+    }
+    
+    // Create AnimationTimestamp buffer
+    if (_animationSequenceTimestampBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_animationSequenceTimestampBuffer);
+    }
+    {
+        size_t numSequenceTimestamps = _animationSequenceTimestamps.size();
+        if (numSequenceTimestamps > 0)
+        {
+            Renderer::BufferDesc desc;
+            desc.name = "AnimationSequenceTimestampBuffer";
+            desc.size = sizeof(u32) * numSequenceTimestamps;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
+            _animationSequenceTimestampBuffer = _renderer->CreateBuffer(desc);
+
+            // Create staging buffer
+            desc.name = "AnimationSequenceTimestampStaging";
+            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+            // Upload to staging buffer
+            void* dst = _renderer->MapBuffer(stagingBuffer);
+            memcpy(dst, _animationSequenceTimestamps.data(), desc.size);
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(_animationSequenceTimestampBuffer, 0, stagingBuffer, 0, desc.size);
+        }
+    }
+
+    // Create AnimationValueVec3 buffer
+    if (_animationSequenceValueVec3Buffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_animationSequenceValueVec3Buffer);
+    }
+    {
+        size_t numSequenceValues = _animationSequenceValuesVec3.size();
+        if (numSequenceValues > 0)
+        {
+            Renderer::BufferDesc desc;
+            desc.name = "AnimationSequenceValueVec3Buffer";
+            desc.size = sizeof(vec3) * numSequenceValues;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
+            _animationSequenceValueVec3Buffer = _renderer->CreateBuffer(desc);
+
+            // Create staging buffer
+            desc.name = "AnimationSequenceValueVec3Staging";
+            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+            // Upload to staging buffer
+            void* dst = _renderer->MapBuffer(stagingBuffer);
+            memcpy(dst, _animationSequenceValuesVec3.data(), desc.size);
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(_animationSequenceValueVec3Buffer, 0, stagingBuffer, 0, desc.size);
+        }
+    }
+
+    // Create AnimationValueVec4 buffer
+    if (_animationSequenceValueVec4Buffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_animationSequenceValueVec4Buffer);
+    }
+    {
+        size_t numSequenceValues = _animationSequenceValuesVec4.size();
+        if (numSequenceValues > 0)
+        {
+            Renderer::BufferDesc desc;
+            desc.name = "AnimationSequenceValueVec4Buffer";
+            desc.size = sizeof(vec4) * numSequenceValues;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
+            _animationSequenceValueVec4Buffer = _renderer->CreateBuffer(desc);
+
+            // Create staging buffer
+            desc.name = "AnimationSequenceValueVec4Staging";
+            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+            // Upload to staging buffer
+            void* dst = _renderer->MapBuffer(stagingBuffer);
+            memcpy(dst, _animationSequenceValuesVec4.data(), desc.size);
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(_animationSequenceValueVec4Buffer, 0, stagingBuffer, 0, desc.size);
+        }
+    }
+
     // Destroy OpaqueDrawCall buffer
     if (_opaqueDrawCallBuffer != Renderer::BufferID::Invalid())
     {
@@ -1458,6 +1982,37 @@ void CModelRenderer::CreateBuffers()
             u32 numDrawCalls = static_cast<u32>(_transparentDrawCalls.size());
             u32 keysSize = sizeof(u64) * numDrawCalls;
             u32 valuesSize = sizeof(u32) * numDrawCalls;
+
+            Renderer::BufferDesc desc;
+            desc.name = "CModelAlphaSortKeys";
+            desc.size = keysSize;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_SOURCE | Renderer::BufferUsage::TRANSFER_DESTINATION;
+
+            _transparentSortKeys = _renderer->CreateBuffer(desc);
+
+            desc.name = "CModelAlphaSortValues";
+            desc.size = valuesSize;
+            _transparentSortValues = _renderer->CreateBuffer(desc);
+        }
+    }
+    else
+    {
+        // Destroy sort keys buffer
+        if (_transparentSortKeys != Renderer::BufferID::Invalid())
+        {
+            _renderer->QueueDestroyBuffer(_transparentSortKeys);
+        }
+
+        // Destroy sort values buffer
+        if (_transparentSortValues != Renderer::BufferID::Invalid())
+        {
+            _renderer->QueueDestroyBuffer(_transparentSortValues);
+        }
+
+        // Create transparent sort keys/values buffer
+        {
+            u32 keysSize = sizeof(u64) * 1;
+            u32 valuesSize = sizeof(u32) * 1;
 
             Renderer::BufferDesc desc;
             desc.name = "CModelAlphaSortKeys";

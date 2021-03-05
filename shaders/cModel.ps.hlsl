@@ -13,9 +13,9 @@ struct Constants
     uint isTransparent;
 };
 
-[[vk::binding(3, PER_PASS)]] StructuredBuffer<TextureUnit> _textureUnits;
-[[vk::binding(4, PER_PASS)]] SamplerState _sampler;
-[[vk::binding(5, PER_PASS)]] Texture2D<float4> _textures[4096];
+[[vk::binding(9, PER_PASS)]] StructuredBuffer<TextureUnit> _textureUnits;
+[[vk::binding(10, PER_PASS)]] SamplerState _sampler;
+[[vk::binding(11, PER_PASS)]] Texture2D<float4> _textures[4096];
 
 [[vk::push_constant]] Constants _constants;
 
@@ -294,6 +294,8 @@ PSOutput main(PSInput input)
 
     PSOutput output;
     output.color = saturate(color);
+
+    //discard;
 
     // 4 most significant bits are used as a type identifier, remaining bits are drawCallID
     uint objectType = (uint(ObjectType::ComplexModelOpaque) * !isTransparent) + (uint(ObjectType::ComplexModelTransparent) * isTransparent);

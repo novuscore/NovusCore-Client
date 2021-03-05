@@ -1,28 +1,31 @@
 #include "globalData.inc.hlsl"
 #include "cModel.inc.hlsl"
 
-struct InstanceData
-{
-    float4x4 instanceMatrix;
-};
-
 struct PackedVertex
 {
     uint packed0; // half positionX, half positionY
     uint packed1; // half positionZ, u8 octNormal[2]
     uint packed2; // half uv0X, half uv0Y
     uint packed3; // half uv1X, half uv1Y
-}; // 16 bytes
+    uint packed4; // bone indices (0..4)
+    uint packed5; // bone weights (0..4)
+}; // 24 bytes
 
 struct Vertex
 {
     float3 position;
     float3 normal;
     float4 uv01;
+
+    uint4 boneIndices;
+    uint4 boneWeights;
 };
 
 [[vk::binding(1, PER_PASS)]] StructuredBuffer<PackedVertex> _packedVertices;
 [[vk::binding(2, PER_PASS)]] StructuredBuffer<InstanceData> _instances;
+[[vk::binding(3, PER_PASS)]] StructuredBuffer<AnimationModelBoneInfo> _animationModelBoneInfo;
+[[vk::binding(4, PER_PASS)]] StructuredBuffer<AnimationBoneInfo> _animationBoneInfo;
+[[vk::binding(5, PER_PASS)]] StructuredBuffer<AnimationBoneDeformInfo> _animationBoneDeformInfo;
 
 InstanceData LoadInstanceData(uint instanceID)
 {
@@ -76,6 +79,30 @@ float4 UnpackUVs(PackedVertex packedVertex)
     return uvs;
 }
 
+uint4 UnpackBoneIndices(PackedVertex packedVertex)
+{
+    uint4 boneIndices;
+
+    boneIndices.x = packedVertex.packed4 & 0xF;
+    boneIndices.y = (packedVertex.packed4 >> 8) & 0xF;
+    boneIndices.z = (packedVertex.packed4 >> 16) & 0xF;
+    boneIndices.w = (packedVertex.packed4 >> 24) & 0xF;
+
+    return boneIndices;
+}
+
+uint4 UnpackBoneWeights(PackedVertex packedVertex)
+{
+    uint4 boneWeights;
+
+    boneWeights.x = packedVertex.packed5 & 0xF;
+    boneWeights.y = (packedVertex.packed5 >> 8) & 0xF;
+    boneWeights.z = (packedVertex.packed5 >> 16) & 0xF;
+    boneWeights.w = (packedVertex.packed5 >> 24) & 0xF;
+
+    return boneWeights;
+}
+
 Vertex LoadVertex(uint vertexID)
 {
     PackedVertex packedVertex = _packedVertices[vertexID];
@@ -84,6 +111,8 @@ Vertex LoadVertex(uint vertexID)
     vertex.position = UnpackPosition(packedVertex);
     vertex.normal = UnpackNormal(packedVertex);
     vertex.uv01 = UnpackUVs(packedVertex);
+    vertex.boneIndices = UnpackBoneIndices(packedVertex);
+    vertex.boneWeights = UnpackBoneWeights(packedVertex);
 
     return vertex;
 }
@@ -105,14 +134,23 @@ struct VSOutput
 VSOutput main(VSInput input)
 {
     uint drawCallID = input.instanceID;
-    
-    DrawCallData drawCallData = LoadDrawCallData(drawCallID);
-    
-    InstanceData instanceData = LoadInstanceData(drawCallData.instanceID);
-    Vertex vertex = LoadVertex(input.vertexID); 
+    Vertex vertex = LoadVertex(input.vertexID);
 
-    float4 position = float4(vertex.position, 1.0f);
-    position = mul(position, instanceData.instanceMatrix);
+    DrawCallData drawCallData = LoadDrawCallData(drawCallID);
+    InstanceData instanceData = LoadInstanceData(drawCallData.instanceID);
+
+    AnimationModelBoneInfo modelBoneInfo = _animationModelBoneInfo[instanceData.modelId];
+
+    float4x4 boneTransformMatrix = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, };
+    
+    for (int i = 0; i < 4; i++)
+    {
+        float weight = (float)vertex.boneWeights[i] / 255.f;
+        boneTransformMatrix += ((weight) * _animationBoneDeformInfo[modelBoneInfo.offset + vertex.boneIndices[i]].boneMatrix);
+    }
+
+    float4 position = mul(float4(vertex.position, 1.0f), boneTransformMatrix);
+    position = mul(float4(-position.x, -position.y, position.z, 1.0f), instanceData.instanceMatrix);
     
     VSOutput output;
     output.drawCallID = drawCallID;
