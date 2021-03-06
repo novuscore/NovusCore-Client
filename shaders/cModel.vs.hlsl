@@ -18,7 +18,7 @@ struct Vertex
     float4 uv01;
 
     uint4 boneIndices;
-    uint4 boneWeights;
+    float4 boneWeights;
 };
 
 [[vk::binding(1, PER_PASS)]] StructuredBuffer<PackedVertex> _packedVertices;
@@ -83,22 +83,22 @@ uint4 UnpackBoneIndices(PackedVertex packedVertex)
 {
     uint4 boneIndices;
 
-    boneIndices.x = packedVertex.packed4 & 0xF;
-    boneIndices.y = (packedVertex.packed4 >> 8) & 0xF;
-    boneIndices.z = (packedVertex.packed4 >> 16) & 0xF;
-    boneIndices.w = (packedVertex.packed4 >> 24) & 0xF;
+    boneIndices.x = packedVertex.packed4 & 0xFF;
+    boneIndices.y = (packedVertex.packed4 >> 8) & 0xFF;
+    boneIndices.z = (packedVertex.packed4 >> 16) & 0xFF;
+    boneIndices.w = (packedVertex.packed4 >> 24) & 0xFF;
 
     return boneIndices;
 }
 
-uint4 UnpackBoneWeights(PackedVertex packedVertex)
+float4 UnpackBoneWeights(PackedVertex packedVertex)
 {
-    uint4 boneWeights;
+    float4 boneWeights;
 
-    boneWeights.x = packedVertex.packed5 & 0xF;
-    boneWeights.y = (packedVertex.packed5 >> 8) & 0xF;
-    boneWeights.z = (packedVertex.packed5 >> 16) & 0xF;
-    boneWeights.w = (packedVertex.packed5 >> 24) & 0xF;
+    boneWeights.x = (float)(packedVertex.packed5 & 0xFF) / 255.f;
+    boneWeights.y = (float)((packedVertex.packed5 >> 8) & 0xFF) / 255.f;
+    boneWeights.z = (float)((packedVertex.packed5 >> 16) & 0xFF) / 255.f;
+    boneWeights.w = (float)((packedVertex.packed5 >> 24) & 0xFF) / 255.f;
 
     return boneWeights;
 }
@@ -142,11 +142,10 @@ VSOutput main(VSInput input)
     AnimationModelBoneInfo modelBoneInfo = _animationModelBoneInfo[instanceData.modelId];
 
     float4x4 boneTransformMatrix = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, };
-    
+
     for (int i = 0; i < 4; i++)
     {
-        float weight = (float)vertex.boneWeights[i] / 255.f;
-        boneTransformMatrix += ((weight) * _animationBoneDeformInfo[modelBoneInfo.offset + vertex.boneIndices[i]].boneMatrix);
+        boneTransformMatrix += mul(vertex.boneWeights[i], _animationBoneDeformInfo[modelBoneInfo.offset + vertex.boneIndices[i]].boneMatrix);
     }
 
     float4 position = mul(float4(vertex.position, 1.0f), boneTransformMatrix);

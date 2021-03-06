@@ -20,7 +20,10 @@ struct Constants
 
 float4x4 MatrixTranslate(float3 v)
 {
-    float4x4 result = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, v[0], v[1], v[2], 1 };
+    float4x4 result = { 1, 0, 0, 0, 
+                        0, 1, 0, 0, 
+                        0, 0, 1, 0, 
+                        v[0], v[1], v[2], 1 };
     return result;
 }
 
@@ -89,9 +92,9 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
 {
     AnimationBoneInfo boneInfo = _animationBoneInfo[boneIndex];
 
-    uint numTranslationSequences = boneInfo.packedData0 & 0xFF;
-    uint numRotationSequences = boneInfo.packedData0 >> 16;
-    uint numScaleSequences = boneInfo.packedData1 & 0xFF;
+    uint numTranslationSequences = boneInfo.packedData0 & 0xFFFF;
+    uint numRotationSequences = (boneInfo.packedData0 >> 16) & 0xFFFF;
+    uint numScaleSequences = boneInfo.packedData1 & 0xFFFF;
 
     float3 pivotPoint = float3(boneInfo.pivotPointX, boneInfo.pivotPointY, boneInfo.pivotPointZ);
 
@@ -113,12 +116,12 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
             if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/) // Murloc
                 continue;
 
-            uint numTimestamps = trackInfo.packedData0 & 0xff;
-            uint numValues = trackInfo.packedData0 >> 16;
+            uint numTimestamps = trackInfo.packedData0 & 0xFFFF;
+            uint numValues = (trackInfo.packedData0 >> 16) & 0xFFFF;
 
             for (int j = 0; j < numTimestamps; j++)
             {
-                float sequenceTimestamp = (float(_animationSequenceTimestamp[trackInfo.timestampOffset + j]) / 1000.f);
+                float sequenceTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + j] / 1000.f);
                 if (instanceData.animProgress < sequenceTimestamp)
                 {
                     float defaultTimestamp = 0.f;
@@ -126,11 +129,11 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
 
                     if (j > 0)
                     {
-                        float defaultTimestamp = (float(_animationSequenceTimestamp[trackInfo.timestampOffset + (j - 1)]) / 1000.f);
+                        float defaultTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + (j - 1)] / 1000.f);
                         float3 defaultValue = _animationSequenceValueVec3[trackInfo.valueOffset + (j - 1)];
                     }
 
-                    float nextValueTimestamp = (float(_animationSequenceTimestamp[trackInfo.timestampOffset + j]) / 1000.f);
+                    float nextValueTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + j] / 1000.f);
                     float3 nextValue = _animationSequenceValueVec3[trackInfo.valueOffset + j];
 
                     float time = (instanceData.animProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
@@ -153,12 +156,12 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
             if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/) // Murloc
                 continue;
 
-            uint numTimestamps = trackInfo.packedData0 & 0xff;
-            uint numValues = trackInfo.packedData0 >> 16;
+            uint numTimestamps = trackInfo.packedData0 & 0xFFFF;
+            uint numValues = (trackInfo.packedData0 >> 16) & 0xFFFF;
 
             for (int j = 0; j < numTimestamps; j++)
             {
-                float sequenceTimestamp = (float(_animationSequenceTimestamp[trackInfo.timestampOffset + j]) / 1000.f);
+                float sequenceTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + j] / 1000.f);
                 if (instanceData.animProgress < sequenceTimestamp)
                 {
                     float defaultTimestamp = 0.f;
@@ -166,15 +169,15 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
 
                     if (j > 0)
                     {
-                        defaultTimestamp = (float(_animationSequenceTimestamp[trackInfo.timestampOffset + (j - 1)]) / 1000.f);
+                        defaultTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + (j - 1)] / 1000.f);
                         defaultValue = _animationSequenceValueVec4[trackInfo.valueOffset + (j - 1)];
                     }
 
-                    float nextValueTimestamp = (float(_animationSequenceTimestamp[trackInfo.timestampOffset + j]) / 1000.f);
+                    float nextValueTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + j] / 1000.f);
                     float4 nextValue = _animationSequenceValueVec4[trackInfo.valueOffset + j];
 
                     float time = (instanceData.animProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
-                    rotationValue = slerp(defaultValue, nextValue, time);
+                    //rotationValue = slerp(defaultValue, nextValue, time);
                     break;
                 }
             }
@@ -193,12 +196,12 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
             if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/) // Murloc
                 continue;
 
-            uint numTimestamps = trackInfo.packedData0 & 0xff;
-            uint numValues = trackInfo.packedData0 >> 16;
+            uint numTimestamps = trackInfo.packedData0 & 0xFFFF;
+            uint numValues = (trackInfo.packedData0 >> 16) & 0xFFFF;
 
             for (int j = 0; j < numTimestamps; j++)
             {
-                float sequenceTimestamp = (float(_animationSequenceTimestamp[trackInfo.timestampOffset + j]) / 1000.f);
+                float sequenceTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + j] / 1000.f);
                 if (instanceData.animProgress < sequenceTimestamp)
                 {
                     float defaultTimestamp = 0.f;
@@ -206,15 +209,16 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
 
                     if (j > 0)
                     {
-                        defaultTimestamp = (float(_animationSequenceTimestamp[trackInfo.timestampOffset + (j - 1)]) / 1000.f);
+                        defaultTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + (j - 1)] / 1000.f);
                         defaultValue = _animationSequenceValueVec3[trackInfo.valueOffset + (j - 1)];
                     }
 
-                    float nextValueTimestamp = (float(_animationSequenceTimestamp[trackInfo.timestampOffset + j]) / 1000.f);
+                    float nextValueTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + j] / 1000.f);
                     float3 nextValue = _animationSequenceValueVec3[trackInfo.valueOffset + j];
 
                     float time = (instanceData.animProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
                     translationValue = lerp(defaultValue, nextValue, time);
+
                     break;
                 }
             }
@@ -236,39 +240,36 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
 
 void DebugRenderBone(InstanceData instanceData, int boneIndex, float4x4 boneMatrix, int parentBoneIndex, float4x4 parentBoneMatrix, bool drawLineToParent)
 {
-    /*AnimationBoneInfo boneInfo = _animationBoneInfo[boneIndex];
+    AnimationBoneInfo boneInfo = _animationBoneInfo[boneIndex];
     AnimationBoneInfo parentBoneInfo = _animationBoneInfo[parentBoneIndex];
 
     float3 pivotPoint = float3(boneInfo.pivotPointX, boneInfo.pivotPointY, boneInfo.pivotPointZ);
-    float4x4 pivotBoneMatrix = mul(MatrixTranslate(pivotPoint), boneMatrix);
     float4 position = mul(float4(pivotPoint, 1.0f), boneMatrix);
-
     position.xy = -position.xy;
 
-    float4 minPos = position;
+    float4 currPos = mul(position, instanceData.instanceMatrix);
+
+    float4 minPos = currPos;
     minPos.xyz -= 0.025f;
 
-    float4 posMax = position;
+    float4 posMax = currPos;
     posMax.xyz += 0.025f;
 
     debugDrawAABB3D((float3)minPos, (float3)posMax, 0xffff00ff);
-    debugDrawMatrix(pivotBoneMatrix, float3(0.05f, 0.05f, 0.05f));
+    //debugDrawMatrix(pivotBoneMatrix, float3(0.05f, 0.05f, 0.05f));
 
     if (drawLineToParent == true && parentBoneIndex != 65535)
     {
         float3 parentPivotPoint = float3(parentBoneInfo.pivotPointX, parentBoneInfo.pivotPointY, parentBoneInfo.pivotPointZ);
         float4 parentPosition = mul(float4(parentPivotPoint, 1.0f), parentBoneMatrix);
-
         parentPosition.xy = -parentPosition.xy;
 
-        float4 currPos = mul(position, instanceData.instanceMatrix);
         float4 parentPos = mul(parentPosition, instanceData.instanceMatrix);
 
-
         debugDrawLine3D((float3)currPos, (float3)parentPos, 0xffffff00);
-    }*/
+    }
 
-    float3 position = boneMatrix[3].xyz;
+    /*float3 position = boneMatrix[3].xyz;
     position.xy = -position.xy;
 
     float3 minPos = position;
@@ -278,7 +279,7 @@ void DebugRenderBone(InstanceData instanceData, int boneIndex, float4x4 boneMatr
     posMax.xyz += 0.025f;
 
     //debugDrawAABB3D(minPos, posMax, 0xffff00ff);
-    debugDrawMatrix(boneMatrix, float3(0.05f, 0.05f, 0.05f));
+    debugDrawMatrix(boneMatrix, float3(0.05f, 0.05f, 0.05f));*/
 }
 
 [numthreads(32, 1, 1)]
@@ -314,23 +315,26 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     {
         AnimationBoneInfo boneInfo = _animationBoneInfo[modelBoneInfo.offset + i];
 
-        float4x4 currBoneMatrix = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        float4x4 currBoneMatrix = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
         float4x4 parentBoneMatrix = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
-        uint parentBoneId = boneInfo.packedData1 >> 16;
+        uint parentBoneId = (boneInfo.packedData1 >> 16) & 0xFFFF;
+
+        if (parentBoneId != 65535)
+        {
+            parentBoneMatrix = animationBoneDeformInfo[parentBoneId];
+        }
 
         if ((boneInfo.flags & 1) != 0)
         {
-            if (parentBoneId != 65535)
-            {
-                parentBoneMatrix = animationBoneDeformInfo[parentBoneId];
-            }
-
             currBoneMatrix = GetBoneMatrix(instanceData, modelBoneInfo.offset + i);
+            currBoneMatrix = mul(currBoneMatrix, parentBoneMatrix);
 
-            float4x4 finalBoneMatrix = mul(currBoneMatrix, parentBoneMatrix);
-
-            DebugRenderBone(instanceData, modelBoneInfo.offset + i, finalBoneMatrix, modelBoneInfo.offset + parentBoneId, parentBoneMatrix, true);
-            animationBoneDeformInfo[i] = finalBoneMatrix;
+            DebugRenderBone(instanceData, modelBoneInfo.offset + i, currBoneMatrix, modelBoneInfo.offset + parentBoneId, parentBoneMatrix, true);
+            animationBoneDeformInfo[i] = currBoneMatrix;
+        }
+        else
+        {
+            animationBoneDeformInfo[i] = parentBoneMatrix;
         }
     }
 

@@ -1348,7 +1348,7 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
 
     vec3 pos = placement.position;
     vec3 rot = glm::radians(placement.rotation);
-    vec3 scale = vec3(1.0f, 1.0f, 1.0f) * 5.0f;/// vec3(placement.scale) / 1024.0f;
+    vec3 scale = vec3(placement.scale) / 1024.0f;
 
     mat4x4 rotationMatrix = glm::eulerAngleZYX(rot.z, -rot.y, -rot.x);
     mat4x4 scaleMatrix = glm::scale(mat4x4(1.0f), scale);
