@@ -1,6 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include <../robin-hood-hashing/robin_hood.h>
+#include <robin_hood.h>
 #include "../../Stylesheets/ImageStylesheet.h"
 #include "TransformEvents.h"
 

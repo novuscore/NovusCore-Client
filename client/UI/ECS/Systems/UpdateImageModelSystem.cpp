@@ -1,10 +1,10 @@
 #include "UpdateImageModelSystem.h"
 #include <entity/registry.hpp>
 #include <tracy/Tracy.hpp>
+#include <Renderer/Buffer.h>
+#include <Renderer/Descriptors/ModelDesc.h>
 #include "../../UITypes.h"
 #include "../../../Utils/ServiceLocator.h"
-#include "../../render-lib/Renderer/Descriptors/ModelDesc.h"
-#include "../../render-lib/Renderer/Buffer.h"
 
 #include "../Components/Singletons/UIDataSingleton.h"
 #include "../Components/Transform.h"

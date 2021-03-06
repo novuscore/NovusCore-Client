@@ -1,9 +1,9 @@
 #include "UpdateTextModelSystem.h"
 #include <entity/registry.hpp>
 #include <tracy/Tracy.hpp>
+#include <Renderer/Renderer.h>
 #include "../../UITypes.h"
 #include "../../../Utils/ServiceLocator.h"
-#include "../../render-lib/Renderer/Renderer.h"
 
 #include "../Components/Singletons/UIDataSingleton.h"
 #include "../Components/Transform.h"

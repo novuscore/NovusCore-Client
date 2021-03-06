@@ -19,9 +19,9 @@ namespace UIUtils
 
         auto deleteView = registry->view<UIComponent::ElementInfo>();
         deleteView.each([&](UIComponent::ElementInfo& elementInfo)
-            {
-                delete elementInfo.scriptingObject;
-            });
+        {
+            delete elementInfo.scriptingObject;
+        });
         registry->destroy(deleteView.begin(), deleteView.end());
 
         // Delete entities.
