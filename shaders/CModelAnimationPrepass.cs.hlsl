@@ -63,10 +63,14 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         float4x4 currBoneMatrix = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
         float4x4 parentBoneMatrix = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
         uint parentBoneId = (boneInfo.packedData1 >> 16) & 0xFFFF;
+        float3 parentPivotPoint = float3(0.f, 0.f, 0.f);
 
         if (parentBoneId != 65535)
         {
             parentBoneMatrix = _animationBoneDeformInfo[parentBoneId].boneMatrix;
+
+            AnimationBoneInfo parentBoneInfo = _animationBoneInfo[modelBoneInfo.offset + parentBoneId];
+            parentPivotPoint = float3(parentBoneInfo.pivotPointX, parentBoneInfo.pivotPointY, parentBoneInfo.pivotPointZ);
         }
 
         if ((boneInfo.flags & 1) != 0)
@@ -81,7 +85,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
             currBoneMatrix = GetBoneMatrix(ctx);
             currBoneMatrix = mul(currBoneMatrix, parentBoneMatrix);
 
-            //DebugRenderBone(instanceData, modelBoneInfo.offset + i, currBoneMatrix, modelBoneInfo.offset + parentBoneId, parentBoneMatrix, true);
+            //DebugRenderBone(instanceData, modelBoneInfo.offset + i, float3(boneInfo.pivotPointX, boneInfo.pivotPointY, boneInfo.pivotPointZ), currBoneMatrix, modelBoneInfo.offset + parentBoneId, parentPivotPoint, parentBoneMatrix, true);
             _animationBoneDeformInfo[i].boneMatrix = currBoneMatrix;
         }
         else

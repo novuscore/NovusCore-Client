@@ -236,3 +236,30 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
 
     return boneMatrix;
 }
+
+void DebugRenderBone(InstanceData instanceData, int boneIndex, float3 pivotPoint, float4x4 boneMatrix, int parentBoneIndex, float3 parentPivotPoint, float4x4 parentBoneMatrix, bool drawLineToParent)
+{
+    float4 position = mul(float4(pivotPoint, 1.0f), boneMatrix);
+    position.xy = -position.xy;
+
+    float4 currPos = mul(position, instanceData.instanceMatrix);
+
+    float4 minPos = currPos;
+    minPos.xyz -= 0.025f;
+
+    float4 posMax = currPos;
+    posMax.xyz += 0.025f;
+
+    debugDrawAABB3D((float3)minPos, (float3)posMax, 0xffff00ff);
+    //debugDrawMatrix(pivotBoneMatrix, float3(0.05f, 0.05f, 0.05f));
+
+    if (drawLineToParent == true && parentBoneIndex != 65535)
+    {
+        float4 parentPosition = mul(float4(parentPivotPoint, 1.0f), parentBoneMatrix);
+        parentPosition.xy = -parentPosition.xy;
+
+        float4 parentPos = mul(parentPosition, instanceData.instanceMatrix);
+
+        debugDrawLine3D((float3)currPos, (float3)parentPos, 0xffffff00);
+    }
+}
