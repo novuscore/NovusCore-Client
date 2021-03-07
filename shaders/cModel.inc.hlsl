@@ -6,7 +6,7 @@ struct InstanceData
     uint modelId;
     uint activeSequenceId;
     float animProgress;
-    uint _padding;
+    uint padding;
 };
 
 struct AnimationModelBoneInfo
