@@ -2,8 +2,8 @@ permutation TEX_TYPE = [float, float2, float3, float4, int, int2, int3, int4, ui
 
 #include "common.inc.hlsl"
 
-[[vk::binding(0, 0)]] SamplerState _sampler;
-[[vk::binding(1, 0)]] Texture2D<TEX_TYPE> _texture;
+[[vk::binding(0, GLOBAL)]] SamplerState _sampler;
+[[vk::binding(1, GLOBAL)]] Texture2D<TEX_TYPE> _texture;
 
 struct Constants
 {

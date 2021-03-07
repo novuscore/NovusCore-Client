@@ -83,6 +83,7 @@ public:
         u32 modelId = 0;
         u32 activeSequenceId = 0;
         f32 animProgress = 0.0f;
+        u32 padding = 0;
     };
 
 public:

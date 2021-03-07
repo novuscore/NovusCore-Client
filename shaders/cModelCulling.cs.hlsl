@@ -40,15 +40,15 @@ struct CullingData
     float sphereRadius;
 };
 
-struct Instance
-{
-    float4x4 instanceMatrix;
-};
+//struct Instance
+//{
+//    float4x4 instanceMatrix;
+//};
 
 // Inputs
 [[vk::push_constant]] Constants _constants;
 [[vk::binding(1, PER_PASS)]] StructuredBuffer<DrawCall> _drawCalls;
-[[vk::binding(2, PER_PASS)]] StructuredBuffer<Instance> _instances;
+[[vk::binding(2, PER_PASS)]] StructuredBuffer<InstanceData> _instances;
 [[vk::binding(3, PER_PASS)]] StructuredBuffer<PackedCullingData> _cullingDatas;
 
 [[vk::binding(9, PER_PASS)]] SamplerState _depthSampler;
@@ -129,7 +129,7 @@ bool IsAABBInsideFrustum(float4 frustum[6], AABB aabb)
 
 
 #define UINT_MAX 0xFFFFu
-uint64_t CalculateSortKey(DrawCall drawCall, DrawCallData drawCallData, Instance instance)
+uint64_t CalculateSortKey(DrawCall drawCall, DrawCallData drawCallData, InstanceData instance)
 {
     // Get the position to sort against
     const float3 refPos = _constants.cameraPosition;
@@ -181,7 +181,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     DrawCallData drawCallData = LoadDrawCallData(drawCallID);
     
     const CullingData cullingData = LoadCullingData(drawCallData.cullingDataID);
-    const Instance instance = _instances[drawCallData.instanceID];
+    const InstanceData instance = _instances[drawCallData.instanceID];
     
     // Get center and extents
     float3 center = (cullingData.boundingBox.min + cullingData.boundingBox.max) * 0.5f;
