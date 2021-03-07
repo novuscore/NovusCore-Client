@@ -278,8 +278,7 @@ private:
     std::vector<AnimationBoneDeformInfo> _animationBoneDeformInfo;
     std::vector<AnimationTrackInfo> _animationTrackInfo;
     std::vector<u32> _animationSequenceTimestamps;
-    std::vector<vec3> _animationSequenceValuesVec3;
-    std::vector<vec4> _animationSequenceValuesVec4;
+    std::vector<vec4> _animationSequenceValuesVec;
 
     std::vector<DrawCall> _opaqueDrawCalls;
     std::vector<DrawCallData> _opaqueDrawCallDatas;
@@ -298,8 +297,7 @@ private:
     Renderer::BufferID _animationBoneDeformInfoBuffer;
     Renderer::BufferID _animationSequenceInfoBuffer;
     Renderer::BufferID _animationSequenceTimestampBuffer;
-    Renderer::BufferID _animationSequenceValueVec3Buffer;
-    Renderer::BufferID _animationSequenceValueVec4Buffer;
+    Renderer::BufferID _animationSequenceValueVecBuffer;
 
     Renderer::BufferID _opaqueDrawCallBuffer;
     Renderer::BufferID _opaqueCulledDrawCallBuffer;

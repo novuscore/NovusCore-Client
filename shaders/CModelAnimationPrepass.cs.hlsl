@@ -15,8 +15,7 @@ struct Constants
 [[vk::binding(4, PER_PASS)]] RWStructuredBuffer<AnimationBoneDeformInfo> _animationBoneDeformInfo;
 [[vk::binding(5, PER_PASS)]] StructuredBuffer<AnimationTrackInfo> _animationTrackInfo;
 [[vk::binding(6, PER_PASS)]] StructuredBuffer<uint> _animationSequenceTimestamp;
-[[vk::binding(7, PER_PASS)]] StructuredBuffer<float3> _animationSequenceValueVec3;
-[[vk::binding(8, PER_PASS)]] StructuredBuffer<float4> _animationSequenceValueVec4;
+[[vk::binding(7, PER_PASS)]] StructuredBuffer<float4> _animationSequenceValueVec;
 
 float4x4 MatrixTranslate(float3 v)
 {
@@ -99,9 +98,9 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
     float3 pivotPoint = float3(boneInfo.pivotPointX, boneInfo.pivotPointY, boneInfo.pivotPointZ);
 
     float4x4 boneMatrix = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
-    float3 translationValue = float3(0.f, 0.f, 0.f);
+    float4 translationValue = float4(0.f, 0.f, 0.f, 0.f);
     float4 rotationValue = float4(0.f, 0.f, 0.f, 1.f);
-    float3 scaleValue = float3(1.f, 1.f, 1.f);
+    float4 scaleValue = float4(1.f, 1.f, 1.f, 0.f);
 
     uint isTranslationTrackGlobalSequence = (boneInfo.flags & 0x2) != 0;
     uint isRotationTrackGlobalSequence = (boneInfo.flags & 0x4) != 0;
@@ -113,7 +112,8 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
         {
             AnimationTrackInfo trackInfo = _animationTrackInfo[boneInfo.scaleSequenceOffset + i];
             //if (trackInfo.sequenceIndex != 0 /*instanceData.activeSequenceId*/) // Snake / Chest
-            if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/) // Murloc
+            if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/)  // Dudu Cat // Murloc
+            //if (trackInfo.sequenceIndex != 36 /*instanceData.activeSequenceId*/) // LK Murloc
                 continue;
 
             uint numTimestamps = trackInfo.packedData0 & 0xFFFF;
@@ -125,19 +125,19 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
                 if (instanceData.animProgress < sequenceTimestamp)
                 {
                     float defaultTimestamp = 0.f;
-                    float3 defaultValue = float3(1.f, 1.f, 1.f);
+                    float4 defaultValue = float4(1.f, 1.f, 1.f, 0.f);
 
                     if (j > 0)
                     {
                         float defaultTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + (j - 1)] / 1000.f);
-                        float3 defaultValue = _animationSequenceValueVec3[trackInfo.valueOffset + (j - 1)];
+                        float4 defaultValue = _animationSequenceValueVec[trackInfo.valueOffset + (j - 1)];
                     }
 
                     float nextValueTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + j] / 1000.f);
-                    float3 nextValue = _animationSequenceValueVec3[trackInfo.valueOffset + j];
+                    float4 nextValue = _animationSequenceValueVec[trackInfo.valueOffset + j];
 
                     float time = (instanceData.animProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
-                    //scaleValue = lerp(defaultValue, nextValue, time);
+                    scaleValue = lerp(defaultValue, nextValue, time);
 
                     break;
                 }
@@ -153,7 +153,8 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
         {
             AnimationTrackInfo trackInfo = _animationTrackInfo[boneInfo.rotationSequenceOffset + o];
             //if (trackInfo.sequenceIndex != 0 /*instanceData.activeSequenceId*/) // Snake / Chest
-            if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/) // Murloc
+            if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/)  // Dudu Cat // Murloc
+            //if (trackInfo.sequenceIndex != 36 /*instanceData.activeSequenceId*/) // LK Murloc
                 continue;
 
             uint numTimestamps = trackInfo.packedData0 & 0xFFFF;
@@ -170,14 +171,14 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
                     if (j > 0)
                     {
                         defaultTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + (j - 1)] / 1000.f);
-                        defaultValue = _animationSequenceValueVec4[trackInfo.valueOffset + (j - 1)];
+                        defaultValue = _animationSequenceValueVec[trackInfo.valueOffset + (j - 1)];
                     }
 
                     float nextValueTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + j] / 1000.f);
-                    float4 nextValue = _animationSequenceValueVec4[trackInfo.valueOffset + j];
+                    float4 nextValue = _animationSequenceValueVec[trackInfo.valueOffset + j];
 
                     float time = (instanceData.animProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
-                    //rotationValue = slerp(defaultValue, nextValue, time);
+                    rotationValue = slerp(defaultValue, nextValue, time);
                     break;
                 }
             }
@@ -193,7 +194,8 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
             AnimationTrackInfo trackInfo = _animationTrackInfo[boneInfo.translationSequenceOffset + p];
 
             //if (trackInfo.sequenceIndex != 0 /*instanceData.activeSequenceId*/) // Snake / Chest
-            if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/) // Murloc
+            if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/) // Dudu Cat // Murloc
+            //if (trackInfo.sequenceIndex != 36 /*instanceData.activeSequenceId*/) // LK Murloc
                 continue;
 
             uint numTimestamps = trackInfo.packedData0 & 0xFFFF;
@@ -205,16 +207,16 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
                 if (instanceData.animProgress < sequenceTimestamp)
                 {
                     float defaultTimestamp = 0.f;
-                    float3 defaultValue = float3(0.f, 0.f, 0.f);
+                    float4 defaultValue = float4(0.f, 0.f, 0.f, 0.f);
 
                     if (j > 0)
                     {
                         defaultTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + (j - 1)] / 1000.f);
-                        defaultValue = _animationSequenceValueVec3[trackInfo.valueOffset + (j - 1)];
+                        defaultValue = _animationSequenceValueVec[trackInfo.valueOffset + (j - 1)];
                     }
 
                     float nextValueTimestamp = ((float)_animationSequenceTimestamp[trackInfo.timestampOffset + j] / 1000.f);
-                    float3 nextValue = _animationSequenceValueVec3[trackInfo.valueOffset + j];
+                    float4 nextValue = _animationSequenceValueVec[trackInfo.valueOffset + j];
 
                     float time = (instanceData.animProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
                     translationValue = lerp(defaultValue, nextValue, time);
@@ -227,13 +229,13 @@ float4x4 GetBoneMatrix(InstanceData instanceData, int boneIndex)
         }
     }
 
-    boneMatrix = mul(MatrixTranslate(pivotPoint), boneMatrix);
+    boneMatrix = mul(MatrixTranslate(pivotPoint.xyz), boneMatrix);
     
-    boneMatrix = mul(MatrixTranslate(translationValue), boneMatrix);
+    boneMatrix = mul(MatrixTranslate(translationValue.xyz), boneMatrix);
     boneMatrix = mul(RotationToMatrix(rotationValue), boneMatrix);
-    boneMatrix = mul(MatrixScale(scaleValue), boneMatrix);
+    boneMatrix = mul(MatrixScale(scaleValue.xyz), boneMatrix);
 
-    boneMatrix = mul(MatrixTranslate(-pivotPoint), boneMatrix);
+    boneMatrix = mul(MatrixTranslate(-pivotPoint.xyz), boneMatrix);
 
     return boneMatrix;
 }
@@ -293,7 +295,9 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     InstanceData instanceData = _instances[dispatchThreadId.x];
 
     //AnimationTrackInfo trackInfo = _animationTrackInfo[11]; // Snake
-    AnimationTrackInfo trackInfo = _animationTrackInfo[6]; // Murloc
+    //AnimationTrackInfo trackInfo = _animationTrackInfo[6]; // Murloc
+    //AnimationTrackInfo trackInfo = _animationTrackInfo[46]; // LK Murloc
+    AnimationTrackInfo trackInfo = _animationTrackInfo[2]; // Dudu Cat
     //AnimationTrackInfo trackInfo = _animationTrackInfo[3]; // Chest
 
     if (instanceData.animProgress > (float(trackInfo.duration) / 1000))
@@ -302,7 +306,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
     else
     {
-        instanceData.animProgress += 0.1f * _constants.deltaTime;
+        instanceData.animProgress += 1.f * _constants.deltaTime;
     }
 
     _instances[dispatchThreadId.x] = instanceData;
