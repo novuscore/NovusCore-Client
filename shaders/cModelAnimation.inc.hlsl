@@ -9,8 +9,8 @@ struct AnimationContext
     AnimationBoneInfo boneInfo;
 
     StructuredBuffer<AnimationTrackInfo> animationTrackInfos;
-    StructuredBuffer<uint> sequenceTimestamps;
-    StructuredBuffer<float4> sequenceValues;
+    StructuredBuffer<uint> trackTimestamps;
+    StructuredBuffer<float4> trackValues;
 };
 
 float4x4 MatrixTranslate(float3 v)
@@ -107,7 +107,7 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
     {
         for (int i = 0; i < numScaleSequences; i++)
         {
-            AnimationTrackInfo trackInfo = ctx.animationTrackInfos[boneInfo.scaleSequenceOffset + i];
+            AnimationTrackInfo trackInfo = ctx.animationTrackInfos[boneInfo.scaleTrackOffset + i];
             //if (trackInfo.sequenceIndex != 0 /*instanceData.activeSequenceId*/) // Snake / Chest
             if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/)  // Dudu Cat // Murloc
             //if (trackInfo.sequenceIndex != 36 /*instanceData.activeSequenceId*/) // LK Murloc
@@ -118,20 +118,20 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
 
             for (int j = 0; j < numTimestamps; j++)
             {
-                float sequenceTimestamp = ((float)ctx.sequenceTimestamps[trackInfo.timestampOffset + j] / 1000.f);
-                if (state.animProgress < sequenceTimestamp)
+                float trackTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + j] / 1000.f);
+                if (state.animProgress < trackTimestamp)
                 {
                     float defaultTimestamp = 0.f;
                     float4 defaultValue = float4(1.f, 1.f, 1.f, 0.f);
 
                     if (j > 0)
                     {
-                        float defaultTimestamp = ((float)ctx.sequenceTimestamps[trackInfo.timestampOffset + (j - 1)] / 1000.f);
-                        float4 defaultValue = ctx.sequenceValues[trackInfo.valueOffset + (j - 1)];
+                        float defaultTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + (j - 1)] / 1000.f);
+                        float4 defaultValue = ctx.trackValues[trackInfo.valueOffset + (j - 1)];
                     }
 
-                    float nextValueTimestamp = ((float)ctx.sequenceTimestamps[trackInfo.timestampOffset + j] / 1000.f);
-                    float4 nextValue = ctx.sequenceValues[trackInfo.valueOffset + j];
+                    float nextValueTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + j] / 1000.f);
+                    float4 nextValue = ctx.trackValues[trackInfo.valueOffset + j];
 
                     float time = (state.animProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
                     scaleValue = lerp(defaultValue, nextValue, time);
@@ -148,7 +148,7 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
     {
         for (int o = 0; o < numRotationSequences; o++)
         {
-            AnimationTrackInfo trackInfo = ctx.animationTrackInfos[boneInfo.rotationSequenceOffset + o];
+            AnimationTrackInfo trackInfo = ctx.animationTrackInfos[boneInfo.rotationTrackOffset + o];
             //if (trackInfo.sequenceIndex != 0 /*instanceData.activeSequenceId*/) // Snake / Chest
             if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/)  // Dudu Cat // Murloc
             //if (trackInfo.sequenceIndex != 36 /*instanceData.activeSequenceId*/) // LK Murloc
@@ -159,20 +159,20 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
 
             for (int j = 0; j < numTimestamps; j++)
             {
-                float sequenceTimestamp = ((float)ctx.sequenceTimestamps[trackInfo.timestampOffset + j] / 1000.f);
-                if (state.animProgress < sequenceTimestamp)
+                float trackTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + j] / 1000.f);
+                if (state.animProgress < trackTimestamp)
                 {
                     float defaultTimestamp = 0.f;
                     float4 defaultValue = float4(0.f, 0.f, 0.f, 1.f);
 
                     if (j > 0)
                     {
-                        defaultTimestamp = ((float)ctx.sequenceTimestamps[trackInfo.timestampOffset + (j - 1)] / 1000.f);
-                        defaultValue = ctx.sequenceValues[trackInfo.valueOffset + (j - 1)];
+                        defaultTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + (j - 1)] / 1000.f);
+                        defaultValue = ctx.trackValues[trackInfo.valueOffset + (j - 1)];
                     }
 
-                    float nextValueTimestamp = ((float)ctx.sequenceTimestamps[trackInfo.timestampOffset + j] / 1000.f);
-                    float4 nextValue = ctx.sequenceValues[trackInfo.valueOffset + j];
+                    float nextValueTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + j] / 1000.f);
+                    float4 nextValue = ctx.trackValues[trackInfo.valueOffset + j];
 
                     float time = (state.animProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
                     rotationValue = slerp(defaultValue, nextValue, time);
@@ -188,7 +188,7 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
     {
         for (int p = 0; p < numTranslationSequences; p++)
         {
-            AnimationTrackInfo trackInfo = ctx.animationTrackInfos[boneInfo.translationSequenceOffset + p];
+            AnimationTrackInfo trackInfo = ctx.animationTrackInfos[boneInfo.translationTrackOffset + p];
 
             //if (trackInfo.sequenceIndex != 0 /*instanceData.activeSequenceId*/) // Snake / Chest
             if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/) // Dudu Cat // Murloc
@@ -200,20 +200,20 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
 
             for (int j = 0; j < numTimestamps; j++)
             {
-                float sequenceTimestamp = ((float)ctx.sequenceTimestamps[trackInfo.timestampOffset + j] / 1000.f);
-                if (state.animProgress < sequenceTimestamp)
+                float trackTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + j] / 1000.f);
+                if (state.animProgress < trackTimestamp)
                 {
                     float defaultTimestamp = 0.f;
                     float4 defaultValue = float4(0.f, 0.f, 0.f, 0.f);
 
                     if (j > 0)
                     {
-                        defaultTimestamp = ((float)ctx.sequenceTimestamps[trackInfo.timestampOffset + (j - 1)] / 1000.f);
-                        defaultValue = ctx.sequenceValues[trackInfo.valueOffset + (j - 1)];
+                        defaultTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + (j - 1)] / 1000.f);
+                        defaultValue = ctx.trackValues[trackInfo.valueOffset + (j - 1)];
                     }
 
-                    float nextValueTimestamp = ((float)ctx.sequenceTimestamps[trackInfo.timestampOffset + j] / 1000.f);
-                    float4 nextValue = ctx.sequenceValues[trackInfo.valueOffset + j];
+                    float nextValueTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + j] / 1000.f);
+                    float4 nextValue = ctx.trackValues[trackInfo.valueOffset + j];
 
                     float time = (state.animProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
                     translationValue = lerp(defaultValue, nextValue, time);

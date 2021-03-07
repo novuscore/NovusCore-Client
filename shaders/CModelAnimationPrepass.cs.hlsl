@@ -11,12 +11,12 @@ struct Constants
 // Inputs
 [[vk::push_constant]] Constants _constants;
 [[vk::binding(1, PER_PASS)]] RWStructuredBuffer<InstanceData> _instances;
-[[vk::binding(2, PER_PASS)]] StructuredBuffer<AnimationModelBoneInfo> _animationModelBoneInfo;
+[[vk::binding(2, PER_PASS)]] StructuredBuffer<AnimationModelInfo> _animationModelInfo;
 [[vk::binding(3, PER_PASS)]] StructuredBuffer<AnimationBoneInfo> _animationBoneInfo;
 [[vk::binding(4, PER_PASS)]] RWStructuredBuffer<float4x4> _animationBoneDeformMatrix;
 [[vk::binding(5, PER_PASS)]] StructuredBuffer<AnimationTrackInfo> _animationTrackInfo;
-[[vk::binding(6, PER_PASS)]] StructuredBuffer<uint> _animationSequenceTimestamp;
-[[vk::binding(7, PER_PASS)]] StructuredBuffer<float4> _animationSequenceValueVec;
+[[vk::binding(6, PER_PASS)]] StructuredBuffer<uint> _animationTrackTimestamp;
+[[vk::binding(7, PER_PASS)]] StructuredBuffer<float4> _animationTrackValue;
 
 AnimationState GetAnimationState(InstanceData instanceData)
 {
@@ -54,11 +54,11 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     _instances[dispatchThreadId.x] = instanceData;
 
     const AnimationState state = GetAnimationState(instanceData);
-    const AnimationModelBoneInfo modelBoneInfo = _animationModelBoneInfo[instanceData.modelId];
+    const AnimationModelInfo modelInfo = _animationModelInfo[instanceData.modelId];
 
-    for (int i = 0; i < modelBoneInfo.numBones; i++)
+    for (int i = 0; i < modelInfo.numBones; i++)
     {
-        AnimationBoneInfo boneInfo = _animationBoneInfo[modelBoneInfo.offset + i];
+        AnimationBoneInfo boneInfo = _animationBoneInfo[modelInfo.boneInfoOffset + i];
 
         float4x4 currBoneMatrix = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
         float4x4 parentBoneMatrix = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
@@ -69,7 +69,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         {
             parentBoneMatrix = _animationBoneDeformMatrix[instanceData.boneDeformOffset + parentBoneId];
 
-            AnimationBoneInfo parentBoneInfo = _animationBoneInfo[modelBoneInfo.offset + parentBoneId];
+            AnimationBoneInfo parentBoneInfo = _animationBoneInfo[modelInfo.boneInfoOffset + parentBoneId];
             parentPivotPoint = float3(parentBoneInfo.pivotPointX, parentBoneInfo.pivotPointY, parentBoneInfo.pivotPointZ);
         }
 
@@ -77,8 +77,8 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         {
             AnimationContext ctx;
             ctx.animationTrackInfos = _animationTrackInfo;
-            ctx.sequenceTimestamps = _animationSequenceTimestamp;
-            ctx.sequenceValues = _animationSequenceValueVec;
+            ctx.trackTimestamps = _animationTrackTimestamp;
+            ctx.trackValues = _animationTrackValue;
             ctx.boneInfo = boneInfo;
             ctx.state = state;
 

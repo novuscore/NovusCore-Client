@@ -152,12 +152,12 @@ private:
         u32 pad;
     };
 
-    struct AnimationModelBoneInfo
+    struct AnimationModelInfo
     {
-        u16 num = 0;
+        u16 numBones = 0;
         u16 padding = 0;
 
-        u32 offset = 0;
+        u32 boneInfoOffset = 0;
     };
 
     struct AnimationBoneInfo
@@ -273,11 +273,11 @@ private:
     std::vector<BufferRangeFrame> _instanceRangeFrames;
     std::vector<CModel::CullingData> _cullingDatas;
 
-    std::vector<AnimationModelBoneInfo> _animationModelBoneInfo;
+    std::vector<AnimationModelInfo> _animationModelInfo;
     std::vector<AnimationBoneInfo> _animationBoneInfo;
     std::vector<AnimationTrackInfo> _animationTrackInfo;
-    std::vector<u32> _animationSequenceTimestamps;
-    std::vector<vec4> _animationSequenceValuesVec;
+    std::vector<u32> _animationTrackTimestamps;
+    std::vector<vec4> _animationTrackValues;
     BufferRangeAllocator _animationBoneDeformRangeAllocator;
 
     std::vector<DrawCall> _opaqueDrawCalls;
@@ -292,12 +292,12 @@ private:
     Renderer::BufferID _instanceBuffer;
     Renderer::BufferID _cullingDataBuffer;
 
-    Renderer::BufferID _animationModelBoneInfoBuffer;
+    Renderer::BufferID _animationModelInfoBuffer;
     Renderer::BufferID _animationBoneInfoBuffer;
     Renderer::BufferID _animationBoneDeformMatrixBuffer;
-    Renderer::BufferID _animationSequenceInfoBuffer;
-    Renderer::BufferID _animationSequenceTimestampBuffer;
-    Renderer::BufferID _animationSequenceValueVecBuffer;
+    Renderer::BufferID _animationTrackInfoBuffer;
+    Renderer::BufferID _animationTrackTimestampBuffer;
+    Renderer::BufferID _animationTrackValueBuffer;
 
     Renderer::BufferID _opaqueDrawCallBuffer;
     Renderer::BufferID _opaqueCulledDrawCallBuffer;

@@ -23,9 +23,7 @@ struct Vertex
 
 [[vk::binding(1, PER_PASS)]] StructuredBuffer<PackedVertex> _packedVertices;
 [[vk::binding(2, PER_PASS)]] StructuredBuffer<InstanceData> _instances;
-[[vk::binding(3, PER_PASS)]] StructuredBuffer<AnimationModelBoneInfo> _animationModelBoneInfo;
-[[vk::binding(4, PER_PASS)]] StructuredBuffer<AnimationBoneInfo> _animationBoneInfo;
-[[vk::binding(5, PER_PASS)]] StructuredBuffer<float4x4> _animationBoneDeformMatrix;
+[[vk::binding(3, PER_PASS)]] StructuredBuffer<float4x4> _animationBoneDeformMatrix;
 
 InstanceData LoadInstanceData(uint instanceID)
 {
@@ -138,8 +136,6 @@ VSOutput main(VSInput input)
 
     DrawCallData drawCallData = LoadDrawCallData(drawCallID);
     InstanceData instanceData = LoadInstanceData(drawCallData.instanceID);
-
-    AnimationModelBoneInfo modelBoneInfo = _animationModelBoneInfo[instanceData.modelId];
 
     float4x4 boneTransformMatrix = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, };
 

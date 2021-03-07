@@ -9,20 +9,20 @@ struct InstanceData
     uint boneDeformOffset;
 };
 
-struct AnimationModelBoneInfo
+struct AnimationModelInfo
 {
     uint numBones; // Only 16 bit is used here, rest is padding
-    uint offset;
+    uint boneInfoOffset;
 };
 
 struct AnimationBoneInfo
 {
-    uint packedData0; // numTranslationSequences, numRotationSequences
-    uint packedData1; // numScaleSequences, parentBoneId
+    uint packedData0; // numTranslationTracks, numRotationTracks
+    uint packedData1; // numScaleTracks, parentBoneId
 
-    uint translationSequenceOffset;
-    uint rotationSequenceOffset;
-    uint scaleSequenceOffset;
+    uint translationTrackOffset;
+    uint rotationTrackOffset;
+    uint scaleTrackOffset;
 
     uint flags;
 
