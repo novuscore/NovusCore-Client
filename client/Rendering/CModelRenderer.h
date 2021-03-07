@@ -2,6 +2,8 @@
 #include <NovusTypes.h>
 
 #include <Utils/StringUtils.h>
+#include <Memory/BufferRangeAllocator.h>
+
 #include <Renderer/Descriptors/ImageDesc.h>
 #include <Renderer/Descriptors/DepthImageDesc.h>
 #include <Renderer/Descriptors/TextureDesc.h>
@@ -66,6 +68,7 @@ public:
         std::string debugName = "";
 
         u32 cullingDataID = std::numeric_limits<u32>().max();
+        u32 numBones = 0;
 
         u32 numOpaqueDrawCalls = 0;
         std::vector<DrawCall> opaqueDrawCallTemplates;
@@ -83,7 +86,7 @@ public:
         u32 modelId = 0;
         u32 activeSequenceId = 0;
         f32 animProgress = 0.0f;
-        u32 padding = 0;
+        u32 boneDeformOffset = 0;
     };
 
 public:
@@ -182,11 +185,6 @@ private:
         f32 pivotPointZ = 0.f;
     };
 
-    struct AnimationBoneDeformInfo
-    {
-        mat4x4 boneMatrix;
-    };
-
     struct AnimationTrackInfo
     {
         u16 sequenceIndex = 0;
@@ -272,14 +270,15 @@ private:
     std::vector<u16> _indices;
     std::vector<TextureUnit> _textureUnits;;
     std::vector<Instance> _instances;
+    std::vector<BufferRangeFrame> _instanceRangeFrames;
     std::vector<CModel::CullingData> _cullingDatas;
 
     std::vector<AnimationModelBoneInfo> _animationModelBoneInfo;
     std::vector<AnimationBoneInfo> _animationBoneInfo;
-    std::vector<AnimationBoneDeformInfo> _animationBoneDeformInfo;
     std::vector<AnimationTrackInfo> _animationTrackInfo;
     std::vector<u32> _animationSequenceTimestamps;
     std::vector<vec4> _animationSequenceValuesVec;
+    BufferRangeAllocator _animationBoneDeformRangeAllocator;
 
     std::vector<DrawCall> _opaqueDrawCalls;
     std::vector<DrawCallData> _opaqueDrawCallDatas;
@@ -295,7 +294,7 @@ private:
 
     Renderer::BufferID _animationModelBoneInfoBuffer;
     Renderer::BufferID _animationBoneInfoBuffer;
-    Renderer::BufferID _animationBoneDeformInfoBuffer;
+    Renderer::BufferID _animationBoneDeformMatrixBuffer;
     Renderer::BufferID _animationSequenceInfoBuffer;
     Renderer::BufferID _animationSequenceTimestampBuffer;
     Renderer::BufferID _animationSequenceValueVecBuffer;

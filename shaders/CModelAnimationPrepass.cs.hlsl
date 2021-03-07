@@ -13,7 +13,7 @@ struct Constants
 [[vk::binding(1, PER_PASS)]] RWStructuredBuffer<InstanceData> _instances;
 [[vk::binding(2, PER_PASS)]] StructuredBuffer<AnimationModelBoneInfo> _animationModelBoneInfo;
 [[vk::binding(3, PER_PASS)]] StructuredBuffer<AnimationBoneInfo> _animationBoneInfo;
-[[vk::binding(4, PER_PASS)]] RWStructuredBuffer<AnimationBoneDeformInfo> _animationBoneDeformInfo;
+[[vk::binding(4, PER_PASS)]] RWStructuredBuffer<float4x4> _animationBoneDeformMatrix;
 [[vk::binding(5, PER_PASS)]] StructuredBuffer<AnimationTrackInfo> _animationTrackInfo;
 [[vk::binding(6, PER_PASS)]] StructuredBuffer<uint> _animationSequenceTimestamp;
 [[vk::binding(7, PER_PASS)]] StructuredBuffer<float4> _animationSequenceValueVec;
@@ -67,7 +67,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 
         if (parentBoneId != 65535)
         {
-            parentBoneMatrix = _animationBoneDeformInfo[parentBoneId].boneMatrix;
+            parentBoneMatrix = _animationBoneDeformMatrix[instanceData.boneDeformOffset + parentBoneId];
 
             AnimationBoneInfo parentBoneInfo = _animationBoneInfo[modelBoneInfo.offset + parentBoneId];
             parentPivotPoint = float3(parentBoneInfo.pivotPointX, parentBoneInfo.pivotPointY, parentBoneInfo.pivotPointZ);
@@ -86,11 +86,11 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
             currBoneMatrix = mul(currBoneMatrix, parentBoneMatrix);
 
             //DebugRenderBone(instanceData, modelBoneInfo.offset + i, float3(boneInfo.pivotPointX, boneInfo.pivotPointY, boneInfo.pivotPointZ), currBoneMatrix, modelBoneInfo.offset + parentBoneId, parentPivotPoint, parentBoneMatrix, true);
-            _animationBoneDeformInfo[i].boneMatrix = currBoneMatrix;
+            _animationBoneDeformMatrix[instanceData.boneDeformOffset + i] = currBoneMatrix;
         }
         else
         {
-            _animationBoneDeformInfo[i].boneMatrix = parentBoneMatrix;
+            _animationBoneDeformMatrix[instanceData.boneDeformOffset + i] = parentBoneMatrix;
         }
     }
 }

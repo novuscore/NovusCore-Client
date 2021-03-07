@@ -6,7 +6,7 @@ struct InstanceData
     uint modelId;
     uint activeSequenceId;
     float animProgress;
-    uint padding;
+    uint boneDeformOffset;
 };
 
 struct AnimationModelBoneInfo
@@ -29,11 +29,6 @@ struct AnimationBoneInfo
     float pivotPointX;
     float pivotPointY;
     float pivotPointZ;
-};
-
-struct AnimationBoneDeformInfo
-{
-    float4x4 boneMatrix;
 };
 
 struct AnimationTrackInfo

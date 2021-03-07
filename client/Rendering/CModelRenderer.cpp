@@ -12,6 +12,7 @@
 #include <Renderer/Renderer.h>
 #include <Renderer/RenderGraph.h>
 #include <Renderer/RenderGraphBuilder.h>
+#include <Utils/DebugHandler.h>
 #include <Utils/FileReader.h>
 #include <Utils/ByteBuffer.h>
 
@@ -254,7 +255,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
             _animationPrepassDescriptorSet.Bind("_instances", _instanceBuffer);
             _animationPrepassDescriptorSet.Bind("_animationModelBoneInfo", _animationModelBoneInfoBuffer);
             _animationPrepassDescriptorSet.Bind("_animationBoneInfo", _animationBoneInfoBuffer);
-            _animationPrepassDescriptorSet.Bind("_animationBoneDeformInfo", _animationBoneDeformInfoBuffer);
+            _animationPrepassDescriptorSet.Bind("_animationBoneDeformMatrix", _animationBoneDeformMatrixBuffer);
             _animationPrepassDescriptorSet.Bind("_animationTrackInfo", _animationSequenceInfoBuffer);
             _animationPrepassDescriptorSet.Bind("_animationSequenceTimestamp", _animationSequenceTimestampBuffer);
             _animationPrepassDescriptorSet.Bind("_animationSequenceValueVec", _animationSequenceValueVecBuffer);
@@ -267,7 +268,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
             commandList.EndPipeline(pipeline);
 
             commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _instanceBuffer);
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToVertexShaderRead, _animationBoneDeformInfoBuffer);
+            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToVertexShaderRead, _animationBoneDeformMatrixBuffer);
         }
 
         // Set Opaque Pipeline
@@ -354,7 +355,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
             _passDescriptorSet.Bind("_instances", _instanceBuffer);
             _passDescriptorSet.Bind("_animationModelBoneInfo", _animationModelBoneInfoBuffer);
             _passDescriptorSet.Bind("_animationBoneInfo", _animationBoneInfoBuffer);
-            _passDescriptorSet.Bind("_animationBoneDeformInfo", _animationBoneDeformInfoBuffer);
+            _passDescriptorSet.Bind("_animationBoneDeformMatrix", _animationBoneDeformMatrixBuffer);
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
             Constants* constants = resources.FrameNew<Constants>();
@@ -545,7 +546,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
             _passDescriptorSet.Bind("_instances", _instanceBuffer);
             _passDescriptorSet.Bind("_animationModelBoneInfo", _animationModelBoneInfoBuffer);
             _passDescriptorSet.Bind("_animationBoneInfo", _animationBoneInfoBuffer);
-            _passDescriptorSet.Bind("_animationBoneDeformInfo", _animationBoneDeformInfoBuffer);
+            _passDescriptorSet.Bind("_AnimationBoneDeformMatrix", _animationBoneDeformMatrixBuffer);
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
 
             Constants* constants = resources.FrameNew<Constants>();
@@ -599,9 +600,10 @@ void CModelRenderer::RegisterLoadFromChunk(u16 chunkID, const Terrain::Chunk& ch
 void CModelRenderer::ExecuteLoad()
 {
     size_t numComplexModelsToLoad = _complexModelsToBeLoaded.size();
-
     if (numComplexModelsToLoad == 0)
         return;
+
+    _animationBoneDeformRangeAllocator.Reset();
 
     for (ComplexModelToBeLoaded& modelToBeLoaded : _complexModelsToBeLoaded)
     {
@@ -668,7 +670,6 @@ void CModelRenderer::Clear()
 
     _animationModelBoneInfo.clear();
     _animationBoneInfo.clear();
-    _animationBoneDeformInfo.clear();
     _animationTrackInfo.clear();
     _animationSequenceTimestamps.clear();
     _animationSequenceValuesVec.clear();
@@ -752,14 +753,38 @@ void CModelRenderer::CreatePermanentResources()
         _transparentTriangleCountReadBackBuffer = _renderer->CreateBuffer(desc);
     }
 
-    ComplexModelToBeLoaded& modelToBeLoaded = _complexModelsToBeLoaded.emplace_back();
-    modelToBeLoaded.placement = new Terrain::Placement();
+    size_t boneDeformMatrixBufferSize = (sizeof(mat4x4) * 255) * 2500;
+
+    // Create AnimationBoneDeformMatrixBuffer
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "AnimationBoneDeformMatrixBuffer";
+        desc.size = boneDeformMatrixBufferSize;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_SOURCE | Renderer::BufferUsage::TRANSFER_DESTINATION;
+        _animationBoneDeformMatrixBuffer = _renderer->CreateBuffer(desc);
+    }
+
+    _animationBoneDeformRangeAllocator.Init(0, boneDeformMatrixBufferSize);
+
+
     //modelToBeLoaded.name = new std::string("Creature/Snake/Snake.cmodel");
     //modelToBeLoaded.name = new std::string("Creature/Murloc/Murloc.cmodel");
-   // modelToBeLoaded.name = new std::string("Creature/LichKingMurloc/LichKingMurloc.cmodel");
-    modelToBeLoaded.name = new std::string("Creature/DruidCat/DruidCat.cmodel");
+    //modelToBeLoaded.name = new std::string("Creature/LichKingMurloc/LichKingMurloc.cmodel");
     //modelToBeLoaded.name = new std::string("World/SkillActivated/CONTAINERS/TreasureChest01.cmodel");
-    modelToBeLoaded.nameHash = 1337;
+
+    for (u32 i = 0; i < 1000; i++)
+    {
+        ComplexModelToBeLoaded& modelToBeLoaded1 = _complexModelsToBeLoaded.emplace_back();
+        {
+            Terrain::Placement* placement = new Terrain::Placement();
+            placement->position = vec3(0.f, i * 5.f, 0.f);
+
+            modelToBeLoaded1.placement = placement;
+            modelToBeLoaded1.name = new std::string("Creature/DruidCat/DruidCat.cmodel");
+            modelToBeLoaded1.nameHash = i;
+        }
+    }
+
     ExecuteLoad();
 }
 
@@ -783,6 +808,8 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
     {
         size_t numBoneInfoBefore = _animationBoneInfo.size();
         size_t numBonesToAdd = cModel.bones.size();
+
+        complexModel.numBones = static_cast<u32>(numBonesToAdd);
 
         AnimationModelBoneInfo& modelBoneInfo = _animationModelBoneInfo.emplace_back();
         modelBoneInfo.num = static_cast<u16>(numBonesToAdd);
@@ -928,12 +955,6 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
             boneInfo.pivotPointX = bone.pivot.x;
             boneInfo.pivotPointY = bone.pivot.y;
             boneInfo.pivotPointZ = bone.pivot.z;
-        }
-
-        _animationBoneDeformInfo.resize(numBoneInfoBefore + numBonesToAdd);
-        for (u32 i = 0; i < numBonesToAdd; i++)
-        {
-            _animationBoneDeformInfo[numBoneInfoBefore + i].boneMatrix = glm::identity<mat4x4>();
         }
     }
 
@@ -1368,6 +1389,40 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
     instance.modelId = complexModel.objectID;
     instance.activeSequenceId = 4;
     instance.instanceMatrix = glm::translate(mat4x4(1.0f), pos) * rotationMatrix * scaleMatrix;
+    instance.animProgress = numInstancesBeforeAdd * 0.25f;
+
+    size_t numBones = complexModel.numBones;
+    BufferRangeFrame& rangeFrame = _instanceRangeFrames.emplace_back();
+
+    if (numBones > 0)
+    {
+        if (!_animationBoneDeformRangeAllocator.Allocate(numBones * sizeof(mat4x4), rangeFrame))
+        {
+            size_t currentBoneDeformMatrixSize = _animationBoneDeformRangeAllocator.Size();
+            size_t newBoneDeformMatrixSize = static_cast<size_t>(static_cast<f64>(currentBoneDeformMatrixSize) * 1.25f);
+
+            Renderer::BufferDesc desc;
+            desc.name = "AnimationBoneDeformMatrixBuffer";
+            desc.size = newBoneDeformMatrixSize;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_SOURCE | Renderer::BufferUsage::TRANSFER_DESTINATION;
+
+            Renderer::BufferID newBoneDeformMatrixBuffer = _renderer->CreateBuffer(desc);
+
+            _renderer->QueueDestroyBuffer(_animationBoneDeformMatrixBuffer);
+            _renderer->CopyBuffer(newBoneDeformMatrixBuffer, 0, _animationBoneDeformMatrixBuffer, 0, _animationBoneDeformRangeAllocator.Size());
+
+            _animationBoneDeformMatrixBuffer = newBoneDeformMatrixBuffer;
+            _animationBoneDeformRangeAllocator.Grow(newBoneDeformMatrixSize);
+
+            if (!_animationBoneDeformRangeAllocator.Allocate(numBones * sizeof(mat4x4), rangeFrame))
+            {
+                DebugHandler::PrintFatal("Failed to allocate '_animationBoneDeformMatrixBuffer' to appropriate size");
+            }
+        }
+    }
+
+    assert(rangeFrame.offset % sizeof(mat4x4) == 0);
+    instance.boneDeformOffset = static_cast<u32>(rangeFrame.offset) / sizeof(mat4x4);
 
     // Add the opaque DrawCalls and DrawCallDatas
     size_t numOpaqueDrawCallsBeforeAdd = _opaqueDrawCalls.size();
@@ -1645,40 +1700,6 @@ void CModelRenderer::CreateBuffers()
         }
     }
     
-    // Create AnimationBoneDeformInfo buffer
-    if (_animationBoneDeformInfoBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_animationBoneDeformInfoBuffer);
-    }
-    {
-        size_t numBoneDeformInfo = _animationBoneInfo.size();
-        if (numBoneDeformInfo > 0)
-        {
-            Renderer::BufferDesc desc;
-            desc.name = "AnimationBoneDeformInfoBuffer";
-            desc.size = sizeof(AnimationBoneDeformInfo) * numBoneDeformInfo;
-            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-            _animationBoneDeformInfoBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "AnimationBoneDeformInfoStaging";
-            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, _animationBoneDeformInfo.data(), desc.size);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(_animationBoneDeformInfoBuffer, 0, stagingBuffer, 0, desc.size);
-        }
-    }
-
     // Create AnimationSequence buffer
     if (_animationSequenceInfoBuffer != Renderer::BufferID::Invalid())
     {

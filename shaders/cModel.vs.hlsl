@@ -25,7 +25,7 @@ struct Vertex
 [[vk::binding(2, PER_PASS)]] StructuredBuffer<InstanceData> _instances;
 [[vk::binding(3, PER_PASS)]] StructuredBuffer<AnimationModelBoneInfo> _animationModelBoneInfo;
 [[vk::binding(4, PER_PASS)]] StructuredBuffer<AnimationBoneInfo> _animationBoneInfo;
-[[vk::binding(5, PER_PASS)]] StructuredBuffer<AnimationBoneDeformInfo> _animationBoneDeformInfo;
+[[vk::binding(5, PER_PASS)]] StructuredBuffer<float4x4> _animationBoneDeformMatrix;
 
 InstanceData LoadInstanceData(uint instanceID)
 {
@@ -145,7 +145,7 @@ VSOutput main(VSInput input)
 
     for (int i = 0; i < 4; i++)
     {
-        boneTransformMatrix += mul(vertex.boneWeights[i], _animationBoneDeformInfo[modelBoneInfo.offset + vertex.boneIndices[i]].boneMatrix);
+        boneTransformMatrix += mul(vertex.boneWeights[i], _animationBoneDeformMatrix[instanceData.boneDeformOffset + vertex.boneIndices[i]]);
     }
 
     float4 position = mul(float4(vertex.position, 1.0f), boneTransformMatrix);
