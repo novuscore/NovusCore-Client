@@ -28,6 +28,7 @@
 #include "Commands/CopyImage.h"
 #include "Commands/CopyBuffer.h"
 #include "Commands/FillBuffer.h"
+#include "Commands/UpdateBuffer.h"
 #include "Commands/PipelineBarrier.h"
 #include "Commands/ImageBarrier.h"
 #include "Commands/DepthImageBarrier.h"
@@ -456,6 +457,20 @@ namespace Renderer
 
 #if COMMANDLIST_DEBUG_IMMEDIATE_MODE
         Commands::FillBuffer::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
+#endif
+    }
+
+    void CommandList::UpdateBuffer(BufferID dstBuffer, u64 dstBufferOffset, u64 size, void* data)
+    {
+        assert(dstBuffer != BufferID::Invalid());
+        Commands::UpdateBuffer* command = AddCommand<Commands::UpdateBuffer>();
+        command->dstBuffer = dstBuffer;
+        command->dstBufferOffset = dstBufferOffset;
+        command->size = size;
+        command->data = data;
+
+#if COMMANDLIST_DEBUG_IMMEDIATE_MODE
+        Commands::UpdateBuffer::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
 #endif
     }
 

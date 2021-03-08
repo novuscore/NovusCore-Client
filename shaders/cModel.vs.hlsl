@@ -139,9 +139,10 @@ VSOutput main(VSInput input)
 
     float4x4 boneTransformMatrix = float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 
-    if (instanceData.activeSequenceId != 65535)
+    if (instanceData.boneDeformOffset != 4294967295)
     {
         boneTransformMatrix = float4x4(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
         for (int i = 0; i < 4; i++)
         {
             boneTransformMatrix += mul(vertex.boneWeights[i], _animationBoneDeformMatrix[instanceData.boneDeformOffset + vertex.boneIndices[i]]);

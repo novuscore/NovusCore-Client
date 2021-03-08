@@ -4,9 +4,22 @@ struct InstanceData
     float4x4 instanceMatrix;
 
     uint modelId;
+    uint boneDeformOffset;
+    uint boneInstanceDataOffset;
+    uint padding0;
+
+    /*uint modelId;
     uint activeSequenceId;
     float animProgress;
-    uint boneDeformOffset;
+    uint boneDeformOffset;*/
+};
+
+struct AnimationBoneInstanceData
+{
+    float animationProgress;
+    uint packedData0; // sequenceIndex (16 bit), sequenceOverrideIndex (16 bit)
+    uint animationframeIndex;
+    uint animateState; // 0 == STOPPED, 1 == PLAY_ONCE, 2 == PLAY_LOOP
 };
 
 struct AnimationSequence
@@ -29,7 +42,7 @@ struct AnimationModelInfo
     uint packedData0; // numSequences (16 bit), numBones (16 bit)
     uint sequenceOffset;
     uint boneInfoOffset;
-    uint padding;
+    uint padding0;
 };
 
 struct AnimationBoneInfo

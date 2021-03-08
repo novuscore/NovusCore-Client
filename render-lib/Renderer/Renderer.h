@@ -114,6 +114,7 @@ namespace Renderer
         virtual void DepthImageBarrier(CommandListID commandListID, DepthImageID image) = 0;
         virtual void PushConstant(CommandListID commandListID, void* data, u32 offset, u32 size) = 0;
         virtual void FillBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, u32 data) = 0;
+        virtual void UpdateBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, void* data) = 0;
 
         // Present functions
         virtual void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) = 0;

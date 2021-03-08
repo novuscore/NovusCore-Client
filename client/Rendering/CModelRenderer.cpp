@@ -177,10 +177,44 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
         {
             commandList.PushMarker("Animation Request", Color::White);
 
-            std::pair<u32, u32> animationRequestPair;
-            while (_animationRequests.try_dequeue(animationRequestPair))
+            AnimationRequest animationRequest;
+            while (_animationRequests.try_dequeue(animationRequest))
             {
-                commandList.FillBuffer(_instanceBuffer, (animationRequestPair.first * sizeof(Instance)) + offsetof(Instance, activeSequenceId), sizeof(u32), animationRequestPair.second);
+                Instance& instance = _instances[animationRequest.instanceId];
+
+                LoadedComplexModel& complexModel = _loadedComplexModels[instance.modelId];
+                AnimationModelInfo& modelInfo = _animationModelInfo[instance.modelId];
+
+                u32 sequenceIndex = animationRequest.sequenceId;
+                if (!complexModel.isAnimated)
+                    continue;
+
+                if (animationRequest.flags.isPlaying)
+                {
+                    AnimationSequence& animationSequence = _animationSequence[modelInfo.sequenceOffset + sequenceIndex];
+
+                    for (u32 i = 0; i < modelInfo.numBones; i++)
+                    {
+                        AnimationBoneInstance& boneInstance = _animationBoneInstances[instance.boneInstanceDataOffset + i];
+                        bool animationIsLooping = animationRequest.flags.isLooping;
+
+                        boneInstance.animationProgress = 0.f;
+                        boneInstance.animateState = (AnimationBoneInstance::AnimateState::PLAY_ONCE * !animationIsLooping) + (AnimationBoneInstance::AnimateState::PLAY_LOOP * animationIsLooping);
+                        boneInstance.sequenceIndex = sequenceIndex;
+                    }
+                }
+                else
+                {
+                    for (u32 i = 0; i < modelInfo.numBones; i++)
+                    {
+                        AnimationBoneInstance& boneInstance = _animationBoneInstances[instance.boneInstanceDataOffset + i];
+                        boneInstance.animationProgress = 0.f;
+                        boneInstance.animateState = AnimationBoneInstance::AnimateState::STOPPED;
+                        boneInstance.sequenceIndex = 0;
+                    }
+                }
+
+                commandList.UpdateBuffer(_animationBoneInstancesBuffer, (instance.boneInstanceDataOffset * sizeof(AnimationBoneInstance)), modelInfo.numBones * sizeof(AnimationBoneInstance), &_animationBoneInstances[instance.boneInstanceDataOffset]);
             }
 
             commandList.PopMarker();
@@ -270,6 +304,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
             _animationPrepassDescriptorSet.Bind("_animationModelInfo", _animationModelInfoBuffer);
             _animationPrepassDescriptorSet.Bind("_animationBoneInfo", _animationBoneInfoBuffer);
             _animationPrepassDescriptorSet.Bind("_animationBoneDeformMatrix", _animationBoneDeformMatrixBuffer);
+            _animationPrepassDescriptorSet.Bind("_animationBoneInstances", _animationBoneInstancesBuffer);
             _animationPrepassDescriptorSet.Bind("_animationTrackInfo", _animationTrackInfoBuffer);
             _animationPrepassDescriptorSet.Bind("_animationTrackTimestamp", _animationTrackTimestampBuffer);
             _animationPrepassDescriptorSet.Bind("_animationTrackValue", _animationTrackValueBuffer);
@@ -614,6 +649,7 @@ void CModelRenderer::ExecuteLoad()
         return;
 
     _animationBoneDeformRangeAllocator.Reset();
+    _animationBoneInstancesRangeAllocator.Reset();
 
     for (ComplexModelToBeLoaded& modelToBeLoaded : _complexModelsToBeLoaded)
     {
@@ -763,10 +799,9 @@ void CModelRenderer::CreatePermanentResources()
         _transparentTriangleCountReadBackBuffer = _renderer->CreateBuffer(desc);
     }
 
-
     // Create AnimationBoneDeformMatrixBuffer
     {
-        size_t boneDeformMatrixBufferSize = (sizeof(mat4x4) * 255) * 2500;
+        size_t boneDeformMatrixBufferSize = (sizeof(mat4x4) * 255) * 1000;
 
         Renderer::BufferDesc desc;
         desc.name = "AnimationBoneDeformMatrixBuffer";
@@ -775,6 +810,19 @@ void CModelRenderer::CreatePermanentResources()
         _animationBoneDeformMatrixBuffer = _renderer->CreateBuffer(desc);
 
         _animationBoneDeformRangeAllocator.Init(0, boneDeformMatrixBufferSize);
+    }
+
+    // Create AnimationBoneDeformMatrixBuffer
+    {
+        size_t boneInstanceBufferSize = (sizeof(AnimationBoneInstance) * 255) * 1000;
+
+        Renderer::BufferDesc desc;
+        desc.name = "AnimationBoneInstanceBuffer";
+        desc.size = boneInstanceBufferSize;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_SOURCE | Renderer::BufferUsage::TRANSFER_DESTINATION;
+        _animationBoneInstancesBuffer = _renderer->CreateBuffer(desc);
+
+        _animationBoneInstancesRangeAllocator.Init(0, boneInstanceBufferSize);
     }
 
     //modelToBeLoaded.name = new std::string("Creature/Snake/Snake.cmodel");
@@ -857,6 +905,9 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
         animationModelInfo.numBones = static_cast<u16>(numBonesToAdd);
         animationModelInfo.boneInfoOffset = static_cast<u32>(numBoneInfoBefore);
 
+        u32 numSequences = 0;
+        u32 numTracksWithValues = 0;
+
         _animationBoneInfo.resize(numBoneInfoBefore + numBonesToAdd);
         for (u32 i = 0; i < numBonesToAdd; i++)
         {
@@ -900,9 +951,9 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
                         {
                             _animationTrackValues[x] = vec4(track.values[x - numValuesBefore], 0.f);
                         }
-
-                        //memcpy(&_animationSequenceValuesVec[numValuesBefore], track.values.data(), numValuesToAdd * sizeof(vec4));
                     }
+
+                    numTracksWithValues += trackInfo.numValues;
                 }
             }
 
@@ -940,6 +991,8 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
                         _animationTrackValues.resize(numValuesBefore + numValuesToAdd);
                         memcpy(&_animationTrackValues[numValuesBefore], track.values.data(), numValuesToAdd * sizeof(vec4));
                     }
+
+                    numTracksWithValues += trackInfo.numValues;
                 }
             }
 
@@ -981,8 +1034,12 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
                             _animationTrackValues[x] = vec4(track.values[x - numValuesBefore], 0.f);
                         }
                     }
+
+                    numTracksWithValues += trackInfo.numValues;
                 }
             }
+
+            numSequences += boneInfo.numTranslationSequences + boneInfo.numRotationSequences + boneInfo.numScaleSequences;
 
             boneInfo.flags.isTranslationTrackGlobalSequence = bone.translation.isGlobalSequence;
             boneInfo.flags.isRotationTrackGlobalSequence = bone.rotation.isGlobalSequence;
@@ -994,6 +1051,9 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
             boneInfo.pivotPointY = bone.pivot.y;
             boneInfo.pivotPointZ = bone.pivot.z;
         }
+
+        // We also need to account for the possibility that a model comes with no included values due to the values being found in a separate '.anim' file
+        complexModel.isAnimated = complexModel.numBones > 0 && numSequences > 0 && numTracksWithValues > 0;
     }
 
     // Add vertices
@@ -1425,19 +1485,20 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
     mat4x4 scaleMatrix = glm::scale(mat4x4(1.0f), scale);
 
     instance.modelId = complexModel.objectID;
-    instance.activeSequenceId = 65535;
     instance.instanceMatrix = glm::translate(mat4x4(1.0f), pos) * rotationMatrix * scaleMatrix;
-    instance.animProgress = fmod((numInstancesBeforeAdd * 0.25f), 1.f);
 
-    size_t numBones = complexModel.numBones;
-    BufferRangeFrame& rangeFrame = _instanceRangeFrames.emplace_back();
+    BufferRangeFrame& boneDeformRangeFrame = _instanceBoneDeformRangeFrames.emplace_back();
+    BufferRangeFrame& boneInstanceRangeFrame = _instanceBoneInstanceRangeFrames.emplace_back();
 
-    if (numBones > 0)
+    if (complexModel.isAnimated)
     {
-        if (!_animationBoneDeformRangeAllocator.Allocate(numBones * sizeof(mat4x4), rangeFrame))
+        u32 numBones = complexModel.numBones;
+
+        if (!_animationBoneDeformRangeAllocator.Allocate(numBones * sizeof(mat4x4), boneDeformRangeFrame))
         {
             size_t currentBoneDeformMatrixSize = _animationBoneDeformRangeAllocator.Size();
             size_t newBoneDeformMatrixSize = static_cast<size_t>(static_cast<f64>(currentBoneDeformMatrixSize) * 1.25f);
+            newBoneDeformMatrixSize += newBoneDeformMatrixSize % sizeof(mat4x4) == 0;
 
             Renderer::BufferDesc desc;
             desc.name = "AnimationBoneDeformMatrixBuffer";
@@ -1452,15 +1513,50 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
             _animationBoneDeformMatrixBuffer = newBoneDeformMatrixBuffer;
             _animationBoneDeformRangeAllocator.Grow(newBoneDeformMatrixSize);
 
-            if (!_animationBoneDeformRangeAllocator.Allocate(numBones * sizeof(mat4x4), rangeFrame))
+            if (!_animationBoneDeformRangeAllocator.Allocate(numBones * sizeof(mat4x4), boneDeformRangeFrame))
             {
                 DebugHandler::PrintFatal("Failed to allocate '_animationBoneDeformMatrixBuffer' to appropriate size");
             }
         }
-    }
 
-    //assert(rangeFrame.offset % sizeof(mat4x4) == 0);
-    instance.boneDeformOffset = static_cast<u32>(rangeFrame.offset) / sizeof(mat4x4);
+        if (!_animationBoneInstancesRangeAllocator.Allocate(numBones * sizeof(AnimationBoneInstance), boneInstanceRangeFrame))
+        {
+            size_t currentBoneInstanceSize = _animationBoneInstancesRangeAllocator.Size();
+            size_t newBoneInstanceSize = static_cast<size_t>(static_cast<f64>(currentBoneInstanceSize) * 1.25f);
+            newBoneInstanceSize += newBoneInstanceSize % sizeof(AnimationBoneInstance) == 0;
+
+            Renderer::BufferDesc desc;
+            desc.name = "AnimationBoneInstanceBuffer";
+            desc.size = newBoneInstanceSize;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_SOURCE | Renderer::BufferUsage::TRANSFER_DESTINATION;
+
+            Renderer::BufferID newBoneInstanceBuffer = _renderer->CreateBuffer(desc);
+
+            _renderer->QueueDestroyBuffer(_animationBoneInstancesBuffer);
+            _renderer->CopyBuffer(newBoneInstanceBuffer, 0, _animationBoneInstancesBuffer, 0, _animationBoneInstancesRangeAllocator.Size());
+
+            _animationBoneInstancesBuffer = newBoneInstanceBuffer;
+            _animationBoneInstancesRangeAllocator.Grow(newBoneInstanceSize);
+
+            if (!_animationBoneInstancesRangeAllocator.Allocate(numBones * sizeof(mat4x4), boneInstanceRangeFrame))
+            {
+                DebugHandler::PrintFatal("Failed to allocate '_animationBoneInstancesBuffer' to appropriate size");
+            }
+        }
+
+        assert(boneDeformRangeFrame.offset % sizeof(mat4x4) == 0);
+        instance.boneDeformOffset = static_cast<u32>(boneDeformRangeFrame.offset) / sizeof(mat4x4);
+
+        assert(boneInstanceRangeFrame.offset % sizeof(AnimationBoneInstance) == 0);
+        instance.boneInstanceDataOffset = static_cast<u32>(boneInstanceRangeFrame.offset) / sizeof(AnimationBoneInstance);
+
+        _animationBoneInstances.resize(instance.boneInstanceDataOffset);
+    }
+    else
+    {
+        instance.boneDeformOffset = std::numeric_limits<u32>().max();
+        instance.boneInstanceDataOffset = std::numeric_limits<u32>().max();
+    }
 
     // Add the opaque DrawCalls and DrawCallDatas
     size_t numOpaqueDrawCallsBeforeAdd = _opaqueDrawCalls.size();
@@ -1769,6 +1865,33 @@ void CModelRenderer::CreateBuffers()
             _renderer->QueueDestroyBuffer(stagingBuffer);
             // Copy from staging buffer to buffer
             _renderer->CopyBuffer(_animationBoneInfoBuffer, 0, stagingBuffer, 0, desc.size);
+        }
+    }
+
+    // Zero Fill AnimationBoneInstance Buffer
+    {
+        size_t numBoneInstancesInfo = _animationBoneInstances.size();
+        if (numBoneInstancesInfo > 0)
+        {
+            Renderer::BufferDesc desc;
+
+            // Create staging buffer
+            desc.name = "AnimationBoneInstanceStaging";
+            desc.size = sizeof(AnimationBoneInstance) * numBoneInstancesInfo;
+            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+            // Upload to staging buffer
+            void* dst = _renderer->MapBuffer(stagingBuffer);
+            memcpy(dst, _animationBoneInstances.data(), desc.size);
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(_animationBoneInstancesBuffer, 0, stagingBuffer, 0, desc.size);
         }
     }
     

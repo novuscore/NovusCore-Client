@@ -1,6 +1,6 @@
 struct AnimationState
 {
-    float animProgress;
+    float animationProgress;
 };
 
 struct AnimationContext
@@ -118,7 +118,7 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
             for (int j = 0; j < numTimestamps; j++)
             {
                 float trackTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + j] / 1000.f);
-                if (state.animProgress < trackTimestamp)
+                if (state.animationProgress < trackTimestamp)
                 {
                     float defaultTimestamp = 0.f;
                     float4 defaultValue = float4(1.f, 1.f, 1.f, 0.f);
@@ -132,7 +132,7 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
                     float nextValueTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + j] / 1000.f);
                     float4 nextValue = ctx.trackValues[trackInfo.valueOffset + j];
 
-                    float time = (state.animProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
+                    float time = (state.animationProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
                     scaleValue = lerp(defaultValue, nextValue, time);
 
                     break;
@@ -157,7 +157,7 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
             for (int j = 0; j < numTimestamps; j++)
             {
                 float trackTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + j] / 1000.f);
-                if (state.animProgress < trackTimestamp)
+                if (state.animationProgress < trackTimestamp)
                 {
                     float defaultTimestamp = 0.f;
                     float4 defaultValue = float4(0.f, 0.f, 0.f, 1.f);
@@ -171,7 +171,7 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
                     float nextValueTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + j] / 1000.f);
                     float4 nextValue = ctx.trackValues[trackInfo.valueOffset + j];
 
-                    float time = (state.animProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
+                    float time = (state.animationProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
                     rotationValue = slerp(defaultValue, nextValue, time);
                     break;
                 }
@@ -196,7 +196,7 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
             for (int j = 0; j < numTimestamps; j++)
             {
                 float trackTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + j] / 1000.f);
-                if (state.animProgress < trackTimestamp)
+                if (state.animationProgress < trackTimestamp)
                 {
                     float defaultTimestamp = 0.f;
                     float4 defaultValue = float4(0.f, 0.f, 0.f, 0.f);
@@ -210,7 +210,7 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
                     float nextValueTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + j] / 1000.f);
                     float4 nextValue = ctx.trackValues[trackInfo.valueOffset + j];
 
-                    float time = (state.animProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
+                    float time = (state.animationProgress - defaultTimestamp) / (nextValueTimestamp - defaultTimestamp);
                     translationValue = lerp(defaultValue, nextValue, time);
 
                     break;

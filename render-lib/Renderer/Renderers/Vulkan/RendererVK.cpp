@@ -1295,6 +1295,14 @@ namespace Renderer
         vkCmdFillBuffer(commandBuffer, vkDstBuffer, dstOffset, size, data);
     }
 
+    void RendererVK::UpdateBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, void* data)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+        VkBuffer vkDstBuffer = _bufferHandler->GetBuffer(dstBuffer);
+
+        vkCmdUpdateBuffer(commandBuffer, vkDstBuffer, dstOffset, size, data);
+    }
+
     void* RendererVK::MapBuffer(BufferID buffer)
     {
         void* mappedMemory;

@@ -70,6 +70,7 @@ public:
 
         u32 cullingDataID = std::numeric_limits<u32>().max();
         u32 numBones = 0;
+        bool isAnimated = false;
 
         u32 numOpaqueDrawCalls = 0;
         std::vector<DrawCall> opaqueDrawCallTemplates;
@@ -83,11 +84,44 @@ public:
     struct Instance
     {
         mat4x4 instanceMatrix;
-
+        
         u32 modelId = 0;
+        u32 boneDeformOffset;
+        u32 boneInstanceDataOffset;
+        u16 editorSequenceId; // This is used by the editor to display the sequenceId we want to play.
+        u16 editorIsLoop; // This is used by the editor to display if the animation we want to play should looping.
+
+        /*u32 modelId = 0;
         u32 activeSequenceId = 0;
         f32 animProgress = 0.0f;
-        u32 boneDeformOffset = 0;
+        u32 boneDeformOffset = 0;*/
+    };
+
+    struct AnimationBoneInstance
+    {
+        enum AnimateState
+        {
+            STOPPED,
+            PLAY_ONCE,
+            PLAY_LOOP
+        };
+        f32 animationProgress = 0.f;
+        u32 sequenceIndex = 0;
+        u32 animationframeIndex = 0;
+        u32 animateState = 0; // 0 == STOPPED, 1 == PLAY_ONCE, 2 == PLAY_LOOP
+    };
+
+    struct AnimationRequest
+    {
+        struct Flags
+        {
+            u32 isPlaying : 1;
+            u32 isLooping : 1;
+        };
+        u32 instanceId = 0;
+        u32 sequenceId = 0;
+
+        Flags flags;
     };
 
 public:
@@ -111,9 +145,13 @@ public:
     const std::vector<Terrain::PlacementDetails>& GetPlacementDetails() { return _complexModelPlacementDetails; }
     const std::vector<CModel::CullingData>& GetCullingData() { return _cullingDatas; }
 
-    void AddAnimationRequest(u32 instanceIndex, u32 sequenceID)
+    void AddAnimationRequest(AnimationRequest request)
     {
-        _animationRequests.enqueue(std::pair<u32, u32>(instanceIndex, sequenceID));
+        _animationRequests.enqueue(request);
+    }
+    u32 GetNumSequencesForModelId(u32 modelId)
+    {
+        return _animationModelInfo[modelId].numSequences;
     }
 
     u32 GetChunkPlacementDetailsOffset(u16 chunkID) { return _mapChunkToPlacementOffset[chunkID]; }
@@ -301,17 +339,20 @@ private:
     std::vector<u16> _indices;
     std::vector<TextureUnit> _textureUnits;;
     std::vector<Instance> _instances;
-    std::vector<BufferRangeFrame> _instanceRangeFrames;
+    std::vector<BufferRangeFrame> _instanceBoneDeformRangeFrames;
+    std::vector<BufferRangeFrame> _instanceBoneInstanceRangeFrames;
     std::vector<CModel::CullingData> _cullingDatas;
 
     std::vector<AnimationSequence> _animationSequence;
     std::vector<AnimationModelInfo> _animationModelInfo;
     std::vector<AnimationBoneInfo> _animationBoneInfo;
+    std::vector<AnimationBoneInstance> _animationBoneInstances;
     std::vector<AnimationTrackInfo> _animationTrackInfo;
     std::vector<u32> _animationTrackTimestamps;
     std::vector<vec4> _animationTrackValues;
     BufferRangeAllocator _animationBoneDeformRangeAllocator;
-    moodycamel::ConcurrentQueue<std::pair<u32, u32>> _animationRequests;
+    BufferRangeAllocator _animationBoneInstancesRangeAllocator;
+    moodycamel::ConcurrentQueue<AnimationRequest> _animationRequests;
 
     std::vector<DrawCall> _opaqueDrawCalls;
     std::vector<DrawCallData> _opaqueDrawCallDatas;
@@ -329,6 +370,7 @@ private:
     Renderer::BufferID _animationModelInfoBuffer;
     Renderer::BufferID _animationBoneInfoBuffer;
     Renderer::BufferID _animationBoneDeformMatrixBuffer;
+    Renderer::BufferID _animationBoneInstancesBuffer;
     Renderer::BufferID _animationTrackInfoBuffer;
     Renderer::BufferID _animationTrackTimestampBuffer;
     Renderer::BufferID _animationTrackValueBuffer;
