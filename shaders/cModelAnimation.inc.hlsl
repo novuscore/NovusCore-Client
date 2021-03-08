@@ -5,6 +5,7 @@ struct AnimationState
 
 struct AnimationContext
 {
+    uint activeSequenceId;
     AnimationState state;
     AnimationBoneInfo boneInfo;
 
@@ -108,9 +109,7 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
         for (int i = 0; i < numScaleSequences; i++)
         {
             AnimationTrackInfo trackInfo = ctx.animationTrackInfos[boneInfo.scaleTrackOffset + i];
-            //if (trackInfo.sequenceIndex != 0 /*instanceData.activeSequenceId*/) // Snake / Chest
-            if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/)  // Dudu Cat // Murloc
-            //if (trackInfo.sequenceIndex != 36 /*instanceData.activeSequenceId*/) // LK Murloc
+            if (trackInfo.sequenceIndex != ctx.activeSequenceId)
                 continue;
 
             uint numTimestamps = trackInfo.packedData0 & 0xFFFF;
@@ -126,8 +125,8 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
 
                     if (j > 0)
                     {
-                        float defaultTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + (j - 1)] / 1000.f);
-                        float4 defaultValue = ctx.trackValues[trackInfo.valueOffset + (j - 1)];
+                        defaultTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + (j - 1)] / 1000.f);
+                        defaultValue = ctx.trackValues[trackInfo.valueOffset + (j - 1)];
                     }
 
                     float nextValueTimestamp = ((float)ctx.trackTimestamps[trackInfo.timestampOffset + j] / 1000.f);
@@ -149,9 +148,7 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
         for (int o = 0; o < numRotationSequences; o++)
         {
             AnimationTrackInfo trackInfo = ctx.animationTrackInfos[boneInfo.rotationTrackOffset + o];
-            //if (trackInfo.sequenceIndex != 0 /*instanceData.activeSequenceId*/) // Snake / Chest
-            if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/)  // Dudu Cat // Murloc
-            //if (trackInfo.sequenceIndex != 36 /*instanceData.activeSequenceId*/) // LK Murloc
+            if (trackInfo.sequenceIndex != ctx.activeSequenceId)
                 continue;
 
             uint numTimestamps = trackInfo.packedData0 & 0xFFFF;
@@ -190,9 +187,7 @@ float4x4 GetBoneMatrix(AnimationContext ctx)
         {
             AnimationTrackInfo trackInfo = ctx.animationTrackInfos[boneInfo.translationTrackOffset + p];
 
-            //if (trackInfo.sequenceIndex != 0 /*instanceData.activeSequenceId*/) // Snake / Chest
-            if (trackInfo.sequenceIndex != 2 /*instanceData.activeSequenceId*/) // Dudu Cat // Murloc
-            //if (trackInfo.sequenceIndex != 36 /*instanceData.activeSequenceId*/) // LK Murloc
+            if (trackInfo.sequenceIndex != ctx.activeSequenceId)
                 continue;
 
             uint numTimestamps = trackInfo.packedData0 & 0xFFFF;

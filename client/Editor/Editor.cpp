@@ -389,7 +389,8 @@ namespace Editor
 
         u32 loadedObjectIndex = cModelRenderer->GetModelIndexByDrawCallDataIndex(_selectedComplexModelData.drawCallDataID, _selectedComplexModelData.isOpaque);
         const CModelRenderer::LoadedComplexModel& loadedComplexModel = cModelRenderer->GetLoadedComplexModels()[loadedObjectIndex];
-        const mat4x4& instanceMatrix = cModelRenderer->GetInstances()[_selectedComplexModelData.instanceID].instanceMatrix;
+        CModelRenderer::Instance& instance = cModelRenderer->GetInstance(_selectedComplexModelData.instanceID);
+        const mat4x4& instanceMatrix = instance.instanceMatrix;
 
         glm::vec3 scale;
         glm::quat rotation;
@@ -406,6 +407,28 @@ namespace Editor
         ImGui::Text("Position: X: %.2f, Y: %.2f, Z: %.2f", translation.x, translation.y, translation.z);
         ImGui::Text("Scale: X: %.2f, Y: %.2f, Z: %.2f", scale.x, scale.y, scale.z);
         ImGui::Text("Rotation: X: %.2f, Y: %.2f, Z: %.2f", eulerAsDeg.x, eulerAsDeg.y, eulerAsDeg.z);
+
+        // Animation Shenanigans
+        {
+            ImGui::Separator();
+            ImGui::Separator();
+            ImGui::Text("Animation Id: ");
+            ImGui::SameLine();
+            ImGui::InputInt("", reinterpret_cast<i32*>(&instance.activeSequenceId), 1, 1);
+
+            if (ImGui::Button("Play"))
+            {
+                cModelRenderer->AddAnimationRequest(_selectedComplexModelData.instanceID, instance.activeSequenceId);
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Stop"))
+            {
+                cModelRenderer->AddAnimationRequest(_selectedComplexModelData.instanceID, 65535);
+            }
+        }
+
     }
 
     bool Editor::IsRayIntersectingAABB(const vec3& rayOrigin, const vec3& oneOverRayDir, const Geometry::AABoundingBox& aabb, f32& t)

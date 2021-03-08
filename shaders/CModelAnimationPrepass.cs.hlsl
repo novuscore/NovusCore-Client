@@ -11,12 +11,13 @@ struct Constants
 // Inputs
 [[vk::push_constant]] Constants _constants;
 [[vk::binding(1, PER_PASS)]] RWStructuredBuffer<InstanceData> _instances;
-[[vk::binding(2, PER_PASS)]] StructuredBuffer<AnimationModelInfo> _animationModelInfo;
-[[vk::binding(3, PER_PASS)]] StructuredBuffer<AnimationBoneInfo> _animationBoneInfo;
-[[vk::binding(4, PER_PASS)]] RWStructuredBuffer<float4x4> _animationBoneDeformMatrix;
-[[vk::binding(5, PER_PASS)]] StructuredBuffer<AnimationTrackInfo> _animationTrackInfo;
-[[vk::binding(6, PER_PASS)]] StructuredBuffer<uint> _animationTrackTimestamp;
-[[vk::binding(7, PER_PASS)]] StructuredBuffer<float4> _animationTrackValue;
+[[vk::binding(2, PER_PASS)]] StructuredBuffer<AnimationSequence> _animationSequence;
+[[vk::binding(3, PER_PASS)]] StructuredBuffer<AnimationModelInfo> _animationModelInfo;
+[[vk::binding(4, PER_PASS)]] StructuredBuffer<AnimationBoneInfo> _animationBoneInfo;
+[[vk::binding(5, PER_PASS)]] RWStructuredBuffer<float4x4> _animationBoneDeformMatrix;
+[[vk::binding(6, PER_PASS)]] StructuredBuffer<AnimationTrackInfo> _animationTrackInfo;
+[[vk::binding(7, PER_PASS)]] StructuredBuffer<uint> _animationTrackTimestamp;
+[[vk::binding(8, PER_PASS)]] StructuredBuffer<float4> _animationTrackValue;
 
 AnimationState GetAnimationState(InstanceData instanceData)
 {
@@ -35,14 +36,10 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     InstanceData instanceData = _instances[dispatchThreadId.x];
+    const AnimationModelInfo modelInfo = _animationModelInfo[instanceData.modelId];
 
-    //AnimationTrackInfo trackInfo = _animationTrackInfo[11]; // Snake
-    //AnimationTrackInfo trackInfo = _animationTrackInfo[6]; // Murloc
-    //AnimationTrackInfo trackInfo = _animationTrackInfo[46]; // LK Murloc
-    AnimationTrackInfo trackInfo = _animationTrackInfo[2]; // Dudu Cat
-    //AnimationTrackInfo trackInfo = _animationTrackInfo[3]; // Chest
-
-    if (instanceData.animProgress > (float(trackInfo.duration) / 1000))
+    AnimationSequence sequence = _animationSequence[modelInfo.sequenceOffset + instanceData.activeSequenceId];
+    if (instanceData.animProgress > sequence.duration)
     {
         instanceData.animProgress = 0;
     }
@@ -54,14 +51,20 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     _instances[dispatchThreadId.x] = instanceData;
 
     const AnimationState state = GetAnimationState(instanceData);
-    const AnimationModelInfo modelInfo = _animationModelInfo[instanceData.modelId];
 
-    for (int i = 0; i < modelInfo.numBones; i++)
+    int numSequences = modelInfo.packedData0& 0xFFFF;
+    int numBones = (modelInfo.packedData0 >> 16) & 0xFFFF;
+
+    if (numSequences == 0 || instanceData.activeSequenceId == 65535)
+        return;
+
+    for (int i = 0; i < numBones; i++)
     {
-        AnimationBoneInfo boneInfo = _animationBoneInfo[modelInfo.boneInfoOffset + i];
-
         float4x4 currBoneMatrix = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
         float4x4 parentBoneMatrix = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+
+        AnimationBoneInfo boneInfo = _animationBoneInfo[modelInfo.boneInfoOffset + i];
+
         uint parentBoneId = (boneInfo.packedData1 >> 16) & 0xFFFF;
         float3 parentPivotPoint = float3(0.f, 0.f, 0.f);
 
@@ -76,6 +79,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         if ((boneInfo.flags & 1) != 0)
         {
             AnimationContext ctx;
+            ctx.activeSequenceId = instanceData.activeSequenceId;
             ctx.animationTrackInfos = _animationTrackInfo;
             ctx.trackTimestamps = _animationTrackTimestamp;
             ctx.trackValues = _animationTrackValue;

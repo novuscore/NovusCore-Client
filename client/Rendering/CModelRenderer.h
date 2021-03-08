@@ -2,6 +2,7 @@
 #include <NovusTypes.h>
 
 #include <Utils/StringUtils.h>
+#include <Utils/ConcurrentQueue.h>
 #include <Memory/BufferRangeAllocator.h>
 
 #include <Renderer/Descriptors/ImageDesc.h>
@@ -106,8 +107,14 @@ public:
     const std::vector<DrawCallData>& GetTransparentDrawCallData() { return _transparentDrawCallDatas; }
     const std::vector<LoadedComplexModel>& GetLoadedComplexModels() { return _loadedComplexModels; }
     const std::vector<Instance>& GetInstances() { return _instances; }
+    Instance& GetInstance(size_t index) { return _instances[index]; }
     const std::vector<Terrain::PlacementDetails>& GetPlacementDetails() { return _complexModelPlacementDetails; }
     const std::vector<CModel::CullingData>& GetCullingData() { return _cullingDatas; }
+
+    void AddAnimationRequest(u32 instanceIndex, u32 sequenceID)
+    {
+        _animationRequests.enqueue(std::pair<u32, u32>(instanceIndex, sequenceID));
+    }
 
     u32 GetChunkPlacementDetailsOffset(u16 chunkID) { return _mapChunkToPlacementOffset[chunkID]; }
     u32 GetNumLoadedCModels() { return static_cast<u32>(_loadedComplexModels.size()); }
@@ -154,10 +161,32 @@ private:
 
     struct AnimationModelInfo
     {
+        u16 numSequences = 0;
         u16 numBones = 0;
-        u16 padding = 0;
 
+        u32 sequenceOffset = 0;
         u32 boneInfoOffset = 0;
+        u32 padding = 0;
+    };
+
+    struct AnimationSequence
+    {
+        u16 animationId = 0;
+        u16 animationSubId = 0;
+        u16 nextSubAnimationId = 0;
+        u16 nextAliasId = 0;
+
+        u32 flags = 0;
+
+        f32 duration = 0.f;
+
+        u16 repeatMin = 0;
+        u16 repeatMax = 0;
+
+        u16 blendTimeStart = 0;
+        u16 blendTimeEnd = 0;
+
+        u64 padding = 0;
     };
 
     struct AnimationBoneInfo
@@ -183,14 +212,16 @@ private:
         f32 pivotPointX = 0.f;
         f32 pivotPointY = 0.f;
         f32 pivotPointZ = 0.f;
+
+        u32 padding0;
+        u32 padding1;
+        u32 padding2;
     };
 
     struct AnimationTrackInfo
     {
         u16 sequenceIndex = 0;
         u16 padding = 0;
-
-        u32 duration = 0;
 
         u16 numTimestamps = 0;
         u16 numValues = 0;
@@ -273,12 +304,14 @@ private:
     std::vector<BufferRangeFrame> _instanceRangeFrames;
     std::vector<CModel::CullingData> _cullingDatas;
 
+    std::vector<AnimationSequence> _animationSequence;
     std::vector<AnimationModelInfo> _animationModelInfo;
     std::vector<AnimationBoneInfo> _animationBoneInfo;
     std::vector<AnimationTrackInfo> _animationTrackInfo;
     std::vector<u32> _animationTrackTimestamps;
     std::vector<vec4> _animationTrackValues;
     BufferRangeAllocator _animationBoneDeformRangeAllocator;
+    moodycamel::ConcurrentQueue<std::pair<u32, u32>> _animationRequests;
 
     std::vector<DrawCall> _opaqueDrawCalls;
     std::vector<DrawCallData> _opaqueDrawCallDatas;
@@ -292,6 +325,7 @@ private:
     Renderer::BufferID _instanceBuffer;
     Renderer::BufferID _cullingDataBuffer;
 
+    Renderer::BufferID _animationSequenceBuffer;
     Renderer::BufferID _animationModelInfoBuffer;
     Renderer::BufferID _animationBoneInfoBuffer;
     Renderer::BufferID _animationBoneDeformMatrixBuffer;

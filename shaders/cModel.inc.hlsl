@@ -9,10 +9,27 @@ struct InstanceData
     uint boneDeformOffset;
 };
 
+struct AnimationSequence
+{
+    uint packedData0; // animationId (16 bit), animationSubId (16 bit)
+    uint packedData1; // nextSubAnimationId (16 bit), nextAliasId (16 bit)
+
+    uint flags; // 0x1(IsAlwaysPlaying), 0x2(IsAlias), 0x4(BlendTransition)
+    float duration;
+
+    uint packedRepeatRange; // Min (16 bit), Max (16 bit)
+    uint packedBlendTimes; // Start (16 bit), End (16 bit)
+
+    uint padding0;
+    uint padding1;
+};
+
 struct AnimationModelInfo
 {
-    uint numBones; // Only 16 bit is used here, rest is padding
+    uint packedData0; // numSequences (16 bit), numBones (16 bit)
+    uint sequenceOffset;
     uint boneInfoOffset;
+    uint padding;
 };
 
 struct AnimationBoneInfo
@@ -29,13 +46,14 @@ struct AnimationBoneInfo
     float pivotPointX;
     float pivotPointY;
     float pivotPointZ;
+    uint padding0;
+    uint padding1;
+    uint padding2;
 };
 
 struct AnimationTrackInfo
 {
     uint sequenceIndex; // Only 16 bit is used here, rest is padding
-
-    uint duration;
 
     uint packedData0; // numTimestamps, numValues
     uint timestampOffset;

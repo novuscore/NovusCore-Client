@@ -173,6 +173,19 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
     {
         GPU_SCOPED_PROFILER_ZONE(commandList, CModelPass);
 
+        if (_animationRequests.size_approx() > 0)
+        {
+            commandList.PushMarker("Animation Request", Color::White);
+
+            std::pair<u32, u32> animationRequestPair;
+            while (_animationRequests.try_dequeue(animationRequestPair))
+            {
+                commandList.FillBuffer(_instanceBuffer, (animationRequestPair.first * sizeof(Instance)) + offsetof(Instance, activeSequenceId), sizeof(u32), animationRequestPair.second);
+            }
+
+            commandList.PopMarker();
+        }
+
         Renderer::ComputePipelineDesc cullingPipelineDesc;
         resources.InitializePipelineDesc(cullingPipelineDesc);
 
@@ -253,6 +266,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
             }
 
             _animationPrepassDescriptorSet.Bind("_instances", _instanceBuffer);
+            _animationPrepassDescriptorSet.Bind("_animationSequence", _animationSequenceBuffer);
             _animationPrepassDescriptorSet.Bind("_animationModelInfo", _animationModelInfoBuffer);
             _animationPrepassDescriptorSet.Bind("_animationBoneInfo", _animationBoneInfoBuffer);
             _animationPrepassDescriptorSet.Bind("_animationBoneDeformMatrix", _animationBoneDeformMatrixBuffer);
@@ -749,18 +763,19 @@ void CModelRenderer::CreatePermanentResources()
         _transparentTriangleCountReadBackBuffer = _renderer->CreateBuffer(desc);
     }
 
-    size_t boneDeformMatrixBufferSize = (sizeof(mat4x4) * 255) * 2500;
 
     // Create AnimationBoneDeformMatrixBuffer
     {
+        size_t boneDeformMatrixBufferSize = (sizeof(mat4x4) * 255) * 2500;
+
         Renderer::BufferDesc desc;
         desc.name = "AnimationBoneDeformMatrixBuffer";
         desc.size = boneDeformMatrixBufferSize;
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_SOURCE | Renderer::BufferUsage::TRANSFER_DESTINATION;
         _animationBoneDeformMatrixBuffer = _renderer->CreateBuffer(desc);
-    }
 
-    _animationBoneDeformRangeAllocator.Init(0, boneDeformMatrixBufferSize);
+        _animationBoneDeformRangeAllocator.Init(0, boneDeformMatrixBufferSize);
+    }
 
     //modelToBeLoaded.name = new std::string("Creature/Snake/Snake.cmodel");
     //modelToBeLoaded.name = new std::string("Creature/Murloc/Murloc.cmodel");
@@ -771,14 +786,14 @@ void CModelRenderer::CreatePermanentResources()
     {
         for (u32 y = 0; y < 5; y++)
         {
-            ComplexModelToBeLoaded& modelToBeLoaded1 = _complexModelsToBeLoaded.emplace_back();
+            ComplexModelToBeLoaded& modelToBeLoaded = _complexModelsToBeLoaded.emplace_back();
             {
                 Terrain::Placement* placement = new Terrain::Placement();
                 placement->position = vec3(x * 3.f, y * 3.f, 0.f);
 
-                modelToBeLoaded1.placement = placement;
-                modelToBeLoaded1.name = new std::string("Creature/DruidCat/DruidCat.cmodel");
-                modelToBeLoaded1.nameHash = x + (y * 10);
+                modelToBeLoaded.placement = placement;
+                modelToBeLoaded.name = new std::string("Creature/DruidCat/DruidCat.cmodel");
+                modelToBeLoaded.nameHash = x + (y * 10);
             }
         }
     }
@@ -802,6 +817,36 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
     entt::registry* registry = ServiceLocator::GetGameRegistry();
     TextureSingleton& textureSingleton = registry->ctx<TextureSingleton>();
 
+    AnimationModelInfo& animationModelInfo = _animationModelInfo.emplace_back();
+
+    // Add Sequences
+    {
+        size_t numSequenceInfoBefore = _animationSequence.size();
+        size_t numSequencesToAdd = cModel.sequences.size();
+
+        animationModelInfo.numSequences = static_cast<u16>(numSequencesToAdd);
+        animationModelInfo.sequenceOffset = static_cast<u32>(numSequenceInfoBefore);
+
+        _animationSequence.resize(numSequenceInfoBefore + numSequencesToAdd);
+
+        for (u32 i = 0; i < numSequencesToAdd; i++)
+        {
+            AnimationSequence& sequence = _animationSequence[numSequenceInfoBefore + i];
+            CModel::ComplexAnimationSequence& cmodelSequence = cModel.sequences[i];
+
+            sequence.animationId = cmodelSequence.id;
+            sequence.animationSubId = cmodelSequence.subId;
+            sequence.nextSubAnimationId = cmodelSequence.nextVariationId;
+            sequence.nextAliasId = cmodelSequence.nextAliasId;
+            sequence.flags = cmodelSequence.flags.isAlwaysPlaying | cmodelSequence.flags.isAlias | cmodelSequence.flags.blendTransition;
+            sequence.duration = static_cast<float>(cmodelSequence.duration) / 1000.f;
+            sequence.repeatMin = cmodelSequence.repetitionRange.x;
+            sequence.repeatMax = cmodelSequence.repetitionRange.y;
+            sequence.blendTimeStart = cmodelSequence.blendTimeStart;
+            sequence.blendTimeEnd = cmodelSequence.blendTimeEnd;
+        }
+    }
+
     // Add Bones
     {
         size_t numBoneInfoBefore = _animationBoneInfo.size();
@@ -809,9 +854,8 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
 
         complexModel.numBones = static_cast<u32>(numBonesToAdd);
 
-        AnimationModelInfo& animationModelInfo = _animationModelInfo.emplace_back();
         animationModelInfo.numBones = static_cast<u16>(numBonesToAdd);
-        animationModelInfo.boneInfoOffset = static_cast<u32>(_animationBoneInfo.size());
+        animationModelInfo.boneInfoOffset = static_cast<u32>(numBoneInfoBefore);
 
         _animationBoneInfo.resize(numBoneInfoBefore + numBonesToAdd);
         for (u32 i = 0; i < numBonesToAdd; i++)
@@ -829,7 +873,6 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
                     AnimationTrackInfo& trackInfo = _animationTrackInfo.emplace_back();
 
                     trackInfo.sequenceIndex = track.sequenceId;
-                    trackInfo.duration = cModel.sequences[track.sequenceId].duration;
 
                     trackInfo.numTimestamps = static_cast<u16>(track.timestamps.size());
                     trackInfo.numValues = static_cast<u16>(track.values.size());
@@ -873,7 +916,6 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
                     AnimationTrackInfo& trackInfo = _animationTrackInfo.emplace_back();
 
                     trackInfo.sequenceIndex = track.sequenceId;
-                    trackInfo.duration = cModel.sequences[track.sequenceId].duration;
 
                     trackInfo.numTimestamps = static_cast<u16>(track.timestamps.size());
                     trackInfo.numValues = static_cast<u16>(track.values.size());
@@ -911,7 +953,6 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
                     AnimationTrackInfo& trackInfo = _animationTrackInfo.emplace_back();
 
                     trackInfo.sequenceIndex = track.sequenceId;
-                    trackInfo.duration = cModel.sequences[track.sequenceId].duration;
 
                     trackInfo.numTimestamps = static_cast<u16>(track.timestamps.size());
                     trackInfo.numValues = static_cast<u16>(track.values.size());
@@ -1384,7 +1425,7 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
     mat4x4 scaleMatrix = glm::scale(mat4x4(1.0f), scale);
 
     instance.modelId = complexModel.objectID;
-    instance.activeSequenceId = 4;
+    instance.activeSequenceId = 65535;
     instance.instanceMatrix = glm::translate(mat4x4(1.0f), pos) * rotationMatrix * scaleMatrix;
     instance.animProgress = fmod((numInstancesBeforeAdd * 0.25f), 1.f);
 
@@ -1629,6 +1670,40 @@ void CModelRenderer::CreateBuffers()
         _renderer->CopyBuffer(_cullingDataBuffer, 0, stagingBuffer, 0, desc.size);
     }
 
+    // Create AnimationSequence buffer
+    if (_animationSequenceBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_animationSequenceBuffer);
+    }
+    {
+        size_t numSequences = _animationSequence.size();
+        if (numSequences > 0)
+        {
+            Renderer::BufferDesc desc;
+            desc.name = "AnimationSequenceBuffer";
+            desc.size = sizeof(AnimationSequence) * numSequences;
+            desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
+            _animationSequenceBuffer = _renderer->CreateBuffer(desc);
+
+            // Create staging buffer
+            desc.name = "AnimationSequenceStaging";
+            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
+            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+
+            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
+
+            // Upload to staging buffer
+            void* dst = _renderer->MapBuffer(stagingBuffer);
+            memcpy(dst, _animationSequence.data(), desc.size);
+            _renderer->UnmapBuffer(stagingBuffer);
+
+            // Queue destroy staging buffer
+            _renderer->QueueDestroyBuffer(stagingBuffer);
+            // Copy from staging buffer to buffer
+            _renderer->CopyBuffer(_animationSequenceBuffer, 0, stagingBuffer, 0, desc.size);
+        }
+    }    
+    
     // Create AnimationModelInfo buffer
     if (_animationModelInfoBuffer != Renderer::BufferID::Invalid())
     {

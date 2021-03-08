@@ -137,11 +137,15 @@ VSOutput main(VSInput input)
     DrawCallData drawCallData = LoadDrawCallData(drawCallID);
     InstanceData instanceData = LoadInstanceData(drawCallData.instanceID);
 
-    float4x4 boneTransformMatrix = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, };
+    float4x4 boneTransformMatrix = float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 
-    for (int i = 0; i < 4; i++)
+    if (instanceData.activeSequenceId != 65535)
     {
-        boneTransformMatrix += mul(vertex.boneWeights[i], _animationBoneDeformMatrix[instanceData.boneDeformOffset + vertex.boneIndices[i]]);
+        boneTransformMatrix = float4x4(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        for (int i = 0; i < 4; i++)
+        {
+            boneTransformMatrix += mul(vertex.boneWeights[i], _animationBoneDeformMatrix[instanceData.boneDeformOffset + vertex.boneIndices[i]]);
+        }
     }
 
     float4 position = mul(float4(vertex.position, 1.0f), boneTransformMatrix);
