@@ -14,62 +14,278 @@ DebugRenderer::DebugRenderer(Renderer::Renderer* renderer)
 {
 	_renderer = renderer;
 
-	Renderer::BufferDesc bufferDesc;
-	bufferDesc.name = "DebugVertexBuffer";
-	bufferDesc.size = 128 * 1024 * 1024;
-	bufferDesc.usage = Renderer::BufferUsage::VERTEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-	_debugVertexBuffer = _renderer->CreateBuffer(bufferDesc);
-}
+	const size_t debugVertexCounts[DBG_VERTEX_BUFFER_COUNT] = {
+		4 * 1024,  // DBG_VERTEX_BUFFER_LINES_2D,
+		32 * 1024, // DBG_VERTEX_BUFFER_LINES_3D,
+		4 * 1024,  // DBG_VERTEX_BUFFER_TRIS_2D,
+		32 * 1024, // DBG_VERTEX_BUFFER_TRIS_3D,
+	};
 
-void DebugRenderer::Flush(Renderer::CommandList* commandList)
-{
 	size_t totalVertexCount = 0;
 	for (size_t i = 0; i < DBG_VERTEX_BUFFER_COUNT; ++i)
 	{
-		const auto& vertices = _debugVertices[i];
-		_debugVertexOffset[i] = static_cast<uint32_t>(totalVertexCount);
-		_debugVertexCount[i] = static_cast<uint32_t>(vertices.size());
-		totalVertexCount += vertices.size();
+		_debugVertexRanges[i] = uvec2(totalVertexCount, debugVertexCounts[i]);
+		totalVertexCount += debugVertexCounts[i];
 	}
 
-	const size_t totalBufferSize = totalVertexCount * sizeof(DebugVertex);
-
-	if (totalBufferSize == 0)
 	{
-		return;
+		Renderer::BufferDesc bufferDesc;
+		bufferDesc.name = "DebugVertexBuffer";
+		bufferDesc.size = totalVertexCount * sizeof(DebugVertex);
+		bufferDesc.usage = Renderer::BufferUsage::VERTEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::STORAGE_BUFFER;
+		_debugVertexBuffer = _renderer->CreateBuffer(bufferDesc);
+		
 	}
 
-	Renderer::BufferDesc stagingBufferDesc;
-	stagingBufferDesc.name = "DebugVertexUploadBuffer";
-	stagingBufferDesc.size = totalBufferSize;
-	stagingBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-	stagingBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-
-	Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(stagingBufferDesc);
-	_renderer->QueueDestroyBuffer(stagingBuffer);
-
-	void* mappedMemory = _renderer->MapBuffer(stagingBuffer);
-
-	for (size_t i = 0; i < DBG_VERTEX_BUFFER_COUNT; ++i)
 	{
-		const auto& vertices = _debugVertices[i];
-		const uint32_t offset = _debugVertexOffset[i] * sizeof(DebugVertex);
-		const uint32_t size = _debugVertexCount[i] * sizeof(DebugVertex);
-		if (size > 0)
+		Renderer::BufferDesc bufferDesc;
+		bufferDesc.name = "DebugVertexRangeBuffer";
+		bufferDesc.size = sizeof(uvec2) * DBG_VERTEX_BUFFER_COUNT;
+		bufferDesc.usage = Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::STORAGE_BUFFER;
+		_debugVertexRangeBuffer = _renderer->CreateBuffer(bufferDesc);
+
+		Renderer::BufferDesc stagingBufferDesc;
+		stagingBufferDesc.name = "DebugRangeUploadBuffer";
+		stagingBufferDesc.size = bufferDesc.size;
+		stagingBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+		stagingBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
+
+		Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(stagingBufferDesc);
+		_renderer->QueueDestroyBuffer(stagingBuffer);
+
+		void* mappedMemory = _renderer->MapBuffer(stagingBuffer);
+		memcpy(mappedMemory, _debugVertexRanges, sizeof(_debugVertexRanges));
+		_renderer->UnmapBuffer(stagingBuffer);
+
+		_renderer->CopyBuffer(_debugVertexRangeBuffer, 0, stagingBuffer, 0, bufferDesc.size);
+	}
+
+	{
+		Renderer::BufferDesc bufferDesc;
+		bufferDesc.name = "DebugVertexCounterBuffer";
+		bufferDesc.size = sizeof(u32) * DBG_VERTEX_BUFFER_COUNT;
+		bufferDesc.usage = Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::STORAGE_BUFFER;
+		_debugVertexCounterBuffer = _renderer->CreateBuffer(bufferDesc);
+	}
+
+	{
+		Renderer::BufferDesc bufferDesc;
+		bufferDesc.name = "DebugDrawArgumentBuffer";
+		bufferDesc.size = sizeof(VkDrawIndirectCommand) * DBG_VERTEX_BUFFER_COUNT;
+		bufferDesc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::STORAGE_BUFFER;
+		_drawArgumentBuffer = _renderer->CreateBuffer(bufferDesc);
+	}
+
+	_descriptorSet.Bind("_debug_rangeBuffer"_h, _debugVertexRangeBuffer);
+	_descriptorSet.Bind("_debug_counterBuffer"_h, _debugVertexCounterBuffer);
+	_descriptorSet.Bind("_debug_vertexBuffer"_h, _debugVertexBuffer);
+}
+
+static u32 GetDrawBufferOffset(DebugRenderer::DebugVertexBufferType bufferType)
+{
+	return bufferType * sizeof(VkDrawIndirectCommand);
+}
+
+void DebugRenderer::AddUploadPass(Renderer::RenderGraph* renderGraph)
+{
+	struct PassData
+	{
+	};
+
+	renderGraph->AddPass<PassData>("DebugUpload", 
+		[=](PassData& data, Renderer::RenderGraphBuilder& builder) -> bool
 		{
-			memcpy((char*)mappedMemory + offset, vertices.data(), size);
-		}
-	}
+			return true;
+		},
+		[=](PassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) -> void
+		{
+			u32 sourceVertexOffset[DBG_VERTEX_BUFFER_COUNT];
+			u32 sourceVertexCount[DBG_VERTEX_BUFFER_COUNT];
 
-	_renderer->UnmapBuffer(stagingBuffer);
-	commandList->CopyBuffer(_debugVertexBuffer, 0, stagingBuffer, 0, totalBufferSize);
+			size_t totalSourceVertexCount = 0;
+			for (size_t i = 0; i < DBG_VERTEX_BUFFER_COUNT; ++i)
+			{
+				const auto& vertices = _debugVertices[i];
+				sourceVertexOffset[i] = static_cast<u32>(totalSourceVertexCount);
+				sourceVertexCount[i] = static_cast<u32>(vertices.size());
+				totalSourceVertexCount += vertices.size();
+			}
 
-	commandList->PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToVertexBuffer, _debugVertexBuffer);
+			const size_t totalBufferSize = totalSourceVertexCount * sizeof(DebugVertex);
 
-	for (auto&& vertices : _debugVertices)
+			if (totalBufferSize == 0)
+			{
+				return;
+			}
+
+			{
+				Renderer::BufferDesc stagingBufferDesc;
+				stagingBufferDesc.name = "DebugVertexUploadBuffer";
+				stagingBufferDesc.size = totalBufferSize;
+				stagingBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+				stagingBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
+
+				Renderer::BufferID vertexStagingBuffer = _renderer->CreateBuffer(stagingBufferDesc);
+				_renderer->QueueDestroyBuffer(vertexStagingBuffer);
+
+				void* vertexBufferMemory = _renderer->MapBuffer(vertexStagingBuffer);
+
+				for (size_t i = 0; i < DBG_VERTEX_BUFFER_COUNT; ++i)
+				{
+					const auto& vertices = _debugVertices[i];
+					const u32 targetOffset = _debugVertexRanges[i].x * sizeof(DebugVertex);
+					const u32 sourceOffset = sourceVertexOffset[i] * sizeof(DebugVertex);
+					const u32 size = sourceVertexCount[i] * sizeof(DebugVertex);
+					if (size > 0)
+					{
+						memcpy((char*)vertexBufferMemory + sourceOffset, vertices.data(), size);
+						commandList.CopyBuffer(_debugVertexBuffer, targetOffset, vertexStagingBuffer, sourceOffset, size);
+					}
+				}
+
+				_renderer->UnmapBuffer(vertexStagingBuffer);
+			}
+
+
+			{
+				Renderer::BufferDesc stagingBufferDesc;
+				stagingBufferDesc.name = "DebugCounterUploadBuffer";
+				stagingBufferDesc.size = DBG_VERTEX_BUFFER_COUNT * sizeof(u32);
+				stagingBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+				stagingBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
+
+				Renderer::BufferID counterStagingBuffer = _renderer->CreateBuffer(stagingBufferDesc);
+				_renderer->QueueDestroyBuffer(counterStagingBuffer);
+
+				void* counterBufferMemory = _renderer->MapBuffer(counterStagingBuffer);
+				memcpy(counterBufferMemory, sourceVertexCount, stagingBufferDesc.size);
+				_renderer->UnmapBuffer(counterStagingBuffer);
+
+				commandList.CopyBuffer(_debugVertexCounterBuffer, 0, counterStagingBuffer, 0, stagingBufferDesc.size);
+			}
+
+			commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _debugVertexBuffer);
+			commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _debugVertexCounterBuffer);
+
+			for (auto&& vertices : _debugVertices)
+			{
+				vertices.clear();
+			}
+		});
+}
+
+void DebugRenderer::AddDrawArgumentPass(Renderer::RenderGraph* renderGraph, u8 frameIndex)
+{
+	struct PassData
 	{
-		vertices.clear();
-	}
+	};
+
+	renderGraph->AddPass<PassData>("DebugArguments", 
+		[=](PassData& data, Renderer::RenderGraphBuilder& builder) -> bool
+		{
+			return true;
+		}, 
+		[=](PassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) -> void
+		{
+			Renderer::ComputeShaderDesc shaderDesc;
+			shaderDesc.path = "debugDrawArguments.cs.hlsl";
+
+			Renderer::ComputePipelineDesc pipelineDesc;
+			pipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
+
+			const Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(pipelineDesc);
+
+			_argumentsDescriptorSet.Bind("_vertexRanges"_h, _debugVertexRangeBuffer);
+			_argumentsDescriptorSet.Bind("_vertexCounters"_h, _debugVertexCounterBuffer);
+			_argumentsDescriptorSet.Bind("_drawArguments"_h, _drawArgumentBuffer);
+
+			commandList.BeginPipeline(pipeline);
+			commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_argumentsDescriptorSet, frameIndex);
+			commandList.Dispatch(1, 1, 1);
+			commandList.EndPipeline(pipeline);
+
+			commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _drawArgumentBuffer);
+		});
+}
+
+void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+{
+	struct Debug3DPassData
+	{
+		Renderer::RenderPassMutableResource mainColor;
+		Renderer::RenderPassMutableResource mainDepth;
+	};
+	renderGraph->AddPass<Debug3DPassData>("DebugRender3D",
+		[=](Debug3DPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
+		{
+			data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
+			data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
+
+			return true;// Return true from setup to enable this pass, return false to disable it
+		},
+		[=](Debug3DPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
+		{
+			GPU_SCOPED_PROFILER_ZONE(commandList, DebugRender3D);
+
+			Renderer::GraphicsPipelineDesc pipelineDesc;
+			resources.InitializePipelineDesc(pipelineDesc);
+
+			{
+				
+			}
+
+			{
+				// Shader
+				Renderer::VertexShaderDesc vertexShaderDesc;
+				vertexShaderDesc.path = "debug3D.vs.hlsl";
+
+				Renderer::PixelShaderDesc pixelShaderDesc;
+				pixelShaderDesc.path = "debug3D.ps.hlsl";
+
+				pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
+				pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
+
+				// Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
+				pipelineDesc.states.inputLayouts[0].enabled = true;
+				pipelineDesc.states.inputLayouts[0].SetName("Position");
+				pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::R32G32B32_FLOAT;
+				pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::PER_VERTEX;
+				pipelineDesc.states.inputLayouts[0].alignedByteOffset = 0;
+
+				pipelineDesc.states.inputLayouts[1].enabled = true;
+				pipelineDesc.states.inputLayouts[1].SetName("Color");
+				pipelineDesc.states.inputLayouts[1].format = Renderer::InputFormat::R8G8B8A8_UNORM;
+				pipelineDesc.states.inputLayouts[1].inputClassification = Renderer::InputClassification::PER_VERTEX;
+				pipelineDesc.states.inputLayouts[1].alignedByteOffset = 12;
+
+				pipelineDesc.states.primitiveTopology = Renderer::PrimitiveTopology::Lines;
+
+				// Depth state
+				pipelineDesc.states.depthStencilState.depthEnable = true;
+				pipelineDesc.states.depthStencilState.depthWriteEnable = false;
+				pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::GREATER;
+
+				// Rasterizer state
+				pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::BACK;
+				pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
+
+				pipelineDesc.renderTargets[0] = data.mainColor;
+
+				pipelineDesc.depthStencil = data.mainDepth;
+
+				// Set pipeline
+				Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+				commandList.BeginPipeline(pipeline);
+
+				commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+				commandList.SetVertexBuffer(0, _debugVertexBuffer);
+
+				// Draw
+				commandList.DrawIndirect(_drawArgumentBuffer, GetDrawBufferOffset(DBG_VERTEX_BUFFER_LINES_3D), 1);
+
+				commandList.EndPipeline(pipeline);
+			}
+		});
 }
 
 void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
@@ -131,83 +347,7 @@ void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 			commandList.SetVertexBuffer(0, _debugVertexBuffer);
 
 			// Draw
-			commandList.Draw(_debugVertexCount[DBG_VERTEX_BUFFER_LINES_2D], 1, _debugVertexOffset[DBG_VERTEX_BUFFER_LINES_2D], 0);
-
-			commandList.EndPipeline(pipeline);
-		});
-}
-
-void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
-{
-	struct Debug3DPassData
-	{
-		Renderer::RenderPassMutableResource mainColor;
-		Renderer::RenderPassMutableResource mainDepth;
-	};
-	renderGraph->AddPass<Debug3DPassData>("DebugRender3D",
-		[=](Debug3DPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
-		{
-			data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
-			data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
-
-			return true;// Return true from setup to enable this pass, return false to disable it
-		},
-		[=](Debug3DPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
-		{
-			GPU_SCOPED_PROFILER_ZONE(commandList, DebugRender3D);
-
-			Renderer::GraphicsPipelineDesc pipelineDesc;
-			resources.InitializePipelineDesc(pipelineDesc);
-
-			Flush(&commandList);
-
-			// Shader
-			Renderer::VertexShaderDesc vertexShaderDesc;
-			vertexShaderDesc.path = "debug3D.vs.hlsl";
-
-			Renderer::PixelShaderDesc pixelShaderDesc;
-			pixelShaderDesc.path = "debug3D.ps.hlsl";
-
-			pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
-			pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
-
-			// Input layouts TODO: Improve on this, if I set state 0 and 3 it won't work etc... Maybe responsibility for this should be moved to ModelHandler and the cooker?
-			pipelineDesc.states.inputLayouts[0].enabled = true;
-			pipelineDesc.states.inputLayouts[0].SetName("Position");
-			pipelineDesc.states.inputLayouts[0].format = Renderer::InputFormat::R32G32B32_FLOAT;
-			pipelineDesc.states.inputLayouts[0].inputClassification = Renderer::InputClassification::PER_VERTEX;
-			pipelineDesc.states.inputLayouts[0].alignedByteOffset = 0;
-
-			pipelineDesc.states.inputLayouts[1].enabled = true;
-			pipelineDesc.states.inputLayouts[1].SetName("Color");
-			pipelineDesc.states.inputLayouts[1].format = Renderer::InputFormat::R8G8B8A8_UNORM;
-			pipelineDesc.states.inputLayouts[1].inputClassification = Renderer::InputClassification::PER_VERTEX;
-			pipelineDesc.states.inputLayouts[1].alignedByteOffset = 12;
-
-			pipelineDesc.states.primitiveTopology = Renderer::PrimitiveTopology::Lines;
-
-			// Depth state
-			pipelineDesc.states.depthStencilState.depthEnable = true;
-			pipelineDesc.states.depthStencilState.depthWriteEnable = false;
-			pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::GREATER;
-
-			// Rasterizer state
-			pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::BACK;
-			pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
-
-			pipelineDesc.renderTargets[0] = data.mainColor;
-
-			pipelineDesc.depthStencil = data.mainDepth;
-
-			// Set pipeline
-			Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
-			commandList.BeginPipeline(pipeline);
-
-			commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
-			commandList.SetVertexBuffer(0, _debugVertexBuffer);
-
-			// Draw
-			commandList.Draw(_debugVertexCount[DBG_VERTEX_BUFFER_LINES_3D], 1, _debugVertexOffset[DBG_VERTEX_BUFFER_LINES_3D], 0);
+			commandList.DrawIndirect(_drawArgumentBuffer, GetDrawBufferOffset(DBG_VERTEX_BUFFER_LINES_2D), 1);
 
 			commandList.EndPipeline(pipeline);
 		});
@@ -215,18 +355,36 @@ void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 
 void DebugRenderer::DrawLine2D(const glm::vec2& from, const glm::vec2& to, uint32_t color)
 {
+	if (_debugVertices[DBG_VERTEX_BUFFER_LINES_2D].size() + 2 > _debugVertexRanges[DBG_VERTEX_BUFFER_LINES_2D].y)
+	{
+		DebugHandler::PrintError("Debug vertex buffer out of memory.");
+		return;
+	}
+
 	_debugVertices[DBG_VERTEX_BUFFER_LINES_2D].push_back({ glm::vec3(from, 0.0f), color });
 	_debugVertices[DBG_VERTEX_BUFFER_LINES_2D].push_back({ glm::vec3(to, 0.0f), color });
 }
 
 void DebugRenderer::DrawLine3D(const glm::vec3& from, const glm::vec3& to, uint32_t color)
 {
+	if (_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].size() + 2 > _debugVertexRanges[DBG_VERTEX_BUFFER_LINES_3D].y)
+	{
+		DebugHandler::PrintError("Debug vertex buffer out of memory.");
+		return;
+	}
+
 	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ from, color });
 	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ to, color });
 }
 
 void DebugRenderer::DrawAABB3D(const vec3& v0, const vec3& v1, uint32_t color)
 {
+	if (_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].size() + 24 > _debugVertexRanges[DBG_VERTEX_BUFFER_LINES_3D].y)
+	{
+		DebugHandler::PrintError("Debug vertex buffer out of memory.");
+		return;
+	}
+
 	// Bottom
 	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v0.x, v0.y, v0.z }, color });
 	_debugVertices[DBG_VERTEX_BUFFER_LINES_3D].push_back({ { v1.x, v0.y, v0.z }, color });
@@ -260,6 +418,12 @@ void DebugRenderer::DrawAABB3D(const vec3& v0, const vec3& v1, uint32_t color)
 
 void DebugRenderer::DrawTriangle2D(const glm::vec2& v0, const glm::vec2& v1, const glm::vec2& v2, uint32_t color)
 {
+	if (_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].size() + 3 > _debugVertexRanges[DBG_VERTEX_BUFFER_TRIS_2D].y)
+	{
+		DebugHandler::PrintError("Debug vertex buffer out of memory.");
+		return;
+	}
+
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].push_back({ glm::vec3(v0, 0.0f), color });
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].push_back({ glm::vec3(v1, 0.0f), color });
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].push_back({ glm::vec3(v2, 0.0f), color });
@@ -267,6 +431,12 @@ void DebugRenderer::DrawTriangle2D(const glm::vec2& v0, const glm::vec2& v1, con
 
 void DebugRenderer::DrawTriangle3D(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, uint32_t color)
 {
+	if (_debugVertices[DBG_VERTEX_BUFFER_TRIS_3D].size() + 3 > _debugVertexRanges[DBG_VERTEX_BUFFER_TRIS_3D].y)
+	{
+		DebugHandler::PrintError("Debug vertex buffer out of memory.");
+		return;
+	}
+
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_3D].push_back({ v0, color });
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_3D].push_back({ v1, color });
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_3D].push_back({ v2, color });
@@ -274,6 +444,12 @@ void DebugRenderer::DrawTriangle3D(const glm::vec3& v0, const glm::vec3& v1, con
 
 void DebugRenderer::DrawRectangle2D(const glm::vec2& min, const glm::vec2& max, uint32_t color)
 {
+	if (_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].size() + 6 > _debugVertexRanges[DBG_VERTEX_BUFFER_TRIS_2D].y)
+	{
+		DebugHandler::PrintError("Debug vertex buffer out of memory.");
+		return;
+	}
+
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].push_back({ glm::vec3(min.x, min.y, 0.0f), color });
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].push_back({ glm::vec3(max.x, min.y, 0.0f), color });
 	_debugVertices[DBG_VERTEX_BUFFER_TRIS_2D].push_back({ glm::vec3(max.x, max.y, 0.0f), color });

@@ -322,6 +322,20 @@ namespace Renderer
         vkCmdDraw(commandBuffer, numVertices, numInstances, vertexOffset, instanceOffset);
     }
 
+    void RendererVK::DrawIndirect(CommandListID commandListID, BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+
+        if (_renderPassOpenCount <= 0)
+        {
+            DebugHandler::PrintFatal("You tried to draw without first calling BeginPipeline!");
+        }
+
+        VkBuffer vkArgumentBuffer = _bufferHandler->GetBuffer(argumentBuffer);
+
+        vkCmdDrawIndirect(commandBuffer, vkArgumentBuffer, argumentBufferOffset, drawCount, sizeof(VkDrawIndirectCommand));
+    }
+
     void RendererVK::DrawIndexed(CommandListID commandListID, u32 numIndices, u32 numInstances, u32 indexOffset, u32 vertexOffset, u32 instanceOffset)
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
@@ -1190,9 +1204,14 @@ namespace Renderer
             {
                 vec4 colorMultiplier;
                 vec4 additiveColor;
+                u32 channelRedirectors;
             } blitConstant;
             blitConstant.colorMultiplier = vec4(1, 1, 1, 1);
             blitConstant.additiveColor = vec4(0, 0, 0, 0);
+            blitConstant.channelRedirectors = 0;
+            blitConstant.channelRedirectors |= (1 << 8);
+            blitConstant.channelRedirectors |= (2 << 16);
+            blitConstant.channelRedirectors |= (3 << 24);
 
             vkCmdPushConstants(commandBuffer, pipelineLayout, VkShaderStageFlagBits::VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(BlitConstant), &blitConstant);
 

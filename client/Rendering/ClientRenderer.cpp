@@ -169,6 +169,8 @@ void ClientRenderer::Render()
     _globalDescriptorSet.Bind("_viewData"_h, _viewConstantBuffer->GetBuffer(_frameIndex));
     _globalDescriptorSet.Bind("_lightData"_h, _lightConstantBuffer->GetBuffer(_frameIndex));
 
+    _debugRenderer->AddUploadPass(&renderGraph);
+
     // Clear Pass
     {
         struct ClearPassData
@@ -215,7 +217,7 @@ void ClientRenderer::Render()
         });
     }
 
-    _terrainRenderer->AddTerrainPass(&renderGraph, &_globalDescriptorSet, _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
+    _terrainRenderer->AddTerrainPass(&renderGraph, &_globalDescriptorSet, _debugRenderer->GetDescriptorSet(), _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
     _cModelRenderer->AddComplexModelPass(&renderGraph, &_globalDescriptorSet, _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
     _postProcessRenderer->AddPostProcessPass(&renderGraph, &_globalDescriptorSet, _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
     _rendertargetVisualizer->AddVisualizerPass(&renderGraph, &_globalDescriptorSet, _mainColor, _frameIndex);
@@ -242,6 +244,7 @@ void ClientRenderer::Render()
 
     _pixelQuery->AddPixelQueryPass(&renderGraph, _mainColor, _objectIDs, _mainDepth, _frameIndex);
 
+    _debugRenderer->AddDrawArgumentPass(&renderGraph, _frameIndex);
     _debugRenderer->Add3DPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
 
     _uiRenderer->AddUIPass(&renderGraph, _mainColor, _frameIndex);

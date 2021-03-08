@@ -5,6 +5,7 @@
 // Commands
 #include "Commands/Clear.h"
 #include "Commands/Draw.h"
+#include "Commands/DrawIndirect.h"
 #include "Commands/DrawIndexed.h"
 #include "Commands/DrawIndexedIndirect.h"
 #include "Commands/DrawIndexedIndirectCount.h"
@@ -191,7 +192,7 @@ namespace Renderer
 #endif
     }
 
-    void CommandList::BindDescriptorSet(DescriptorSetSlot slot, DescriptorSet* descriptorSet, u32 frameIndex)
+    void CommandList::BindDescriptorSet(DescriptorSetSlot slot, const DescriptorSet* descriptorSet, u32 frameIndex)
     {
         const std::vector<Descriptor>& descriptors = descriptorSet->GetDescriptors();
         size_t numDescriptors = descriptors.size();
@@ -305,6 +306,18 @@ namespace Renderer
 
 #if COMMANDLIST_DEBUG_IMMEDIATE_MODE
         Commands::Draw::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
+#endif
+    }
+
+    void CommandList::DrawIndirect(BufferID argumentBuffer, u32 argumentBufferOffset, u32 drawCount)
+    {
+        Commands::DrawIndirect* command = AddCommand<Commands::DrawIndirect>();
+        command->argumentBuffer = argumentBuffer;
+        command->argumentBufferOffset = argumentBufferOffset;
+        command->drawCount = drawCount;
+
+#if COMMANDLIST_DEBUG_IMMEDIATE_MODE
+        Commands::DrawIndirect::DISPATCH_FUNCTION(_renderer, _immediateCommandList, command);
 #endif
     }
 

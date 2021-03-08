@@ -35,11 +35,15 @@ private:
     bool _isVisible = false;
     Renderer::Renderer* _renderer;
 
+    vec4 _overrideAdditiveColor = vec4(0, 0, 0, 0);
+    vec4 _overrideColorMultiplier = vec4(1, 1, 1, 1);
     i32 _selectedOverrideMip = 0;
+    ivec4 _overrideChannelRedirector = ivec4(0, 1, 2, 3);
 
-    vec4 _additiveColor = vec4(0,0,0,0);
-    vec4 _colorMultiplier = vec4(1,1,1,1);
+    vec4 _overlayAdditiveColor = vec4(0,0,0,0);
+    vec4 _overlayColorMultiplier = vec4(1,1,1,1);
     i32 _selectedOverlayMip = 0;
+    ivec4 _overlayChannelRedirector = ivec4(0, 1, 2, 3);
 
     Renderer::ImageID _overridingImageID;
     Renderer::DepthImageID _overridingDepthImageID;
