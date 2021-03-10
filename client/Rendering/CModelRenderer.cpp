@@ -452,8 +452,9 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
 
             Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(createArgumentsPipelineDesc);
 
-            _passDescriptorSet.Bind("_source", _visibleInstanceCountBuffer);
-            _passDescriptorSet.Bind("_target", _visibleInstanceCountArgumentBuffer32);
+            Renderer::DescriptorSet descriptorSet;
+            descriptorSet.Bind("_source", _visibleInstanceCountBuffer);
+            descriptorSet.Bind("_target", _visibleInstanceCountArgumentBuffer32);
 
             struct PushConstants
             {
@@ -467,7 +468,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
             constants.threadGroupSize = 32;
 
             commandList.BeginPipeline(pipeline);
-            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &_passDescriptorSet, frameIndex);
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &descriptorSet, frameIndex);
             commandList.PushConstant(&constants, 0, sizeof(PushConstants));
             commandList.Dispatch(1, 1, 1);
             commandList.EndPipeline(pipeline);
