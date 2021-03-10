@@ -365,6 +365,10 @@ private:
     Renderer::BufferID _textureUnitBuffer;
     Renderer::BufferID _instanceBuffer;
     Renderer::BufferID _cullingDataBuffer;
+    Renderer::BufferID _visibleInstanceMaskBuffer;
+    Renderer::BufferID _visibleInstanceCountBuffer;
+    Renderer::BufferID _visibleInstanceIndexBuffer;
+    Renderer::BufferID _visibleInstanceCountArgumentBuffer32;
 
     Renderer::BufferID _animationSequenceBuffer;
     Renderer::BufferID _animationModelInfoBuffer;

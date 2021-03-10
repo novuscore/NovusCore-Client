@@ -10,15 +10,17 @@ struct Constants
 
 // Inputs
 [[vk::push_constant]] Constants _constants;
-[[vk::binding(1, PER_PASS)]] RWStructuredBuffer<InstanceData> _instances;
-[[vk::binding(2, PER_PASS)]] StructuredBuffer<AnimationSequence> _animationSequence;
-[[vk::binding(3, PER_PASS)]] StructuredBuffer<AnimationModelInfo> _animationModelInfo;
-[[vk::binding(4, PER_PASS)]] StructuredBuffer<AnimationBoneInfo> _animationBoneInfo;
-[[vk::binding(5, PER_PASS)]] RWStructuredBuffer<float4x4> _animationBoneDeformMatrix;
-[[vk::binding(6, PER_PASS)]] RWStructuredBuffer<AnimationBoneInstanceData> _animationBoneInstances;
-[[vk::binding(7, PER_PASS)]] StructuredBuffer<AnimationTrackInfo> _animationTrackInfo;
-[[vk::binding(8, PER_PASS)]] StructuredBuffer<uint> _animationTrackTimestamp;
-[[vk::binding(9, PER_PASS)]] StructuredBuffer<float4> _animationTrackValue;
+[[vk::binding(1, PER_PASS)]] ByteAddressBuffer _visibleInstanceCount;
+[[vk::binding(2, PER_PASS)]] StructuredBuffer<uint> _visibleInstanceIndices;
+[[vk::binding(3, PER_PASS)]] RWStructuredBuffer<InstanceData> _instances;
+[[vk::binding(4, PER_PASS)]] StructuredBuffer<AnimationSequence> _animationSequence;
+[[vk::binding(5, PER_PASS)]] StructuredBuffer<AnimationModelInfo> _animationModelInfo;
+[[vk::binding(6, PER_PASS)]] StructuredBuffer<AnimationBoneInfo> _animationBoneInfo;
+[[vk::binding(7, PER_PASS)]] RWStructuredBuffer<float4x4> _animationBoneDeformMatrix;
+[[vk::binding(8, PER_PASS)]] RWStructuredBuffer<AnimationBoneInstanceData> _animationBoneInstances;
+[[vk::binding(9, PER_PASS)]] StructuredBuffer<AnimationTrackInfo> _animationTrackInfo;
+[[vk::binding(10, PER_PASS)]] StructuredBuffer<uint> _animationTrackTimestamp;
+[[vk::binding(11, PER_PASS)]] StructuredBuffer<float4> _animationTrackValue;
 
 AnimationState GetAnimationState(AnimationBoneInstanceData boneInstanceData)
 {
@@ -31,12 +33,15 @@ AnimationState GetAnimationState(AnimationBoneInstanceData boneInstanceData)
 [numthreads(32, 1, 1)]
 void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
-    if (dispatchThreadId.x >= _constants.numInstances)
+    const uint visibleInstanceCount = _visibleInstanceCount.Load(0);
+    if (dispatchThreadId.x >= visibleInstanceCount)
     {
         return;
     }
 
-    InstanceData instanceData = _instances[dispatchThreadId.x];
+    const uint instanceID = _visibleInstanceIndices[dispatchThreadId.x];
+
+    InstanceData instanceData = _instances[instanceID];
     const AnimationModelInfo modelInfo = _animationModelInfo[instanceData.modelId];
 
     int numSequences = modelInfo.packedData0& 0xFFFF;

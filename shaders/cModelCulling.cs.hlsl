@@ -1,3 +1,4 @@
+#include "common.inc.hlsl"
 #include "globalData.inc.hlsl"
 #include "cModel.inc.hlsl"
 #include "pyramidCulling.inc.hlsl"
@@ -50,16 +51,16 @@ struct CullingData
 [[vk::binding(1, PER_PASS)]] StructuredBuffer<DrawCall> _drawCalls;
 [[vk::binding(2, PER_PASS)]] StructuredBuffer<InstanceData> _instances;
 [[vk::binding(3, PER_PASS)]] StructuredBuffer<PackedCullingData> _cullingDatas;
-
-[[vk::binding(9, PER_PASS)]] SamplerState _depthSampler;
-[[vk::binding(10, PER_PASS)]] Texture2D<float> _depthPyramid;
+[[vk::binding(4, PER_PASS)]] SamplerState _depthSampler;
+[[vk::binding(5, PER_PASS)]] Texture2D<float> _depthPyramid;
 
 // Outputs
-[[vk::binding(4, PER_PASS)]] RWByteAddressBuffer _drawCount;
-[[vk::binding(5, PER_PASS)]] RWByteAddressBuffer _triangleCount;
-[[vk::binding(6, PER_PASS)]] RWStructuredBuffer<DrawCall> _culledDrawCalls;
-[[vk::binding(7, PER_PASS)]] RWStructuredBuffer<uint64_t> _sortKeys; // OPTIONAL, only needed if _constants.shouldPrepareSort
-[[vk::binding(8, PER_PASS)]] RWStructuredBuffer<uint> _sortValues; // OPTIONAL, only needed if _constants.shouldPrepareSort
+[[vk::binding(6, PER_PASS)]] RWByteAddressBuffer _drawCount;
+[[vk::binding(7, PER_PASS)]] RWByteAddressBuffer _triangleCount;
+[[vk::binding(8, PER_PASS)]] RWStructuredBuffer<DrawCall> _culledDrawCalls;
+[[vk::binding(9, PER_PASS)]] RWStructuredBuffer<uint64_t> _sortKeys; // OPTIONAL, only needed if _constants.shouldPrepareSort
+[[vk::binding(10, PER_PASS)]] RWStructuredBuffer<uint> _sortValues; // OPTIONAL, only needed if _constants.shouldPrepareSort
+[[vk::binding(11, PER_PASS)]] RWByteAddressBuffer _visibleInstanceMask;
 
 CullingData LoadCullingData(uint instanceIndex)
 {
@@ -220,6 +221,14 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     uint outIndex;
 	_drawCount.InterlockedAdd(0, 1, outIndex);
     _culledDrawCalls[outIndex] = drawCall;
+
+    //uint visibleInstanceIndex;
+    //_visibleInstanceCount.InterlockedAdd(0, 1, visibleInstanceIndex);
+    //_visibleInstanceIndices[visibleInstanceIndex] = drawCallData.instanceID;
+
+    const uint maskOffset = drawCallData.instanceID / 32;
+    const uint mask = 1 << (drawCallData.instanceID % 32);
+    _visibleInstanceMask.InterlockedOr(maskOffset * SIZEOF_UINT, mask);
 
     // If we expect to sort afterwards, output the data needed for it
     if (_constants.shouldPrepareSort)
