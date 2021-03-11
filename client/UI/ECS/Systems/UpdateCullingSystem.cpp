@@ -20,7 +20,7 @@ namespace UISystem
 
         auto cullView = registry.view<UIComponent::Transform, UIComponent::Dirty>();
         std::vector<entt::entity> notCulled;
-        notCulled.reserve(cullView.size());
+        notCulled.reserve(cullView.size_hint());
 
         cullView.each([&](entt::entity entity, UIComponent::Transform& transform)
         {
