@@ -36,6 +36,7 @@
 
 #include "../UI/ECS/Components/NotCulled.h"
 
+#include "../UI/ECS/Components/Destroy.h"
 #include "../UI/ECS/Components/Dirty.h"
 #include "../UI/ECS/Components/BoundsDirty.h"
 #include "../UI/ECS/Components/SortKeyDirty.h"
@@ -64,36 +65,36 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRendere
     dataSingleton.UIRESOLUTION = hvec2(dataSingleton.referenceHeight * aspectRatio, dataSingleton.referenceHeight);
 
     //Reserve component space
-    const int ENTITIES_TO_PREALLOCATE = 10000;
-    registry->reserve(ENTITIES_TO_PREALLOCATE);
+    const int ENTITIES_TO_RESERVE = 10000;
+    registry->reserve_pools(100);
+    registry->reserve(ENTITIES_TO_RESERVE);
 
-    registry->reserve<UIComponent::ElementInfo>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Relation>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Root>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Transform>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::TransformEvents>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::SortKey>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::ElementInfo>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::Relation>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::Root>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::Transform>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::TransformEvents>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::SortKey>(ENTITIES_TO_RESERVE);
 
-    registry->reserve<UIComponent::Renderable>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Text>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::TextEventStyles>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Image>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::ImageEventStyles>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Renderable>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::Text>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::TextEventStyles>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::Image>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::ImageEventStyles>(ENTITIES_TO_RESERVE);
 
-    registry->reserve<UIComponent::Collision>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Collidable>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Visibility>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Visible>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Collision, UIComponent::Collidable>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::Visibility, UIComponent::Visible>(ENTITIES_TO_RESERVE);
 
-    registry->reserve<UIComponent::NotCulled>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::NotCulled>(ENTITIES_TO_RESERVE);
 
-    registry->reserve<UIComponent::Dirty>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::BoundsDirty>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::SortKeyDirty>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::Destroy>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::Dirty>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::BoundsDirty>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::SortKeyDirty>(ENTITIES_TO_RESERVE);
 
-    registry->reserve<UIComponent::InputField>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Checkbox>(ENTITIES_TO_PREALLOCATE);
-    registry->reserve<UIComponent::Slider>(ENTITIES_TO_PREALLOCATE);
+    registry->reserve<UIComponent::InputField>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::Checkbox>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::Slider>(ENTITIES_TO_RESERVE);
 
     UIInput::RegisterCallbacks();
 }
