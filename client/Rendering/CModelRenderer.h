@@ -2,6 +2,9 @@
 #include <NovusTypes.h>
 
 #include <Utils/StringUtils.h>
+#include <Utils/ConcurrentQueue.h>
+#include <Memory/BufferRangeAllocator.h>
+
 #include <Renderer/Descriptors/ImageDesc.h>
 #include <Renderer/Descriptors/DepthImageDesc.h>
 #include <Renderer/Descriptors/TextureDesc.h>
@@ -66,6 +69,8 @@ public:
         std::string debugName = "";
 
         u32 cullingDataID = std::numeric_limits<u32>().max();
+        u32 numBones = 0;
+        bool isAnimated = false;
 
         u32 numOpaqueDrawCalls = 0;
         std::vector<DrawCall> opaqueDrawCallTemplates;
@@ -79,6 +84,44 @@ public:
     struct Instance
     {
         mat4x4 instanceMatrix;
+        
+        u32 modelId = 0;
+        u32 boneDeformOffset;
+        u32 boneInstanceDataOffset;
+        u16 editorSequenceId; // This is used by the editor to display the sequenceId we want to play.
+        u16 editorIsLoop; // This is used by the editor to display if the animation we want to play should looping.
+
+        /*u32 modelId = 0;
+        u32 activeSequenceId = 0;
+        f32 animProgress = 0.0f;
+        u32 boneDeformOffset = 0;*/
+    };
+
+    struct AnimationBoneInstance
+    {
+        enum AnimateState
+        {
+            STOPPED,
+            PLAY_ONCE,
+            PLAY_LOOP
+        };
+        f32 animationProgress = 0.f;
+        u32 sequenceIndex = 0;
+        u32 animationframeIndex = 0;
+        u32 animateState = 0; // 0 == STOPPED, 1 == PLAY_ONCE, 2 == PLAY_LOOP
+    };
+
+    struct AnimationRequest
+    {
+        struct Flags
+        {
+            u32 isPlaying : 1;
+            u32 isLooping : 1;
+        };
+        u32 instanceId = 0;
+        u32 sequenceId = 0;
+
+        Flags flags;
     };
 
 public:
@@ -87,7 +130,7 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddComplexModelPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID occlusionPyramid, u8 frameIndex);
+    void AddComplexModelPass(Renderer::RenderGraph* renderGraph, const Renderer::DescriptorSet* globalDescriptorSet, const Renderer::DescriptorSet* debugDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID occlusionPyramid, u8 frameIndex);
 
     void RegisterLoadFromChunk(u16 chunkID, const Terrain::Chunk& chunk, StringTable& stringTable);
     void ExecuteLoad();
@@ -98,8 +141,18 @@ public:
     const std::vector<DrawCallData>& GetTransparentDrawCallData() { return _transparentDrawCallDatas; }
     const std::vector<LoadedComplexModel>& GetLoadedComplexModels() { return _loadedComplexModels; }
     const std::vector<Instance>& GetInstances() { return _instances; }
+    Instance& GetInstance(size_t index) { return _instances[index]; }
     const std::vector<Terrain::PlacementDetails>& GetPlacementDetails() { return _complexModelPlacementDetails; }
     const std::vector<CModel::CullingData>& GetCullingData() { return _cullingDatas; }
+
+    void AddAnimationRequest(AnimationRequest request)
+    {
+        _animationRequests.enqueue(request);
+    }
+    u32 GetNumSequencesForModelId(u32 modelId)
+    {
+        return _animationModelInfo[modelId].numSequences;
+    }
 
     u32 GetChunkPlacementDetailsOffset(u16 chunkID) { return _mapChunkToPlacementOffset[chunkID]; }
     u32 GetNumLoadedCModels() { return static_cast<u32>(_loadedComplexModels.size()); }
@@ -142,6 +195,77 @@ private:
         u16 materialType = 0; // Shader ID
         u32 textureIds[2] = { CMODEL_INVALID_TEXTURE_ID, CMODEL_INVALID_TEXTURE_ID };
         u32 pad;
+    };
+
+    struct AnimationModelInfo
+    {
+        u16 numSequences = 0;
+        u16 numBones = 0;
+
+        u32 sequenceOffset = 0;
+        u32 boneInfoOffset = 0;
+        u32 padding = 0;
+    };
+
+    struct AnimationSequence
+    {
+        u16 animationId = 0;
+        u16 animationSubId = 0;
+        u16 nextSubAnimationId = 0;
+        u16 nextAliasId = 0;
+
+        u32 flags = 0;
+
+        f32 duration = 0.f;
+
+        u16 repeatMin = 0;
+        u16 repeatMax = 0;
+
+        u16 blendTimeStart = 0;
+        u16 blendTimeEnd = 0;
+
+        u64 padding = 0;
+    };
+
+    struct AnimationBoneInfo
+    {
+        u16 numTranslationSequences = 0;
+        u16 numRotationSequences = 0;
+        u16 numScaleSequences = 0;
+
+        i16 parentBoneId = 0;
+
+        u32 translationSequenceOffset = 0;
+        u32 rotationSequenceOffset = 0;
+        u32 scaleSequenceOffset = 0;
+
+        struct Flags
+        {
+            u32 animate : 1;
+            u32 isTranslationTrackGlobalSequence : 1;
+            u32 isRotationTrackGlobalSequence : 1;
+            u32 isScaleTrackGlobalSequence : 1;
+        } flags;
+
+        f32 pivotPointX = 0.f;
+        f32 pivotPointY = 0.f;
+        f32 pivotPointZ = 0.f;
+
+        u32 padding0;
+        u32 padding1;
+        u32 padding2;
+    };
+
+    struct AnimationTrackInfo
+    {
+        u16 sequenceIndex = 0;
+        u16 padding = 0;
+
+        u16 numTimestamps = 0;
+        u16 numValues = 0;
+
+        u32 timestampOffset = 0;
+        u32 valueOffset = 0;
     };
 
     struct RenderBatch
@@ -196,6 +320,7 @@ private:
     Renderer::Renderer* _renderer;
 
     Renderer::SamplerID _sampler;
+    Renderer::DescriptorSet _animationPrepassDescriptorSet;
     Renderer::DescriptorSet _cullingDescriptorSet;
     Renderer::DescriptorSet _sortingDescriptorSet;
     Renderer::DescriptorSet _passDescriptorSet;
@@ -212,9 +337,22 @@ private:
 
     std::vector<CModel::ComplexVertex> _vertices;
     std::vector<u16> _indices;
-    std::vector<TextureUnit> _textureUnits;
+    std::vector<TextureUnit> _textureUnits;;
     std::vector<Instance> _instances;
+    std::vector<BufferRangeFrame> _instanceBoneDeformRangeFrames;
+    std::vector<BufferRangeFrame> _instanceBoneInstanceRangeFrames;
     std::vector<CModel::CullingData> _cullingDatas;
+
+    std::vector<AnimationSequence> _animationSequence;
+    std::vector<AnimationModelInfo> _animationModelInfo;
+    std::vector<AnimationBoneInfo> _animationBoneInfo;
+    std::vector<AnimationBoneInstance> _animationBoneInstances;
+    std::vector<AnimationTrackInfo> _animationTrackInfo;
+    std::vector<u32> _animationTrackTimestamps;
+    std::vector<vec4> _animationTrackValues;
+    BufferRangeAllocator _animationBoneDeformRangeAllocator;
+    BufferRangeAllocator _animationBoneInstancesRangeAllocator;
+    moodycamel::ConcurrentQueue<AnimationRequest> _animationRequests;
 
     std::vector<DrawCall> _opaqueDrawCalls;
     std::vector<DrawCallData> _opaqueDrawCallDatas;
@@ -227,6 +365,19 @@ private:
     Renderer::BufferID _textureUnitBuffer;
     Renderer::BufferID _instanceBuffer;
     Renderer::BufferID _cullingDataBuffer;
+    Renderer::BufferID _visibleInstanceMaskBuffer;
+    Renderer::BufferID _visibleInstanceCountBuffer;
+    Renderer::BufferID _visibleInstanceIndexBuffer;
+    Renderer::BufferID _visibleInstanceCountArgumentBuffer32;
+
+    Renderer::BufferID _animationSequenceBuffer;
+    Renderer::BufferID _animationModelInfoBuffer;
+    Renderer::BufferID _animationBoneInfoBuffer;
+    Renderer::BufferID _animationBoneDeformMatrixBuffer;
+    Renderer::BufferID _animationBoneInstancesBuffer;
+    Renderer::BufferID _animationTrackInfoBuffer;
+    Renderer::BufferID _animationTrackTimestampBuffer;
+    Renderer::BufferID _animationTrackValueBuffer;
 
     Renderer::BufferID _opaqueDrawCallBuffer;
     Renderer::BufferID _opaqueCulledDrawCallBuffer;

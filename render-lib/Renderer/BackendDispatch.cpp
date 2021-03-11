@@ -27,6 +27,7 @@
 #include "Commands/CopyImage.h"
 #include "Commands/CopyBuffer.h"
 #include "Commands/FillBuffer.h"
+#include "Commands/UpdateBuffer.h"
 #include "Commands/PipelineBarrier.h"
 #include "Commands/ImageBarrier.h"
 #include "Commands/DepthImageBarrier.h"
@@ -234,6 +235,13 @@ namespace Renderer
         ZoneScopedC(tracy::Color::Red3);
         const Commands::FillBuffer* actualData = static_cast<const Commands::FillBuffer*>(data);
         renderer->FillBuffer(commandList, actualData->dstBuffer, actualData->dstBufferOffset, actualData->size, actualData->data);
+    }
+
+    void BackendDispatch::UpdateBuffer(Renderer* renderer, CommandListID commandList, const void* data)
+    {
+        ZoneScopedC(tracy::Color::Red3);
+        const Commands::UpdateBuffer* actualData = static_cast<const Commands::UpdateBuffer*>(data);
+        renderer->UpdateBuffer(commandList, actualData->dstBuffer, actualData->dstBufferOffset, actualData->size, actualData->data);
     }
 
     void BackendDispatch::PipelineBarrier(Renderer* renderer, CommandListID commandList, const void* data)

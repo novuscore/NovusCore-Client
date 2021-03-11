@@ -100,6 +100,7 @@ namespace Renderer
         void DepthImageBarrier(CommandListID commandListID, DepthImageID image) override;
         void PushConstant(CommandListID commandListID, void* data, u32 offset, u32 size) override;
         void FillBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, u32 data) override;
+        void UpdateBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, void* data) override;
 
         // Non-commandlist based present functions
         void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;
