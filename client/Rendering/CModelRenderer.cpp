@@ -926,9 +926,9 @@ void CModelRenderer::CreatePermanentResources()
     //modelToBeLoaded.name = new std::string("Creature/LichKingMurloc/LichKingMurloc.cmodel");
     //modelToBeLoaded.name = new std::string("World/SkillActivated/CONTAINERS/TreasureChest01.cmodel");
 
-    for (u32 x = 0; x < 100; x++)
+    for (u32 x = 0; x < 10; x++)
     {
-        for (u32 y = 0; y < 100; y++)
+        for (u32 y = 0; y < 10; y++)
         {
             ComplexModelToBeLoaded& modelToBeLoaded = _complexModelsToBeLoaded.emplace_back();
             {
