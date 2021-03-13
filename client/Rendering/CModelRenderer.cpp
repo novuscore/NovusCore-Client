@@ -1594,7 +1594,7 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
         {
             size_t currentBoneDeformMatrixSize = _animationBoneDeformRangeAllocator.Size();
             size_t newBoneDeformMatrixSize = static_cast<size_t>(static_cast<f64>(currentBoneDeformMatrixSize) * 1.25f);
-            newBoneDeformMatrixSize += newBoneDeformMatrixSize % sizeof(mat4x4) == 0;
+            newBoneDeformMatrixSize += newBoneDeformMatrixSize % sizeof(mat4x4);
 
             Renderer::BufferDesc desc;
             desc.name = "AnimationBoneDeformMatrixBuffer";
@@ -1619,7 +1619,7 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
         {
             size_t currentBoneInstanceSize = _animationBoneInstancesRangeAllocator.Size();
             size_t newBoneInstanceSize = static_cast<size_t>(static_cast<f64>(currentBoneInstanceSize) * 1.25f);
-            newBoneInstanceSize += newBoneInstanceSize % sizeof(AnimationBoneInstance) == 0;
+            newBoneInstanceSize += newBoneInstanceSize % sizeof(AnimationBoneInstance);
 
             Renderer::BufferDesc desc;
             desc.name = "AnimationBoneInstanceBuffer";
