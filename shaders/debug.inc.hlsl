@@ -84,3 +84,17 @@ void debugDrawAABB3D(float3 min, float3 max, uint color)
 	appendDebugLine(ctx, float3(max.x, min.y, max.z), float3(max.x, max.y, max.z), color);
 	appendDebugLine(ctx, float3(min.x, min.y, max.z), float3(min.x, max.y, max.z), color);
 }
+
+void debugDrawMatrix(float4x4 mat, float3 scale)
+{
+    DebugDrawContext ctx;
+    if (!beginDebugDrawing(ctx, 6))
+    {
+        return;
+    }
+
+    const float3 origin = mat[3].xyz;
+    appendDebugLine(ctx, origin, origin + (mat[0].xyz * scale), 0xff0000ff);
+    appendDebugLine(ctx, origin, origin + (mat[1].xyz * scale), 0x0000ff00);
+    appendDebugLine(ctx, origin, origin + (mat[2].xyz * scale), 0x00ff0000);
+}

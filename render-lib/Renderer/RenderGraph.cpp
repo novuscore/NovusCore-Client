@@ -123,6 +123,4 @@ namespace Renderer
             commandList.Execute();
         }
     }
-
-    
 }

@@ -1196,9 +1196,9 @@ namespace Renderer
             imageInfo.imageView = _imageHandler->GetColorView(imageID);
             builder->BindImage("_texture"_h, imageInfo);
 
-            VkDescriptorSet descriptorSet = builder->BuildDescriptor(0, Backend::DescriptorLifetime::PerFrame);
+            VkDescriptorSet descriptorSet = builder->BuildDescriptor(DescriptorSetSlot::GLOBAL, Backend::DescriptorLifetime::PerFrame);
 
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, DescriptorSetSlot::GLOBAL, 1, &descriptorSet, 0, nullptr);
 
             struct BlitConstant
             {
@@ -1293,6 +1293,14 @@ namespace Renderer
         VkBuffer vkDstBuffer = _bufferHandler->GetBuffer(dstBuffer);
 
         vkCmdFillBuffer(commandBuffer, vkDstBuffer, dstOffset, size, data);
+    }
+
+    void RendererVK::UpdateBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, void* data)
+    {
+        VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
+        VkBuffer vkDstBuffer = _bufferHandler->GetBuffer(dstBuffer);
+
+        vkCmdUpdateBuffer(commandBuffer, vkDstBuffer, dstOffset, size, data);
     }
 
     void* RendererVK::MapBuffer(BufferID buffer)

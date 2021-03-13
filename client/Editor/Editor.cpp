@@ -389,7 +389,8 @@ namespace Editor
 
         u32 loadedObjectIndex = cModelRenderer->GetModelIndexByDrawCallDataIndex(_selectedComplexModelData.drawCallDataID, _selectedComplexModelData.isOpaque);
         const CModelRenderer::LoadedComplexModel& loadedComplexModel = cModelRenderer->GetLoadedComplexModels()[loadedObjectIndex];
-        const mat4x4& instanceMatrix = cModelRenderer->GetInstances()[_selectedComplexModelData.instanceID].instanceMatrix;
+        CModelRenderer::Instance& instance = cModelRenderer->GetInstance(_selectedComplexModelData.instanceID);
+        const mat4x4& instanceMatrix = instance.instanceMatrix;
 
         glm::vec3 scale;
         glm::quat rotation;
@@ -406,6 +407,67 @@ namespace Editor
         ImGui::Text("Position: X: %.2f, Y: %.2f, Z: %.2f", translation.x, translation.y, translation.z);
         ImGui::Text("Scale: X: %.2f, Y: %.2f, Z: %.2f", scale.x, scale.y, scale.z);
         ImGui::Text("Rotation: X: %.2f, Y: %.2f, Z: %.2f", eulerAsDeg.x, eulerAsDeg.y, eulerAsDeg.z);
+
+        if (loadedComplexModel.isAnimated)
+        {
+            // Animation Shenanigans
+            {
+                ImGui::Separator();
+                ImGui::Separator();
+                ImGui::Text("Sequence Id: ");
+                ImGui::SameLine();
+
+                u32 numSequences = cModelRenderer->GetNumSequencesForModelId(instance.modelId);
+                u32 sequenceId = instance.editorSequenceId;
+                if (ImGui::InputInt("", reinterpret_cast<i32*>(&sequenceId), 1, 1, ImGuiInputTextFlags_CharsNoBlank))
+                {
+                    if (sequenceId < numSequences)
+                    {
+                        if (sequenceId < 0)
+                            sequenceId = 0;
+                        else
+                            sequenceId = glm::clamp(static_cast<i32>(sequenceId), 0, static_cast<i32>(numSequences - 1));
+                    }
+                    else
+                        sequenceId = 0;
+
+                    instance.editorSequenceId = sequenceId;
+                }
+
+                bool isLooping = instance.editorIsLoop;
+                if (ImGui::Checkbox("Loop", &isLooping))
+                    instance.editorIsLoop = isLooping;
+
+                if (ImGui::Button("Play"))
+                {
+                    if (sequenceId < numSequences)
+                    {
+                        CModelRenderer::AnimationRequest request;
+                        request.instanceId = _selectedComplexModelData.instanceID;
+                        request.sequenceId = sequenceId;
+                        request.flags.isLooping = isLooping;
+                        request.flags.isPlaying = true;
+
+                        cModelRenderer->AddAnimationRequest(request);
+                    }
+                }
+
+                ImGui::SameLine();
+                if (ImGui::Button("Stop"))
+                {
+                    if (sequenceId < numSequences)
+                    {
+                        CModelRenderer::AnimationRequest request;
+                        request.instanceId = _selectedComplexModelData.instanceID;
+                        request.sequenceId = sequenceId;
+                        request.flags.isLooping = false;
+                        request.flags.isPlaying = false;
+
+                        cModelRenderer->AddAnimationRequest(request);
+                    }
+                }
+            }
+        }
     }
 
     bool Editor::IsRayIntersectingAABB(const vec3& rayOrigin, const vec3& oneOverRayDir, const Geometry::AABoundingBox& aabb, f32& t)

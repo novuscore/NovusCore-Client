@@ -205,6 +205,7 @@ void DebugRenderer::AddDrawArgumentPass(Renderer::RenderGraph* renderGraph, u8 f
 			commandList.EndPipeline(pipeline);
 
 			commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _drawArgumentBuffer);
+			commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToVertexBuffer, _debugVertexBuffer);
 		});
 }
 

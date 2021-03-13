@@ -109,7 +109,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 
     //if (distance(_viewData.eye, (aabb.min + aabb.max) * 0.5) < 500)
     //{
-    //    debugDrawAABB3D(aabb.min, aabb.max, 0xff0000ff);
+        //debugDrawAABB3D(aabb.min, aabb.max, 0xff0000ff);
     //}
 
     uint outInstanceIndex;

@@ -672,7 +672,7 @@ void EngineLoop::DrawMapStats()
         selectedMap = mapNames[0];
 
     selectedMapToLower.resize(selectedMap->length());
-    std::transform(selectedMap->begin(), selectedMap->end(), selectedMapToLower.begin(), std::tolower);
+    std::transform(selectedMap->begin(), selectedMap->end(), selectedMapToLower.begin(), [](char c) { return std::tolower((int)c); });
 
     // Map Selection
     {
@@ -684,7 +684,7 @@ void EngineLoop::DrawMapStats()
         ImGui::InputText("Filter", &searchText);
 
         searchTextToLower.resize(searchText.length());
-        std::transform(searchText.begin(), searchText.end(), searchTextToLower.begin(), std::tolower);
+        std::transform(searchText.begin(), searchText.end(), searchTextToLower.begin(), [](char c) { return std::tolower((int)c); });
 
         bool hasFilter = searchText.length() != 0;
 
@@ -697,7 +697,7 @@ void EngineLoop::DrawMapStats()
             for (const std::string* mapName : mapNames)
             {
                 mapNameCopy.resize(mapName->length());
-                std::transform(mapName->begin(), mapName->end(), mapNameCopy.begin(), std::tolower);
+                std::transform(mapName->begin(), mapName->end(), mapNameCopy.begin(), [](char c) { return std::tolower((int)c); });
 
                 if (mapNameCopy.find(searchTextToLower) == std::string::npos)
                     continue;
@@ -729,7 +729,7 @@ void EngineLoop::DrawMapStats()
                     for (const std::string* mapName : mapNames)
                     {
                         mapNameCopy.resize(mapName->length());
-                        std::transform(mapName->begin(), mapName->end(), mapNameCopy.begin(), std::tolower);
+                        std::transform(mapName->begin(), mapName->end(), mapNameCopy.begin(), [](char c) { return std::tolower((int)c); });
 
                         if (mapNameCopy.find(searchTextToLower) == std::string::npos)
                             continue;
