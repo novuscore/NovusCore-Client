@@ -66,7 +66,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRendere
 
     //Reserve component space
     const int ENTITIES_TO_RESERVE = 10000;
-    registry->reserve_pools(100);
+    registry->reserve_pools(255);
     registry->reserve(ENTITIES_TO_RESERVE);
 
     registry->reserve<UIComponent::ElementInfo>(ENTITIES_TO_RESERVE);
