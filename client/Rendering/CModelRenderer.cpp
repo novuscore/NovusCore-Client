@@ -29,8 +29,6 @@
 #include "../Gameplay/Map/Map.h"
 #include "CVar/CVarSystem.h"
 
-#
-
 namespace fs = std::filesystem;
 
 AutoCVar_Int CVAR_ComplexModelCullingEnabled("complexModels.cullEnable", "enable culling of complex models", 1, CVarFlags::EditCheckbox);
@@ -38,6 +36,7 @@ AutoCVar_Int CVAR_ComplexModelSortingEnabled("complexModels.sortEnable", "enable
 AutoCVar_Int CVAR_ComplexModelLockCullingFrustum("complexModels.lockCullingFrustum", "lock frustrum for complex model culling", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_ComplexModelDrawBoundingBoxes("complexModels.drawBoundingBoxes", "draw bounding boxes for complex models", 0, CVarFlags::EditCheckbox);
 AutoCVar_Int CVAR_ComplexModelOcclusionCullEnabled("complexModels.occlusionCullEnable", "enable culling of complex models", 1, CVarFlags::EditCheckbox);
+AutoCVar_Int CVAR_ComplexModelPerInstanceAnimationEnabled("complexModels.perInstanceAnimation", "use per-instance animation instead of hierarcial", 1, CVarFlags::EditCheckbox);
 
 constexpr u32 BITONIC_BLOCK_SIZE = 1024;
 const u32 TRANSPOSE_BLOCK_SIZE = 16;
@@ -269,26 +268,31 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
         const u32 numTransparentDrawCalls = static_cast<u32>(_transparentDrawCalls.size());
 
         // clear visible instance counter
-        if (numOpaqueDrawCalls > 0 || numTransparentDrawCalls > 0)
+        if (numInstances > 0)
         {
             commandList.PushMarker("Clear instance visibility", Color::Grey);
-            commandList.FillBuffer(_visibleInstanceCountBuffer, 0, sizeof(u32), 0);
+            commandList.FillBuffer(_visibleInstanceCountBuffer, 0, sizeof(u32) * numInstances, 0);
             commandList.FillBuffer(_visibleInstanceMaskBuffer, 0, sizeof(u32) * ((numInstances + 31) / 32), 0);
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _visibleInstanceMaskBuffer);
             commandList.PopMarker();
         }
+
+        // Reset the counters
+        commandList.FillBuffer(_totalVisibleInstanceCountBuffer, 0, sizeof(u32), 0);
+        commandList.FillBuffer(_opaqueDrawCountBuffer, 0, 4, 0);
+        commandList.FillBuffer(_opaqueTriangleCountBuffer, 0, 4, 0);
+        commandList.FillBuffer(_transparentDrawCountBuffer, 0, 4, 0);
+        commandList.FillBuffer(_transparentTriangleCountBuffer, 0, 4, 0);
+
+        //commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _visibleInstanceMaskBuffer);
+        //commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _opaqueDrawCountBuffer);
+        //commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _opaqueTriangleCountBuffer);
+        //commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentDrawCountBuffer);
+        commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentTriangleCountBuffer);
 
         // Cull opaque
         if (cullingEnabled && numOpaqueDrawCalls > 0)
         {
             commandList.PushMarker("Opaque Culling", Color::Yellow);
-
-            // Reset the counters
-            commandList.FillBuffer(_opaqueDrawCountBuffer, 0, 4, 0);
-            commandList.FillBuffer(_opaqueTriangleCountBuffer, 0, 4, 0);
-
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _opaqueDrawCountBuffer);
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _opaqueTriangleCountBuffer);
 
             // Do culling
             Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(cullingPipelineDesc);
@@ -310,6 +314,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
             _cullingDescriptorSet.Bind("_instances", _instanceBuffer);
             _cullingDescriptorSet.Bind("_cullingDatas", _cullingDataBuffer);
             _cullingDescriptorSet.Bind("_visibleInstanceMask", _visibleInstanceMaskBuffer);
+            _cullingDescriptorSet.Bind("_visibleInstanceCount", _visibleInstanceCountBuffer);
 
             Renderer::SamplerDesc samplerDesc;
             samplerDesc.filter = Renderer::SamplerFilter::MINIMUM_MIN_MAG_MIP_LINEAR;
@@ -337,35 +342,13 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
 
             commandList.EndPipeline(pipeline);
 
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _opaqueCulledDrawCallBuffer);
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _opaqueDrawCountBuffer);
-
             commandList.PopMarker();
         }
-        else
-        {
-            // Reset the counter
-            commandList.FillBuffer(_opaqueDrawCountBuffer, 0, 4, numOpaqueDrawCalls);
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _opaqueDrawCountBuffer);
-        }
-
-        // Copy _transparentDrawCallBuffer into _transparentCulledDrawCallBuffer
-        //u32 copySize = numTransparentDrawCalls * sizeof(DrawCall);
-        //commandList.CopyBuffer(_transparentCulledDrawCallBuffer, 0, _transparentDrawCallBuffer, 0, copySize);
 
         // Cull transparent
         if (cullingEnabled && numTransparentDrawCalls > 0)
         {
-            //commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentCulledDrawCallBuffer);
-
             commandList.PushMarker("Transparent Culling", Color::Yellow);
-
-            // Reset the counters
-            commandList.FillBuffer(_transparentDrawCountBuffer, 0, 4, 0);
-            commandList.FillBuffer(_transparentTriangleCountBuffer, 0, 4, 0);
-
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentDrawCountBuffer);
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToComputeShaderRW, _transparentTriangleCountBuffer);
 
             // Do culling
             Renderer::ComputeShaderDesc shaderDesc;
@@ -391,6 +374,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
             _cullingDescriptorSet.Bind("_instances", _instanceBuffer);
             _cullingDescriptorSet.Bind("_cullingDatas", _cullingDataBuffer);
             _cullingDescriptorSet.Bind("_visibleInstanceMask", _visibleInstanceMaskBuffer);
+            _cullingDescriptorSet.Bind("_visibleInstanceCount", _visibleInstanceCountBuffer);
 
             _cullingDescriptorSet.Bind("_sortKeys", _transparentSortKeys);
             _cullingDescriptorSet.Bind("_sortValues", _transparentSortValues);
@@ -404,86 +388,11 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
 
             commandList.PopMarker();
         }
-        else
-        {
-            // Reset the counter
-            commandList.FillBuffer(_transparentDrawCountBuffer, 0, 4, numTransparentDrawCalls);
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _transparentDrawCountBuffer);
-        }
 
-        // Compact visible instance IDs
-        {
-            commandList.PushMarker("Visible Instance Compaction", Color::Grey);
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _visibleInstanceMaskBuffer);
-
-            Renderer::ComputePipelineDesc compactPipelineDesc;
-            resources.InitializePipelineDesc(compactPipelineDesc);
-
-            Renderer::ComputeShaderDesc shaderDesc;
-            shaderDesc.path = "compactVisibleInstances.cs.hlsl";
-            compactPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
-
-            Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(compactPipelineDesc);
-
-            Renderer::DescriptorSet descriptorSet;
-            descriptorSet.Bind("_visibleInstanceMask", _visibleInstanceMaskBuffer);
-            descriptorSet.Bind("_visibleInstanceCount", _visibleInstanceCountBuffer);
-            descriptorSet.Bind("_visibleInstanceIDs", _visibleInstanceIndexBuffer);
-
-            commandList.BeginPipeline(pipeline);
-            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &descriptorSet, frameIndex);
-            commandList.Dispatch((numInstances + 31) / 32, 1, 1);
-            commandList.EndPipeline(pipeline);
-
-            commandList.PopMarker();
-        }
-
-        {
-            commandList.PushMarker("Visible Instance Arguments", Color::Grey);
-
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _visibleInstanceCountBuffer);
-
-            Renderer::ComputePipelineDesc createArgumentsPipelineDesc;
-            resources.InitializePipelineDesc(createArgumentsPipelineDesc);
-
-            Renderer::ComputeShaderDesc shaderDesc;
-            shaderDesc.path = "Utils/dispatchArguments1D.cs.hlsl";
-            createArgumentsPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
-
-            Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(createArgumentsPipelineDesc);
-
-            Renderer::DescriptorSet descriptorSet;
-            descriptorSet.Bind("_source", _visibleInstanceCountBuffer);
-            descriptorSet.Bind("_target", _visibleInstanceCountArgumentBuffer32);
-
-            struct PushConstants
-            {
-                u32 sourceByteOffset;
-                u32 targetByteOffset;
-                u32 threadGroupSize;
-            } constants;
-
-            constants.sourceByteOffset = 0;
-            constants.targetByteOffset = 0;
-            constants.threadGroupSize = 32;
-
-            commandList.BeginPipeline(pipeline);
-            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &descriptorSet, frameIndex);
-            commandList.PushConstant(&constants, 0, sizeof(PushConstants));
-            commandList.Dispatch(1, 1, 1);
-            commandList.EndPipeline(pipeline);
-
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _visibleInstanceCountArgumentBuffer32);
-
-            commandList.PopMarker();
-        }
-
-        // Set Animation Prepass Pipeline
+        // Animation prepass
         if (numOpaqueDrawCalls > 0 || numTransparentDrawCalls > 0)
         {
             commandList.PushMarker("Animation Prepass", Color::Cyan);
-
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _visibleInstanceIndexBuffer);
 
             Renderer::ComputePipelineDesc animationprepassPipelineDesc;
             resources.InitializePipelineDesc(animationprepassPipelineDesc);
@@ -514,8 +423,6 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
                 commandList.PushConstant(deltaTimeConstant, 0, sizeof(AnimationConstants));
             }
 
-            _animationPrepassDescriptorSet.Bind("_visibleInstanceCount", _visibleInstanceCountBuffer);
-            _animationPrepassDescriptorSet.Bind("_visibleInstanceIndices", _visibleInstanceIndexBuffer);
             _animationPrepassDescriptorSet.Bind("_instances", _instanceBuffer);
             _animationPrepassDescriptorSet.Bind("_animationSequence", _animationSequenceBuffer);
             _animationPrepassDescriptorSet.Bind("_animationModelInfo", _animationModelInfoBuffer);
@@ -529,22 +436,168 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::DEBUG, debugDescriptorSet, frameIndex);
             commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_animationPrepassDescriptorSet, frameIndex);
 
-            commandList.DispatchIndirect(_visibleInstanceCountArgumentBuffer32, 0);
+            commandList.Dispatch((numInstances + 31) / 32, 1, 1);
 
             commandList.EndPipeline(pipeline);
-
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _instanceBuffer);
-            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToVertexShaderRead, _animationBoneDeformMatrixBuffer);
 
             commandList.PopMarker();
         }
 
-        // Set Opaque Pipeline
+        commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _visibleInstanceMaskBuffer);
+
+        // Compact visible instance IDs
+        {
+            commandList.PushMarker("Visible Instance Compaction", Color::Grey);
+
+            Renderer::ComputePipelineDesc compactPipelineDesc;
+            resources.InitializePipelineDesc(compactPipelineDesc);
+
+            Renderer::ComputeShaderDesc shaderDesc;
+            shaderDesc.path = "compactVisibleInstances.cs.hlsl";
+            compactPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
+
+            Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(compactPipelineDesc);
+
+            Renderer::DescriptorSet descriptorSet;
+            descriptorSet.Bind("_visibleInstanceMask", _visibleInstanceMaskBuffer);
+            descriptorSet.Bind("_visibleInstanceCount", _totalVisibleInstanceCountBuffer);
+            descriptorSet.Bind("_visibleInstanceIDs", _visibleInstanceIndexBuffer);
+
+            commandList.BeginPipeline(pipeline);
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &descriptorSet, frameIndex);
+            commandList.Dispatch((numInstances + 31) / 32, 1, 1);
+            commandList.EndPipeline(pipeline);
+
+            commandList.PopMarker();
+        }
+
+        commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _totalVisibleInstanceCountBuffer);
+
+        if (CVAR_ComplexModelPerInstanceAnimationEnabled.Get())
+        {
+            // Per-instance dispatch
+            commandList.PushMarker("Animation (Per-Instance)", Color::Cyan);
+
+            // Create dispatch command from visible instance count
+            {
+                commandList.PushMarker("Visible Instance Arguments", Color::Grey);
+
+                Renderer::ComputePipelineDesc createArgumentsPipelineDesc;
+                resources.InitializePipelineDesc(createArgumentsPipelineDesc);
+
+                Renderer::ComputeShaderDesc shaderDesc;
+                shaderDesc.path = "Utils/dispatchArguments1D.cs.hlsl";
+                createArgumentsPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
+
+                Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(createArgumentsPipelineDesc);
+
+                Renderer::DescriptorSet descriptorSet;
+                descriptorSet.Bind("_source", _totalVisibleInstanceCountBuffer);
+                descriptorSet.Bind("_target", _totalVisibleInstanceCountArgumentBuffer32);
+
+                struct PushConstants
+                {
+                    u32 sourceByteOffset;
+                    u32 targetByteOffset;
+                    u32 threadGroupSize;
+                } constants;
+
+                constants.sourceByteOffset = 0;
+                constants.targetByteOffset = 0;
+                constants.threadGroupSize = 32;
+
+                commandList.BeginPipeline(pipeline);
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_DRAW, &descriptorSet, frameIndex);
+                commandList.PushConstant(&constants, 0, sizeof(PushConstants));
+                commandList.Dispatch(1, 1, 1);
+                commandList.EndPipeline(pipeline);
+
+                commandList.PopMarker();
+            }
+
+            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _animationBoneInstancesBuffer);
+            //commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _totalVisibleInstanceCountBuffer);
+            //commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, _visibleInstanceIndexBuffer);
+            commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _totalVisibleInstanceCountArgumentBuffer32);
+
+            // Animate
+            {
+                commandList.PushMarker("Animate", Color::Cyan);
+
+                Renderer::ComputePipelineDesc animationPipelineDesc;
+                resources.InitializePipelineDesc(animationPipelineDesc);
+
+                {
+                    Renderer::ComputeShaderDesc shaderDesc;
+                    shaderDesc.path = "animateInstance.cs.hlsl";
+                    animationPipelineDesc.computeShader = _renderer->LoadShader(shaderDesc);
+                }
+
+                Renderer::ComputePipelineID pipeline = _renderer->CreatePipeline(animationPipelineDesc);
+                commandList.BeginPipeline(pipeline);
+
+                //entt::registry* registry = ServiceLocator::GetGameRegistry();
+                //TimeSingleton& timeSingleton = registry->ctx<TimeSingleton>();
+
+                //struct AnimationConstants
+                //{
+                //    u32 numInstances;
+                //    f32 deltaTime;
+                //};
+                //
+                //AnimationConstants* deltaTimeConstant = resources.FrameNew<AnimationConstants>();
+                //{
+                //    deltaTimeConstant->numInstances = numInstances;
+                //    deltaTimeConstant->deltaTime = timeSingleton.deltaTime;
+                //
+                //    commandList.PushConstant(deltaTimeConstant, 0, sizeof(AnimationConstants));
+                //}
+
+                Renderer::DescriptorSet descriptorSet;
+                descriptorSet.Bind("_visibleInstanceCount", _totalVisibleInstanceCountBuffer);
+                descriptorSet.Bind("_visibleInstanceIndices", _visibleInstanceIndexBuffer);
+                descriptorSet.Bind("_instances", _instanceBuffer);
+                descriptorSet.Bind("_animationSequence", _animationSequenceBuffer);
+                descriptorSet.Bind("_animationModelInfo", _animationModelInfoBuffer);
+                descriptorSet.Bind("_animationBoneInfo", _animationBoneInfoBuffer);
+                descriptorSet.Bind("_animationBoneDeformMatrix", _animationBoneDeformMatrixBuffer);
+                descriptorSet.Bind("_animationBoneInstances", _animationBoneInstancesBuffer);
+                descriptorSet.Bind("_animationTrackInfo", _animationTrackInfoBuffer);
+                descriptorSet.Bind("_animationTrackTimestamp", _animationTrackTimestampBuffer);
+                descriptorSet.Bind("_animationTrackValue", _animationTrackValueBuffer);
+
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::DEBUG, debugDescriptorSet, frameIndex);
+                commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &descriptorSet, frameIndex);
+
+                commandList.DispatchIndirect(_totalVisibleInstanceCountArgumentBuffer32, 0);
+
+                commandList.EndPipeline(pipeline);
+
+                commandList.PopMarker();
+            }
+
+            commandList.PopMarker();
+        }
+        else
+        {
+            // Hierarchical dispatch
+            commandList.PushMarker("Animation (Hierarchical)", Color::Cyan);
+
+            // todo
+
+            commandList.PopMarker();
+        }
+
+        commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _opaqueCulledDrawCallBuffer);
+        commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, _opaqueDrawCountBuffer);
+
+        commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToVertexShaderRead, _animationBoneDeformMatrixBuffer);
+
+        // Draw opaque
         if (numOpaqueDrawCalls > 0)
         {
             commandList.PushMarker("Opaque " + std::to_string(numOpaqueDrawCalls), Color::White);
 
-            // Draw
             Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
             commandList.BeginPipeline(pipeline);
 
@@ -581,7 +634,7 @@ void CModelRenderer::AddComplexModelPass(Renderer::RenderGraph* renderGraph, con
             commandList.PopMarker();
         }
 
-        // Set Transparent Pipeline
+        // Draw transparent
         if (numTransparentDrawCalls > 0)
         {
             commandList.PushMarker("Transparent " + std::to_string(numTransparentDrawCalls), Color::White);
@@ -921,11 +974,32 @@ void CModelRenderer::CreatePermanentResources()
         _animationBoneInstancesRangeAllocator.Init(0, boneInstanceBufferSize);
     }
 
+    {
+        const size_t boneCountBufferSize = sizeof(u8) * 32 * 1024;
+
+        Renderer::BufferDesc desc;
+        desc.name = "AnimationHierarchyBoneCountBuffer";
+        desc.size = boneCountBufferSize;
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_SOURCE | Renderer::BufferUsage::TRANSFER_DESTINATION;
+        _animationHierarchyBoneCountBuffer = _renderer->CreateBuffer(desc);
+
+        _animationHierarchyBoneCountRangeAllocator.Init(0, boneCountBufferSize);
+    }
+
     //modelToBeLoaded.name = new std::string("Creature/Snake/Snake.cmodel");
     //modelToBeLoaded.name = new std::string("Creature/Murloc/Murloc.cmodel");
     //modelToBeLoaded.name = new std::string("Creature/LichKingMurloc/LichKingMurloc.cmodel");
     //modelToBeLoaded.name = new std::string("World/SkillActivated/CONTAINERS/TreasureChest01.cmodel");
 
+    const std::string* modelNames[] = {
+        new std::string("Creature/Snake/Snake.cmodel"),
+        new std::string("Creature/Murloc/Murloc.cmodel"),
+        //new std::string("Creature/LichKingMurloc/LichKingMurloc.cmodel"),
+        new std::string("World/SkillActivated/CONTAINERS/TreasureChest01.cmodel"),
+        new std::string("Creature/DruidCat/DruidCat.cmodel"),
+    };
+
+    u32 i = 0;
     for (u32 x = 0; x < 10; x++)
     {
         for (u32 y = 0; y < 10; y++)
@@ -936,9 +1010,11 @@ void CModelRenderer::CreatePermanentResources()
                 placement->position = vec3(x * 3.f, y * 3.f, 0.f);
 
                 modelToBeLoaded.placement = placement;
-                modelToBeLoaded.name = new std::string("Creature/DruidCat/DruidCat.cmodel");
+                modelToBeLoaded.name = modelNames[i % _countof(modelNames)];
                 modelToBeLoaded.nameHash = x + (y * 10);
             }
+
+            i++;
         }
     }
 
@@ -962,6 +1038,7 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
     TextureSingleton& textureSingleton = registry->ctx<TextureSingleton>();
 
     AnimationModelInfo& animationModelInfo = _animationModelInfo.emplace_back();
+    BufferRangeFrame& boneCountBufferFrame = _animationModelBoneCountFrames.emplace_back();
 
     // Add Sequences
     {
@@ -1148,6 +1225,39 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
             boneInfo.pivotPointZ = bone.pivot.z;
         }
 
+        u8 boneHierarchyDepth[256];
+        memset(boneHierarchyDepth, 0, sizeof(boneHierarchyDepth));
+
+        u8 hierarchyBoneCount[256];
+        memset(hierarchyBoneCount, 0, sizeof(hierarchyBoneCount));
+
+        u8 hierarchyDepth = 0;
+        for (u32 i = 0; i < numBonesToAdd; i++)
+        {
+            const AnimationBoneInfo& bone = _animationBoneInfo[numBoneInfoBefore + i];
+
+            u8 depth = 0;
+            if (bone.parentBoneId != -1)
+            {
+                depth = boneHierarchyDepth[bone.parentBoneId] + 1;
+            }
+
+            hierarchyBoneCount[depth]++;
+            boneHierarchyDepth[i] = depth;
+
+            hierarchyDepth = std::max(hierarchyDepth, depth);
+        }
+
+        hierarchyDepth += 1;
+        animationModelInfo.hierarchyDepth = hierarchyDepth;
+
+        if (!_animationHierarchyBoneCountRangeAllocator.Allocate(sizeof(u8) * hierarchyDepth, boneCountBufferFrame))
+        {
+            DebugHandler::PrintFatal("Buffer range allocator out of space.");
+        }
+
+        animationModelInfo.hierarchyBoneCountOffset = static_cast<u32>(boneCountBufferFrame.offset);
+
         // We also need to account for the possibility that a model comes with no included values due to the values being found in a separate '.anim' file
         complexModel.isAnimated = complexModel.numBones > 0 && numSequences > 0 && numTracksWithValues > 0;
     }
@@ -1242,7 +1352,8 @@ bool CModelRenderer::LoadComplexModel(ComplexModelToBeLoaded& toBeLoaded, Loaded
                         Renderer::TextureDesc textureDesc;
                         //textureDesc.path = modelTexturePath.replace_filename("SahauginskinBlue.dds").string();
                         //textureDesc.path = modelTexturePath.replace_filename("SnakeSkinBlack.dds").string();
-                        textureDesc.path = modelTexturePath.replace_filename("druidcatskinpurple.dds").string();
+                        //textureDesc.path = modelTexturePath.replace_filename("druidcatskinpurple.dds").string();
+                        textureDesc.path = "Data/extracted/Textures/Creature/Snake/SnakeSkinBlack.dds";
                         _renderer->LoadTextureIntoArray(textureDesc, _cModelTextures, textureUnit.textureIds[t]);
                     }
                 }
@@ -1634,7 +1745,7 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
             _animationBoneInstancesBuffer = newBoneInstanceBuffer;
             _animationBoneInstancesRangeAllocator.Grow(newBoneInstanceSize);
 
-            if (!_animationBoneInstancesRangeAllocator.Allocate(numBones * sizeof(mat4x4), boneInstanceRangeFrame))
+            if (!_animationBoneInstancesRangeAllocator.Allocate(numBones * sizeof(AnimationBoneInstance), boneInstanceRangeFrame))
             {
                 DebugHandler::PrintFatal("Failed to allocate '_animationBoneInstancesBuffer' to appropriate size");
             }
@@ -2317,14 +2428,19 @@ void CModelRenderer::CreateBuffers()
         }
     }
 
+    if (_visibleInstanceCountBuffer != Renderer::BufferID::Invalid())
+    {
+        _renderer->QueueDestroyBuffer(_visibleInstanceCountBuffer);
+    }
+
     if (_visibleInstanceMaskBuffer != Renderer::BufferID::Invalid())
     {
         _renderer->QueueDestroyBuffer(_visibleInstanceMaskBuffer);
     }
 
-    if (_visibleInstanceCountBuffer != Renderer::BufferID::Invalid())
+    if (_totalVisibleInstanceCountBuffer != Renderer::BufferID::Invalid())
     {
-        _renderer->QueueDestroyBuffer(_visibleInstanceCountBuffer);
+        _renderer->QueueDestroyBuffer(_totalVisibleInstanceCountBuffer);
     }
 
     if (_visibleInstanceIndexBuffer != Renderer::BufferID::Invalid())
@@ -2332,11 +2448,18 @@ void CModelRenderer::CreateBuffers()
         _renderer->QueueDestroyBuffer(_visibleInstanceIndexBuffer);
     }
 
-    if (_visibleInstanceCountArgumentBuffer32 != Renderer::BufferID::Invalid())
+    if (_totalVisibleInstanceCountArgumentBuffer32 != Renderer::BufferID::Invalid())
     {
-        _renderer->QueueDestroyBuffer(_visibleInstanceCountArgumentBuffer32);
+        _renderer->QueueDestroyBuffer(_totalVisibleInstanceCountArgumentBuffer32);
     }
 
+    {
+        Renderer::BufferDesc desc;
+        desc.name = "CModelVisibleInstanceCountBuffer";
+        desc.size = sizeof(u32) * _instances.size();
+        desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
+        _visibleInstanceCountBuffer = _renderer->CreateBuffer(desc);
+    }
     {
         Renderer::BufferDesc desc;
         desc.name = "CModelVisibleInstanceMaskBuffer";
@@ -2346,10 +2469,10 @@ void CModelRenderer::CreateBuffers()
     }
     {
         Renderer::BufferDesc desc;
-        desc.name = "CModelVisibleInstanceCountBuffer";
+        desc.name = "CModelTotalVisibleInstanceCountBuffer";
         desc.size = sizeof(u32);
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _visibleInstanceCountBuffer = _renderer->CreateBuffer(desc);
+        _totalVisibleInstanceCountBuffer = _renderer->CreateBuffer(desc);
     }
     {
         Renderer::BufferDesc desc;
@@ -2360,9 +2483,9 @@ void CModelRenderer::CreateBuffers()
     }
     {
         Renderer::BufferDesc desc;
-        desc.name = "CModelVisibleInstanceIndexBuffer";
+        desc.name = "CModelTotalVisibleInstanceCountArgumentBuffer32";
         desc.size = sizeof(VkDispatchIndirectCommand);
         desc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::STORAGE_BUFFER;
-        _visibleInstanceCountArgumentBuffer32 = _renderer->CreateBuffer(desc);
+        _totalVisibleInstanceCountArgumentBuffer32 = _renderer->CreateBuffer(desc);
     }
 }
