@@ -10,15 +10,10 @@ struct Constants
 
 // Inputs
 [[vk::push_constant]] Constants _constants;
-[[vk::binding(3, PER_PASS)]] RWStructuredBuffer<InstanceData> _instances;
-[[vk::binding(4, PER_PASS)]] StructuredBuffer<AnimationSequence> _animationSequence;
-[[vk::binding(5, PER_PASS)]] StructuredBuffer<AnimationModelInfo> _animationModelInfo;
-[[vk::binding(6, PER_PASS)]] StructuredBuffer<AnimationBoneInfo> _animationBoneInfo;
-[[vk::binding(7, PER_PASS)]] RWStructuredBuffer<float4x4> _animationBoneDeformMatrix;
-[[vk::binding(8, PER_PASS)]] RWStructuredBuffer<AnimationBoneInstanceData> _animationBoneInstances;
-[[vk::binding(9, PER_PASS)]] StructuredBuffer<AnimationTrackInfo> _animationTrackInfo;
-[[vk::binding(10, PER_PASS)]] StructuredBuffer<uint> _animationTrackTimestamp;
-[[vk::binding(11, PER_PASS)]] StructuredBuffer<float4> _animationTrackValue;
+[[vk::binding(0, PER_PASS)]] RWStructuredBuffer<InstanceData> _instances;
+[[vk::binding(1, PER_PASS)]] StructuredBuffer<AnimationSequence> _animationSequence;
+[[vk::binding(2, PER_PASS)]] StructuredBuffer<AnimationModelInfo> _animationModelInfo;
+[[vk::binding(3, PER_PASS)]] RWStructuredBuffer<AnimationBoneInstanceData> _animationBoneInstances;
 
 void UpdateBone(inout AnimationBoneInstanceData bone, in AnimationSequence sequence)
 {
