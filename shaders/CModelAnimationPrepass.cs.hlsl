@@ -58,21 +58,6 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     {
         AnimationBoneInstanceData boneInstance = _animationBoneInstances[instanceData.boneInstanceDataOffset + i];
 
-        // If we aren't animating, assume parentBoneMatrix or Identity
-        /*if (boneInstance.animateState == 0)
-        {
-            const AnimationBoneInfo boneInfo = _animationBoneInfo[modelInfo.boneInfoOffset + i];
-            const uint parentBoneId = (boneInfo.packedData1 >> 16) & 0xFFFF;
-
-            float4x4 boneMatrix = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
-            if (parentBoneId != 65535)
-            {
-                boneMatrix = _animationBoneDeformMatrix[instanceData.boneDeformOffset + parentBoneId];
-            }
-            _animationBoneDeformMatrix[instanceData.boneDeformOffset + i] = boneMatrix;
-            continue;
-        }*/
-
         const uint sequenceIndex = boneInstance.packedData0 & 0xFFFF;
         const AnimationSequence sequence = _animationSequence[modelInfo.sequenceOffset + sequenceIndex];
 

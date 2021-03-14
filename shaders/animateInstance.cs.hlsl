@@ -70,6 +70,13 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
             //parentPivotPoint = float3(parentBoneInfo.pivotPointX, parentBoneInfo.pivotPointY, parentBoneInfo.pivotPointZ);
         }
 
+        // If we aren't animating, assume parentBoneMatrix or Identity
+        if (boneInstance.animateState == 0)
+        {
+            _animationBoneDeformMatrix[instanceData.boneDeformOffset + i] = parentBoneMatrix;
+            continue;
+        }
+
         if ((boneInfo.flags & 1) != 0)
         {
             AnimationContext ctx;
