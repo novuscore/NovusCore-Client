@@ -905,9 +905,11 @@ namespace Renderer
         VkPipelineStageFlags srcStageMask;
         VkPipelineStageFlags dstStageMask;
 
-        VkBufferMemoryBarrier bufferBarrier = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
-        bufferBarrier.buffer = _bufferHandler->GetBuffer(buffer);
-        bufferBarrier.size = VK_WHOLE_SIZE;
+        //VkBufferMemoryBarrier bufferBarrier = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+        //bufferBarrier.buffer = _bufferHandler->GetBuffer(buffer);
+        //bufferBarrier.size = VK_WHOLE_SIZE;
+
+        VkMemoryBarrier bufferBarrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER };
 
         switch (type)
         {
@@ -989,7 +991,8 @@ namespace Renderer
             break;
         }
 
-        vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &bufferBarrier, 0, nullptr);
+        //vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &bufferBarrier, 0, nullptr);
+        vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 1, &bufferBarrier, 0, nullptr, 0, nullptr);
     }
 
     void RendererVK::ImageBarrier(CommandListID commandListID, ImageID image)

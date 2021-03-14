@@ -201,10 +201,15 @@ private:
     {
         u16 numSequences = 0;
         u16 numBones = 0;
-
+        u16 hierarchyDepth = 0;
+        u16 padding0 = 0;
         u32 sequenceOffset = 0;
         u32 boneInfoOffset = 0;
-        u32 padding = 0;
+
+        u32 hierarchyBoneCountOffset = 0;
+        u32 padding1 = 0;
+        u32 padding2 = 0;
+        u32 padding3 = 0;
     };
 
     struct AnimationSequence
@@ -345,6 +350,7 @@ private:
 
     std::vector<AnimationSequence> _animationSequence;
     std::vector<AnimationModelInfo> _animationModelInfo;
+    std::vector<BufferRangeFrame> _animationModelBoneCountFrames;
     std::vector<AnimationBoneInfo> _animationBoneInfo;
     std::vector<AnimationBoneInstance> _animationBoneInstances;
     std::vector<AnimationTrackInfo> _animationTrackInfo;
@@ -353,6 +359,7 @@ private:
     BufferRangeAllocator _animationBoneDeformRangeAllocator;
     BufferRangeAllocator _animationBoneInstancesRangeAllocator;
     moodycamel::ConcurrentQueue<AnimationRequest> _animationRequests;
+    BufferRangeAllocator _animationHierarchyBoneCountRangeAllocator;
 
     std::vector<DrawCall> _opaqueDrawCalls;
     std::vector<DrawCallData> _opaqueDrawCallDatas;
@@ -368,7 +375,8 @@ private:
     Renderer::BufferID _visibleInstanceMaskBuffer;
     Renderer::BufferID _visibleInstanceCountBuffer;
     Renderer::BufferID _visibleInstanceIndexBuffer;
-    Renderer::BufferID _visibleInstanceCountArgumentBuffer32;
+    Renderer::BufferID _totalVisibleInstanceCountBuffer;
+    Renderer::BufferID _totalVisibleInstanceCountArgumentBuffer32;
 
     Renderer::BufferID _animationSequenceBuffer;
     Renderer::BufferID _animationModelInfoBuffer;
@@ -378,6 +386,7 @@ private:
     Renderer::BufferID _animationTrackInfoBuffer;
     Renderer::BufferID _animationTrackTimestampBuffer;
     Renderer::BufferID _animationTrackValueBuffer;
+    Renderer::BufferID _animationHierarchyBoneCountBuffer;
 
     Renderer::BufferID _opaqueDrawCallBuffer;
     Renderer::BufferID _opaqueCulledDrawCallBuffer;

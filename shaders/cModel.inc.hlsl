@@ -40,9 +40,14 @@ struct AnimationSequence
 struct AnimationModelInfo
 {
     uint packedData0; // numSequences (16 bit), numBones (16 bit)
+    uint packedData1; // hierarchyDepth (16 bit), UNUSED (16 bit)
     uint sequenceOffset;
     uint boneInfoOffset;
+
+    uint hierarchyBoneCountOffset;
     uint padding0;
+    uint padding1;
+    uint padding2;
 };
 
 struct AnimationBoneInfo

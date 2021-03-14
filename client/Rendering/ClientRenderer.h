@@ -61,8 +61,8 @@ public:
     size_t GetVRAMUsage();
     size_t GetVRAMBudget();
 
-    const i32 WIDTH = 1920;
-    const i32 HEIGHT = 1080;
+    const i32 WIDTH = 1500;
+    const i32 HEIGHT = 800;
 private:
     void CreatePermanentResources();
 

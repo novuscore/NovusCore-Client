@@ -61,6 +61,7 @@ struct CullingData
 [[vk::binding(9, PER_PASS)]] RWStructuredBuffer<uint64_t> _sortKeys; // OPTIONAL, only needed if _constants.shouldPrepareSort
 [[vk::binding(10, PER_PASS)]] RWStructuredBuffer<uint> _sortValues; // OPTIONAL, only needed if _constants.shouldPrepareSort
 [[vk::binding(11, PER_PASS)]] RWByteAddressBuffer _visibleInstanceMask;
+[[vk::binding(12, PER_PASS)]] RWByteAddressBuffer _visibleInstanceCount;
 
 CullingData LoadCullingData(uint instanceIndex)
 {
@@ -222,13 +223,11 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 	_drawCount.InterlockedAdd(0, 1, outIndex);
     _culledDrawCalls[outIndex] = drawCall;
 
-    //uint visibleInstanceIndex;
-    //_visibleInstanceCount.InterlockedAdd(0, 1, visibleInstanceIndex);
-    //_visibleInstanceIndices[visibleInstanceIndex] = drawCallData.instanceID;
-
     const uint maskOffset = drawCallData.instanceID / 32;
     const uint mask = 1 << (drawCallData.instanceID % 32);
     _visibleInstanceMask.InterlockedOr(maskOffset * SIZEOF_UINT, mask);
+
+    _visibleInstanceCount.InterlockedAdd(drawCallData.instanceID * SIZEOF_UINT, 1);
 
     // If we expect to sort afterwards, output the data needed for it
     if (_constants.shouldPrepareSort)
