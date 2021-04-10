@@ -15,7 +15,7 @@
 
 namespace UISystem
 {
-    inline void CalculateVertices(const vec2& pos, const vec2& size, const UI::FBox& texCoords, std::array<UI::UIVertex, 4>& vertices)
+    inline void CalculateVertices(const vec2& pos, const vec2& size, const UI::FBox& texCoords, UI::UIVertex* vertices)
     {
         const UISingleton::UIDataSingleton& dataSingleton = ServiceLocator::GetUIRegistry()->ctx<UISingleton::UIDataSingleton>();
 
@@ -76,8 +76,8 @@ namespace UISystem
             const vec2 size = transform.size;
             const UI::FBox& texCoords = image.style.texCoord;
 
-            std::array<UI::UIVertex, 4> vertices;
-            CalculateVertices(pos, size, texCoords, vertices);
+            UI::UIVertex vertices[4] = {};
+            CalculateVertices(pos, size, texCoords, &vertices[0]);
 
             constexpr u32 bufferSize = sizeof(UI::UIVertex) * 4; // 4 vertices per image
 
@@ -90,7 +90,7 @@ namespace UISystem
             }
 
             void* dst = renderer->MapBuffer(image.vertexBufferID);
-            memcpy(dst, vertices.data(), bufferSize);
+            memcpy(dst, vertices, bufferSize);
             renderer->UnmapBuffer(image.vertexBufferID);
         });
     }
