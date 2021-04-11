@@ -433,7 +433,7 @@ void EngineLoop::SetupUpdateFramework()
 
     /* UI SYSTEMS */
     // DeleteElementsSystem
-    tf::Task uiDeleteElementSystem = framework.emplace([&uiRegistry, &gameRegistry]()
+    /*tf::Task uiDeleteElementSystem = framework.emplace([&uiRegistry, &gameRegistry]()
     {
         ZoneScopedNC("DeleteElementsSystem::Update", tracy::Color::Gainsboro);
         UISystem::DeleteElementsSystem::Update(uiRegistry);
@@ -485,7 +485,7 @@ void EngineLoop::SetupUpdateFramework()
     });
     uiFinalCleanUpSystemTask.gather(uiUpdateRenderingSystem);
     uiFinalCleanUpSystemTask.gather(uiUpdateCullingSystemTask);
-    uiFinalCleanUpSystemTask.gather(uiBuildSortKeySystemTask);
+    uiFinalCleanUpSystemTask.gather(uiBuildSortKeySystemTask);*/
     /* END UI SYSTEMS */
 
     // MovementSystem
@@ -540,7 +540,7 @@ void EngineLoop::SetupUpdateFramework()
         gameRegistry.ctx<ScriptSingleton>().ExecuteTransactions();
         gameRegistry.ctx<ScriptSingleton>().ResetCompletedSystems();
     });
-    scriptSingletonTask.gather(uiFinalCleanUpSystemTask);
+    //scriptSingletonTask.gather(uiFinalCleanUpSystemTask);
     scriptSingletonTask.gather(renderModelSystemTask);
 }
 void EngineLoop::SetupMessageHandler()
