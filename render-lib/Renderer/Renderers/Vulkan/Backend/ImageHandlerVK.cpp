@@ -43,6 +43,8 @@ namespace Renderer
             VmaAllocation allocation;
             VkImage image;
             VkImageView colorView;
+            std::vector<VkImageView> mipViews;
+
             bool isSwapchain = false;
         };
 
@@ -55,18 +57,10 @@ namespace Renderer
             VkImageView depthView;
         };
 
-        struct ExtraViews
-        {
-            VkImageView view;
-            u32 mip;
-        };
-
         struct ImageHandlerVKData : IImageHandlerVKData
         {
             std::vector<Image> images;
             std::vector<DepthImage> depthImages;
-
-            std::unordered_map<u16, std::vector<ExtraViews>> extraViews;
         };
 
         void ImageHandlerVK::Init(RenderDeviceVK* device)
@@ -87,6 +81,11 @@ namespace Renderer
                     // Destroy old image
                     vkDestroyImageView(_device->_device, image.colorView, nullptr);
                     vmaDestroyImage(_device->_allocator, image.image, image.allocation);
+
+                    for (u32 i = 0; i < image.desc.mipLevels; i++)
+                    {
+                        vkDestroyImageView(_device->_device, image.mipViews[i], nullptr);
+                    }
                     
                     // Create new
                     VkFormat format;
@@ -279,19 +278,7 @@ namespace Renderer
             // Lets make sure this id exists
             ImageID::type tid = static_cast<ImageID::type>(id);
 
-            auto img = data.extraViews.find(tid);
-            if (img != data.extraViews.end())
-            {
-                for (auto im : img->second)
-                {
-                    if (im.mip == mipLevel)
-                    {
-                        return im.view;
-                    }
-                }
-            }
-
-            return view;
+            return data.images[tid].mipViews[mipLevel];
         }
 
         VkImage ImageHandlerVK::GetImage(const DepthImageID id)
@@ -352,10 +339,6 @@ namespace Renderer
             else
             {
                 DebugHandler::PrintFatal("Non-3d images is currently unsupported");
-            }
-            if (image.desc.dimensionType != ImageDimensionType::DIMENSION_PYRAMID)
-            {
-                image.desc.mipLevels = 1;
             }
 
             f32 width = image.desc.dimensions.x;
@@ -522,28 +505,18 @@ namespace Renderer
             colorViewInfo.subresourceRange.layerCount = 1;
 
             //we want a full mip chain of views
-            if (image.desc.dimensionType == ImageDimensionType::DIMENSION_PYRAMID)
+            image.mipViews.resize(image.desc.mipLevels);
+
+            for (u32 i = 0; i < image.desc.mipLevels; ++i)
             {
-                std::vector<ExtraViews> views;
+                VkImageViewCreateInfo pyramidLevelInfo = colorViewInfo;
+                pyramidLevelInfo.subresourceRange.baseMipLevel = i;
+                pyramidLevelInfo.subresourceRange.levelCount = 1;
 
-                for (u32 i = 0; i < image.desc.mipLevels; ++i)
+                if (vkCreateImageView(_device->_device, &pyramidLevelInfo, nullptr, &image.mipViews[i]) != VK_SUCCESS)
                 {
-                    VkImageViewCreateInfo pyramidLevelInfo = colorViewInfo;
-                    pyramidLevelInfo.subresourceRange.baseMipLevel = i;
-                    pyramidLevelInfo.subresourceRange.levelCount = 1;
-
-                    VkImageView newView;
-                    if (vkCreateImageView(_device->_device, &pyramidLevelInfo, nullptr, &newView) != VK_SUCCESS)
-                    {
-                        DebugHandler::PrintFatal("Failed to create color image view!");
-                    }
-                    ExtraViews v;
-                    v.view = newView;
-                    v.mip = i;
-                    views.push_back(v);
+                    DebugHandler::PrintFatal("Failed to create color image view!");
                 }
-                
-                data.extraViews[(static_cast<u16>(data.images.size()))] = std::move(views);
             }
 
             if (vkCreateImageView(_device->_device, &colorViewInfo, nullptr, &image.colorView) != VK_SUCCESS)

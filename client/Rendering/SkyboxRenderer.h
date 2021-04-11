@@ -27,6 +27,7 @@ namespace Renderer
 class CameraFreeLook;
 class DebugRenderer;
 class MapObjectRenderer;
+struct RenderResources;
 
 class SkyboxRenderer
 {
@@ -36,7 +37,7 @@ public:
 
     void Update(f32 deltaTime, const CameraFreeLook& camera);
 
-    void AddSkyboxPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, const CameraFreeLook& camera);
+    void AddSkyboxPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
 
 private:
     void CreatePermanentResources();

@@ -14,6 +14,7 @@
 #include <GLFW/glfw3.h>
 
 #include "CameraFreelook.h"
+#include "RenderResources.h"
 
 SkyboxRenderer::SkyboxRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer)
     : _renderer(renderer)
@@ -32,30 +33,28 @@ void SkyboxRenderer::Update(f32 deltaTime, const CameraFreeLook& camera)
 
 }
 
-void SkyboxRenderer::AddSkyboxPass(Renderer::RenderGraph* renderGraph, Renderer::Buffer<ViewConstantBuffer>* viewConstantBuffer, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex, const CameraFreeLook& camera)
+void SkyboxRenderer::AddSkyboxPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex)
 {
     struct TerrainPassData
     {
-        Renderer::RenderPassMutableResource mainColor;
-        Renderer::RenderPassMutableResource mainDepth;
+        Renderer::RenderPassMutableResource color;
+        Renderer::RenderPassMutableResource depth;
     };
 
-    const auto setup = [=](TerrainPassData& data, Renderer::RenderGraphBuilder& builder) 
-    {
-        data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
-        data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+    renderGraph->AddPass<TerrainPassData>("Skybox Pass", 
+        [=](TerrainPassData& data, Renderer::RenderGraphBuilder& builder)
+        {
+            data.color = builder.Write(resources.color, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+            data.depth = builder.Write(resources.depth, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
 
-        return true; // Return true from setup to enable this pass, return false to disable it
-    };
+            return true; // Return true from setup to enable this pass, return false to disable it
+        }, 
+        [=](TerrainPassData& data, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList)
+        {
+            GPU_SCOPED_PROFILER_ZONE(commandList, SkyboxPass);
 
-    const auto execute = [=](TerrainPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList)
-    {
-        GPU_SCOPED_PROFILER_ZONE(commandList, SkyboxPass);
 
-
-    };
-
-    renderGraph->AddPass<TerrainPassData>("Skybox Pass", setup, execute);
+        });
 }
 
 void SkyboxRenderer::CreatePermanentResources()

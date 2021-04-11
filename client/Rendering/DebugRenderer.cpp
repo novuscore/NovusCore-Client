@@ -10,7 +10,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-DebugRenderer::DebugRenderer(Renderer::Renderer* renderer)
+DebugRenderer::DebugRenderer(Renderer::Renderer* renderer, RenderResources& resources)
 {
 	_renderer = renderer;
 
@@ -76,9 +76,9 @@ DebugRenderer::DebugRenderer(Renderer::Renderer* renderer)
 		_drawArgumentBuffer = _renderer->CreateBuffer(bufferDesc);
 	}
 
-	_descriptorSet.Bind("_debug_rangeBuffer"_h, _debugVertexRangeBuffer);
-	_descriptorSet.Bind("_debug_counterBuffer"_h, _debugVertexCounterBuffer);
-	_descriptorSet.Bind("_debug_vertexBuffer"_h, _debugVertexBuffer);
+	resources.debugDescriptorSet.Bind("_debug_rangeBuffer"_h, _debugVertexRangeBuffer);
+	resources.debugDescriptorSet.Bind("_debug_counterBuffer"_h, _debugVertexCounterBuffer);
+	resources.debugDescriptorSet.Bind("_debug_vertexBuffer"_h, _debugVertexBuffer);
 }
 
 static u32 GetDrawBufferOffset(DebugRenderer::DebugVertexBufferType bufferType)
@@ -97,7 +97,7 @@ void DebugRenderer::AddUploadPass(Renderer::RenderGraph* renderGraph)
 		{
 			return true;
 		},
-		[=](PassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) -> void
+		[=](PassData& data, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList) -> void
 		{
 			u32 sourceVertexOffset[DBG_VERTEX_BUFFER_COUNT];
 			u32 sourceVertexCount[DBG_VERTEX_BUFFER_COUNT];
@@ -185,7 +185,7 @@ void DebugRenderer::AddDrawArgumentPass(Renderer::RenderGraph* renderGraph, u8 f
 		{
 			return true;
 		}, 
-		[=](PassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) -> void
+		[=](PassData& data, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList) -> void
 		{
 			Renderer::ComputeShaderDesc shaderDesc;
 			shaderDesc.path = "debugDrawArguments.cs.hlsl";
@@ -209,27 +209,27 @@ void DebugRenderer::AddDrawArgumentPass(Renderer::RenderGraph* renderGraph, u8 f
 		});
 }
 
-void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex)
 {
 	struct Debug3DPassData
 	{
-		Renderer::RenderPassMutableResource mainColor;
-		Renderer::RenderPassMutableResource mainDepth;
+		Renderer::RenderPassMutableResource color;
+		Renderer::RenderPassMutableResource depth;
 	};
 	renderGraph->AddPass<Debug3DPassData>("DebugRender3D",
 		[=](Debug3DPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
 		{
-			data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
-			data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
+			data.color = builder.Write(resources.color, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
+			data.depth = builder.Write(resources.depth, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
 
 			return true;// Return true from setup to enable this pass, return false to disable it
 		},
-		[=](Debug3DPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
+		[=](Debug3DPassData& data, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList) // Execute
 		{
 			GPU_SCOPED_PROFILER_ZONE(commandList, DebugRender3D);
 
 			Renderer::GraphicsPipelineDesc pipelineDesc;
-			resources.InitializePipelineDesc(pipelineDesc);
+			graphResources.InitializePipelineDesc(pipelineDesc);
 
 			{
 				
@@ -270,15 +270,15 @@ void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 				pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::BACK;
 				pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
 
-				pipelineDesc.renderTargets[0] = data.mainColor;
+				pipelineDesc.renderTargets[0] = data.color;
 
-				pipelineDesc.depthStencil = data.mainDepth;
+				pipelineDesc.depthStencil = data.depth;
 
 				// Set pipeline
 				Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
 				commandList.BeginPipeline(pipeline);
 
-				commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
+				commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, &resources.globalDescriptorSet, frameIndex);
 				commandList.SetVertexBuffer(0, _debugVertexBuffer);
 
 				// Draw
@@ -289,31 +289,31 @@ void DebugRenderer::Add3DPass(Renderer::RenderGraph* renderGraph, Renderer::Desc
 		});
 }
 
-void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void DebugRenderer::Add2DPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex)
 {
 	struct Debug2DPassData
 	{
-		Renderer::RenderPassMutableResource mainColor;
+		Renderer::RenderPassMutableResource color;
 	};
 	renderGraph->AddPass<Debug2DPassData>("DebugRender2D",
 		[=](Debug2DPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
 		{
-			data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
+			data.color = builder.Write(resources.color, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
 
 			return true;// Return true from setup to enable this pass, return false to disable it
 		},
-		[=](Debug2DPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
+		[=](Debug2DPassData& data, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList) // Execute
 		{
 			GPU_SCOPED_PROFILER_ZONE(commandList, DebugRender2D);
 
 			Renderer::GraphicsPipelineDesc pipelineDesc;
-			resources.InitializePipelineDesc(pipelineDesc);
+			graphResources.InitializePipelineDesc(pipelineDesc);
 
 			// Rasterizer state
 			pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::BACK;
 
 			// Render targets.
-			pipelineDesc.renderTargets[0] = data.mainColor;
+			pipelineDesc.renderTargets[0] = data.color;
 
 			// Shader
 			Renderer::VertexShaderDesc vertexShaderDesc;

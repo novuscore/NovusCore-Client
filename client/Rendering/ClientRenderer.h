@@ -1,17 +1,12 @@
 #pragma once
 #include <NovusTypes.h>
 
-#include <Renderer/Descriptors/ImageDesc.h>
-#include <Renderer/Descriptors/DepthImageDesc.h>
-#include <Renderer/Descriptors/TextureDesc.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
 #include <Renderer/Descriptors/GPUSemaphoreDesc.h>
-#include <Renderer/DescriptorSet.h>
-#include <Renderer/FrameResource.h>
-#include <Renderer/Buffer.h>
 
-#include "ViewConstantBuffer.h"
-#include "LightConstantBuffer.h"
+#include <Renderer/FrameResource.h>
+
+#include "RenderResources.h"
 
 namespace Renderer
 {
@@ -74,20 +69,10 @@ private:
 
     u8 _frameIndex = 0;
 
-    // Permanent resources
-    Renderer::ImageID _mainColor;
-    Renderer::ImageID _objectIDs;
-    Renderer::ImageID _depthPyramid;
-
-    Renderer::DepthImageID _mainDepth;
+    RenderResources _resources;
 
     Renderer::GPUSemaphoreID _sceneRenderedSemaphore; // This semaphore tells the present function when the scene is ready to be blitted and presented
     FrameResource<Renderer::GPUSemaphoreID, 2> _frameSyncSemaphores; // This semaphore makes sure the GPU handles frames in order
-
-    Renderer::Buffer<ViewConstantBuffer>* _viewConstantBuffer;
-    Renderer::Buffer<LightConstantBuffer>* _lightConstantBuffer;
-
-    Renderer::DescriptorSet _globalDescriptorSet;
 
     // Sub renderers
     DebugRenderer* _debugRenderer;

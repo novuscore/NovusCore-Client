@@ -26,6 +26,7 @@ namespace Renderer
 
 class CameraFreeLook;
 class DebugRenderer;
+struct RenderResources;
 
 class WaterRenderer
 {
@@ -37,7 +38,7 @@ public:
     void LoadWater(const std::vector<u16>& chunkIDs);
     void Clear();
 
-    void AddWaterPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
+    void AddWaterPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
 
 private:
     void CreatePermanentResources();

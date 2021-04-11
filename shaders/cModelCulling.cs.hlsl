@@ -41,11 +41,6 @@ struct CullingData
     float sphereRadius;
 };
 
-//struct Instance
-//{
-//    float4x4 instanceMatrix;
-//};
-
 // Inputs
 [[vk::push_constant]] Constants _constants;
 [[vk::binding(1, PER_PASS)]] StructuredBuffer<DrawCall> _drawCalls;

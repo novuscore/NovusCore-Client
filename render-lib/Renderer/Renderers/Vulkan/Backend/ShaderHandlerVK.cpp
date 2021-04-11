@@ -191,7 +191,16 @@ namespace Renderer
                 std::this_thread::yield();
             }
 
-            _shaderCache->Save(SHADER_CACHE_PATH);
+            u32 numFailedShaders = _shaderCompiler->GetNumFailedShaders();
+            if (numFailedShaders == 0)
+            {
+                _shaderCache->Save(SHADER_CACHE_PATH);
+            }
+            else
+            {
+                // If we failed we need to reload the shadercache to un-touch whatever shaders got touched last time
+                _shaderCache->Load(SHADER_CACHE_PATH);
+            }
 
             return _shaderCompiler->GetNumCompiledShaders() > 0;
         }

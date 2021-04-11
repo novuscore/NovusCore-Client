@@ -1,3 +1,4 @@
+#include "common.inc.hlsl"
 #include "globalData.inc.hlsl"
 #include "terrain.inc.hlsl"
 
@@ -5,12 +6,15 @@
 
 [[vk::binding(3, PER_PASS)]] SamplerState _alphaSampler;
 [[vk::binding(4, PER_PASS)]] SamplerState _colorSampler;
+[[vk::binding(5, PER_PASS)]] Texture2D<float4> _ambientOcclusion;
 
-[[vk::binding(5, PER_PASS)]] Texture2D<float4> _terrainColorTextures[4096];
-[[vk::binding(6, PER_PASS)]] Texture2DArray<float4> _terrainAlphaTextures[NUM_CHUNKS_PER_MAP_SIDE * NUM_CHUNKS_PER_MAP_SIDE];
+[[vk::binding(6, PER_PASS)]] Texture2D<float4> _terrainColorTextures[4096];
+[[vk::binding(7, PER_PASS)]] Texture2DArray<float4> _terrainAlphaTextures[NUM_CHUNKS_PER_MAP_SIDE * NUM_CHUNKS_PER_MAP_SIDE];
+
 
 struct PSInput
 {
+    float4 position : SV_Position;
     uint packedChunkCellID : TEXCOORD0;
     float2 uv : TEXCOORD1;
     float3 normal : TEXCOORD2;
@@ -78,9 +82,18 @@ PSOutput main(PSInput input)
 
     // Apply lighting
     float3 normal = normalize(input.normal);
-    color.rgb = Lighting(color.rgb, float3(0.0f, 0.0f, 0.0f), normal, true);
+    float ambientOcclusion = _ambientOcclusion.Load(float3(input.position.xy, 0)).x;
+    color.rgb = Lighting(color.rgb, float3(0.0f, 0.0f, 0.0f), normal, ambientOcclusion, true);
 
     output.color = saturate(color);
+
+    //float2 octNormal = OctNormalEncode(normal);
+    //output.normal = float4(octNormal, 0, 0);
+    //float3 viewspaceNormal = normalize(mul(normal, (float3x3)_viewData.viewMatrix));
+    //viewspaceNormal.y = -viewspaceNormal.y;
+
+    //float2 octNormal = OctNormalEncode(viewspaceNormal);
+    //output.normal = float4(octNormal, 0, 0);
 
     // 4 most significant bits are used as a type identifier, remaining bits are packedChunkCellID
     output.objectID = uint(ObjectType::Terrain) << 28;

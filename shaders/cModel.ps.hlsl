@@ -1,3 +1,6 @@
+permutation COLOR_PASS = [0, 1];
+
+#include "common.inc.hlsl"
 #include "globalData.inc.hlsl"
 #include "cModel.inc.hlsl"
 
@@ -15,7 +18,8 @@ struct Constants
 
 [[vk::binding(9, PER_PASS)]] StructuredBuffer<TextureUnit> _textureUnits;
 [[vk::binding(10, PER_PASS)]] SamplerState _sampler;
-[[vk::binding(11, PER_PASS)]] Texture2D<float4> _textures[4096];
+[[vk::binding(11, PER_PASS)]] Texture2D<float4> _ambientOcclusion;
+[[vk::binding(12, PER_PASS)]] Texture2D<float4> _textures[4096];
 
 [[vk::push_constant]] Constants _constants;
 
@@ -240,15 +244,20 @@ float4 Blend(uint blendingMode, float4 previousColor, float4 color)
 
 struct PSInput
 {
+    float4 position : SV_Position;
     uint drawCallID : TEXCOORD0;
-    float3 normal : TEXCOORD1;
-    float4 uv01 : TEXCOORD2;
+    float4 uv01 : TEXCOORD1;
+#if COLOR_PASS
+    float3 normal : TEXCOORD2;
+#endif
 };
 
 struct PSOutput
 {
+#if COLOR_PASS
     float4 color : SV_Target0;
     uint objectID : SV_Target1;
+#endif
 };
 
 PSOutput main(PSInput input)
@@ -260,6 +269,8 @@ PSOutput main(PSInput input)
     bool isUnlit = false;
     bool isTransparent = _constants.isTransparent;
 
+    PSOutput output;
+
     for (uint textureUnitIndex = drawCallData.textureUnitOffset; textureUnitIndex < drawCallData.textureUnitOffset + drawCallData.numTextureUnits; textureUnitIndex++)
     {
         TextureUnit textureUnit = _textureUnits[textureUnitIndex];
@@ -267,6 +278,11 @@ PSOutput main(PSInput input)
         uint isProjectedTexture = textureUnit.data1 & 0x1;
         uint materialFlags = (textureUnit.data1 >> 1) & 0x3FF;
         uint blendingMode = (textureUnit.data1 >> 11) & 0x7;
+
+#if !COLOR_PASS
+        if (blendingMode != 1) // ALPHA KEY
+            continue;
+#endif
         
         uint materialType = (textureUnit.data1 >> 16) & 0xFFFF;
         uint vertexShaderId = materialType & 0xFF;
@@ -290,16 +306,22 @@ PSOutput main(PSInput input)
         color = Blend(blendingMode, color, shadedColor);
     }
 
-    color.rgb = Lighting(color.rgb, float3(0.0f, 0.0f, 0.0f), input.normal, !isUnlit) + specular;
+#if COLOR_PASS
+    float ambientOcclusion = 1.0f;
+    if (!isTransparent)
+    {
+        ambientOcclusion = _ambientOcclusion.Load(float3(input.position.xy, 0)).x;
+    }
+        
+    color.rgb = Lighting(color.rgb, float3(0.0f, 0.0f, 0.0f), input.normal, ambientOcclusion, !isUnlit) + specular;
 
-    PSOutput output;
     output.color = saturate(color);
-
-    //discard;
 
     // 4 most significant bits are used as a type identifier, remaining bits are drawCallID
     uint objectType = (uint(ObjectType::ComplexModelOpaque) * !isTransparent) + (uint(ObjectType::ComplexModelTransparent) * isTransparent);
     output.objectID = objectType << 28;
     output.objectID += input.drawCallID;
+#endif
+
     return output;
 }

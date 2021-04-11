@@ -311,7 +311,7 @@ void RendertargetVisualizer::DrawImgui()
     ImGui::End();
 }
 
-void RendertargetVisualizer::AddVisualizerPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, u8 frameIndex)
+void RendertargetVisualizer::AddVisualizerPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex)
 {
     struct RTVisualizerData
     {
@@ -321,11 +321,11 @@ void RendertargetVisualizer::AddVisualizerPass(Renderer::RenderGraph* renderGrap
     renderGraph->AddPass<RTVisualizerData>("RTVisualizer",
         [=](RTVisualizerData& data, Renderer::RenderGraphBuilder& builder)
         {
-            data.target = builder.Write(colorTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
+            data.target = builder.Write(resources.color, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
 
             return true;
         },
-        [=](RTVisualizerData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList)
+        [=](RTVisualizerData& data, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList)
         {
             GPU_SCOPED_PROFILER_ZONE(commandList, CModelPass);
 
@@ -343,7 +343,7 @@ void RendertargetVisualizer::AddVisualizerPass(Renderer::RenderGraph* renderGrap
                 blitParams.output = data.target;
                 blitParams.sampler = _linearSampler;
 
-                RenderUtils::Blit(_renderer, resources, commandList, frameIndex, blitParams);
+                RenderUtils::Blit(_renderer, graphResources, commandList, frameIndex, blitParams);
             }
             else if (_overridingDepthImageID != Renderer::DepthImageID::Invalid())
             {
@@ -357,7 +357,7 @@ void RendertargetVisualizer::AddVisualizerPass(Renderer::RenderGraph* renderGrap
                 blitParams.output = data.target;
                 blitParams.sampler = _linearSampler;
 
-                RenderUtils::DepthBlit(_renderer, resources, commandList, frameIndex, blitParams);
+                RenderUtils::DepthBlit(_renderer, graphResources, commandList, frameIndex, blitParams);
             }
 
             // Overlay
@@ -375,7 +375,7 @@ void RendertargetVisualizer::AddVisualizerPass(Renderer::RenderGraph* renderGrap
                 overlayParams.baseImage = data.target;
                 overlayParams.sampler = _linearSampler;
 
-                RenderUtils::Overlay(_renderer, resources, commandList, frameIndex, overlayParams);
+                RenderUtils::Overlay(_renderer, graphResources, commandList, frameIndex, overlayParams);
             }
             else if (_overlayingDepthImageID != Renderer::DepthImageID::Invalid())
             {
@@ -389,7 +389,7 @@ void RendertargetVisualizer::AddVisualizerPass(Renderer::RenderGraph* renderGrap
                 overlayParams.baseImage = data.target;
                 overlayParams.sampler = _linearSampler;
 
-                RenderUtils::DepthOverlay(_renderer, resources, commandList, frameIndex, overlayParams);
+                RenderUtils::DepthOverlay(_renderer, graphResources, commandList, frameIndex, overlayParams);
             }
         });
 }

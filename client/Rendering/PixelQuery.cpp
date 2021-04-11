@@ -4,6 +4,8 @@
 #include <Renderer/RenderGraph.h>
 #include <tracy/Tracy.hpp>
 
+#include "RenderResources.h"
+
 PixelQuery::PixelQuery(Renderer::Renderer* renderer) : _renderer(renderer)
 {
     CreatePermanentResources();
@@ -27,7 +29,7 @@ void PixelQuery::Update(f32 deltaTime)
 {
 }
 
-void PixelQuery::AddPixelQueryPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void PixelQuery::AddPixelQueryPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex)
 {
     u32 numResultsToProcess = _numRequestsLastFrame[_frameIndex];
     if (numResultsToProcess > 0)
@@ -56,21 +58,17 @@ void PixelQuery::AddPixelQueryPass(Renderer::RenderGraph* renderGraph, Renderer:
     {
         struct PixelQueryPassData
         {
-            Renderer::RenderPassMutableResource mainColor;
-            Renderer::RenderPassMutableResource mainObject;
-            Renderer::RenderPassMutableResource mainDepth;
+            Renderer::RenderPassMutableResource objectIDs;
         };
 
         renderGraph->AddPass<PixelQueryPassData>("Query Pass",
             [=](PixelQueryPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
             {
-                data.mainColor = builder.Write(colorTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
-                data.mainObject = builder.Write(objectTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
-                data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+                data.objectIDs = builder.Write(resources.objectIDs, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
 
                 return true; // Return true from setup to enable this pass, return false to disable it
             },
-            [=](PixelQueryPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
+            [=](PixelQueryPassData& data, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList) // Execute
             {
                 u32 numRequests = static_cast<u32>(_requests[_frameIndex].size());
                 if (numRequests > 0)
@@ -82,11 +80,11 @@ void PixelQuery::AddPixelQueryPass(Renderer::RenderGraph* renderGraph, Renderer:
 
                     {
                         ZoneScopedN("PixelQuery::ImageBarrier");
-                        commandList.ImageBarrier(objectTarget);
+                        commandList.ImageBarrier(resources.objectIDs);
                     }
                     commandList.PushMarker("Pixel Queries " + std::to_string(numRequests), Color::White);
                     Renderer::ComputePipelineDesc queryPipelineDesc;
-                    resources.InitializePipelineDesc(queryPipelineDesc);
+                    graphResources.InitializePipelineDesc(queryPipelineDesc);
 
                     Renderer::ComputeShaderDesc shaderDesc;
                     shaderDesc.path = "objectQuery.cs.hlsl";
@@ -102,14 +100,14 @@ void PixelQuery::AddPixelQueryPass(Renderer::RenderGraph* renderGraph, Renderer:
                     // Copy Request Data to PixelDataBuffer
                     {
                         ZoneScopedN("PixelQuery::PushConstant");
-                        QueryRequestConstant* queryRequests = resources.FrameNew<QueryRequestConstant>();
+                        QueryRequestConstant* queryRequests = graphResources.FrameNew<QueryRequestConstant>();
 
                         queryRequests->numRequests = numRequests;
                         std::memcpy(&queryRequests->pixelCoords[0], _requests[_frameIndex].data(), sizeof(QueryRequest) * numRequests);
                         commandList.PushConstant(queryRequests, 0, sizeof(QueryRequestConstant));
                     }
 
-                    _queryDescriptorSet.Bind("_texture", objectTarget);
+                    _queryDescriptorSet.Bind("_texture", resources.objectIDs);
                     _queryDescriptorSet.Bind("_result", _pixelResultBuffer);
                     commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_queryDescriptorSet, _frameIndex);
 

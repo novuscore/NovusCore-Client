@@ -10,6 +10,7 @@ namespace Renderer
     class Renderer;
 }
 class DebugRenderer;
+struct RenderResources;
 
 class Window;
 class Keybind;
@@ -20,9 +21,9 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex);
+    void AddUIPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
 
-    void AddImguiPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex);
+    void AddImguiPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
 
 private:
     void CreatePermanentResources();

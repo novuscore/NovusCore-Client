@@ -5,6 +5,8 @@
 #include <Renderer/Descriptors/DepthImageDesc.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
 
+#include "RenderResources.h"
+
 namespace Renderer
 {
     class Renderer;
@@ -23,7 +25,7 @@ public:
 
     void SetVisible(bool visible) { _isVisible = visible; }
 
-    void AddVisualizerPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, u8 frameIndex);
+    void AddVisualizerPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
 
     bool GetOverridingImageID(Renderer::ImageID& imageID);
     bool GetOverridingDepthImageID(Renderer::DepthImageID& imageID);

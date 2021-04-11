@@ -16,7 +16,7 @@ Renderer::DescriptorSet SortUtils::_scatterDescriptorSet;
 
 // TODO: Add renderer->CreateTemporaryBuffer function which will temporarily allocate a buffer with lifetime of a variable number of frames
 
-void SortUtils::Sort(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const SortParams& params)
+void SortUtils::Sort(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const SortParams& params)
 {
     SortBuffers buffers = InitBuffers(renderer, commandList, params.numKeys);
 
@@ -59,21 +59,21 @@ void SortUtils::Sort(Renderer::Renderer* renderer, Renderer::RenderGraphResource
         setupParams.countScatterArgsBuffer = buffers.countScatterArgsBuffer;
         setupParams.reduceScanArgsBuffer = buffers.reduceScanArgsBuffer;
 
-        SetupIndirectParameters(renderer, resources, commandList, frameIndex, setupParams);
+        SetupIndirectParameters(renderer, graphResources, commandList, frameIndex, setupParams);
 
         commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, buffers.constantBuffer);
         commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, buffers.countScatterArgsBuffer);
         commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, buffers.reduceScanArgsBuffer);
     }
 
-    ResultBuffers resultBuffers = SortInternal(renderer, resources, commandList, frameIndex, buffers);
+    ResultBuffers resultBuffers = SortInternal(renderer, graphResources, commandList, frameIndex, buffers);
 
     // Copy the result buffers back into the buffers they came from
     commandList.CopyBuffer(params.keysBuffer, 0, resultBuffers.keysBuffer, 0, keysBufferSize);
     commandList.CopyBuffer(params.valuesBuffer, 0, resultBuffers.valuesBuffer, 0, valuesBufferSize);
 }
 
-void SortUtils::SortIndirectCount(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const SortIndirectCountParams& params)
+void SortUtils::SortIndirectCount(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const SortIndirectCountParams& params)
 {
     SortBuffers buffers = InitBuffers(renderer, commandList, params.maxNumKeys);
 
@@ -98,14 +98,14 @@ void SortUtils::SortIndirectCount(Renderer::Renderer* renderer, Renderer::Render
         setupParams.countScatterArgsBuffer = buffers.countScatterArgsBuffer;
         setupParams.reduceScanArgsBuffer = buffers.reduceScanArgsBuffer;
 
-        SetupIndirectParameters(renderer, resources, commandList, frameIndex, setupParams);
+        SetupIndirectParameters(renderer, graphResources, commandList, frameIndex, setupParams);
 
         commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, buffers.constantBuffer);
         commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, buffers.countScatterArgsBuffer);
         commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToIndirectArguments, buffers.reduceScanArgsBuffer);
     }
 
-    ResultBuffers resultBuffers = SortInternal(renderer, resources, commandList, frameIndex, buffers);
+    ResultBuffers resultBuffers = SortInternal(renderer, graphResources, commandList, frameIndex, buffers);
 
     // Copy the result buffers back into the buffers they came from
     commandList.CopyBuffer(params.keysBuffer, 0, resultBuffers.keysBuffer, 0, keysBufferSize);
@@ -192,7 +192,7 @@ SortUtils::SortBuffers SortUtils::InitBuffers(Renderer::Renderer* renderer, Rend
     return sortBuffers;
 }
 
-SortUtils::ResultBuffers SortUtils::SortInternal(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, SortBuffers& buffers)
+SortUtils::ResultBuffers SortUtils::SortInternal(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, SortBuffers& buffers)
 {
     Renderer::BufferID readKeyBuffer = buffers.keysBuffers.Get(0);
     Renderer::BufferID readPayloadBuffer = buffers.valuesBuffers.Get(0);
@@ -215,7 +215,7 @@ SortUtils::ResultBuffers SortUtils::SortInternal(Renderer::Renderer* renderer, R
 
             countParams.countScatterArgsBuffer = buffers.countScatterArgsBuffer;
 
-            Count(renderer, resources, commandList, frameIndex, countParams);
+            Count(renderer, graphResources, commandList, frameIndex, countParams);
 
             commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, buffers.sumTableBuffer);
         }
@@ -276,7 +276,7 @@ SortUtils::ResultBuffers SortUtils::SortInternal(Renderer::Renderer* renderer, R
 
             scatterParams.countScatterArgsBuffer = buffers.countScatterArgsBuffer;
 
-            Scatter(renderer, resources, commandList, frameIndex, scatterParams);
+            Scatter(renderer, graphResources, commandList, frameIndex, scatterParams);
         }
 
         commandList.PipelineBarrier(Renderer::PipelineBarrierType::ComputeWriteToComputeShaderRead, writeKeyBuffer);
@@ -300,7 +300,7 @@ SortUtils::ResultBuffers SortUtils::SortInternal(Renderer::Renderer* renderer, R
     return resultBuffers;
 }
 
-void SortUtils::SetupIndirectParameters(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const SetupParams& params)
+void SortUtils::SetupIndirectParameters(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const SetupParams& params)
 {
     commandList.PushMarker("SetupIndirectParameters", Color::White);
     // Setup pipeline
@@ -326,7 +326,7 @@ void SortUtils::SetupIndirectParameters(Renderer::Renderer* renderer, Renderer::
         u32 maxThreadGroups;
     };
 
-    SetupConstants* constants = resources.FrameNew<SetupConstants>();
+    SetupConstants* constants = graphResources.FrameNew<SetupConstants>();
     constants->maxThreadGroups = params.maxThreadGroups;
     commandList.PushConstant(constants, 0, sizeof(SetupConstants));
 
@@ -337,7 +337,7 @@ void SortUtils::SetupIndirectParameters(Renderer::Renderer* renderer, Renderer::
     commandList.PopMarker();
 }
 
-void SortUtils::Count(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const CountParams& params)
+void SortUtils::Count(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const CountParams& params)
 {
     commandList.PushMarker("Count", Color::White);
     // Setup pipeline
@@ -362,7 +362,7 @@ void SortUtils::Count(Renderer::Renderer* renderer, Renderer::RenderGraphResourc
         u32 shiftBits;
     };
 
-    CountConstants* constants = resources.FrameNew<CountConstants>();
+    CountConstants* constants = graphResources.FrameNew<CountConstants>();
     constants->shiftBits = params.shiftBits;
     commandList.PushConstant(constants, 0, sizeof(CountConstants));
 
@@ -453,7 +453,7 @@ void SortUtils::ScanAdd(Renderer::Renderer* renderer, Renderer::CommandList& com
     commandList.PopMarker();
 }
 
-void SortUtils::Scatter(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const ScatterParams& params)
+void SortUtils::Scatter(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const ScatterParams& params)
 {
     commandList.PushMarker("Scatter", Color::White);
     // Setup pipeline
@@ -481,7 +481,7 @@ void SortUtils::Scatter(Renderer::Renderer* renderer, Renderer::RenderGraphResou
         u32 shiftBits;
     };
 
-    ScatterConstants* constants = resources.FrameNew<ScatterConstants>();
+    ScatterConstants* constants = graphResources.FrameNew<ScatterConstants>();
     constants->shiftBits = params.shiftBits;
     commandList.PushConstant(constants, 0, sizeof(ScatterConstants));
 
