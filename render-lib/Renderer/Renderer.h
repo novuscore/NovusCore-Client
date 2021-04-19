@@ -45,41 +45,41 @@ namespace Renderer
 
         virtual ~Renderer();
 
-        RenderGraph& CreateRenderGraph(RenderGraphDesc& desc);
+        [[nodiscard]] RenderGraph& CreateRenderGraph(RenderGraphDesc& desc);
 
         // Creation
-        virtual BufferID CreateBuffer(BufferDesc& desc) = 0;
-        virtual BufferID CreateTemporaryBuffer(BufferDesc& desc, u32 framesLifetime) = 0;
-        virtual void QueueDestroyBuffer(BufferID buffer) = 0;
+        virtual [[nodiscard]] BufferID CreateBuffer(BufferDesc& desc) = 0;
+        virtual [[nodiscard]] BufferID CreateTemporaryBuffer(BufferDesc& desc, u32 framesLifetime) = 0;
+        virtual [[nodiscard]] void QueueDestroyBuffer(BufferID buffer) = 0;
 
-        virtual ImageID CreateImage(ImageDesc& desc) = 0;
-        virtual DepthImageID CreateDepthImage(DepthImageDesc& desc) = 0;
+        virtual [[nodiscard]] ImageID CreateImage(ImageDesc& desc) = 0;
+        virtual [[nodiscard]] DepthImageID CreateDepthImage(DepthImageDesc& desc) = 0;
 
-        virtual SamplerID CreateSampler(SamplerDesc& sampler) = 0;
-        virtual GPUSemaphoreID CreateGPUSemaphore() = 0;
+        virtual [[nodiscard]] SamplerID CreateSampler(SamplerDesc& sampler) = 0;
+        virtual [[nodiscard]] GPUSemaphoreID CreateGPUSemaphore() = 0;
 
-        virtual GraphicsPipelineID CreatePipeline(GraphicsPipelineDesc& desc) = 0;
-        virtual ComputePipelineID CreatePipeline(ComputePipelineDesc& desc) = 0;
+        virtual [[nodiscard]] GraphicsPipelineID CreatePipeline(GraphicsPipelineDesc& desc) = 0;
+        virtual [[nodiscard]] ComputePipelineID CreatePipeline(ComputePipelineDesc& desc) = 0;
 
-        virtual TextureArrayID CreateTextureArray(TextureArrayDesc& desc) = 0;
+        virtual [[nodiscard]] TextureArrayID CreateTextureArray(TextureArrayDesc& desc) = 0;
 
-        virtual TextureID CreateDataTexture(DataTextureDesc& desc) = 0;
-        virtual TextureID CreateDataTextureIntoArray(DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) = 0;
+        virtual [[nodiscard]] TextureID CreateDataTexture(DataTextureDesc& desc) = 0;
+        virtual [[nodiscard]] TextureID CreateDataTextureIntoArray(DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) = 0;
 
         // Loading
-        virtual TextureID LoadTexture(TextureDesc& desc) = 0;
-        virtual TextureID LoadTextureIntoArray(TextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) = 0;
+        virtual [[nodiscard]] TextureID LoadTexture(TextureDesc& desc) = 0;
+        virtual [[nodiscard]] TextureID LoadTextureIntoArray(TextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) = 0;
 
-        virtual VertexShaderID LoadShader(VertexShaderDesc& desc) = 0;
-        virtual PixelShaderID LoadShader(PixelShaderDesc& desc) = 0;
-        virtual ComputeShaderID LoadShader(ComputeShaderDesc& desc) = 0;
+        virtual [[nodiscard]] VertexShaderID LoadShader(VertexShaderDesc& desc) = 0;
+        virtual [[nodiscard]] PixelShaderID LoadShader(PixelShaderDesc& desc) = 0;
+        virtual [[nodiscard]] ComputeShaderID LoadShader(ComputeShaderDesc& desc) = 0;
 
         // Unloading
         virtual void UnloadTexture(TextureID textureID) = 0;
         virtual void UnloadTexturesInArray(TextureArrayID textureArrayID, u32 unloadStartIndex) = 0;
 
         // Command List Functions
-        virtual CommandListID BeginCommandList() = 0;
+        virtual [[nodiscard]] CommandListID BeginCommandList() = 0;
         virtual void EndCommandList(CommandListID commandListID) = 0;
         virtual void Clear(CommandListID commandListID, ImageID image, Color color) = 0;
         virtual void Clear(CommandListID commandListID, DepthImageID image, DepthClearFlags clearFlags, f32 depth, u8 stencil) = 0;
@@ -121,27 +121,32 @@ namespace Renderer
         virtual void Present(Window* window, DepthImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) = 0;
 
         // Utils
-        virtual ImageDesc GetImageDesc(ImageID ID) = 0;
-        virtual DepthImageDesc GetDepthImageDesc(DepthImageID ID) = 0;
-        virtual uvec2 GetImageDimension(const ImageID id, u32 mipLevel) = 0;
+        virtual [[nodiscard]] ImageDesc GetImageDesc(ImageID ID) = 0;
+        virtual [[nodiscard]] DepthImageDesc GetDepthImageDesc(DepthImageID ID) = 0;
+        virtual [[nodiscard]] uvec2 GetImageDimension(const ImageID id, u32 mipLevel) = 0;
 
         virtual void FlipFrame(u32 frameIndex) = 0;
 
+        [[nodiscard]] BufferID CreateBuffer(BufferID bufferID, BufferDesc& desc);
+        [[nodiscard]] BufferID CreateAndFillBuffer(BufferID bufferID, BufferDesc desc, void* data, size_t dataSize);
+        [[nodiscard]] BufferID CreateAndFillBuffer(BufferDesc desc, void* data, size_t dataSize);
+        [[nodiscard]] BufferID CreateAndFillBuffer(BufferID bufferID, BufferDesc desc, const std::function<void(void*)>& callback);
+        [[nodiscard]] BufferID CreateAndFillBuffer(BufferDesc desc, const std::function<void(void*)>& callback);
         virtual void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
         
-        virtual void* MapBuffer(BufferID buffer) = 0;
+        virtual [[nodiscard]] void* MapBuffer(BufferID buffer) = 0;
         virtual void UnmapBuffer(BufferID buffer) = 0;
 
         virtual const std::string& GetGPUName() = 0;
 
-        virtual size_t GetVRAMUsage() = 0;
-        virtual size_t GetVRAMBudget() = 0;
+        virtual [[nodiscard]] size_t GetVRAMUsage() = 0;
+        virtual [[nodiscard]] size_t GetVRAMBudget() = 0;
 
         virtual void InitImgui() = 0;
         virtual void DrawImgui(CommandListID commandListID) = 0;
 
-        virtual u32 GetNumImages() = 0;
-        virtual u32 GetNumDepthImages() = 0;
+        virtual [[nodiscard]] u32 GetNumImages() = 0;
+        virtual [[nodiscard]] u32 GetNumDepthImages() = 0;
 
     protected:
         Renderer() {}; // Pure virtual class, disallow creation of it

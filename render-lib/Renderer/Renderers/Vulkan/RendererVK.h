@@ -34,38 +34,38 @@ namespace Renderer
         void ReloadShaders(bool forceRecompileAll) override;
 
         // Creation
-        BufferID CreateBuffer(BufferDesc& desc) override;
-        BufferID CreateTemporaryBuffer(BufferDesc& desc, u32 framesLifetime) override;
+        [[nodiscard]] BufferID CreateBuffer(BufferDesc& desc) override;
+        [[nodiscard]] BufferID CreateTemporaryBuffer(BufferDesc& desc, u32 framesLifetime) override;
         void QueueDestroyBuffer(BufferID buffer) override;
 
-        ImageID CreateImage(ImageDesc& desc) override;
-        DepthImageID CreateDepthImage(DepthImageDesc& desc) override;
+        [[nodiscard]] ImageID CreateImage(ImageDesc& desc) override;
+        [[nodiscard]] DepthImageID CreateDepthImage(DepthImageDesc& desc) override;
 
-        SamplerID CreateSampler(SamplerDesc& desc) override;
-        GPUSemaphoreID CreateGPUSemaphore() override;
+        [[nodiscard]] SamplerID CreateSampler(SamplerDesc& desc) override;
+        [[nodiscard]] GPUSemaphoreID CreateGPUSemaphore() override;
 
-        GraphicsPipelineID CreatePipeline(GraphicsPipelineDesc& desc) override;
-        ComputePipelineID CreatePipeline(ComputePipelineDesc& desc) override;
+        [[nodiscard]] GraphicsPipelineID CreatePipeline(GraphicsPipelineDesc& desc) override;
+        [[nodiscard]] ComputePipelineID CreatePipeline(ComputePipelineDesc& desc) override;
 
-        TextureArrayID CreateTextureArray(TextureArrayDesc& desc) override;
+        [[nodiscard]] TextureArrayID CreateTextureArray(TextureArrayDesc& desc) override;
 
-        TextureID CreateDataTexture(DataTextureDesc& desc) override;
-        TextureID CreateDataTextureIntoArray(DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) override;
+        [[nodiscard]] TextureID CreateDataTexture(DataTextureDesc& desc) override;
+        [[nodiscard]] TextureID CreateDataTextureIntoArray(DataTextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) override;
 
         // Loading
-        TextureID LoadTexture(TextureDesc& desc) override;
-        TextureID LoadTextureIntoArray(TextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) override;
+        [[nodiscard]] TextureID LoadTexture(TextureDesc& desc) override;
+        [[nodiscard]] TextureID LoadTextureIntoArray(TextureDesc& desc, TextureArrayID textureArray, u32& arrayIndex) override;
 
-        VertexShaderID LoadShader(VertexShaderDesc& desc) override;
-        PixelShaderID LoadShader(PixelShaderDesc& desc) override;
-        ComputeShaderID LoadShader(ComputeShaderDesc& desc) override;
+        [[nodiscard]] VertexShaderID LoadShader(VertexShaderDesc& desc) override;
+        [[nodiscard]] PixelShaderID LoadShader(PixelShaderDesc& desc) override;
+        [[nodiscard]] ComputeShaderID LoadShader(ComputeShaderDesc& desc) override;
 
         // Unloading
         void UnloadTexture(TextureID textureID) override;
         void UnloadTexturesInArray(TextureArrayID textureArrayID, u32 unloadStartIndex) override;
 
         // Command List Functions
-        CommandListID BeginCommandList() override;
+        [[nodiscard]] CommandListID BeginCommandList() override;
         void EndCommandList(CommandListID commandListID) override;
         void Clear(CommandListID commandListID, ImageID image, Color color) override;
         void Clear(CommandListID commandListID, DepthImageID image, DepthClearFlags clearFlags, f32 depth, u8 stencil) override;
@@ -109,29 +109,29 @@ namespace Renderer
         // Utils
         void FlipFrame(u32 frameIndex) override;
 
-        ImageDesc GetImageDesc(ImageID ID) override;
-        DepthImageDesc GetDepthImageDesc(DepthImageID ID) override;
+        [[nodiscard]] ImageDesc GetImageDesc(ImageID ID) override;
+        [[nodiscard]] DepthImageDesc GetDepthImageDesc(DepthImageID ID) override;
 
-        uvec2 GetImageDimension(const ImageID id, u32 mipLevel) override;
+        [[nodiscard]] uvec2 GetImageDimension(const ImageID id, u32 mipLevel) override;
 
         void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
 
         void* MapBuffer(BufferID buffer) override;
         void UnmapBuffer(BufferID buffer) override;
 
-        const std::string& GetGPUName() override;
+        [[nodiscard]] const std::string& GetGPUName() override;
 
-        size_t GetVRAMUsage() override;
-        size_t GetVRAMBudget() override;
+        [[nodiscard]] size_t GetVRAMUsage() override;
+        [[nodiscard]] size_t GetVRAMBudget() override;
 
         void InitImgui() override;
         void DrawImgui(CommandListID commandListID) override;
 
-        u32 GetNumImages() override;
-        u32 GetNumDepthImages() override;
+        [[nodiscard]] u32 GetNumImages() override;
+        [[nodiscard]] u32 GetNumDepthImages() override;
 
     private:
-        bool ReflectDescriptorSet(const std::string& name, u32 nameHash, u32 type, i32& set, const std::vector<Backend::BindInfo>& bindInfos, u32& outBindInfoIndex, VkDescriptorSetLayoutBinding* outDescriptorLayoutBinding);
+        [[nodiscard]] bool ReflectDescriptorSet(const std::string& name, u32 nameHash, u32 type, i32& set, const std::vector<Backend::BindInfo>& bindInfos, u32& outBindInfoIndex, VkDescriptorSetLayoutBinding* outDescriptorLayoutBinding);
         void BindDescriptor(Backend::DescriptorSetBuilderVK* builder, void* imageInfosArraysVoid, Descriptor& descriptor);
 
         void RecreateSwapChain(Backend::SwapChainVK* swapChain);

@@ -950,12 +950,12 @@ void CModelRenderer::CreatePermanentResources()
         desc.name = "CModelOpaqueDrawCountBuffer";
         desc.size = sizeof(u32);
         desc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::TRANSFER_SOURCE;
-        _opaqueDrawCountBuffer = _renderer->CreateBuffer(desc);
+        _opaqueDrawCountBuffer = _renderer->CreateBuffer(_opaqueDrawCountBuffer, desc);
 
         desc.name = "CModelOpaqueDrawCountRBBuffer";
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         desc.cpuAccess = Renderer::BufferCPUAccess::ReadOnly;
-        _opaqueDrawCountReadBackBuffer = _renderer->CreateBuffer(desc);
+        _opaqueDrawCountReadBackBuffer = _renderer->CreateBuffer(_opaqueDrawCountReadBackBuffer, desc);
     }
 
     // Create TransparentDrawCountBuffer
@@ -964,12 +964,12 @@ void CModelRenderer::CreatePermanentResources()
         desc.name = "CModelTransparentDrawCountBuffer";
         desc.size = sizeof(u32);
         desc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::TRANSFER_SOURCE;
-        _transparentDrawCountBuffer = _renderer->CreateBuffer(desc);
+        _transparentDrawCountBuffer = _renderer->CreateBuffer(_transparentDrawCountBuffer, desc);
 
         desc.name = "CModelTransparentDrawCountRBBuffer";
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         desc.cpuAccess = Renderer::BufferCPUAccess::ReadOnly;
-        _transparentDrawCountReadBackBuffer = _renderer->CreateBuffer(desc);
+        _transparentDrawCountReadBackBuffer = _renderer->CreateBuffer(_transparentDrawCountReadBackBuffer, desc);
     }
 
     // Create OpaqueTriangleCountReadBackBuffer
@@ -978,10 +978,10 @@ void CModelRenderer::CreatePermanentResources()
         desc.name = "CModelOpaqueTriangleCountBuffer";
         desc.size = sizeof(u32);
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::TRANSFER_SOURCE;
-        _opaqueTriangleCountBuffer = _renderer->CreateBuffer(desc);
+        _opaqueTriangleCountBuffer = _renderer->CreateBuffer(_opaqueTriangleCountBuffer, desc);
 
         desc.cpuAccess = Renderer::BufferCPUAccess::ReadOnly;
-        _opaqueTriangleCountReadBackBuffer = _renderer->CreateBuffer(desc);
+        _opaqueTriangleCountReadBackBuffer = _renderer->CreateBuffer(_opaqueTriangleCountReadBackBuffer, desc);
     }
 
     // Create TransparentTriangleCountReadBackBuffer
@@ -990,10 +990,10 @@ void CModelRenderer::CreatePermanentResources()
         desc.name = "CModelTransparentTriangleCountBuffer";
         desc.size = sizeof(u32);
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::TRANSFER_SOURCE;
-        _transparentTriangleCountBuffer = _renderer->CreateBuffer(desc);
+        _transparentTriangleCountBuffer = _renderer->CreateBuffer(_transparentTriangleCountBuffer, desc);
 
         desc.cpuAccess = Renderer::BufferCPUAccess::ReadOnly;
-        _transparentTriangleCountReadBackBuffer = _renderer->CreateBuffer(desc);
+        _transparentTriangleCountReadBackBuffer = _renderer->CreateBuffer(_transparentTriangleCountReadBackBuffer, desc);
     }
 
     // Create AnimationBoneDeformMatrixBuffer
@@ -1004,12 +1004,12 @@ void CModelRenderer::CreatePermanentResources()
         desc.name = "AnimationBoneDeformMatrixBuffer";
         desc.size = boneDeformMatrixBufferSize;
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_SOURCE | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _animationBoneDeformMatrixBuffer = _renderer->CreateBuffer(desc);
+        _animationBoneDeformMatrixBuffer = _renderer->CreateBuffer(_animationBoneDeformMatrixBuffer, desc);
 
         _animationBoneDeformRangeAllocator.Init(0, boneDeformMatrixBufferSize);
     }
 
-    // Create AnimationBoneDeformMatrixBuffer
+    // Create AnimationBoneInstancesBuffer
     {
         size_t boneInstanceBufferSize = (sizeof(AnimationBoneInstance) * 255) * 1000;
 
@@ -1017,7 +1017,7 @@ void CModelRenderer::CreatePermanentResources()
         desc.name = "AnimationBoneInstanceBuffer";
         desc.size = boneInstanceBufferSize;
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_SOURCE | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _animationBoneInstancesBuffer = _renderer->CreateBuffer(desc);
+        _animationBoneInstancesBuffer = _renderer->CreateBuffer(_animationBoneInstancesBuffer, desc);
 
         _animationBoneInstancesRangeAllocator.Init(0, boneInstanceBufferSize);
     }
@@ -1814,160 +1814,52 @@ void CModelRenderer::AddInstance(LoadedComplexModel& complexModel, const Terrain
 void CModelRenderer::CreateBuffers()
 {
     // Create Vertex buffer
-    if (_vertexBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_vertexBuffer);
-    }
     {
         Renderer::BufferDesc desc;
         desc.name = "CModelVertexBuffer";
         desc.size = sizeof(CModel::ComplexVertex) * _vertices.size();
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _vertexBuffer = _renderer->CreateBuffer(desc);
 
-        // Create staging buffer
-        desc.name = "CModelVertexStaging";
-        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-        memcpy(dst, _vertices.data(), desc.size);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(_vertexBuffer, 0, stagingBuffer, 0, desc.size);
+        _vertexBuffer = _renderer->CreateAndFillBuffer(_vertexBuffer, desc, _vertices.data(), desc.size);
     }
-
+    
     // Create Index buffer
-    if (_indexBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_indexBuffer);
-    }
     {
         Renderer::BufferDesc desc;
         desc.name = "CModelIndexBuffer";
         desc.size = sizeof(u16) * _indices.size();
         desc.usage = Renderer::BufferUsage::INDEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _indexBuffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "CModelIndexStaging";
-        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-        memcpy(dst, _indices.data(), desc.size);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(_indexBuffer, 0, stagingBuffer, 0, desc.size);
+        _indexBuffer = _renderer->CreateAndFillBuffer(_indexBuffer, desc, _indices.data(), desc.size);
     }
 
     // Create TextureUnit buffer
-    if (_textureUnitBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_textureUnitBuffer);
-    }
     {
         Renderer::BufferDesc desc;
         desc.name = "CModelTextureUnitBuffer";
         desc.size = sizeof(TextureUnit) * _textureUnits.size();
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _textureUnitBuffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "CModelTextureUnitStaging";
-        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-        memcpy(dst, _textureUnits.data(), desc.size);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(_textureUnitBuffer, 0, stagingBuffer, 0, desc.size);
+        _textureUnitBuffer = _renderer->CreateAndFillBuffer(_textureUnitBuffer, desc, _textureUnits.data(), desc.size);
     }
 
     // Create Instance buffer
-    if (_instanceBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_instanceBuffer);
-    }
     {
         Renderer::BufferDesc desc;
         desc.name = "CModelInstanceBuffer";
         desc.size = sizeof(Instance) * _instances.size();
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _instanceBuffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "CModelInstanceStaging";
-        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-        memcpy(dst, _instances.data(), desc.size);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(_instanceBuffer, 0, stagingBuffer, 0, desc.size);
+        _instanceBuffer = _renderer->CreateAndFillBuffer(_instanceBuffer, desc, _instances.data(), desc.size);
     }
 
     // Create CullingData buffer
-    if (_cullingDataBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_cullingDataBuffer);
-    }
     {
         Renderer::BufferDesc desc;
         desc.name = "CModelCullDataBuffer";
         desc.size = sizeof(CModel::CullingData) * _cullingDatas.size();
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _cullingDataBuffer = _renderer->CreateBuffer(desc);
-
-        // Create staging buffer
-        desc.name = "CModelCullDataStaging";
-        desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-        desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-        Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-        // Upload to staging buffer
-        void* dst = _renderer->MapBuffer(stagingBuffer);
-        memcpy(dst, _cullingDatas.data(), desc.size);
-        _renderer->UnmapBuffer(stagingBuffer);
-
-        // Queue destroy staging buffer
-        _renderer->QueueDestroyBuffer(stagingBuffer);
-        // Copy from staging buffer to buffer
-        _renderer->CopyBuffer(_cullingDataBuffer, 0, stagingBuffer, 0, desc.size);
+        _cullingDataBuffer = _renderer->CreateAndFillBuffer(_cullingDataBuffer, desc, _cullingDatas.data(), desc.size);
     }
 
     // Create AnimationSequence buffer
-    if (_animationSequenceBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_animationSequenceBuffer);
-    }
     {
         size_t numSequences = _animationSequence.size();
         if (numSequences > 0)
@@ -1976,32 +1868,11 @@ void CModelRenderer::CreateBuffers()
             desc.name = "AnimationSequenceBuffer";
             desc.size = sizeof(AnimationSequence) * numSequences;
             desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-            _animationSequenceBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "AnimationSequenceStaging";
-            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, _animationSequence.data(), desc.size);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(_animationSequenceBuffer, 0, stagingBuffer, 0, desc.size);
+            _animationSequenceBuffer = _renderer->CreateAndFillBuffer(_animationSequenceBuffer, desc, _animationSequence.data(), desc.size);
         }
     }    
     
     // Create AnimationModelInfo buffer
-    if (_animationModelInfoBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_animationModelInfoBuffer);
-    }
     {
         size_t numModelInfo = _animationModelInfo.size();
         if (numModelInfo > 0)
@@ -2010,32 +1881,11 @@ void CModelRenderer::CreateBuffers()
             desc.name = "AnimationModelInfoBuffer";
             desc.size = sizeof(AnimationModelInfo) * numModelInfo;
             desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-            _animationModelInfoBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "AnimationModelInfoStaging";
-            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, _animationModelInfo.data(), desc.size);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(_animationModelInfoBuffer, 0, stagingBuffer, 0, desc.size);
+            _animationModelInfoBuffer = _renderer->CreateAndFillBuffer(_animationModelInfoBuffer, desc, _animationModelInfo.data(), desc.size);
         }
     }    
     
     // Create AnimationBoneInfo buffer
-    if (_animationBoneInfoBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_animationBoneInfoBuffer);
-    }
     {
         size_t numBoneInfo = _animationBoneInfo.size();
         if (numBoneInfo > 0)
@@ -2044,59 +1894,11 @@ void CModelRenderer::CreateBuffers()
             desc.name = "AnimationBoneInfoBuffer";
             desc.size = sizeof(AnimationBoneInfo) * numBoneInfo;
             desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-            _animationBoneInfoBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "AnimationBoneInfoStaging";
-            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, _animationBoneInfo.data(), desc.size);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(_animationBoneInfoBuffer, 0, stagingBuffer, 0, desc.size);
+            _animationBoneInfoBuffer = _renderer->CreateAndFillBuffer(_animationBoneInfoBuffer, desc, _animationBoneInfo.data(), desc.size);
         }
     }
 
-    // Zero Fill AnimationBoneInstance Buffer
-    {
-        size_t numBoneInstancesInfo = _animationBoneInstances.size();
-        if (numBoneInstancesInfo > 0)
-        {
-            Renderer::BufferDesc desc;
-
-            // Create staging buffer
-            desc.name = "AnimationBoneInstanceStaging";
-            desc.size = sizeof(AnimationBoneInstance) * numBoneInstancesInfo;
-            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, _animationBoneInstances.data(), desc.size);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(_animationBoneInstancesBuffer, 0, stagingBuffer, 0, desc.size);
-        }
-    }
-    
     // Create AnimationSequence buffer
-    if (_animationTrackInfoBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_animationTrackInfoBuffer);
-    }
     {
         size_t numSequenceInfo = _animationTrackInfo.size();
         if (numSequenceInfo > 0)
@@ -2105,32 +1907,11 @@ void CModelRenderer::CreateBuffers()
             desc.name = "AnimationTrackInfoBuffer";
             desc.size = sizeof(AnimationTrackInfo) * numSequenceInfo;
             desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-            _animationTrackInfoBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "AnimationTrackInfoStaging";
-            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, _animationTrackInfo.data(), desc.size);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(_animationTrackInfoBuffer, 0, stagingBuffer, 0, desc.size);
+            _animationTrackInfoBuffer = _renderer->CreateAndFillBuffer(_animationTrackInfoBuffer, desc, _animationTrackInfo.data(), desc.size);
         }
     }
     
     // Create AnimationTimestamp buffer
-    if (_animationTrackTimestampBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_animationTrackTimestampBuffer);
-    }
     {
         size_t numTrackTimestamps = _animationTrackTimestamps.size();
         if (numTrackTimestamps > 0)
@@ -2139,32 +1920,11 @@ void CModelRenderer::CreateBuffers()
             desc.name = "AnimationTrackTimestampBuffer";
             desc.size = sizeof(u32) * numTrackTimestamps;
             desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-            _animationTrackTimestampBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "AnimationTrackTimestampStaging";
-            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, _animationTrackTimestamps.data(), desc.size);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(_animationTrackTimestampBuffer, 0, stagingBuffer, 0, desc.size);
+            _animationTrackTimestampBuffer = _renderer->CreateAndFillBuffer(_animationTrackTimestampBuffer, desc, _animationTrackTimestamps.data(), desc.size);
         }
     }
 
     // Create AnimationValueVec buffer
-    if (_animationTrackValueBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_animationTrackValueBuffer);
-    }
     {
         size_t numTrackValues = _animationTrackValues.size();
         if (numTrackValues > 0)
@@ -2173,37 +1933,8 @@ void CModelRenderer::CreateBuffers()
             desc.name = "AnimationTrackValueBuffer";
             desc.size = sizeof(vec4) * numTrackValues;
             desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-            _animationTrackValueBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "AnimationTrackValueStaging";
-            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, _animationTrackValues.data(), desc.size);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(_animationTrackValueBuffer, 0, stagingBuffer, 0, desc.size);
+            _animationTrackValueBuffer = _renderer->CreateAndFillBuffer(_animationTrackValueBuffer, desc, _animationTrackValues.data(), desc.size);
         }
-    }
-
-    // Destroy OpaqueDrawCall buffer
-    if (_opaqueDrawCallBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_opaqueDrawCallBuffer);
-    }
-
-    // Destroy OpaqueCulledDrawCall buffer
-    if (_opaqueCulledDrawCallBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_opaqueCulledDrawCallBuffer);
     }
 
     if (_opaqueDrawCalls.size() > 0)
@@ -2214,32 +1945,10 @@ void CModelRenderer::CreateBuffers()
             desc.name = "CModelOpaqueDrawCallBuffer";
             desc.size = sizeof(DrawCall) * _opaqueDrawCalls.size();
             desc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-            _opaqueDrawCallBuffer = _renderer->CreateBuffer(desc);
+            _opaqueDrawCallBuffer = _renderer->CreateAndFillBuffer(_opaqueDrawCallBuffer, desc, _opaqueDrawCalls.data(), desc.size);
+
             desc.name = "CModelOpaqueCullDrawCallBuffer";
-            _opaqueCulledDrawCallBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "CModelOpaqueDrawCallStaging";
-            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, _opaqueDrawCalls.data(), desc.size);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(_opaqueDrawCallBuffer, 0, stagingBuffer, 0, desc.size);
-        }
-
-        // Destroy OpaqueDrawCallData buffer
-        if (_opaqueDrawCallDataBuffer != Renderer::BufferID::Invalid())
-        {
-            _renderer->QueueDestroyBuffer(_opaqueDrawCallDataBuffer);
+            _opaqueCulledDrawCallBuffer = _renderer->CreateBuffer(_opaqueCulledDrawCallBuffer, desc);
         }
 
         // Create OpaqueDrawCallData buffer
@@ -2248,45 +1957,11 @@ void CModelRenderer::CreateBuffers()
             desc.name = "CModelOpaqueDrawCallDataBuffer";
             desc.size = sizeof(DrawCallData) * _opaqueDrawCallDatas.size();
             desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-            _opaqueDrawCallDataBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "CModelOpaqueDrawCallDataStaging";
-            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, _opaqueDrawCallDatas.data(), desc.size);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(_opaqueDrawCallDataBuffer, 0, stagingBuffer, 0, desc.size);
+            _opaqueDrawCallDataBuffer = _renderer->CreateAndFillBuffer(_opaqueDrawCallDataBuffer, desc, _opaqueDrawCallDatas.data(), desc.size);
         }
     }
 
     // Destroy TransparentDrawCall buffer
-    if (_transparentDrawCallBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_transparentDrawCallBuffer);
-    }
-
-    // Destroy TransparentCulledDrawCall buffer
-    if (_transparentCulledDrawCallBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_transparentCulledDrawCallBuffer);
-    }
-
-    // Destroy TransparentSortedCulledDrawCall buffer
-    if (_transparentSortedCulledDrawCallBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_transparentSortedCulledDrawCallBuffer);
-    }
-
     if (_transparentDrawCalls.size() > 0)
     {
         // Create TransparentDrawCall, TransparentCulledDrawCall and TransparentSortedCulledDrawCall buffer
@@ -2297,37 +1972,14 @@ void CModelRenderer::CreateBuffers()
             desc.name = "CModelAlphaCullDrawCalls";
             desc.size = size;
             desc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-            _transparentCulledDrawCallBuffer = _renderer->CreateBuffer(desc);
+            _transparentCulledDrawCallBuffer = _renderer->CreateBuffer(_transparentCulledDrawCallBuffer, desc);
 
             desc.name = "CModelAlphaSortCullDrawCalls";
-            _transparentSortedCulledDrawCallBuffer = _renderer->CreateBuffer(desc);
+            _transparentSortedCulledDrawCallBuffer = _renderer->CreateBuffer(_transparentSortedCulledDrawCallBuffer, desc);
 
             desc.name = "CModelAlphaDrawCalls";
             desc.usage |= Renderer::BufferUsage::TRANSFER_SOURCE;
-            _transparentDrawCallBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "CModelAlphaDrawCallStaging";
-            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffers
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, _transparentDrawCalls.data(), size);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(_transparentDrawCallBuffer, 0, stagingBuffer, 0, desc.size);
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-        }
-
-        // Destroy TransparentDrawCallData buffer
-        if (_transparentDrawCallDataBuffer != Renderer::BufferID::Invalid())
-        {
-            _renderer->QueueDestroyBuffer(_transparentDrawCallDataBuffer);
+            _transparentDrawCallBuffer = _renderer->CreateAndFillBuffer(_transparentDrawCallBuffer, desc, _transparentDrawCalls.data(), desc.size);
         }
 
         // Create TransparentDrawCallData buffer
@@ -2336,36 +1988,7 @@ void CModelRenderer::CreateBuffers()
             desc.name = "CModelAlphaDrawCallDataBuffer";
             desc.size = sizeof(DrawCallData) * _transparentDrawCallDatas.size();
             desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-            _transparentDrawCallDataBuffer = _renderer->CreateBuffer(desc);
-
-            // Create staging buffer
-            desc.name = "CModelAlphaDrawCallDataStaging";
-            desc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-            desc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID stagingBuffer = _renderer->CreateBuffer(desc);
-
-            // Upload to staging buffer
-            void* dst = _renderer->MapBuffer(stagingBuffer);
-            memcpy(dst, _transparentDrawCallDatas.data(), desc.size);
-            _renderer->UnmapBuffer(stagingBuffer);
-
-            // Queue destroy staging buffer
-            _renderer->QueueDestroyBuffer(stagingBuffer);
-            // Copy from staging buffer to buffer
-            _renderer->CopyBuffer(_transparentDrawCallDataBuffer, 0, stagingBuffer, 0, desc.size);
-        }
-
-        // Destroy sort keys buffer
-        if (_transparentSortKeys != Renderer::BufferID::Invalid())
-        {
-            _renderer->QueueDestroyBuffer(_transparentSortKeys);
-        }
-
-        // Destroy sort values buffer
-        if (_transparentSortValues != Renderer::BufferID::Invalid())
-        {
-            _renderer->QueueDestroyBuffer(_transparentSortValues);
+            _transparentDrawCallDataBuffer = _renderer->CreateAndFillBuffer(_transparentDrawCallDataBuffer, desc, _transparentDrawCallDatas.data(), desc.size);
         }
 
         // Create transparent sort keys/values buffer
@@ -2378,28 +2001,15 @@ void CModelRenderer::CreateBuffers()
             desc.name = "CModelAlphaSortKeys";
             desc.size = keysSize;
             desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_SOURCE | Renderer::BufferUsage::TRANSFER_DESTINATION;
-
-            _transparentSortKeys = _renderer->CreateBuffer(desc);
+            _transparentSortKeys = _renderer->CreateBuffer(_transparentSortKeys, desc);
 
             desc.name = "CModelAlphaSortValues";
             desc.size = valuesSize;
-            _transparentSortValues = _renderer->CreateBuffer(desc);
+            _transparentSortValues = _renderer->CreateBuffer(_transparentSortValues, desc);
         }
     }
     else
     {
-        // Destroy sort keys buffer
-        if (_transparentSortKeys != Renderer::BufferID::Invalid())
-        {
-            _renderer->QueueDestroyBuffer(_transparentSortKeys);
-        }
-
-        // Destroy sort values buffer
-        if (_transparentSortValues != Renderer::BufferID::Invalid())
-        {
-            _renderer->QueueDestroyBuffer(_transparentSortValues);
-        }
-
         // Create transparent sort keys/values buffer
         {
             u32 keysSize = sizeof(u64) * 1;
@@ -2409,33 +2019,12 @@ void CModelRenderer::CreateBuffers()
             desc.name = "CModelAlphaSortKeys";
             desc.size = keysSize;
             desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_SOURCE | Renderer::BufferUsage::TRANSFER_DESTINATION;
-
-            _transparentSortKeys = _renderer->CreateBuffer(desc);
+            _transparentSortKeys = _renderer->CreateBuffer(_transparentSortKeys, desc);
 
             desc.name = "CModelAlphaSortValues";
             desc.size = valuesSize;
-            _transparentSortValues = _renderer->CreateBuffer(desc);
+            _transparentSortValues = _renderer->CreateBuffer(_transparentSortValues, desc);
         }
-    }
-
-    if (_visibleInstanceMaskBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_visibleInstanceMaskBuffer);
-    }
-
-    if (_visibleInstanceCountBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_visibleInstanceCountBuffer);
-    }
-
-    if (_visibleInstanceIndexBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_visibleInstanceIndexBuffer);
-    }
-
-    if (_visibleInstanceCountArgumentBuffer32 != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_visibleInstanceCountArgumentBuffer32);
     }
 
     {
@@ -2443,27 +2032,27 @@ void CModelRenderer::CreateBuffers()
         desc.name = "CModelVisibleInstanceMaskBuffer";
         desc.size = sizeof(u32) * ((_instances.size() + 31) / 32);
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _visibleInstanceMaskBuffer = _renderer->CreateBuffer(desc);
+        _visibleInstanceMaskBuffer = _renderer->CreateBuffer(_visibleInstanceMaskBuffer, desc);
     }
     {
         Renderer::BufferDesc desc;
         desc.name = "CModelVisibleInstanceCountBuffer";
         desc.size = sizeof(u32);
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _visibleInstanceCountBuffer = _renderer->CreateBuffer(desc);
+        _visibleInstanceCountBuffer = _renderer->CreateBuffer(_visibleInstanceCountBuffer, desc);
     }
     {
         Renderer::BufferDesc desc;
         desc.name = "CModelVisibleInstanceIndexBuffer";
         desc.size = sizeof(u32) * _instances.size();
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER;
-        _visibleInstanceIndexBuffer = _renderer->CreateBuffer(desc);
+        _visibleInstanceIndexBuffer = _renderer->CreateBuffer(_visibleInstanceIndexBuffer, desc);
     }
     {
         Renderer::BufferDesc desc;
         desc.name = "CModelVisibleInstanceIndexBuffer";
         desc.size = sizeof(VkDispatchIndirectCommand);
         desc.usage = Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::STORAGE_BUFFER;
-        _visibleInstanceCountArgumentBuffer32 = _renderer->CreateBuffer(desc);
+        _visibleInstanceCountArgumentBuffer32 = _renderer->CreateBuffer(_visibleInstanceCountArgumentBuffer32, desc);
     }
 }

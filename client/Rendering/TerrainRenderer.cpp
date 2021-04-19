@@ -647,7 +647,7 @@ void TerrainRenderer::CreatePermanentResources()
         desc.name = "TerrainCellIndexBuffer";
         desc.size = Terrain::NUM_INDICES_PER_CELL * sizeof(u16);
         desc.usage = Renderer::BufferUsage::INDEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _cellIndexBuffer = _renderer->CreateBuffer(desc);
+        _cellIndexBuffer = _renderer->CreateBuffer(_cellIndexBuffer, desc);
     }
 
     {
@@ -655,12 +655,12 @@ void TerrainRenderer::CreatePermanentResources()
         desc.name = "TerrainArgumentBuffer";
         desc.size = sizeof(VkDrawIndexedIndirectCommand);
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::INDIRECT_ARGUMENT_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION | Renderer::BufferUsage::TRANSFER_SOURCE;
-        _argumentBuffer = _renderer->CreateBuffer(desc);
+        _argumentBuffer = _renderer->CreateBuffer(_argumentBuffer, desc);
 
         desc.size = sizeof(u32);
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
         desc.cpuAccess = Renderer::BufferCPUAccess::ReadOnly;
-        _drawCountReadBackBuffer = _renderer->CreateBuffer(desc);
+        _drawCountReadBackBuffer = _renderer->CreateBuffer(_drawCountReadBackBuffer, desc);
     }
 
     // Upload cell index buffer
@@ -790,77 +790,52 @@ void TerrainRenderer::ExecuteLoad()
 {
     size_t numChunksToLoad = _chunksToBeLoaded.size();
 
-    if (_instanceBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_instanceBuffer);
-    }
     {
         Renderer::BufferDesc desc;
         desc.name = "CulledTerrainInstanceBuffer";
         desc.size = sizeof(CellInstance) * Terrain::MAP_CELLS_PER_CHUNK * numChunksToLoad;
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::VERTEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _instanceBuffer = _renderer->CreateBuffer(desc);
+        _instanceBuffer = _renderer->CreateBuffer(_instanceBuffer, desc);
     }
 
-    if (_culledInstanceBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_culledInstanceBuffer);
-    }
     {
         Renderer::BufferDesc desc;
         desc.name = "TerrainInstanceBuffer";
         desc.size = sizeof(CellInstance) * Terrain::MAP_CELLS_PER_CHUNK * numChunksToLoad;
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::VERTEX_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _culledInstanceBuffer = _renderer->CreateBuffer(desc);
+        _culledInstanceBuffer = _renderer->CreateBuffer(_culledInstanceBuffer, desc);
     }
 
-    if (_chunkBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_chunkBuffer);
-    }
     {
         Renderer::BufferDesc desc;
         desc.name = "TerrainChunkBuffer";
         desc.size = sizeof(TerrainChunkData) * numChunksToLoad;
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _chunkBuffer = _renderer->CreateBuffer(desc);
+        _chunkBuffer = _renderer->CreateBuffer(_chunkBuffer, desc);
     }
 
-    if (_cellBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_cellBuffer);
-    }
     {
         Renderer::BufferDesc desc;
         desc.name = "TerrainCellBuffer";
         desc.size = sizeof(TerrainCellData) * Terrain::MAP_CELLS_PER_CHUNK * numChunksToLoad;
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _cellBuffer = _renderer->CreateBuffer(desc);
+        _cellBuffer = _renderer->CreateBuffer(_cellBuffer, desc);
     }
 
-    if (_vertexBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_vertexBuffer);
-    }
     {
         Renderer::BufferDesc desc;
         desc.name = "TerrainVertexBuffer";
         desc.size = sizeof(TerrainVertex) * Terrain::NUM_VERTICES_PER_CHUNK * numChunksToLoad;
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _vertexBuffer = _renderer->CreateBuffer(desc);
+        _vertexBuffer = _renderer->CreateBuffer(_vertexBuffer, desc);
     }
 
-
-    if (_cellHeightRangeBuffer != Renderer::BufferID::Invalid())
-    {
-        _renderer->QueueDestroyBuffer(_cellHeightRangeBuffer);
-    }
     {
         Renderer::BufferDesc desc;
         desc.name = "CellHeightRangeBuffer";
         desc.size = sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK * numChunksToLoad;
         desc.usage = Renderer::BufferUsage::STORAGE_BUFFER | Renderer::BufferUsage::TRANSFER_DESTINATION;
-        _cellHeightRangeBuffer = _renderer->CreateBuffer(desc);
+        _cellHeightRangeBuffer = _renderer->CreateBuffer(_cellHeightRangeBuffer, desc);
     }
 
     for (const ChunkToBeLoaded& chunk : _chunksToBeLoaded)
@@ -893,7 +868,6 @@ bool TerrainRenderer::LoadMap(const NDBC::Map* map)
     // Unload everything in our alpha array
     _renderer->UnloadTexturesInArray(_terrainAlphaTextureArray, 0);
 
-    
     // Register Map Object to be loaded
     if (currentMap.header.flags.UseMapObjectInsteadOfTerrain)
     {
