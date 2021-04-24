@@ -23,6 +23,7 @@
 #include <GLFW/glfw3.h>
 #pragma warning(pop)
 
+#define ENABLE_VALIDATION_IN_DEBUG 0
 
 namespace Renderer
 {
@@ -259,7 +260,7 @@ namespace Renderer
 
         void RenderDeviceVK::InitVulkan()
         {
-#if _DEBUG
+#if _DEBUG && ENABLE_VALIDATION_IN_DEBUG
             // Check validation layer support
             CheckValidationLayerSupport();
 #endif
@@ -294,7 +295,7 @@ namespace Renderer
             createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
             createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
-#if _DEBUG
+#if _DEBUG && ENABLE_VALIDATION_IN_DEBUG
             VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
             createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
             createInfo.ppEnabledLayerNames = validationLayers.data();
@@ -339,7 +340,7 @@ namespace Renderer
 
         void RenderDeviceVK::SetupDebugMessenger()
         {
-#if _DEBUG
+#if _DEBUG && ENABLE_VALIDATION_IN_DEBUG
             VkDebugUtilsMessengerCreateInfoEXT createInfo;
             PopulateDebugMessengerCreateInfo(createInfo);
 
@@ -448,7 +449,7 @@ namespace Renderer
             createInfo.enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size());
             createInfo.ppEnabledExtensionNames = enabledExtensions.data();
 
-#if _DEBUG
+#if _DEBUG && ENABLE_VALIDATION_IN_DEBUG
             std::vector<const char*> enabledLayers;
             for (const char* layer : validationLayers)
             {
@@ -1218,7 +1219,7 @@ namespace Renderer
 
             std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-#if _DEBUG
+#if _DEBUG && ENABLE_VALIDATION_IN_DEBUG
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
             extensions.push_back("VK_KHR_get_physical_device_properties2");
