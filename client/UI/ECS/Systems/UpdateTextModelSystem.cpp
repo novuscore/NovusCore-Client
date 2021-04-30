@@ -10,6 +10,7 @@
 #include "../Components/InputField.h"
 #include "../Components/Text.h"
 #include "../Components/Dirty.h"
+#include "../Components/NotCulled.h"
 
 #include "../../Utils/TransformUtils.h"
 #include "../../Utils/TextUtils.h"
@@ -52,13 +53,13 @@ namespace UISystem
     {
         Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
 
-        auto inputFieldView = registry.view<UIComponent::Transform, UIComponent::InputField, UIComponent::Text, UIComponent::Dirty>();
+        auto inputFieldView = registry.view<UIComponent::Transform, UIComponent::InputField, UIComponent::Text, UIComponent::Dirty, UIComponent::NotCulled>();
         inputFieldView.each([&](const UIComponent::Transform& transform, const UIComponent::InputField& inputField, UIComponent::Text& text)
         {
             text.pushback = UIUtils::Text::CalculatePushback(&text, inputField.writeHeadIndex, 0.2f, transform.size.x, transform.size.y);
         });
 
-        auto textView = registry.view<UIComponent::Transform, UIComponent::Text, UIComponent::Dirty>();
+        auto textView = registry.view<UIComponent::Transform, UIComponent::Text, UIComponent::Dirty, UIComponent::NotCulled>();
         textView.each([&](UIComponent::Transform& transform, UIComponent::Text& text)
         {
             ZoneScopedNC("UpdateRenderingSystem::Update::TextView", tracy::Color::SkyBlue);

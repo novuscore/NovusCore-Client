@@ -4,13 +4,14 @@
 #include "../Components/ImageEventStyles.h"
 #include "../Components/TransformEvents.h"
 #include "../Components/Dirty.h"
+#include "../Components/NotCulled.h"
 
 
 namespace UISystem
 {
     void AssembleImageStyleSystem::Update(entt::registry& registry)
     {
-        auto imageView = registry.view<UIComponent::Image, UIComponent::ImageEventStyles, UIComponent::TransformEvents, UIComponent::Dirty>();
+        auto imageView = registry.view<UIComponent::Image, UIComponent::ImageEventStyles, UIComponent::TransformEvents, UIComponent::Dirty, UIComponent::NotCulled>();
         imageView.each([&](UIComponent::Image& image, UIComponent::ImageEventStyles& imageStyles, UIComponent::TransformEvents& events)
         {
             image.style = UI::ImageStylesheet();

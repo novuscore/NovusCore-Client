@@ -7,6 +7,7 @@
 #include "../Components/Image.h"
 #include "../Components/Text.h"
 #include "../Components/Dirty.h"
+#include "../Components/NotCulled.h"
 
 
 namespace UISystem
@@ -15,7 +16,7 @@ namespace UISystem
     {
         Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
 
-        auto imageView = registry.view<UIComponent::Image, UIComponent::Dirty>();
+        auto imageView = registry.view<UIComponent::Image, UIComponent::Dirty, UIComponent::NotCulled>();
         imageView.each([&](UIComponent::Image& image)
         {
             ZoneScopedNC("LoadTexturesSystem::Update::ImageView", tracy::Color::RoyalBlue);
@@ -31,7 +32,7 @@ namespace UISystem
             }
         });
 
-        auto textView = registry.view<UIComponent::Text, UIComponent::Dirty>();
+        auto textView = registry.view<UIComponent::Text, UIComponent::Dirty, UIComponent::NotCulled>();
         textView.each([&](UIComponent::Text& text)
         {
             ZoneScopedNC("UpdateRenderingSystem::Update::TextView", tracy::Color::SkyBlue);

@@ -4,12 +4,13 @@
 #include "../Components/TextEventStyles.h"
 #include "../Components/TransformEvents.h"
 #include "../Components/Dirty.h"
+#include "../Components/NotCulled.h"
 
 namespace UISystem
 {
     void AssembleTextStyleSystem::Update(entt::registry& registry)
     {
-        auto textView = registry.view<UIComponent::Text, UIComponent::TextEventStyles, UIComponent::TransformEvents, UIComponent::Dirty>();
+        auto textView = registry.view<UIComponent::Text, UIComponent::TextEventStyles, UIComponent::TransformEvents, UIComponent::Dirty, UIComponent::NotCulled>();
         textView.each([&](UIComponent::Text& text, UIComponent::TextEventStyles& textStyles, UIComponent::TransformEvents& events)
         {            
             text.style = UI::TextStylesheet();

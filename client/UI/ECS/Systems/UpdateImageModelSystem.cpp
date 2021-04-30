@@ -9,6 +9,7 @@
 #include "../Components/Singletons/UIDataSingleton.h"
 #include "../Components/Transform.h"
 #include "../Components/Dirty.h"
+#include "../Components/NotCulled.h"
 #include "../Components/Image.h"
 
 #include "../../Utils/TransformUtils.h"
@@ -50,7 +51,7 @@ namespace UISystem
     {        
         Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
 
-        auto imageView = registry.view<UIComponent::Transform, UIComponent::Image, UIComponent::Dirty>();
+        auto imageView = registry.view<UIComponent::Transform, UIComponent::Image, UIComponent::Dirty, UIComponent::NotCulled>();
         imageView.each([&](UIComponent::Transform& transform, UIComponent::Image& image)
         {
             ZoneScopedNC("UpdateRenderingSystem::Update::ImageView", tracy::Color::RoyalBlue);
