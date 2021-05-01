@@ -7,7 +7,6 @@
 #include "../Components/BoundsDirty.h"
 #include "../../Utils/ColllisionUtils.h"
 
-
 namespace UISystem
 {
     void UpdateBoundsSystem::Update(entt::registry& registry)

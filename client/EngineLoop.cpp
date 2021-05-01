@@ -449,31 +449,32 @@ void EngineLoop::SetupUpdateFramework()
 
     // UpdateBoundsSystem
     tf::Task uiUpdateBoundsSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
-        {
-            ZoneScopedNC("UpdateBoundsSystem::Update", tracy::Color::Gainsboro);
-            UISystem::UpdateBoundsSystem::Update(uiRegistry);
-            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
-        });
+    {
+        ZoneScopedNC("UpdateBoundsSystem::Update", tracy::Color::Gainsboro);
+        UISystem::UpdateBoundsSystem::Update(uiRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
     uiUpdateBoundsSystemTask.gather(uiDeleteElementSystem);
 
     // BuildSortKeySystem
     tf::Task uiBuildSortKeySystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
-        {
-            ZoneScopedNC("BuildSortKeySystem::Update", tracy::Color::Gainsboro);
-            UISystem::BuildSortKeySystem::Update(uiRegistry);
-            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
-        });
+    {
+        ZoneScopedNC("BuildSortKeySystem::Update", tracy::Color::Gainsboro);
+        UISystem::BuildSortKeySystem::Update(uiRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
     uiBuildSortKeySystemTask.gather(uiDeleteElementSystem);
 
     // UpdateCullingSystem
     tf::Task uiUpdateCullingSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
-        {
-            ZoneScopedNC("UpdateCullingSystem::Update", tracy::Color::Gainsboro);
-            UISystem::UpdateCullingSystem::Update(uiRegistry);
-            gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
-        });
+    {
+        ZoneScopedNC("UpdateCullingSystem::Update", tracy::Color::Gainsboro);
+        UISystem::UpdateCullingSystem::Update(uiRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
     uiUpdateCullingSystemTask.gather(uiDeleteElementSystem);
 
+    // AssembleImageStyleSystem
     tf::Task uiAssembleImageStyleSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
     {
         ZoneScopedNC("AssembleImageStyleSystem::Update", tracy::Color::Gainsboro);
@@ -481,7 +482,8 @@ void EngineLoop::SetupUpdateFramework()
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
     uiAssembleImageStyleSystemTask.gather(uiUpdateCullingSystemTask);
-
+    
+    // AssembleTextStyleSystem
     tf::Task uiAssembleTextStyleSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
     {
         ZoneScopedNC("AssembleTextStyleSystem::Update", tracy::Color::Gainsboro);
@@ -528,7 +530,6 @@ void EngineLoop::SetupUpdateFramework()
     });
     uiFinalCleanUpSystemTask.gather(uiUpdateImageModelsSystemTask);
     uiFinalCleanUpSystemTask.gather(uiUpdateTextModelsSystemTask);
-    uiFinalCleanUpSystemTask.gather(uiUpdateCullingSystemTask);
     uiFinalCleanUpSystemTask.gather(uiUpdateBoundsSystemTask);
     uiFinalCleanUpSystemTask.gather(uiBuildSortKeySystemTask);
     /* END UI SYSTEMS */

@@ -38,8 +38,8 @@ namespace UI
         case ElementType::UITYPE_INPUTFIELD:
             return "Inputfield";
         default:
-            assert(false);
-            return "Unimplemented";
+            DebugHandler::PrintFatal("ElementType has no valid string translation.");
+            return "Unknown";
         }
     }
 
