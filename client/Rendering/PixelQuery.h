@@ -14,6 +14,8 @@
 #include <Renderer/FrameResource.h>
 #include <Renderer/Buffer.h>
 
+struct RenderResources;
+
 class PixelQuery
 {
 public:
@@ -27,7 +29,7 @@ public:
     PixelQuery(Renderer::Renderer* renderer);
 
     void Update(f32 deltaTime);
-    void AddPixelQueryPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, u8 frameIndex);
+    void AddPixelQueryPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
 
     u32 PerformQuery(uvec2 pixelCoords);
     bool GetQueryResult(u32 token, PixelQuery::PixelData& pixelData);

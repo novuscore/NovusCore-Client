@@ -30,6 +30,7 @@ namespace Terrain
 
 class StringTable;
 class DebugRenderer;
+struct RenderResources;
 
 class MapObjectRenderer
 {
@@ -142,7 +143,8 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddMapObjectPass(Renderer::RenderGraph* renderGraph, const Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID depthPyramid, u8 frameIndex);
+    void AddMapObjectDepthPrepass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
+    void AddMapObjectPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
 
     void RegisterMapObjectToBeLoaded(const std::string& mapObjectName, const Terrain::Placement& mapObjectPlacement);
     void RegisterMapObjectsToBeLoaded(u16 chunkID, const Terrain::Chunk& chunk, StringTable& stringTable);

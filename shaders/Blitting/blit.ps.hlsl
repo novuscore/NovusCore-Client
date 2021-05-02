@@ -37,10 +37,10 @@ float4 main(VSOutput input) : SV_Target
     color = color * _constants.colorMultiplier + _constants.additiveColor;
 
     float4 redirectedColor = float4(0, 0, 0, 0);
-    redirectedColor[rRedirector] += color.r;
-    redirectedColor[gRedirector] += color.g;
-    redirectedColor[bRedirector] += color.b;
-    redirectedColor[aRedirector] += color.a;
+    redirectedColor.r += color[rRedirector];
+    redirectedColor.g += color[gRedirector];
+    redirectedColor.b += color[bRedirector];
+    redirectedColor.a += color[aRedirector];
 
     return redirectedColor;
 }

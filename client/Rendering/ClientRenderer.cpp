@@ -99,7 +99,7 @@ ClientRenderer::ClientRenderer()
 
     CreatePermanentResources();
 
-    _debugRenderer = new DebugRenderer(_renderer);
+    _debugRenderer = new DebugRenderer(_renderer, _resources);
     _uiRenderer = new UIRenderer(_renderer, _debugRenderer);
     _cModelRenderer = new CModelRenderer(_renderer, _debugRenderer);
     _postProcessRenderer = new PostProcessRenderer(_renderer);
@@ -149,25 +149,29 @@ void ClientRenderer::Render()
 
     _renderer->FlipFrame(_frameIndex);
 
+    // Get lastAO and set it in resources so we can use it later
+    _resources.ambientObscurance = _postProcessRenderer->GetAOImage(_frameIndex);
+
     // Update the view matrix to match the new camera position
-    _viewConstantBuffer->resource.lastViewProjectionMatrix = _viewConstantBuffer->resource.viewProjectionMatrix;
-    _viewConstantBuffer->resource.viewProjectionMatrix = camera->GetViewProjectionMatrix();
-    _viewConstantBuffer->resource.eye = camera->GetPosition();
-    _viewConstantBuffer->Apply(_frameIndex);
+    _resources.viewConstantBuffer->resource.lastViewProjectionMatrix = _resources.viewConstantBuffer->resource.viewProjectionMatrix;
+    _resources.viewConstantBuffer->resource.viewProjectionMatrix = camera->GetViewProjectionMatrix();
+    _resources.viewConstantBuffer->resource.viewMatrix = camera->GetViewMatrix();
+    _resources.viewConstantBuffer->resource.eye = camera->GetPosition();
+    _resources.viewConstantBuffer->Apply(_frameIndex);
 
     entt::registry* registry = ServiceLocator::GetGameRegistry();
     MapSingleton& mapSingleton = registry->ctx<MapSingleton>();
 
     if (!CVAR_LightLockEnabled.Get())
     {
-        _lightConstantBuffer->resource.ambientColor = vec4(mapSingleton.GetAmbientLight(), 1.0f);
-        _lightConstantBuffer->resource.lightColor = vec4(mapSingleton.GetDiffuseLight(), 1.0f);
-        _lightConstantBuffer->resource.lightDir = vec4(mapSingleton.GetLightDirection(), 1.0f);
-        _lightConstantBuffer->Apply(_frameIndex);
+        _resources.lightConstantBuffer->resource.ambientColor = vec4(mapSingleton.GetAmbientLight(), 1.0f);
+        _resources.lightConstantBuffer->resource.lightColor = vec4(mapSingleton.GetDiffuseLight(), 1.0f);
+        _resources.lightConstantBuffer->resource.lightDir = vec4(mapSingleton.GetLightDirection(), 1.0f);
+        _resources.lightConstantBuffer->Apply(_frameIndex);
     }
 
-    _globalDescriptorSet.Bind("_viewData"_h, _viewConstantBuffer->GetBuffer(_frameIndex));
-    _globalDescriptorSet.Bind("_lightData"_h, _lightConstantBuffer->GetBuffer(_frameIndex));
+    _resources.globalDescriptorSet.Bind("_viewData"_h, _resources.viewConstantBuffer->GetBuffer(_frameIndex));
+    _resources.globalDescriptorSet.Bind("_lightData"_h, _resources.lightConstantBuffer->GetBuffer(_frameIndex));
 
     _debugRenderer->AddUploadPass(&renderGraph);
 
@@ -175,41 +179,25 @@ void ClientRenderer::Render()
     {
         struct ClearPassData
         {
-            Renderer::RenderPassMutableResource mainDepth;
+            Renderer::RenderPassMutableResource depth;
         };
 
         renderGraph.AddPass<ClearPassData>("ClearPass",
             [=](ClearPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
-            data.mainDepth = builder.Write(_mainDepth, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+            data.depth = builder.Write(_resources.depth, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
 
             return true; // Return true from setup to enable this pass, return false to disable it
         },
-            [&](ClearPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
+            [&](ClearPassData& data, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList) // Execute
         {
             GPU_SCOPED_PROFILER_ZONE(commandList, MainPass);
             commandList.MarkFrameStart(_frameIndex);
 
-            Renderer::GraphicsPipelineDesc pipelineDesc;
-            resources.InitializePipelineDesc(pipelineDesc);
-
-            // Shaders
-            Renderer::VertexShaderDesc vertexShaderDesc;
-            vertexShaderDesc.path = "depthprepass.vs.hlsl";
-            pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
-
-            // Depth state
-            pipelineDesc.states.depthStencilState.depthEnable = true;
-            pipelineDesc.states.depthStencilState.depthWriteEnable = true;
-            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::GREATER;
-
-            // Render targets
-            pipelineDesc.depthStencil = data.mainDepth;
-
             // Clear TODO: This should be handled by the parameters in Setup, and it should definitely not act on ImageID and DepthImageID
-            commandList.Clear(_mainColor, Color(135.0f / 255.0f, 206.0f / 255.0f, 250.0f / 255.0f, 1));
-            commandList.Clear(_objectIDs, Color(0.0f, 0.0f, 0.0f, 0.0f));
-            commandList.Clear(_mainDepth, 0.0f);
+            commandList.Clear(_resources.color, Color(135.0f / 255.0f, 206.0f / 255.0f, 250.0f / 255.0f, 1));
+            commandList.Clear(_resources.objectIDs, Color(0.0f, 0.0f, 0.0f, 0.0f));
+            commandList.Clear(_resources.depth, 0.0f);
 
             // Set viewport
             commandList.SetViewport(0, 0, static_cast<f32>(WIDTH), static_cast<f32>(HEIGHT), 0.0f, 1.0f);
@@ -217,41 +205,51 @@ void ClientRenderer::Render()
         });
     }
 
-    _terrainRenderer->AddTerrainPass(&renderGraph, &_globalDescriptorSet, _debugRenderer->GetDescriptorSet(), _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
-    _cModelRenderer->AddComplexModelPass(&renderGraph, &_globalDescriptorSet, _debugRenderer->GetDescriptorSet(), _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
-    _postProcessRenderer->AddPostProcessPass(&renderGraph, &_globalDescriptorSet, _mainColor, _objectIDs, _mainDepth, _depthPyramid, _frameIndex);
-    _rendertargetVisualizer->AddVisualizerPass(&renderGraph, &_globalDescriptorSet, _mainColor, _frameIndex);
+    // Depth Prepass
+    _terrainRenderer->AddTerrainDepthPrepass(&renderGraph, _resources, _frameIndex);
+    _cModelRenderer->AddComplexModelDepthPrepass(&renderGraph, _resources, _frameIndex);
+
+    // Calculate SAO
+    _postProcessRenderer->AddCalculateSAOPass(&renderGraph, _resources, _frameIndex);
+
+    // Color pass
+    _terrainRenderer->AddTerrainPass(&renderGraph, _resources, _frameIndex);
+    _cModelRenderer->AddComplexModelPass(&renderGraph, _resources, _frameIndex);
+
+    // Postprocessing
+    _postProcessRenderer->AddPostProcessPass(&renderGraph, _resources, _frameIndex);
+    _rendertargetVisualizer->AddVisualizerPass(&renderGraph, _resources, _frameIndex);
 
     // UI Pass
     struct PyramidPassData
     {
-        Renderer::RenderPassResource mainDepth;
+        Renderer::RenderPassResource depth;
     };
 
     renderGraph.AddPass<PyramidPassData>("PyramidPass",
         [=](PyramidPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
-            data.mainDepth = builder.Read(_mainDepth, Renderer::RenderGraphBuilder::ShaderStage::PIXEL);
+            data.depth = builder.Read(_resources.depth, Renderer::RenderGraphBuilder::ShaderStage::PIXEL);
 
             return true; // Return true from setup to enable this pass, return false to disable it
         },
-        [=](PyramidPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
+        [=](PyramidPassData& data, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList) // Execute
         {
-            GPU_SCOPED_PROFILER_ZONE(commandList, ImguiPass);
+            GPU_SCOPED_PROFILER_ZONE(commandList, BuildPyramid);
 
-            DepthPyramidUtils::BuildPyramid(_renderer,resources, commandList,_frameIndex, _mainDepth, _depthPyramid);
+            DepthPyramidUtils::BuildPyramid(_renderer, graphResources, commandList, _resources, _frameIndex);
         });
 
-    _pixelQuery->AddPixelQueryPass(&renderGraph, _mainColor, _objectIDs, _mainDepth, _frameIndex);
+    _pixelQuery->AddPixelQueryPass(&renderGraph, _resources, _frameIndex);
 
     _debugRenderer->AddDrawArgumentPass(&renderGraph, _frameIndex);
-    _debugRenderer->Add3DPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
+    _debugRenderer->Add3DPass(&renderGraph, _resources, _frameIndex);
 
-    _uiRenderer->AddUIPass(&renderGraph, _mainColor, _frameIndex);
+    _uiRenderer->AddUIPass(&renderGraph, _resources, _frameIndex);
 
-    _debugRenderer->Add2DPass(&renderGraph, &_globalDescriptorSet, _mainColor, _mainDepth, _frameIndex);
+    _debugRenderer->Add2DPass(&renderGraph, _resources, _frameIndex);
 
-    _uiRenderer->AddImguiPass(&renderGraph, _mainColor, _frameIndex);
+    _uiRenderer->AddImguiPass(&renderGraph, _resources, _frameIndex);
 
     renderGraph.AddSignalSemaphore(_sceneRenderedSemaphore); // Signal that we are ready to present
     renderGraph.AddSignalSemaphore(_frameSyncSemaphores.Get(_frameIndex)); // Signal that this frame has finished, for next frames sake
@@ -271,7 +269,7 @@ void ClientRenderer::Render()
     
     {
         ZoneScopedNC("Present", tracy::Color::Red2);
-        _renderer->Present(_window, _mainColor, _sceneRenderedSemaphore);
+        _renderer->Present(_window, _resources.color, _sceneRenderedSemaphore);
     }
 
     // Flip the frameIndex between 0 and 1
@@ -280,7 +278,7 @@ void ClientRenderer::Render()
 
 uvec2 ClientRenderer::GetRenderResolution()
 {
-    return _renderer->GetImageDimension(_mainColor, 0);
+    return _renderer->GetImageDimension(_resources.color, 0);
 }
 
 void ClientRenderer::InitImgui()
@@ -322,7 +320,7 @@ void ClientRenderer::CreatePermanentResources()
     mainColorDesc.format = Renderer::ImageFormat::R16G16B16A16_FLOAT;
     mainColorDesc.sampleCount = Renderer::SampleCount::SAMPLE_COUNT_1;
 
-    _mainColor = _renderer->CreateImage(mainColorDesc);
+    _resources.color = _renderer->CreateImage(mainColorDesc);
 
     // Object ID rendertarget
     Renderer::ImageDesc objectIDsDesc;
@@ -332,7 +330,7 @@ void ClientRenderer::CreatePermanentResources()
     objectIDsDesc.format = Renderer::ImageFormat::R32_UINT;
     objectIDsDesc.sampleCount = Renderer::SampleCount::SAMPLE_COUNT_1;
 
-    _objectIDs = _renderer->CreateImage(objectIDsDesc);
+    _resources.objectIDs = _renderer->CreateImage(objectIDsDesc);
 
     // depth pyramid ID rendertarget
     Renderer::ImageDesc pyramidDesc;
@@ -341,7 +339,7 @@ void ClientRenderer::CreatePermanentResources()
     pyramidDesc.dimensionType = Renderer::ImageDimensionType::DIMENSION_PYRAMID;
     pyramidDesc.format = Renderer::ImageFormat::R32_FLOAT;
     pyramidDesc.sampleCount = Renderer::SampleCount::SAMPLE_COUNT_1;
-    _depthPyramid = _renderer->CreateImage(pyramidDesc);
+    _resources.depthPyramid = _renderer->CreateImage(pyramidDesc);
 
     // Main depth rendertarget
     Renderer::DepthImageDesc mainDepthDesc;
@@ -351,13 +349,13 @@ void ClientRenderer::CreatePermanentResources()
     mainDepthDesc.format = Renderer::DepthImageFormat::D32_FLOAT;
     mainDepthDesc.sampleCount = Renderer::SampleCount::SAMPLE_COUNT_1;
 
-    _mainDepth = _renderer->CreateDepthImage(mainDepthDesc);
+    _resources.depth = _renderer->CreateDepthImage(mainDepthDesc);
 
     // View Constant Buffer (for camera data)
-    _viewConstantBuffer = new Renderer::Buffer<ViewConstantBuffer>(_renderer, "ViewConstantBuffer", Renderer::BufferUsage::UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
+    _resources.viewConstantBuffer = new Renderer::Buffer<ViewConstantBuffer>(_renderer, "ViewConstantBuffer", Renderer::BufferUsage::UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
     // Light Constant Buffer
-    _lightConstantBuffer = new Renderer::Buffer<LightConstantBuffer>(_renderer, "LightConstantBufffer", Renderer::BufferUsage::UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
+    _resources.lightConstantBuffer = new Renderer::Buffer<LightConstantBuffer>(_renderer, "LightConstantBufffer", Renderer::BufferUsage::UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
     // Frame allocator, this is a fast allocator for data that is only needed this frame
     _frameAllocator = new Memory::StackAllocator(FRAME_ALLOCATOR_SIZE);

@@ -4,6 +4,9 @@
 #include <Renderer/Descriptors/ImageDesc.h>
 #include <Renderer/Descriptors/DepthImageDesc.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
+#include <Renderer/FrameResource.h>
+
+#include "RenderResources.h"
 
 namespace Renderer
 {
@@ -20,7 +23,10 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddPostProcessPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID occlusionPyramid, u8 frameIndex);
+    void AddCalculateSAOPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
+    void AddPostProcessPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
+
+    Renderer::ImageID GetAOImage(u32 frameIndex) { return _aoImage; }
 
 private:
     void CreatePermanentResources();
@@ -28,5 +34,6 @@ private:
 private:
     Renderer::Renderer* _renderer;
 
+    Renderer::ImageID _aoImage;
     Renderer::SamplerID _linearSampler;
 };

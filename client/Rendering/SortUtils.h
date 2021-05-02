@@ -91,8 +91,8 @@ public:
     };
 
 public:
-    static void Sort(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const SortParams& params);
-    static void SortIndirectCount(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const SortIndirectCountParams& params);
+    static void Sort(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const SortParams& params);
+    static void SortIndirectCount(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const SortIndirectCountParams& params);
 
 private:
     struct SortBuffers
@@ -117,14 +117,14 @@ private:
 
 private:
     static SortBuffers InitBuffers(Renderer::Renderer* renderer, Renderer::CommandList& commandList, u32 numKeys);
-    static ResultBuffers SortInternal(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, SortBuffers& buffers);
+    static ResultBuffers SortInternal(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, SortBuffers& buffers);
 
-    static void SetupIndirectParameters(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const SetupParams& params);
-    static void Count(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const CountParams& params);
+    static void SetupIndirectParameters(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const SetupParams& params);
+    static void Count(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const CountParams& params);
     static void CountReduce(Renderer::Renderer* renderer, Renderer::CommandList& commandList, u32 frameIndex, const CountReduceParams& params);
     static void Scan(Renderer::Renderer* renderer, Renderer::CommandList& commandList, u32 frameIndex, const ScanParams& params);
     static void ScanAdd(Renderer::Renderer* renderer, Renderer::CommandList& commandList, u32 frameIndex, const ScanAddParams& params);
-    static void Scatter(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const ScatterParams& params);
+    static void Scatter(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const ScatterParams& params);
 
 private:
     static Renderer::DescriptorSet _setupDescriptorSet;

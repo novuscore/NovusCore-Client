@@ -19,7 +19,7 @@ namespace Renderer
         virtual void Execute(RenderGraphResources& resources, CommandList& commandList) = 0;
         virtual void DeInit() = 0;
 
-        char _name[16];
+        char _name[32];
         u8 _nameLength = 0;
     };
 
@@ -34,9 +34,9 @@ namespace Renderer
             : _onSetup(onSetup)
             , _onExecute(onExecute)
         {
-            if (name.length() >= 16)
+            if (name.length() >= 32)
             {
-                DebugHandler::PrintFatal("We encountered a render pass name (%s) that is longer than 15 characters, we have this limit because we store the string internally and not on the heap.", name.c_str());
+                DebugHandler::PrintFatal("We encountered a render pass name (%s) that is longer than 31 characters, we have this limit because we store the string internally and not on the heap.", name.c_str());
             }
 
             strcpy_s(_name, name.c_str());

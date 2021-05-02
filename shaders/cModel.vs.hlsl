@@ -1,3 +1,6 @@
+permutation COLOR_PASS = [0, 1];
+
+#include "common.inc.hlsl"
 #include "globalData.inc.hlsl"
 #include "cModel.inc.hlsl"
 
@@ -14,8 +17,10 @@ struct PackedVertex
 struct Vertex
 {
     float3 position;
-    float3 normal;
     float4 uv01;
+#if COLOR_PASS
+    float3 normal;
+#endif
 
     uint4 boneIndices;
     float4 boneWeights;
@@ -43,17 +48,6 @@ float3 UnpackPosition(PackedVertex packedVertex)
     position.z = f16tof32(packedVertex.packed1);
     
     return position;
-}
-
-float3 OctNormalDecode(float2 f)
-{
-    f = f * 2.0 - 1.0;
- 
-    // https://twitter.com/Stubbesaurus/status/937994790553227264
-    float3 n = float3( f.x, f.y, 1.0 - abs( f.x ) - abs( f.y ) );
-    float t = saturate( -n.z );
-    n.xy += n.xy >= 0.0 ? -t : t;
-    return normalize( n );
 }
 
 float3 UnpackNormal(PackedVertex packedVertex)
@@ -107,8 +101,11 @@ Vertex LoadVertex(uint vertexID)
     
     Vertex vertex;
     vertex.position = UnpackPosition(packedVertex);
-    vertex.normal = UnpackNormal(packedVertex);
     vertex.uv01 = UnpackUVs(packedVertex);
+#if COLOR_PASS
+    vertex.normal = UnpackNormal(packedVertex);
+#endif
+
     vertex.boneIndices = UnpackBoneIndices(packedVertex);
     vertex.boneWeights = UnpackBoneWeights(packedVertex);
 
@@ -125,8 +122,11 @@ struct VSOutput
 {
     float4 position : SV_Position;
     uint drawCallID : TEXCOORD0;
-    float3 normal : TEXCOORD1;
-    float4 uv01 : TEXCOORD2;
+    float4 uv01 : TEXCOORD1;
+
+#if COLOR_PASS
+    float3 normal : TEXCOORD2;
+#endif
 };
 
 VSOutput main(VSInput input)
@@ -153,10 +153,13 @@ VSOutput main(VSInput input)
     position = mul(float4(-position.x, -position.y, position.z, 1.0f), instanceData.instanceMatrix);
     
     VSOutput output;
-    output.drawCallID = drawCallID;
     output.position = mul(position, _viewData.viewProjectionMatrix);
-    output.normal = mul(vertex.normal, (float3x3)instanceData.instanceMatrix);
+    output.drawCallID = drawCallID;
     output.uv01 = vertex.uv01;
+
+#if COLOR_PASS
+    output.normal = mul(vertex.normal, (float3x3)instanceData.instanceMatrix);
+#endif
 
     return output;
 }

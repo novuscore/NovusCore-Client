@@ -1,3 +1,5 @@
+permutation COLOR_PASS = [0, 1];
+
 #include "globalData.inc.hlsl"
 #include "mapObject.inc.hlsl"
 
@@ -17,15 +19,20 @@ struct PackedVertex
 struct Vertex
 {
     float3 position;
+    float4 uv;
+
+#if COLOR_PASS
     float3 normal;
     float4 color0;
     float4 color1;
-    float4 uv;
+#endif
 };
 
 [[vk::binding(1, PER_PASS)]] StructuredBuffer<PackedVertex> _packedVertices;
 [[vk::binding(2, PER_PASS)]] StructuredBuffer<InstanceData> _instanceData;
-[[vk::binding(6, PER_PASS)]] Texture2D<float4> _textures[4096]; // This binding needs to stay up to date with the one in mapObject.ps.hlsl or we're gonna have a baaaad time
+#if COLOR_PASS
+[[vk::binding(7, PER_PASS)]] Texture2D<float4> _textures[4096]; // This binding needs to stay up to date with the one in mapObject.ps.hlsl or we're gonna have a baaaad time
+#endif
 
 float3 UnpackPosition(PackedVertex packedVertex)
 {
@@ -74,8 +81,11 @@ Vertex UnpackVertex(PackedVertex packedVertex)
 {
     Vertex vertex;
     vertex.position = UnpackPosition(packedVertex);
-    vertex.normal = UnpackNormal(packedVertex);
     vertex.uv = UnpackUVs(packedVertex);
+
+#if COLOR_PASS
+    vertex.normal = UnpackNormal(packedVertex);
+#endif
     
     return vertex;
 }
@@ -86,6 +96,7 @@ Vertex LoadVertex(uint vertexID, uint vertexColor1Offset, uint vertexColor2Offse
     
     Vertex vertex = UnpackVertex(packedVertex);
 
+#if COLOR_PASS
     uint offsetVertex = vertexID - vertexMeshOffset;
 
     bool hasVertexColor1 = vertexColor1Offset != 0xffffffff;
@@ -103,6 +114,7 @@ Vertex LoadVertex(uint vertexID, uint vertexColor1Offset, uint vertexColor2Offse
 
         vertex.color1 = _textures[NonUniformResourceIndex(vertexColorTextureID1)].Load(vertexColorUV2) * float4(hasVertexColor2, hasVertexColor2, hasVertexColor2, 1.0f);
     }
+#endif
 
     return vertex;
 }
@@ -116,12 +128,14 @@ struct VSInput
 struct VSOutput
 {
     float4 position : SV_Position;
-    float3 normal : TEXCOORD0;
-    float4 color0 : TEXCOORD1;
-    float4 color1 : TEXCOORD2;
-    float4 uv01 : TEXCOORD3;
-    uint materialParamID : TEXCOORD4;
+    uint materialParamID : TEXCOORD0;
+    float4 uv01 : TEXCOORD1;
+#if COLOR_PASS
+    float3 normal : TEXCOORD2;
+    float4 color0 : TEXCOORD3;
+    float4 color1 : TEXCOORD4;
     uint instanceLookupID : TEXCOORD5;
+#endif
 };
 
 VSOutput main(VSInput input)
@@ -143,13 +157,15 @@ VSOutput main(VSInput input)
     position = mul(position, instanceData.instanceMatrix);
 
     output.position = mul(position, _viewData.viewProjectionMatrix);
-    output.normal = mul(vertex.normal, (float3x3)instanceData.instanceMatrix);
     output.materialParamID = materialParamID;
+    output.uv01 = vertex.uv;
+
+#if COLOR_PASS
+    output.normal = mul(vertex.normal, (float3x3)instanceData.instanceMatrix);
     output.color0 = vertex.color0;
     output.color1 = vertex.color1;
-
-    output.uv01 = vertex.uv;
     output.instanceLookupID = input.instanceID;
+#endif
 
     return output;
 }

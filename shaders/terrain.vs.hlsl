@@ -1,3 +1,5 @@
+permutation COLOR_PASS = [0, 1];
+
 #include "globalData.inc.hlsl"
 #include "terrain.inc.hlsl"
 
@@ -10,9 +12,11 @@ struct PackedVertex
 struct Vertex
 {
     float3 position;
+#if COLOR_PASS
     float3 normal;
     float3 color;
     float2 uv;
+#endif
 };
 
 [[vk::binding(1, PER_PASS)]] StructuredBuffer<PackedVertex> _packedVertices;
@@ -55,14 +59,19 @@ Vertex UnpackVertex(const PackedVertex packedVertex)
     // u8 color.b
     // half height, 2 bytes
     
-    // Unpack normal, color and height
+    Vertex vertex;
+
+#if COLOR_PASS
+    // Unpack normal and color
     uint normal = packedVertex.packed0;// & 0x00FFFFFFu;
     uint color = ((packedVertex.packed1 & 0x0000FFFFu) << 8u) | (packedVertex.packed0 >> 24u);
-    uint height = packedVertex.packed1 >> 16u;
-    
-    Vertex vertex;
+
     vertex.normal = UnpackNormal(normal);
     vertex.color = UnpackColor(color);
+#endif
+    
+    // Unpack height
+    uint height = packedVertex.packed1 >> 16u;
     vertex.position.z = UnpackHalf(height);
     
     return vertex;
@@ -78,7 +87,9 @@ Vertex LoadVertex(uint chunkID, uint cellID, uint vertexBaseOffset, uint vertexI
     Vertex vertex = UnpackVertex(packedVertex);
 
     vertex.position.xy = GetGlobalVertexPosition(chunkID, cellID, vertexID);
+#if COLOR_PASS
     vertex.uv = float2(-vertexPos.y, -vertexPos.x); // Negated to go from 3D coordinates to 2D
+#endif
 
     return vertex;
 }
@@ -93,11 +104,14 @@ struct VSInput
 struct VSOutput
 {
     float4 position : SV_Position;
+
+#if COLOR_PASS
     uint packedChunkCellID : TEXCOORD0;
     float2 uv : TEXCOORD1;
     float3 normal : TEXCOORD2;
     float3 color : TEXCOORD3;
     uint cellIndex : TEXCOORD4;
+#endif
 };
 
 VSOutput main(VSInput input)
@@ -119,11 +133,14 @@ VSOutput main(VSInput input)
     Vertex vertex = LoadVertex(chunkID, cellID, vertexBaseOffset, input.vertexID);
 
     output.position = mul(float4(vertex.position, 1.0f), _viewData.viewProjectionMatrix);
+
+#if COLOR_PASS
     output.uv = vertex.uv;
     output.packedChunkCellID = input.packedChunkCellID;
     output.normal = vertex.normal;
     output.color = vertex.color;
     output.cellIndex = input.cellIndex;
+#endif
 
     return output;
 }

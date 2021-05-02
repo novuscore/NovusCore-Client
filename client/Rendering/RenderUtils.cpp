@@ -8,7 +8,7 @@
 
 Renderer::DescriptorSet RenderUtils::_overlayDescriptorSet;
 
-void RenderUtils::Blit(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const BlitParams& params)
+void RenderUtils::Blit(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const BlitParams& params)
 {
     commandList.PushMarker("Blit", Color::White);
     commandList.ImageBarrier(params.input);
@@ -25,14 +25,14 @@ void RenderUtils::Blit(Renderer::Renderer* renderer, Renderer::RenderGraphResour
     switch (componentType)
     {
         case Renderer::ImageComponentType::FLOAT:
+        case Renderer::ImageComponentType::SNORM:
+        case Renderer::ImageComponentType::UNORM:
             componentTypeName = "float";
             break;
         case Renderer::ImageComponentType::SINT:
-        case Renderer::ImageComponentType::SNORM:
             componentTypeName = "int";
             break;
         case Renderer::ImageComponentType::UINT:
-        case Renderer::ImageComponentType::UNORM:
             componentTypeName = "uint";
             break;
     }
@@ -48,7 +48,7 @@ void RenderUtils::Blit(Renderer::Renderer* renderer, Renderer::RenderGraphResour
     pixelShaderDesc.AddPermutationField("TEX_TYPE", componentTypeName);
 
     Renderer::GraphicsPipelineDesc pipelineDesc;
-    resources.InitializePipelineDesc(pipelineDesc);
+    graphResources.InitializePipelineDesc(pipelineDesc);
 
     pipelineDesc.states.vertexShader = renderer->LoadShader(vertexShaderDesc);
     pipelineDesc.states.pixelShader = renderer->LoadShader(pixelShaderDesc);
@@ -78,7 +78,7 @@ void RenderUtils::Blit(Renderer::Renderer* renderer, Renderer::RenderGraphResour
         u32 channelRedirectors;
     };
 
-    BlitConstant* constants = resources.FrameNew<BlitConstant>();
+    BlitConstant* constants = graphResources.FrameNew<BlitConstant>();
     constants->colorMultiplier = params.colorMultiplier;
     constants->additiveColor = params.additiveColor;
 
@@ -98,7 +98,7 @@ void RenderUtils::Blit(Renderer::Renderer* renderer, Renderer::RenderGraphResour
     commandList.PopMarker();
 }
 
-void RenderUtils::DepthBlit(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const DepthBlitParams& params)
+void RenderUtils::DepthBlit(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const DepthBlitParams& params)
 {
     commandList.PushMarker("Blit", Color::White);
     commandList.ImageBarrier(params.input);
@@ -115,14 +115,14 @@ void RenderUtils::DepthBlit(Renderer::Renderer* renderer, Renderer::RenderGraphR
     switch (componentType)
     {
     case Renderer::ImageComponentType::FLOAT:
+    case Renderer::ImageComponentType::SNORM:
+    case Renderer::ImageComponentType::UNORM:
         componentTypeName = "float";
         break;
     case Renderer::ImageComponentType::SINT:
-    case Renderer::ImageComponentType::SNORM:
         componentTypeName = "int";
         break;
     case Renderer::ImageComponentType::UINT:
-    case Renderer::ImageComponentType::UNORM:
         componentTypeName = "uint";
         break;
     }
@@ -138,7 +138,7 @@ void RenderUtils::DepthBlit(Renderer::Renderer* renderer, Renderer::RenderGraphR
     pixelShaderDesc.AddPermutationField("TEX_TYPE", componentTypeName);
 
     Renderer::GraphicsPipelineDesc pipelineDesc;
-    resources.InitializePipelineDesc(pipelineDesc);
+    graphResources.InitializePipelineDesc(pipelineDesc);
 
     pipelineDesc.states.vertexShader = renderer->LoadShader(vertexShaderDesc);
     pipelineDesc.states.pixelShader = renderer->LoadShader(pixelShaderDesc);
@@ -162,7 +162,7 @@ void RenderUtils::DepthBlit(Renderer::Renderer* renderer, Renderer::RenderGraphR
         u32 channelRedirectors;
     };
 
-    BlitConstant* constants = resources.FrameNew<BlitConstant>();
+    BlitConstant* constants = graphResources.FrameNew<BlitConstant>();
     constants->colorMultiplier = params.colorMultiplier;
     constants->additiveColor = params.additiveColor;
 
@@ -182,7 +182,7 @@ void RenderUtils::DepthBlit(Renderer::Renderer* renderer, Renderer::RenderGraphR
     commandList.PopMarker();
 }
 
-void RenderUtils::Overlay(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const OverlayParams& params)
+void RenderUtils::Overlay(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const OverlayParams& params)
 {
     commandList.PushMarker("Overlay", Color::White);
     commandList.ImageBarrier(params.overlayImage);
@@ -199,14 +199,14 @@ void RenderUtils::Overlay(Renderer::Renderer* renderer, Renderer::RenderGraphRes
     switch (componentType)
     {
     case Renderer::ImageComponentType::FLOAT:
+    case Renderer::ImageComponentType::SNORM:
+    case Renderer::ImageComponentType::UNORM:
         componentTypeName = "float";
         break;
     case Renderer::ImageComponentType::SINT:
-    case Renderer::ImageComponentType::SNORM:
         componentTypeName = "int";
         break;
     case Renderer::ImageComponentType::UINT:
-    case Renderer::ImageComponentType::UNORM:
         componentTypeName = "uint";
         break;
     }
@@ -222,7 +222,7 @@ void RenderUtils::Overlay(Renderer::Renderer* renderer, Renderer::RenderGraphRes
     pixelShaderDesc.AddPermutationField("TEX_TYPE", componentTypeName);
 
     Renderer::GraphicsPipelineDesc pipelineDesc;
-    resources.InitializePipelineDesc(pipelineDesc);
+    graphResources.InitializePipelineDesc(pipelineDesc);
 
     pipelineDesc.states.vertexShader = renderer->LoadShader(vertexShaderDesc);
     pipelineDesc.states.pixelShader = renderer->LoadShader(pixelShaderDesc);
@@ -258,7 +258,7 @@ void RenderUtils::Overlay(Renderer::Renderer* renderer, Renderer::RenderGraphRes
         u32 channelRedirectors;
     };
 
-    BlitConstant* constants = resources.FrameNew<BlitConstant>();
+    BlitConstant* constants = graphResources.FrameNew<BlitConstant>();
     constants->colorMultiplier = params.colorMultiplier;
     constants->additiveColor = params.additiveColor;
 
@@ -278,7 +278,7 @@ void RenderUtils::Overlay(Renderer::Renderer* renderer, Renderer::RenderGraphRes
     commandList.PopMarker();
 }
 
-void RenderUtils::DepthOverlay(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const DepthOverlayParams& params)
+void RenderUtils::DepthOverlay(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const DepthOverlayParams& params)
 {
     commandList.PushMarker("DepthOverlay", Color::White);
     commandList.ImageBarrier(params.overlayImage);
@@ -295,14 +295,14 @@ void RenderUtils::DepthOverlay(Renderer::Renderer* renderer, Renderer::RenderGra
     switch (componentType)
     {
         case Renderer::ImageComponentType::FLOAT:
+        case Renderer::ImageComponentType::SNORM:
+        case Renderer::ImageComponentType::UNORM:
             componentTypeName = "float";
             break;
         case Renderer::ImageComponentType::SINT:
-        case Renderer::ImageComponentType::SNORM:
             componentTypeName = "int";
             break;
         case Renderer::ImageComponentType::UINT:
-        case Renderer::ImageComponentType::UNORM:
             componentTypeName = "uint";
             break;
     }
@@ -318,7 +318,7 @@ void RenderUtils::DepthOverlay(Renderer::Renderer* renderer, Renderer::RenderGra
     pixelShaderDesc.AddPermutationField("TEX_TYPE", componentTypeName);
 
     Renderer::GraphicsPipelineDesc pipelineDesc;
-    resources.InitializePipelineDesc(pipelineDesc);
+    graphResources.InitializePipelineDesc(pipelineDesc);
 
     pipelineDesc.states.vertexShader = renderer->LoadShader(vertexShaderDesc);
     pipelineDesc.states.pixelShader = renderer->LoadShader(pixelShaderDesc);
@@ -348,7 +348,7 @@ void RenderUtils::DepthOverlay(Renderer::Renderer* renderer, Renderer::RenderGra
         u32 channelRedirectors;
     };
 
-    BlitConstant* constants = resources.FrameNew<BlitConstant>();
+    BlitConstant* constants = graphResources.FrameNew<BlitConstant>();
     constants->colorMultiplier = params.colorMultiplier;
     constants->additiveColor = params.additiveColor;
 

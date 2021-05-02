@@ -2,6 +2,7 @@
 #include "DebugRenderer.h"
 #include "../Utils/ServiceLocator.h"
 #include "../Utils/MapUtils.h"
+#include "RenderResources.h"
 
 #include <filesystem>
 #include <GLFW/glfw3.h>
@@ -60,89 +61,82 @@ void WaterRenderer::Clear()
     //_renderer->UnloadTexturesInArray(_waterTextures, 0);
 }
 
-void WaterRenderer::AddWaterPass(Renderer::RenderGraph* renderGraph, Renderer::DescriptorSet* globalDescriptorSet, Renderer::ImageID renderTarget, Renderer::DepthImageID depthTarget, u8 frameIndex)
+void WaterRenderer::AddWaterPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex)
 {
     struct WaterPassData
     {
-        Renderer::RenderPassMutableResource mainColor;
-        Renderer::RenderPassMutableResource mainDepth;
+        Renderer::RenderPassMutableResource color;
+        Renderer::RenderPassMutableResource depth;
     };
 
-    const auto setup = [=](WaterPassData& data, Renderer::RenderGraphBuilder& builder)
-    {
-        data.mainColor = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
-        data.mainDepth = builder.Write(depthTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
-
-        return true; // Return true from setup to enable this pass, return false to disable it
-    };
-
-    const auto execute = [=](WaterPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList)
-    {
-        GPU_SCOPED_PROFILER_ZONE(commandList, WaterPass);
-        
-        size_t numDrawCalls = _drawCalls.size();
-        if (numDrawCalls == 0)
-            return;
-
-        Renderer::GraphicsPipelineDesc pipelineDesc;
-        resources.InitializePipelineDesc(pipelineDesc);
-
-        // Shaders
-        Renderer::VertexShaderDesc vertexShaderDesc;
-        vertexShaderDesc.path = "water.vs.hlsl";
-        pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
-
-        Renderer::PixelShaderDesc pixelShaderDesc;
-        pixelShaderDesc.path = "water.ps.hlsl";
-        pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
-
-        // Depth state
-        pipelineDesc.states.depthStencilState.depthEnable = true;
-        pipelineDesc.states.depthStencilState.depthWriteEnable = true;
-        pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::GREATER;
-
-        // Rasterizer state
-        pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::NONE; //Renderer::CullMode::BACK;
-        pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
-
-        // Blending state
-        pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;
-        pipelineDesc.states.blendState.renderTargets[0].blendOp = Renderer::BlendOp::ADD;
-        pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::SRC_ALPHA;
-        pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::INV_SRC_ALPHA;
-
-        // Render targets
-        pipelineDesc.renderTargets[0] = data.mainColor;
-        pipelineDesc.depthStencil = data.mainDepth;
-
-        // Set pipeline
-        Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
-        commandList.BeginPipeline(pipeline);
-
-        commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, globalDescriptorSet, frameIndex);
-
-        commandList.PushMarker("Water", Color::White);
-
-        _passDescriptorSet.Bind("_drawCallDatas", _drawCallDatasBuffer);
-        _passDescriptorSet.Bind("_vertices", _vertexBuffer);
-        _passDescriptorSet.Bind("_textures", _waterTextures);
-
-        commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
-
+    renderGraph->AddPass<WaterPassData>("Water Pass", 
+        [=](WaterPassData& data, Renderer::RenderGraphBuilder& builder)
         {
-            //commandList.PushConstant(&_constants, 0, sizeof(Constants));
-            commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
+            data.color = builder.Write(resources.color, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+            data.depth = builder.Write(resources.depth, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
+            return true; // Return true from setup to enable this pass, return false to disable it
+        }, 
+        [=](WaterPassData& data, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList)
+        {
+            GPU_SCOPED_PROFILER_ZONE(commandList, WaterPass);
 
-            u32 numDrawCalls = static_cast<u32>(_drawCalls.size());
-            commandList.DrawIndexedIndirect(_drawCallsBuffer, 0, numDrawCalls);
-        }
+            Renderer::GraphicsPipelineDesc pipelineDesc;
+            graphResources.InitializePipelineDesc(pipelineDesc);
 
-        commandList.PopMarker();
+            // Shaders
+            Renderer::VertexShaderDesc vertexShaderDesc;
+            vertexShaderDesc.path = "water.vs.hlsl";
+            pipelineDesc.states.vertexShader = _renderer->LoadShader(vertexShaderDesc);
 
-        commandList.EndPipeline(pipeline);
-    };
+            Renderer::PixelShaderDesc pixelShaderDesc;
+            pixelShaderDesc.path = "water.ps.hlsl";
+            pipelineDesc.states.pixelShader = _renderer->LoadShader(pixelShaderDesc);
 
-    renderGraph->AddPass<WaterPassData>("Water Pass", setup, execute);
+            // Depth state
+            pipelineDesc.states.depthStencilState.depthEnable = true;
+            pipelineDesc.states.depthStencilState.depthWriteEnable = true;
+            pipelineDesc.states.depthStencilState.depthFunc = Renderer::ComparisonFunc::GREATER;
+
+            // Rasterizer state
+            pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::NONE; //Renderer::CullMode::BACK;
+            pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
+
+            // Blending state
+            pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;
+            pipelineDesc.states.blendState.renderTargets[0].blendOp = Renderer::BlendOp::ADD;
+            pipelineDesc.states.blendState.renderTargets[0].srcBlend = Renderer::BlendMode::SRC_ALPHA;
+            pipelineDesc.states.blendState.renderTargets[0].destBlend = Renderer::BlendMode::INV_SRC_ALPHA;
+
+            // Render targets
+            pipelineDesc.renderTargets[0] = data.color;
+            pipelineDesc.depthStencil = data.depth;
+
+            // Set pipeline
+            Renderer::GraphicsPipelineID pipeline = _renderer->CreatePipeline(pipelineDesc); // This will compile the pipeline and return the ID, or just return ID of cached pipeline
+            commandList.BeginPipeline(pipeline);
+
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, &resources.globalDescriptorSet, frameIndex);
+
+            commandList.PushMarker("Water", Color::White);
+
+            _passDescriptorSet.Bind("_drawCallDatas", _drawCallDatasBuffer);
+            _passDescriptorSet.Bind("_vertices", _vertexBuffer);
+            _passDescriptorSet.Bind("_textures", _waterTextures);
+
+            commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_passDescriptorSet, frameIndex);
+
+            {
+                //commandList.PushConstant(&_constants, 0, sizeof(Constants));
+                commandList.SetIndexBuffer(_indexBuffer, Renderer::IndexFormat::UInt16);
+
+                u32 numDrawCalls = static_cast<u32>(_drawCalls.size());
+                commandList.DrawIndexedIndirect(_drawCallsBuffer, 0, numDrawCalls);
+            }
+
+            commandList.PopMarker();
+
+            commandList.EndPipeline(pipeline);
+        });
 }
 
 void WaterRenderer::CreatePermanentResources()

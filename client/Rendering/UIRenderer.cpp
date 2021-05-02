@@ -2,6 +2,7 @@
 #include "DebugRenderer.h"
 #include "GLFW/glfw3.h"
 #include "CVar/CVarSystem.h"
+#include "RenderResources.h"
 
 #include <Renderer/Renderer.h>
 #include <Renderer/RenderGraph.h>
@@ -114,7 +115,7 @@ void UIRenderer::Update(f32 deltaTime)
 
                 min.y = 1.f - min.y;
                 max.y = 1.f - max.y;
-
+                
                 uint32_t color = 0xffd9dcdf;
                 _debugRenderer->DrawLine2D(min, vec2(max.x, min.y), color);
                 _debugRenderer->DrawLine2D(min, vec2(min.x, max.y), color);
@@ -124,35 +125,35 @@ void UIRenderer::Update(f32 deltaTime)
     }
 }
 
-void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex)
+void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex)
 {
     // UI Pass
     struct UIPassData
     {
-        Renderer::RenderPassMutableResource renderTarget;
+        Renderer::RenderPassMutableResource color;
     };
 
     renderGraph->AddPass<UIPassData>("UIPass",
         [=](UIPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
-            data.renderTarget = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
+            data.color = builder.Write(resources.color, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
 
             return true; // Return true from setup to enable this pass, return false to disable it
         },
-        [=](UIPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
+        [=](UIPassData& data, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList) // Execute
         {
             
             GPU_SCOPED_PROFILER_ZONE(commandList, UIPass);
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
-            resources.InitializePipelineDesc(pipelineDesc);
+            graphResources.InitializePipelineDesc(pipelineDesc);
 
             // Rasterizer state
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::BACK;
             //pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
 
             // Render targets
-            pipelineDesc.renderTargets[0] = data.renderTarget;
+            pipelineDesc.renderTargets[0] = data.color;
 
             // Blending
             pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;
@@ -273,34 +274,34 @@ void UIRenderer::AddUIPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID
         });
 }
 
-void UIRenderer::AddImguiPass(Renderer::RenderGraph* renderGraph, Renderer::ImageID renderTarget, u8 frameIndex)
+void UIRenderer::AddImguiPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex)
 {
     // UI Pass
     struct UIPassData
     {
-        Renderer::RenderPassMutableResource renderTarget;
+        Renderer::RenderPassMutableResource color;
     };
 
     renderGraph->AddPass<UIPassData>("ImguiPass",
         [=](UIPassData& data, Renderer::RenderGraphBuilder& builder) // Setup
         {
-            data.renderTarget = builder.Write(renderTarget, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
+            data.color = builder.Write(resources.color, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::LOAD);
 
             return true; // Return true from setup to enable this pass, return false to disable it
         },
-        [=](UIPassData& data, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList) // Execute
+        [=](UIPassData& data, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList) // Execute
         {
             GPU_SCOPED_PROFILER_ZONE(commandList, ImguiPass);
 
             Renderer::GraphicsPipelineDesc pipelineDesc;
-            resources.InitializePipelineDesc(pipelineDesc);
+            graphResources.InitializePipelineDesc(pipelineDesc);
 
             // Rasterizer state
             pipelineDesc.states.rasterizerState.cullMode = Renderer::CullMode::BACK;
             //pipelineDesc.states.rasterizerState.frontFaceMode = Renderer::FrontFaceState::COUNTERCLOCKWISE;
 
             // Render targets
-            pipelineDesc.renderTargets[0] = data.renderTarget;
+            pipelineDesc.renderTargets[0] = data.color;
 
             // Blending
             pipelineDesc.states.blendState.renderTargets[0].blendEnable = true;

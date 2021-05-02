@@ -39,6 +39,7 @@ namespace NDBC
 class CameraFreeLook;
 class DebugRenderer;
 class MapObjectRenderer;
+struct RenderResources;
 
 constexpr u32 CMODEL_INVALID_TEXTURE_ID = std::numeric_limits<u32>().max();
 constexpr u8 CMODEL_INVALID_TEXTURE_UNIT_INDEX = std::numeric_limits<u8>().max();
@@ -130,7 +131,8 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddComplexModelPass(Renderer::RenderGraph* renderGraph, const Renderer::DescriptorSet* globalDescriptorSet, const Renderer::DescriptorSet* debugDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID occlusionPyramid, u8 frameIndex);
+    void AddComplexModelDepthPrepass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
+    void AddComplexModelPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
 
     void RegisterLoadFromChunk(u16 chunkID, const Terrain::Chunk& chunk, StringTable& stringTable);
     void ExecuteLoad();

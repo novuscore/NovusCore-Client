@@ -3,6 +3,7 @@ struct ViewData
 {
     float4x4 viewProjectionMatrix;
     float4x4 lastViewProjectionMatrix;
+    float4x4 viewMatrix;
     float3 eye;
 };
 [[vk::binding(0, GLOBAL)]] ConstantBuffer<ViewData> _viewData;
@@ -23,7 +24,7 @@ enum ObjectType : uint
     ComplexModelTransparent = 4
 };
 
-float3 Lighting(float3 color, float3 vertexColor, float3 normal, bool isLit)
+float3 Lighting(float3 color, float3 vertexColor, float3 normal, float ambientOcclusion, bool isLit)
 {
     // For Indoor WMO Groups
     /*
@@ -65,6 +66,6 @@ float3 Lighting(float3 color, float3 vertexColor, float3 normal, bool isLit)
         return sqrt(gammaDiffTerm * gammaDiffTerm + linearDiffTerm); 
     */
     
-    float3 gammaDiffTerm = color * (currColor + lDiffuse);
+    float3 gammaDiffTerm = color * (currColor + lDiffuse) * ambientOcclusion;
     return gammaDiffTerm;
 }

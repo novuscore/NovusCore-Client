@@ -15,7 +15,6 @@
 #include <Renderer/DescriptorSet.h>
 
 #include "../Gameplay/Map/Chunk.h"
-#include "ViewConstantBuffer.h"
 
 namespace Terrain
 {
@@ -43,6 +42,7 @@ class DebugRenderer;
 class MapObjectRenderer;
 class CModelRenderer;
 class WaterRenderer;
+struct RenderResources;
 
 class TerrainRenderer
 {
@@ -83,7 +83,8 @@ public:
 
     void Update(f32 deltaTime);
 
-    void AddTerrainPass(Renderer::RenderGraph* renderGraph, const Renderer::DescriptorSet* globalDescriptorSet, const Renderer::DescriptorSet* debugDescriptorSet, Renderer::ImageID colorTarget, Renderer::ImageID objectTarget, Renderer::DepthImageID depthTarget, Renderer::ImageID depthPyramid, u8 frameIndex);
+    void AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
+    void AddTerrainPass(Renderer::RenderGraph* renderGraph, RenderResources& resources, u8 frameIndex);
 
     bool LoadMap(const NDBC::Map* map);
 

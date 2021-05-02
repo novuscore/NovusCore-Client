@@ -27,7 +27,7 @@ public:
         Renderer::RenderPassMutableResource output;
         Renderer::SamplerID sampler;
     };
-    static void Blit(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const BlitParams& params);
+    static void Blit(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const BlitParams& params);
 
     struct DepthBlitParams
     {
@@ -39,7 +39,7 @@ public:
         Renderer::RenderPassMutableResource output;
         Renderer::SamplerID sampler;
     };
-    static void DepthBlit(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const DepthBlitParams& params);
+    static void DepthBlit(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const DepthBlitParams& params);
 
     struct OverlayParams
     {
@@ -52,7 +52,7 @@ public:
         Renderer::RenderPassMutableResource baseImage;
         Renderer::SamplerID sampler;
     };
-    static void Overlay(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const OverlayParams& params);
+    static void Overlay(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const OverlayParams& params);
 
     struct DepthOverlayParams
     {
@@ -64,7 +64,7 @@ public:
         Renderer::RenderPassMutableResource baseImage;
         Renderer::SamplerID sampler;
     };
-    static void DepthOverlay(Renderer::Renderer* renderer, Renderer::RenderGraphResources& resources, Renderer::CommandList& commandList, u32 frameIndex, const DepthOverlayParams& params);
+    static void DepthOverlay(Renderer::Renderer* renderer, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList, u32 frameIndex, const DepthOverlayParams& params);
 
 private:
 
