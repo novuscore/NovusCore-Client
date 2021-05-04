@@ -9,6 +9,7 @@
 #include "../ECS/Components/TransformEvents.h"
 #include "../ECS/Components/Renderable.h"
 #include "../ECS/Components/Image.h"
+#include "../ECS/Components/ImageEventStyles.h"
 #include "../ECS/Components/Checkbox.h"
 #include "../Utils/EventUtils.h"
 
@@ -19,6 +20,7 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Checkbox>(_entityId);
         registry->emplace<UIComponent::Image>(_entityId);
+        registry->emplace<UIComponent::ImageEventStyles>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
 
         _checkPanel = Panel::CreatePanel(false);
@@ -46,8 +48,28 @@ namespace UIScripting
 
     void Checkbox::SetStylesheet(const UI::ImageStylesheet& styleSheet)
     {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style = styleSheet;
+        UIComponent::ImageEventStyles& image = ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        image.styleMap[UI::TransformEventState::STATE_NORMAL] = styleSheet;
+    }
+    void Checkbox::SetFocusedStylesheet(const UI::ImageStylesheet& styleSheet)
+    {
+        UIComponent::ImageEventStyles& image = ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        image.styleMap[UI::TransformEventState::STATE_FOCUSED] = styleSheet;
+    }
+    void Checkbox::SetHoverStylesheet(const UI::ImageStylesheet& styleSheet)
+    {
+        UIComponent::ImageEventStyles& image = ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        image.styleMap[UI::TransformEventState::STATE_HOVERED] = styleSheet;
+    }
+    void Checkbox::SetPressedStylesheet(const UI::ImageStylesheet& styleSheet)
+    {
+        UIComponent::ImageEventStyles& image = ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        image.styleMap[UI::TransformEventState::STATE_PRESSED] = styleSheet;
+    }
+    void Checkbox::SetDisabledStylesheet(const UI::ImageStylesheet& stylesheet)
+    {
+        UIComponent::ImageEventStyles* imageStyles = &ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        imageStyles->styleMap[UI::TransformEventState::STATE_DISABLED] = stylesheet;
     }
 
     void Checkbox::SetCheckStylesheet(const UI::ImageStylesheet& styleSheet)

@@ -14,8 +14,12 @@ namespace UIScripting
 
         static void RegisterType();
 
-        // Background Functions
+        // Renderable Functions
         void SetStylesheet(const UI::ImageStylesheet& styleSheet);
+        void SetFocusedStylesheet(const UI::ImageStylesheet& styleSheet);
+        void SetHoverStylesheet(const UI::ImageStylesheet& styleSheet);
+        void SetPressedStylesheet(const UI::ImageStylesheet& styleSheet);
+        void SetDisabledStylesheet(const UI::ImageStylesheet& styleSheet);
 
         // Check Functions
         void SetCheckStylesheet(const UI::ImageStylesheet& styleSheet);
