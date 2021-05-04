@@ -9,7 +9,10 @@ namespace UIComponent
     struct TextEventStyles
     {
     public:
-        TextEventStyles() { }
+        TextEventStyles() 
+        { 
+            styleMap.reserve(UI::TransformEventState::COUNT); 
+        }
 
         robin_hood::unordered_flat_map<UI::TransformEventState, UI::TextStylesheet> styleMap;
     };

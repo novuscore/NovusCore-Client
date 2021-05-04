@@ -18,6 +18,7 @@ namespace UIScripting
         void SetFocusedStylesheet(const UI::ImageStylesheet& styleSheet);
         void SetHoverStylesheet(const UI::ImageStylesheet& styleSheet);
         void SetPressedStylesheet(const UI::ImageStylesheet& styleSheet);
+        void SetDisabledStylesheet(const UI::ImageStylesheet& styleSheet);
 
         static Panel* CreatePanel(bool collisionEnabled = true);
     };

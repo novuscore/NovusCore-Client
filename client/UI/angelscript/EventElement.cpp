@@ -61,6 +61,21 @@ namespace UIScripting
         else
             events->UnsetFlag(UI::TransformEventsFlags::FLAG_FOCUSABLE);
     }
+
+    const bool EventElement::IsEnabled() const
+    {
+        const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
+        return events->HasState(UI::TransformEventState::STATE_DISABLED);
+    }
+    void EventElement::SetEnabled(bool enabled)
+    {
+        UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
+        if (enabled)
+            events->UnsetState(UI::TransformEventState::STATE_DISABLED);
+        else
+            events->SetState(UI::TransformEventState::STATE_DISABLED);
+
+    }
     
     void EventElement::SetOnClickCallback(asIScriptFunction* callback)
     {

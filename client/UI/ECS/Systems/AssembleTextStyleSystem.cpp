@@ -14,6 +14,16 @@ namespace UISystem
         textView.each([&](UIComponent::Text& text, UIComponent::TextEventStyles& textStyles, UIComponent::TransformEvents& events)
         {            
             text.style = UI::TextStylesheet();
+            
+            if (events.HasState(UI::TransformEventState::STATE_DISABLED))
+            {
+                const auto itr = textStyles.styleMap.find(UI::TransformEventState::STATE_DISABLED);
+                if (itr != textStyles.styleMap.end())
+                    text.style = itr->getSecond();
+
+                text.style.Merge(textStyles.styleMap[UI::TransformEventState::STATE_NORMAL]);
+                return;
+            }
 
             const u8 highestSetBit = static_cast<u8>(std::log2(events.state));
             const u8 highestSetState = highestSetBit ? static_cast<u8>(std::pow(2,highestSetBit)) : 0;

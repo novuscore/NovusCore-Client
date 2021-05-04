@@ -9,7 +9,10 @@ namespace UIComponent
     struct ImageEventStyles
     {
     public:
-        ImageEventStyles(){ }
+        ImageEventStyles()
+        {
+            styleMap.reserve(UI::TransformEventState::COUNT);
+        }
 
         robin_hood::unordered_flat_map<UI::TransformEventState, UI::ImageStylesheet> styleMap;
     };

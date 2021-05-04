@@ -27,6 +27,7 @@ namespace UIScripting
         void SetFocusedStylesheet(const UI::ImageStylesheet& stylesheet);
         void SetHoveredStylesheet(const UI::ImageStylesheet& stylesheet);
         void SetPressedStylesheet(const UI::ImageStylesheet& stylesheet);
+        void SetDisabledStylesheet(const UI::ImageStylesheet& stylesheet);
 
         static Button* CreateButton();
 

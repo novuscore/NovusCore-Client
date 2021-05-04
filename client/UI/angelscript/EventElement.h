@@ -22,6 +22,9 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("bool IsFocusable()", asMETHOD(T, IsFocusable)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetFocusable(bool focusable)", asMETHOD(T, SetFocusable)); assert(r >= 0);
 
+            r = ScriptEngine::RegisterScriptClassFunction("bool IsEnabled()", asMETHOD(T, IsEnabled)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetEnabled(bool enabled)", asMETHOD(T, SetEnabled)); assert(r >= 0);
+
             r = RegisterEvents("EventElement");
         }
 
@@ -56,6 +59,9 @@ namespace UIScripting
         void SetDraggable(bool draggable);
         const bool IsFocusable() const;
         void SetFocusable(bool focusable);
+
+        const bool IsEnabled() const;
+        void SetEnabled(bool enabled);
 
         void SetOnClickCallback(asIScriptFunction* callback);
 

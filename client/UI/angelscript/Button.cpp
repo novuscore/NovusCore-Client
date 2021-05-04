@@ -38,6 +38,7 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void SetFocusedStylesheet(ImageStylesheet stylesheet)", asMETHOD(Button, SetFocusedStylesheet)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetHoveredStylesheet(ImageStylesheet stylesheet)", asMETHOD(Button, SetHoveredStylesheet)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetPressedStylesheet(ImageStylesheet stylesheet)", asMETHOD(Button, SetPressedStylesheet)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetDisabledStylesheet(ImageStylesheet stylesheet)", asMETHOD(Button, SetDisabledStylesheet)); assert(r >= 0);
     }
 
     const std::string Button::GetText() const
@@ -73,6 +74,11 @@ namespace UIScripting
     {
         UIComponent::ImageEventStyles* imageStyles = &ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
         imageStyles->styleMap[UI::TransformEventState::STATE_PRESSED] = stylesheet;
+    }
+    void Button::SetDisabledStylesheet(const UI::ImageStylesheet& stylesheet)
+    {
+        UIComponent::ImageEventStyles* imageStyles = &ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        imageStyles->styleMap[UI::TransformEventState::STATE_DISABLED] = stylesheet;
     }
 
     Button* Button::CreateButton()

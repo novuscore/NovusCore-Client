@@ -23,7 +23,11 @@ namespace UI
         STATE_NORMAL = 0,
         STATE_FOCUSED = 1 << 0,
         STATE_HOVERED = 1 << 1,
-        STATE_PRESSED = 1 << 2
+        STATE_PRESSED = 1 << 2,
+
+        STATE_DISABLED = 1 << 3,
+
+        COUNT = 5
     };
 }
 

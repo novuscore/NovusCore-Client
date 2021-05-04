@@ -16,6 +16,7 @@
 #include "ECS/Components/Collidable.h"
 #include "ECS/Components/Visible.h"
 #include "ECS/Components/NotCulled.h"
+#include "ECS/Components/Disabled.h"
 
 #include "Utils/ElementUtils.h"
 #include "Utils/TransformUtils.h"
@@ -93,7 +94,8 @@ namespace UIInput
 
             // Don't interact with the last focused element directly. Reserving first click for unfocusing it but still block clicking through it.
             // Also check if we have any events we can actually call else exit out early.
-            if (lastFocusedWidget == entity || !events.flags)
+            // We also don't want to interact with disabled elements though they still occupy collision.
+            if (lastFocusedWidget == entity || !events.flags || events.HasState(UI::TransformEventState::STATE_DISABLED))
                 return true;
 
             if (keybind->state == GLFW_PRESS)

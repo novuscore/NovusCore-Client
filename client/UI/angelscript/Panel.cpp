@@ -30,6 +30,7 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void SetFocusedStylesheet(ImageStylesheet styleSheet)", asMETHOD(Panel, SetFocusedStylesheet)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetHoverStylesheet(ImageStylesheet styleSheet)", asMETHOD(Panel, SetHoverStylesheet)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetPressedStylesheet(ImageStylesheet styleSheet)", asMETHOD(Panel, SetPressedStylesheet)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetDisabledStylesheet(ImageStylesheet styleSheet)", asMETHOD(Panel, SetDisabledStylesheet)); assert(r >= 0);
     }
 
     void Panel::SetStylesheet(const UI::ImageStylesheet& styleSheet)
@@ -51,6 +52,11 @@ namespace UIScripting
     {
         UIComponent::ImageEventStyles& image = ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
         image.styleMap[UI::TransformEventState::STATE_PRESSED] = styleSheet;
+    }
+    void Panel::SetDisabledStylesheet(const UI::ImageStylesheet& stylesheet)
+    {
+        UIComponent::ImageEventStyles* imageStyles = &ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        imageStyles->styleMap[UI::TransformEventState::STATE_DISABLED] = stylesheet;
     }
 
     Panel* Panel::CreatePanel(bool collisionEnabled)

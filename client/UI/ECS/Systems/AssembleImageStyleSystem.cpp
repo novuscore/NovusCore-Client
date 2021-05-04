@@ -16,6 +16,16 @@ namespace UISystem
         {
             image.style = UI::ImageStylesheet();
 
+            if (events.HasState(UI::TransformEventState::STATE_DISABLED))
+            {
+                const auto itr = imageStyles.styleMap.find(UI::TransformEventState::STATE_DISABLED);
+                if (itr != imageStyles.styleMap.end())
+                    image.style = itr->getSecond();
+
+                image.style.Merge(imageStyles.styleMap[UI::TransformEventState::STATE_NORMAL]);
+                return;
+            }
+
             const u8 highestSetBit = static_cast<u8>(std::log2(events.state));
             const u8 highestSetState = highestSetBit ? static_cast<u8>(std::pow(2,highestSetBit)) : 0;
             u8 key = highestSetState;
