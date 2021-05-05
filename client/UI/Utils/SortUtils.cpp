@@ -11,14 +11,14 @@ namespace UIUtils::Sort
     {
         auto [parentRelation, parentSortKey] = registry->get<UIComponent::Relation, UIComponent::SortKey>(parent);
 
-        for (const UI::UIChild& child : parentRelation.children)
+        for (const entt::entity childId : parentRelation.children)
         {
-            UIComponent::SortKey& sortKey = registry->get<UIComponent::SortKey>(child.entId);
+            UIComponent::SortKey& sortKey = registry->get<UIComponent::SortKey>(childId);
             sortKey.data.depthLayer = parentSortKey.data.depthLayer;
             sortKey.data.depth = parentSortKey.data.depth;
             sortKey.data.compoundDepth = compoundDepth++;
 
-            UpdateChildDepths(registry, child.entId, compoundDepth);
+            UpdateChildDepths(registry, childId, compoundDepth);
         }
     }
 

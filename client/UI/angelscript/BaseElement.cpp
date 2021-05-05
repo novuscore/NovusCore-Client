@@ -211,6 +211,11 @@ namespace UIScripting
             registry->emplace<UIComponent::SortKeyDirty>(_entityId);
     }
 
+    const bool BaseElement::HasParent() const
+    {
+        const UIComponent::Relation& relation = ServiceLocator::GetUIRegistry()->get<UIComponent::Relation>(_entityId);
+        return relation.parent != entt::null;
+    }
     BaseElement* BaseElement::GetParent() const
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
@@ -221,43 +226,35 @@ namespace UIScripting
         return reinterpret_cast<BaseElement*>(registry->get<UIComponent::ElementInfo>(relation.parent).scriptingObject);
     }
 
-    void BaseElement::SetParent(BaseElement* parent)
+    void BaseElement::AddChild(BaseElement* child)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Relation& relation = registry->get<UIComponent::Relation>(_entityId);
+        UIComponent::Relation& childRelation = registry->get<UIComponent::Relation>(child->GetEntityId());
 
-        if (relation.parent != entt::null)
+        if (childRelation.parent != entt::null)
         {
-            DebugHandler::PrintError("Tried calling SetParent() on Element(ID: %d, Type: %d) with a parent. You must call UnsetParent() first.", entt::to_integral(_entityId), _elementType);
+            DebugHandler::PrintError("Tried calling AddChild() on Element(ID: %d, Type: %s) with a parent. You must call RemoveFromParent() first.", entt::to_integral(child->GetEntityId()), UI::GetElementTypeAsString(child->GetType()));
             return;
         }
-        registry->remove<UIComponent::Root>(_entityId);
-        relation.parent = parent->GetEntityId();
-
-        auto [parentRelation, parentTransform, parentSortKey] = registry->get<UIComponent::Relation, UIComponent::Transform, UIComponent::SortKey>(relation.parent);
-        parentRelation.children.push_back({ _entityId, _elementType });
-
-        auto [transform, sortKey] = registry->get<UIComponent::Transform, UIComponent::SortKey>(_entityId);
-
-        transform.anchorPosition = UIUtils::Transform::GetAnchorPositionInElement(parentTransform, transform.anchor);
-        if (transform.HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
-            transform.size = UIUtils::Transform::GetInnerSize(&parentTransform);
-
-        UIUtils::Sort::MarkSortTreeDirty(registry, relation.parent);
-        UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
+        UIUtils::AddChild(registry, _entityId, child->GetEntityId());
     }
-    void BaseElement::UnsetParent()
+    void BaseElement::RemoveChild(BaseElement* child)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        auto relation = &registry->get<UIComponent::Relation>(_entityId);
+        UIComponent::Relation& childRelation = registry->get<UIComponent::Relation>(child->GetEntityId());
 
-        if (relation->parent == entt::null)
+        if (childRelation.parent != _entityId)
+        {
+            DebugHandler::PrintError("Tried calling RemoveChild() on Element(ID: %d, Type: %s) that is not a child of this element (ID: %d, Type: %s).", entt::to_integral(child->GetEntityId()), UI::GetElementTypeAsString(child->GetType()), entt::to_integral(_entityId), UI::GetElementTypeAsString(_elementType));
             return;
+        }
 
-        UIUtils::RemoveFromParent(registry, _entityId);
-        registry->emplace<UIComponent::Root>(_entityId);
-        if (!registry->has<UIComponent::SortKeyDirty>(_entityId))
-            registry->emplace<UIComponent::SortKeyDirty>(_entityId);
+        UIUtils::RemoveFromParent(registry, child->GetEntityId());
+    }
+    void BaseElement::RemoveFromParent()
+    {
+        if (BaseElement* parent = GetParent())
+            parent->RemoveChild(this);
     }
 
     bool BaseElement::GetCollisionIncludesChildren() const
@@ -358,11 +355,11 @@ namespace UIScripting
     void BaseElement::InternalAddChild(BaseElement* element)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        auto [elementTransform, elementRelation, elementSortKey] = registry->get<UIComponent::Transform, UIComponent::Relation, UIComponent::SortKey>(element->GetEntityId());
+        auto [elementRelation, elementSortKey] = registry->get<UIComponent::Relation, UIComponent::SortKey>(element->GetEntityId());
         elementRelation.parent = _entityId;
         elementSortKey.data.depth++;
         registry->remove<UIComponent::Root>(element->GetEntityId());
 
-        registry->get<UIComponent::Relation>(_entityId).children.push_back({ element->GetEntityId(), element->GetType() });
+        registry->get<UIComponent::Relation>(_entityId).children.push_back(element->GetEntityId());
     }
 }

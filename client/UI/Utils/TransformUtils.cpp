@@ -38,15 +38,15 @@ namespace UIUtils::Transform
         const hvec2 minAnchorBound = GetMinBounds(transform) + hvec2(transform.padding.left, transform.padding.top);
         const hvec2 adjustedSize = transform.size - hvec2(transform.padding.right, transform.padding.bottom);
 
-        for (const UI::UIChild& child : relation.children)
+        for (const entt::entity childId : relation.children)
         {
-            UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
+            UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(childId);
 
             childTransform->anchorPosition = minAnchorBound + adjustedSize * childTransform->anchor;
             if (childTransform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
                 childTransform->size = transform.size;
 
-            UpdateChildTransforms(registry, child.entId);
+            UpdateChildTransforms(registry, childId);
         }
     }
 
@@ -60,15 +60,15 @@ namespace UIUtils::Transform
         const hvec2 minAnchorBound = GetMinBounds(transform) + hvec2(transform.padding.left, transform.padding.top);
         const hvec2 adjustedSize = transform.size - hvec2(transform.padding.right, transform.padding.bottom);
 
-        for (const UI::UIChild& child : relation.children)
+        for (const entt::entity childId : relation.children)
         {
-            UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
+            UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(childId);
             childTransform->anchorPosition = minAnchorBound + adjustedSize * childTransform->anchor;
         }
 
-        for (const UI::UIChild& child : relation.children)
+        for (const entt::entity childId : relation.children)
         {
-            UpdateChildPositions(registry, child.entId);
+            UpdateChildPositions(registry, childId);
         }
     }
 }

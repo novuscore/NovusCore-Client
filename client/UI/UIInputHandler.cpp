@@ -16,7 +16,6 @@
 #include "ECS/Components/Collidable.h"
 #include "ECS/Components/Visible.h"
 #include "ECS/Components/NotCulled.h"
-#include "ECS/Components/Disabled.h"
 
 #include "Utils/ElementUtils.h"
 #include "Utils/TransformUtils.h"

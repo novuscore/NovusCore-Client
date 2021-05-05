@@ -50,8 +50,9 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("void SetDepth(uint16 depth)", asMETHOD(T, SetDepth)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("BaseElement@ GetParent()", asMETHOD(T, GetParent)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetParent(BaseElement@ parent)", asMETHOD(T, SetParent)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void UnsetParent()", asMETHOD(T, UnsetParent)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void AddChild(BaseElement@ child)", asMETHOD(T, AddChild)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void RemoveChild(BaseElement@ child)", asMETHOD(T, RemoveChild)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void RemoveFromParent()", asMETHOD(T, RemoveFromParent)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void Destroy(bool destroyChildren = true)", asMETHOD(T, Destroy)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("void GetCollisionIncludesChildren()", asMETHOD(T, GetCollisionIncludesChildren)); assert(r >= 0);
@@ -98,9 +99,11 @@ namespace UIScripting
         u16 GetDepth() const;
         void SetDepth(const u16 depth);
 
+        const bool HasParent() const;
         BaseElement* GetParent() const;
-        void SetParent(BaseElement* parent);
-        void UnsetParent();
+        void AddChild(BaseElement* child);
+        void RemoveChild(BaseElement* child);
+        void RemoveFromParent();
 
         bool GetCollisionIncludesChildren() const;
         void SetCollisionIncludesChildren(bool expand);

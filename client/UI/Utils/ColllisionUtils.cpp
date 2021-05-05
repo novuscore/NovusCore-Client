@@ -18,10 +18,10 @@ namespace UIUtils::Collision
         hvec2 minBound = screenPosition - offset;
         hvec2 maxBound = minBound + transform.size;
 
-        for (const UI::UIChild& child : relation.children)
+        for (const entt::entity childId : relation.children)
         {
-            UpdateBounds(registry, child.entId, false);
-            UIComponent::Collision* childCollision = &registry->get<UIComponent::Collision>(child.entId);
+            UpdateBounds(registry, childId, false);
+            UIComponent::Collision* childCollision = &registry->get<UIComponent::Collision>(childId);
 
             if (!collision.HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
                 continue;
@@ -53,9 +53,9 @@ namespace UIUtils::Collision
 
         if (collision.HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
         {
-            for (const UI::UIChild& child : relation.children)
+            for (const entt::entity childId : relation.children)
             {
-                UIComponent::Collision* childCollision = &registry->get<UIComponent::Collision>(child.entId);
+                UIComponent::Collision* childCollision = &registry->get<UIComponent::Collision>(childId);
 
                 if (childCollision->minBound.x < collision.minBound.x) { collision.minBound.x = childCollision->minBound.x; }
                 if (childCollision->minBound.y < collision.minBound.y) { collision.minBound.y = childCollision->minBound.y; }

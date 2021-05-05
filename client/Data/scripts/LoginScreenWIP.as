@@ -34,7 +34,7 @@ void OnFieldSubmit(InputField@ inputField)
 	LogIn();
 }
 
-void OnLoginButtonClick(Button@ button)
+void OnLoginButtonClick(EventElement@ button)
 {
 	LogIn();
 }
@@ -56,8 +56,8 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	fieldSheet.SetBorderInset(Box(4,5,9,10));
 
 	ImageStylesheet backgroundSheet("Data/extracted/textures/Interface/Glues/LoadingScreens/loadscreennorthrendwide.dds");
+	
 	ImageStylesheet checkBackSheet("Data/extracted/Textures/interface/buttons/ui-checkbox-up.dds");
-
 	ImageStylesheet checkCheckSheet("Data/extracted/Textures/interface/buttons/ui-checkbox-check.dds");
 	checkCheckSheet.SetColor(Color(0,1,0));
 
@@ -98,47 +98,46 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	background.SetDepthLayer(0);
 	DataStorage::EmplaceEntity("LOGIN-background", background.GetEntityId());
 
-	userNameLabel.SetParent(background);
 	userNameLabel.SetTransform(vec2(0, -35), SIZE);
 	userNameLabel.SetAnchor(vec2(0.5,0.5));
 	userNameLabel.SetLocalAnchor(vec2(0.5,1));
 	userNameLabel.SetText("Account Name");
 	userNameLabel.SetStylesheet(labelSheet);
+	background.AddChild(userNameLabel);
 	
-	userNameFieldPanel.SetParent(background);
 	userNameFieldPanel.SetTransform(vec2(0, -50), SIZE);
 	userNameFieldPanel.SetAnchor(vec2(0.5,0.5));
 	userNameFieldPanel.SetLocalAnchor(vec2(0.5,0));
 	userNameFieldPanel.SetStylesheet(fieldSheet);
 	userNameFieldPanel.SetPadding(2, 5, 9, 10);
+	background.AddChild(userNameFieldPanel);
 			
-	usernameField.SetParent(userNameFieldPanel);
 	usernameField.SetFillParentSize(true);
 	usernameField.SetStylesheet(inputFieldSheet);
 	usernameField.OnSubmit(OnFieldSubmit);
 	DataStorage::EmplaceEntity("LOGIN-usernameField", usernameField.GetEntityId());
+	userNameFieldPanel.AddChild(usernameField);
 			
-	passwordLabel.SetParent(background);
 	passwordLabel.SetTransform(vec2(0, 65), SIZE);
 	passwordLabel.SetAnchor(vec2(0.5,0.5));
 	passwordLabel.SetLocalAnchor(vec2(0.5,1));
 	passwordLabel.SetStylesheet(labelSheet);
 	passwordLabel.SetText("Account Password");
+	background.AddChild(passwordLabel);
 			
-	passwordFieldPanel.SetParent(background);
 	passwordFieldPanel.SetTransform(vec2(0, 50), SIZE);
 	passwordFieldPanel.SetAnchor(vec2(0.5,0.5));
 	passwordFieldPanel.SetLocalAnchor(vec2(0.5,0));
 	passwordFieldPanel.SetStylesheet(fieldSheet);
 	passwordFieldPanel.SetPadding(2, 5, 9, 10);
+	background.AddChild(passwordFieldPanel);
 		
-	passwordField.SetParent(passwordFieldPanel);
 	passwordField.SetFillParentSize(true);
 	passwordField.SetStylesheet(inputFieldSheet);
 	passwordField.OnSubmit(OnFieldSubmit);
 	DataStorage::EmplaceEntity("LOGIN-passwordField", passwordField.GetEntityId());
+	passwordFieldPanel.AddChild(passwordField);
 	
-	submitButton.SetParent(background);
 	submitButton.SetTransform(vec2(0, SIZE.y * 2.25f), SIZE * vec2(1.1f,1.4f));
 	submitButton.SetAnchor(vec2(0.5,0.5));
 	submitButton.SetLocalAnchor(vec2(0.5,0));
@@ -148,20 +147,22 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	submitButton.SetPressedStylesheet(buttonDownSheet);
 	submitButton.SetTextStylesheet(buttonTextSheet);
 	submitButton.OnClick(OnLoginButtonClick);
+	submitButton.SetFocusable(false);
+	background.AddChild(submitButton);
 			
-	checkBox.SetParent(background);
 	checkBox.SetTransform(vec2(-SIZE.x/2 + 20, SIZE.y * 3.4f), vec2(30,30));
 	checkBox.SetAnchor(vec2(0.5,0.5));
 	checkBox.SetStylesheet(checkBackSheet);
 	checkBox.SetCheckStylesheet(checkCheckSheet);
 	checkBox.SetCollisionIncludesChildren(true);
+	background.AddChild(checkBox);
 	
-	rememberAccountLabel.SetParent(checkBox);
 	rememberAccountLabel.SetAnchor(vec2(1,0));
 	rememberAccountLabel.SetTransform(vec2(5,0), vec2(SIZE.x - 80, 30));
 	labelSheet.SetFontSize(20.0f);
 	rememberAccountLabel.SetStylesheet(labelSheet);
 	rememberAccountLabel.SetText("Remember Account Name");
+	checkBox.AddChild(rememberAccountLabel);
 	
 	background.MarkDirty();
 	background.MarkBoundsDirty();		
