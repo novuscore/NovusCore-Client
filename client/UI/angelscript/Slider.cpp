@@ -211,6 +211,7 @@ namespace UIScripting
 
             slider.currentValue = Math::Max(slider.currentValue - slider.stepSize, slider.minimumValue);
 
+            UpdateHandlePosition();
             return true;
         }
         else if (key == GLFW_KEY_RIGHT)
@@ -219,7 +220,8 @@ namespace UIScripting
             UIComponent::Slider& slider = ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
 
             slider.currentValue = Math::Min(slider.currentValue + slider.stepSize, slider.maximumValue);
-
+            
+            UpdateHandlePosition();
             return true;
         }
 
