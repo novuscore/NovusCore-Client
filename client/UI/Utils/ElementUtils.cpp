@@ -73,10 +73,11 @@ namespace UIUtils
         if (childTransform.HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
             childTransform.size = UIUtils::Transform::GetInnerSize(&parentTransform);
 
-        registry->remove<UIComponent::Root>(child);
         UIUtils::Transform::UpdateChildTransforms(registry, child);
 
         parentRelation.children.push_back(child);
+
+        registry->remove<UIComponent::Root>(child);
         UIUtils::Sort::MarkSortTreeDirty(registry, parent);
     }
     void RemoveFromParent(entt::registry* registry, entt::entity child)
