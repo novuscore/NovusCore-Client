@@ -20,7 +20,7 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::InputField>(_entityId);
         registry->emplace<UIComponent::Text>(_entityId);
-        registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Text;
+        registry->emplace<UIComponent::Renderable>(_entityId, UI::RenderType::Text);
     }
 
     void InputField::RegisterType()

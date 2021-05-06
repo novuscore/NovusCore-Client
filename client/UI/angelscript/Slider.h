@@ -41,6 +41,7 @@ namespace UIScripting
         void SetHandlePressedStylesheet(const UI::ImageStylesheet& styleSheet);
 
         void OnClick(vec2 mousePosition) override;
+        bool OnKeyInput(i32 key) override;
 
         void SetHandleSize(const vec2& size);
         void UpdateHandlePosition();

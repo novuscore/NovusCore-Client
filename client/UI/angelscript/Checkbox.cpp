@@ -21,7 +21,7 @@ namespace UIScripting
         registry->emplace<UIComponent::Checkbox>(_entityId);
         registry->emplace<UIComponent::Image>(_entityId);
         registry->emplace<UIComponent::ImageEventStyles>(_entityId);
-        registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
+        registry->emplace<UIComponent::Renderable>(_entityId, UI::RenderType::Image);
 
         _checkPanel = Panel::CreatePanel(false);
         InternalAddChild(_checkPanel);

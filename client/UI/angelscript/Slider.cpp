@@ -1,5 +1,6 @@
 #include "Slider.h"
 #include "SliderHandle.h"
+#include <GLFW/glfw3.h>
 #include "../../Utils/ServiceLocator.h"
 
 #include "../ECS/Components/Transform.h"
@@ -20,7 +21,7 @@ namespace UIScripting
         registry->emplace<UIComponent::Slider>(_entityId);
         registry->emplace<UIComponent::Image>(_entityId);
         registry->emplace<UIComponent::ImageEventStyles>(_entityId);
-        registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
+        registry->emplace<UIComponent::Renderable>(_entityId, UI::RenderType::Image);
 
         _handle = new SliderHandle(this);
         InternalAddChild(_handle);
@@ -199,6 +200,30 @@ namespace UIScripting
         _handle->MarkDirty();
         
         UIUtils::ExecuteEvent(this, slider.onValueChanged);
+    }
+
+    bool Slider::OnKeyInput(i32 key)
+    {
+        if (key == GLFW_KEY_LEFT)
+        {
+            entt::registry* registry = ServiceLocator::GetUIRegistry();
+            UIComponent::Slider& slider = ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
+
+            slider.currentValue = Math::Max(slider.currentValue - slider.stepSize, slider.minimumValue);
+
+            return true;
+        }
+        else if (key == GLFW_KEY_RIGHT)
+        {
+            entt::registry* registry = ServiceLocator::GetUIRegistry();
+            UIComponent::Slider& slider = ServiceLocator::GetUIRegistry()->get<UIComponent::Slider>(_entityId);
+
+            slider.currentValue = Math::Min(slider.currentValue + slider.stepSize, slider.maximumValue);
+
+            return true;
+        }
+
+        return false;
     }
 
     void Slider::SetHandleSize(const vec2& size)

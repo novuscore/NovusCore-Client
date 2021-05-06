@@ -15,7 +15,7 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Image>(_entityId);
         registry->emplace<UIComponent::ImageEventStyles>(_entityId);
-        registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
+        registry->emplace<UIComponent::Renderable>(_entityId, UI::RenderType::Image);
     }
     
     void SliderHandle::OnDrag()
