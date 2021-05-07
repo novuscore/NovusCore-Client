@@ -1,7 +1,7 @@
 /*
 *	NOVUSCORE LOGIN SCREEN
-*	Version 0.4: Styles or something.
-*	Updated 27/01/2021	
+*	Version 0.4.1: Show that dialog someone wanted.
+*	Updated 07/05/2021	
 */
 
 void LogIn()
@@ -26,7 +26,12 @@ void LogIn()
 	Panel@ background = cast<Panel>(UI::GetElement(backgroundId));
 	background.SetVisible(false);
 	
-	// TODO Log in.
+	// Show DIALOG.
+	Entity dialogId;
+	DataStorage::GetEntity("DIALOG", dialogId);
+    
+	Panel@ dialogPanel = cast<Panel>(UI::GetElement(dialogId));
+	dialogPanel.SetVisible(true);
 }
 
 void OnFieldSubmit(InputField@ inputField)

@@ -26,6 +26,8 @@ void UI::ImageStylesheet::RegisterType()
         r = ScriptEngine::RegisterScriptClassFunction("void SetBorderSize(Box borderSize)", asMETHOD(UI::ImageStylesheet, SetBorderSize)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetBorderInset(Box borderInset)", asMETHOD(UI::ImageStylesheet, SetBorderInset)); assert(r >= 0);
 
+        r = ScriptEngine::RegisterScriptClassFunction("void SetSlicingOffset(Box slicingOffsets)", asMETHOD(UI::ImageStylesheet, SetSlicingOffset)); assert(r >= 0);
+
         r = ScriptEngine::RegisterScriptClassConstructor("void f()", asFUNCTION(Construct)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassConstructor("void f(string texture)", asFUNCTION(Construct_TEXTURE)); assert(r >= 0);
     }
