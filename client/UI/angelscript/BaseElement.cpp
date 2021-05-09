@@ -4,8 +4,10 @@
 
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
 #include "../ECS/Components/ElementInfo.h"
-#include "../ECS/Components/Transform.h"
+#include "../ECS/Components/Name.h"
+#include "../ECS/Components/Root.h"
 #include "../ECS/Components/Relation.h"
+#include "../ECS/Components/Transform.h"
 #include "../ECS/Components/SortKey.h"
 #include "../ECS/Components/SortKeyDirty.h"
 #include "../ECS/Components/Visibility.h"
@@ -15,7 +17,6 @@
 #include "../ECS/Components/Dirty.h"
 #include "../ECS/Components/BoundsDirty.h"
 #include "../ECS/Components/Destroy.h"
-#include "../ECS/Components/Root.h"
 
 #include "../Utils/ElementUtils.h"
 #include "../Utils/TransformUtils.h"
@@ -24,7 +25,7 @@
 
 namespace UIScripting
 {
-    BaseElement::BaseElement(UI::ElementType elementType, bool collisionEnabled) : _elementType(elementType)
+    BaseElement::BaseElement(UI::ElementType elementType, std::string name, bool collisionEnabled) : _elementType(elementType)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         _entityId = registry->create();
@@ -32,10 +33,11 @@ namespace UIScripting
 
         // Set up base components.
         registry->emplace<UIComponent::ElementInfo>(_entityId, elementType, this);
+        registry->emplace<UIComponent::Name>(_entityId, name);
 
-        registry->emplace<UIComponent::Transform>(_entityId);
-        registry->emplace<UIComponent::Relation>(_entityId);
         registry->emplace<UIComponent::Root>(_entityId);
+        registry->emplace<UIComponent::Relation>(_entityId);
+        registry->emplace<UIComponent::Transform>(_entityId);
 
         registry->emplace<UIComponent::SortKey>(_entityId);
         

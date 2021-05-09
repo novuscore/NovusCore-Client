@@ -10,7 +10,7 @@
 
 namespace UIScripting
 {
-    SliderHandle::SliderHandle(Slider* owningSlider) : _slider(owningSlider), EventElement(UI::ElementType::UITYPE_SLIDERHANDLE, true, UI::TransformEventsFlags::FLAG_DRAGGABLE | UI::TransformEventsFlags::FLAG_DRAGLOCK_Y)
+    SliderHandle::SliderHandle(Slider* owningSlider, const std::string& name, bool collisionEnabled) : _slider(owningSlider), EventElement(UI::ElementType::UITYPE_SLIDERHANDLE, name, collisionEnabled, UI::TransformEventsFlags::FLAG_DRAGGABLE | UI::TransformEventsFlags::FLAG_DRAGLOCK_Y)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Image>(_entityId);

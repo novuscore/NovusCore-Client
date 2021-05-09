@@ -15,7 +15,7 @@
 
 namespace UIScripting
 {
-    Slider::Slider() : EventElement(UI::ElementType::UITYPE_SLIDER, true, UI::TransformEventsFlags::FLAG_CLICKABLE)
+    Slider::Slider(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_SLIDER, name, collisionEnabled, UI::TransformEventsFlags::FLAG_CLICKABLE)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Slider>(_entityId);
@@ -23,7 +23,7 @@ namespace UIScripting
         registry->emplace<UIComponent::ImageEventStyles>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId, UI::RenderType::Image);
 
-        _handle = new SliderHandle(this);
+        _handle = new SliderHandle(this, name + "-Handle");
         InternalAddChild(_handle);
         auto handleTransform = &registry->get<UIComponent::Transform>(_handle->GetEntityId());
         handleTransform->localAnchor = vec2(0.5f, 0.5f);
@@ -33,7 +33,7 @@ namespace UIScripting
     {
         i32 r = ScriptEngine::RegisterScriptClass("Slider", 0, asOBJ_REF | asOBJ_NOCOUNT);
         r = RegisterEventBase<Slider>("Slider");
-        r = ScriptEngine::RegisterScriptFunction("Slider@ CreateSlider()", asFUNCTION(Slider::CreateSlider)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptFunction("Slider@ CreateSlider(string name, bool collisionEnabled)", asFUNCTION(Slider::CreateSlider)); assert(r >= 0);
 
         r = ScriptEngine::RegisterScriptClassFunction("float GetCurrentValue()", asMETHOD(Slider, GetCurrentValue)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetCurrentValue(float current)", asMETHOD(Slider, SetCurrentValue)); assert(r >= 0);
@@ -245,9 +245,10 @@ namespace UIScripting
         _handle->MarkDirty();
     }
 
-    Slider* Slider::CreateSlider()
+    Slider* Slider::CreateSlider(const std::string& name, bool collisionEnabled)
     {
-        Slider* slider = new Slider();
+        Slider* slider = new Slider(name, collisionEnabled);
+
         return slider;
     }
 }

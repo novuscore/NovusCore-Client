@@ -29,9 +29,9 @@
 #include "ECS/Components/Physics/Rigidbody.h"
 #include "ECS/Components/Rendering/DebugBox.h"
 
-#include "UI/ECS/Components/Transform.h"
-#include "UI/ECS/Components/NotCulled.h"
 #include "UI/ECS/Components/ElementInfo.h"
+#include "UI/ECS/Components/Name.h"
+#include "UI/ECS/Components/NotCulled.h"
 #include "UI/ECS/Components/Singletons/UIDataSingleton.h"
 
 // Systems
@@ -892,31 +892,55 @@ void EngineLoop::DrawUIStats()
     entt::registry* registry = ServiceLocator::GetUIRegistry();
     auto dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();
 
-    auto DisplayElementInfo = [&](char* elementName, entt::entity entId)
+    ImGui::Columns(4);
+    ImGui::Separator();
+
+    ImGui::Text("Status");
+    ImGui::NextColumn();
+    ImGui::Text("Name");
+    ImGui::NextColumn();
+    ImGui::Text("Id");
+    ImGui::NextColumn();
+    ImGui::Text("Type");
+    ImGui::NextColumn();
+    ImGui::Separator();
+
+    auto DisplayElementInfo = [&](char* interactionName, entt::entity entId)
     {
         if (entId == entt::null)
-            ImGui::Text("%s Element : Id: None, Type: None", elementName);
+        {
+            ImGui::Text("%s", interactionName);
+            ImGui::NextColumn();
+            ImGui::Text("None");
+            ImGui::NextColumn();
+            ImGui::Text("None");
+            ImGui::NextColumn();
+            ImGui::Text("None");
+            ImGui::NextColumn();
+        }
         else
         {
-            ImGui::Text("%s Element : Id: %d, Type: %s",
-                elementName,
-                entt::to_integral(entId),
-                UI::GetElementTypeAsString(registry->get<UIComponent::ElementInfo>(entId).type)
-            );
+            ImGui::Text("%s", interactionName);
+            ImGui::NextColumn();
+            ImGui::Text("%s", registry->get<UIComponent::Name>(entId).name.c_str());
+            ImGui::NextColumn();
+            ImGui::Text("%d", entt::to_integral(entId));
+            ImGui::NextColumn();
+            ImGui::Text("%s", UI::GetElementTypeAsString(registry->get<UIComponent::ElementInfo>(entId).type));
+            ImGui::NextColumn();
         }
     };
 
     DisplayElementInfo("Focused", dataSingleton->focusedElement);
     DisplayElementInfo("Hovered", dataSingleton->hoveredElement);
     DisplayElementInfo("Pressed", dataSingleton->pressedElement);
-    ImGui::Spacing();
-
     DisplayElementInfo("Resized", dataSingleton->resizedElement);
     DisplayElementInfo("Dragged", dataSingleton->draggedElement);
-    ImGui::Spacing();
-    ImGui::Spacing();
 
-    size_t count = registry->size<UIComponent::Transform>();
+    ImGui::Columns(1);
+    ImGui::Separator();
+
+    size_t count = registry->size<UIComponent::ElementInfo>();
     size_t culled = count - registry->size<UIComponent::NotCulled>();
     bool* drawCollisionBounds = reinterpret_cast<bool*>(CVarSystem::Get()->GetIntCVar("ui.drawCollisionBounds"));
 

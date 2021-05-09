@@ -15,7 +15,7 @@
 
 namespace UIScripting
 {
-    InputField::InputField() : EventElement(UI::ElementType::UITYPE_INPUTFIELD, true, UI::TransformEventsFlags::FLAG_FOCUSABLE)
+    InputField::InputField(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_INPUTFIELD, name, collisionEnabled, UI::TransformEventsFlags::FLAG_FOCUSABLE)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::InputField>(_entityId);
@@ -27,7 +27,7 @@ namespace UIScripting
     {
         i32 r = ScriptEngine::RegisterScriptClass("InputField", 0, asOBJ_REF | asOBJ_NOCOUNT);
         r = RegisterEventBase<InputField>("InputField");
-        r = ScriptEngine::RegisterScriptFunction("InputField@ CreateInputField()", asFUNCTION(InputField::CreateInputField)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptFunction("InputField@ CreateInputField(string name, bool collisionEnabled = true)", asFUNCTION(InputField::CreateInputField)); assert(r >= 0);
 
         // InputField Functions
         r = ScriptEngine::RegisterScriptClassFunction("void OnSubmit(InputFieldEventCallback@ cb)", asMETHOD(InputField, SetOnSubmitCallback)); assert(r >= 0);
@@ -159,9 +159,9 @@ namespace UIScripting
         text.style = textStylesheet;
     }
 
-    InputField* InputField::CreateInputField()
+    InputField* InputField::CreateInputField(const std::string& name, bool collisionEnabled)
     {
-        InputField* inputField = new InputField();
+        InputField* inputField = new InputField(name, collisionEnabled);
 
         return inputField;
     }

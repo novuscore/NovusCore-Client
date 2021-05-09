@@ -9,14 +9,14 @@
 
 namespace UIScripting
 {
-    Button::Button() : EventElement(UI::ElementType::UITYPE_BUTTON) 
+    Button::Button(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_BUTTON, name, collisionEnabled, UI::TransformEventsFlags::FLAG_CLICKABLE) 
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Image>(_entityId);
         registry->emplace<UIComponent::ImageEventStyles>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId, UI::RenderType::Image);
         
-        _label = Label::CreateLabel();
+        _label = Label::CreateLabel(name + "-Label");
         InternalAddChild(_label);
         UIComponent::Transform& labelTransform = registry->get<UIComponent::Transform>(_label->GetEntityId());
         labelTransform.SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
@@ -27,7 +27,7 @@ namespace UIScripting
         i32 r = ScriptEngine::RegisterScriptClass("Button", 0, asOBJ_REF | asOBJ_NOCOUNT); assert(r >= 0);
         r = RegisterEventBase<Button>("Button");
 
-        r = ScriptEngine::RegisterScriptFunction("Button@ CreateButton()", asFUNCTION(Button::CreateButton)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptFunction("Button@ CreateButton(string name, bool collisionEnabled = true)", asFUNCTION(Button::CreateButton)); assert(r >= 0);
 
         //Label Functions
         r = ScriptEngine::RegisterScriptClassFunction("void SetText(string text)", asMETHOD(Button, SetText)); assert(r >= 0);
@@ -81,9 +81,9 @@ namespace UIScripting
         imageStyles->styleMap[UI::TransformEventState::STATE_DISABLED] = stylesheet;
     }
 
-    Button* Button::CreateButton()
+    Button* Button::CreateButton(const std::string& name, bool collisionEnabled)
     {
-        Button* button = new Button();
+        Button* button = new Button(name, collisionEnabled);
 
         return button;
     }

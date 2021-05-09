@@ -18,11 +18,12 @@
 
 #include "../UI/ECS/Components/Singletons/UIDataSingleton.h"
 #include "../UI/ECS/Components/ElementInfo.h"
+#include "../UI/ECS/Components/Name.h"
 #include "../UI/ECS/Components/Relation.h"
 #include "../UI/ECS/Components/Root.h"
+#include "../UI/ECS/Components/SortKey.h"
 #include "../UI/ECS/Components/Transform.h"
 #include "../UI/ECS/Components/TransformEvents.h"
-#include "../UI/ECS/Components/SortKey.h"
 
 #include "../UI/ECS/Components/Renderable.h"
 #include "../UI/ECS/Components/Image.h"
@@ -71,11 +72,12 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRendere
     registry->reserve(ENTITIES_TO_RESERVE);
 
     registry->reserve<UIComponent::ElementInfo>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::Name>(ENTITIES_TO_RESERVE);
     registry->reserve<UIComponent::Relation>(ENTITIES_TO_RESERVE);
     registry->reserve<UIComponent::Root>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::SortKey>(ENTITIES_TO_RESERVE);
     registry->reserve<UIComponent::Transform>(ENTITIES_TO_RESERVE);
     registry->reserve<UIComponent::TransformEvents>(ENTITIES_TO_RESERVE);
-    registry->reserve<UIComponent::SortKey>(ENTITIES_TO_RESERVE);
 
     registry->reserve<UIComponent::Renderable>(ENTITIES_TO_RESERVE);
     registry->reserve<UIComponent::Text>(ENTITIES_TO_RESERVE);

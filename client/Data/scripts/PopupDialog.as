@@ -17,7 +17,7 @@ void main()
 {
     // Set up dialog frame.
     // This is very temporary. I want a "compound" element for this in the future.
-    Panel@ dialogPanel = CreatePanel();
+    Panel@ dialogPanel = CreatePanel("PopupDialog");
     {
         dialogPanel.SetSize(vec2(420, 105));
         dialogPanel.SetAnchor(vec2(0.5, 0.5));
@@ -30,7 +30,7 @@ void main()
         dialogPanel.SetStylesheet(dialogPanelSheet);
     }
 
-    Label@ dialogText = CreateLabel();
+    Label@ dialogText = CreateLabel("PopupDialog-Text");
     {
         dialogText.SetSize(vec2(380, 50));
         dialogText.SetAnchor(vec2(0.5,0));
@@ -48,7 +48,7 @@ void main()
     }
     dialogPanel.AddChild(dialogText);
 
-    Button@ dialogButton = CreateButton();
+    Button@ dialogButton = CreateButton("PopupDialog-Button");
     {
         dialogButton.SetSize(vec2(120, 60));
         dialogButton.SetAnchor(vec2(0.5,1));

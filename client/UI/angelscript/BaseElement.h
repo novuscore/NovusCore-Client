@@ -9,7 +9,7 @@ namespace UIScripting
     class BaseElement
     {
     public:
-        BaseElement(UI::ElementType elementType, bool collisionEnabled = true);
+        BaseElement(UI::ElementType elementType, std::string name, bool collisionEnabled = true);
 
         virtual ~BaseElement() { }
 

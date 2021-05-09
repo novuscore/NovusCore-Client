@@ -8,7 +8,7 @@ namespace UIScripting
     class Label : public BaseElement
     {
     public:
-        Label();
+        Label(const std::string& name);
 
         static void RegisterType();
 
@@ -18,6 +18,6 @@ namespace UIScripting
 
         void SetStylesheet(const UI::TextStylesheet& textStylesheet);
          
-        static Label* CreateLabel();
+        static Label* CreateLabel(const std::string& name);
     };
 }

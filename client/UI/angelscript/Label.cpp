@@ -8,7 +8,7 @@
 
 namespace UIScripting
 {
-    Label::Label() : BaseElement(UI::ElementType::UITYPE_LABEL, false)
+    Label::Label(const std::string& name) : BaseElement(UI::ElementType::UITYPE_LABEL, name, false)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Text>(_entityId);
@@ -19,7 +19,7 @@ namespace UIScripting
     {
         i32 r = ScriptEngine::RegisterScriptClass("Label", 0, asOBJ_REF | asOBJ_NOCOUNT);
         r = ScriptEngine::RegisterScriptInheritance<BaseElement, Label>("BaseElement");
-        r = ScriptEngine::RegisterScriptFunction("Label@ CreateLabel()", asFUNCTION(Label::CreateLabel)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptFunction("Label@ CreateLabel(string name)", asFUNCTION(Label::CreateLabel)); assert(r >= 0);
 
         //Text Functions
         r = ScriptEngine::RegisterScriptClassFunction("string GetText()", asMETHOD(Label, GetText)); assert(r >= 0);
@@ -46,9 +46,9 @@ namespace UIScripting
         text->style = textStylesheet;
     }
 
-    Label* Label::CreateLabel()
+    Label* Label::CreateLabel(const std::string& name)
     {
-        Label* label = new Label();
+        Label* label = new Label(name);
 
         return label;
     }

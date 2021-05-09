@@ -9,7 +9,7 @@ namespace UIScripting
     class Panel : public EventElement
     {
     public:
-        Panel(bool collisionEnabled = true);
+        Panel(const std::string& name, bool collisionEnabled);
 
         static void RegisterType();
 
@@ -20,6 +20,6 @@ namespace UIScripting
         void SetPressedStylesheet(const UI::ImageStylesheet& styleSheet);
         void SetDisabledStylesheet(const UI::ImageStylesheet& styleSheet);
 
-        static Panel* CreatePanel(bool collisionEnabled = true);
+        static Panel* CreatePanel(const std::string& name, bool collisionEnabled = true);
     };
 }

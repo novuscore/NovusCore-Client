@@ -10,7 +10,7 @@ namespace UIScripting
     class Slider : public EventElement
     {
     public:
-        Slider();
+        Slider(const std::string& name, bool collisionEnabled);
 
         static void RegisterType();
 
@@ -46,7 +46,7 @@ namespace UIScripting
         void SetHandleSize(const vec2& size);
         void UpdateHandlePosition();
 
-        static Slider* CreateSlider();
+        static Slider* CreateSlider(const std::string& name, bool collisionEnabled = true);
 
     private:
         SliderHandle* _handle = nullptr;

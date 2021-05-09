@@ -11,7 +11,7 @@ namespace UIScripting
     {
         friend Slider;
 
-        SliderHandle(Slider* owningSlider);
+        SliderHandle(Slider* owningSlider, const std::string& name, bool collisionEnabled = true);
 
     public:
         void OnDrag() override;

@@ -8,7 +8,7 @@ namespace UIScripting
     class InputField : public EventElement
     {
     public:
-        InputField();
+        InputField(const std::string& name, bool collisionEnabled);
 
         static void RegisterType();
 
@@ -31,6 +31,6 @@ namespace UIScripting
 
         void SetStylesheet(const UI::TextStylesheet& styleSheet);
 
-        static InputField* CreateInputField();
+        static InputField* CreateInputField(const std::string& name, bool collisionEnabled = true);
     };
 }

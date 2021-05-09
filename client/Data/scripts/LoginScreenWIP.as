@@ -85,16 +85,16 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 
 	TextStylesheet inputFieldSheet(FONT, INPUTFIELDFONTSIZE);
 
-	Panel@ background = CreatePanel();
-	Panel@ userNameFieldPanel = CreatePanel(false);
-	Panel@ passwordFieldPanel = CreatePanel(false);
-	Checkbox@ checkBox = CreateCheckbox();
-	Label@ userNameLabel = CreateLabel();
-	Label@ passwordLabel = CreateLabel();
-	Label@ rememberAccountLabel = CreateLabel();
-	Button@ submitButton = CreateButton();
-	InputField@ usernameField = CreateInputField();
-	InputField@ passwordField = CreateInputField();
+	Panel@ background = CreatePanel("LoadScreenBackground");
+	Panel@ userNameFieldPanel = CreatePanel("UsernamePanel",false);
+	Panel@ passwordFieldPanel = CreatePanel("PasswordPanel",false);
+	Label@ userNameLabel = CreateLabel("UsernameLabel");
+	Label@ passwordLabel = CreateLabel("PasswordLabel");
+	Label@ rememberAccountLabel = CreateLabel("RememberAccountNameLabel");
+	Checkbox@ checkBox = CreateCheckbox("RememberAccountNameCheckbox");
+	Button@ submitButton = CreateButton("LoginButton");
+	InputField@ usernameField = CreateInputField("UsernameField");
+	InputField@ passwordField = CreateInputField("PasswordField");
 
 	background.SetSize(UI::GetResolution());
 	background.SetAnchor(vec2(0.5f,0.5f));

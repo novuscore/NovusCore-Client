@@ -10,7 +10,7 @@ namespace UIScripting
     class Checkbox : public EventElement
     {
     public:
-        Checkbox();
+        Checkbox(const std::string& name, bool collisionEnabled);
 
         static void RegisterType();
 
@@ -33,7 +33,7 @@ namespace UIScripting
         void OnClick(vec2 mousePosition) override;
         bool OnKeyInput(i32 key) override;
 
-        static Checkbox* CreateCheckbox();
+        static Checkbox* CreateCheckbox(const std::string& name, bool collisionEnabled = true);
 
     private:
         Panel* _checkPanel;

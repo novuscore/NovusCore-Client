@@ -5,7 +5,7 @@
 
 namespace UIScripting
 {
-    EventElement::EventElement(UI::ElementType elementType, bool collisionEnabled, u8 eventFlags) : BaseElement(elementType, collisionEnabled)
+    EventElement::EventElement(UI::ElementType elementType, const std::string& name, bool collisionEnabled, u8 eventFlags) : BaseElement(elementType, name, collisionEnabled)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::TransformEvents& events = registry->emplace<UIComponent::TransformEvents>(_entityId);

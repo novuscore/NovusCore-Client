@@ -12,7 +12,7 @@ namespace UIScripting
     class Button : public EventElement
     {
     public:
-        Button();
+        Button(const std::string& name, bool collisionEnabled);
 
         static void RegisterType();
 
@@ -29,7 +29,7 @@ namespace UIScripting
         void SetPressedStylesheet(const UI::ImageStylesheet& stylesheet);
         void SetDisabledStylesheet(const UI::ImageStylesheet& stylesheet);
 
-        static Button* CreateButton();
+        static Button* CreateButton(const std::string& name, bool collisionEnabled = true);
 
     private:
         Label* _label;

@@ -7,7 +7,7 @@ namespace UIScripting
     class EventElement : public BaseElement
     {
     public:
-        EventElement(UI::ElementType elementType, bool collisionEnabled = true, u8 eventFlags = 0);
+        EventElement(UI::ElementType elementType, const std::string& name, bool collisionEnabled = true, u8 eventFlags = 0);
 
         static void RegisterType();
 

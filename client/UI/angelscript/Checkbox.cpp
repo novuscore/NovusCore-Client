@@ -15,7 +15,7 @@
 
 namespace UIScripting
 {
-    Checkbox::Checkbox() : EventElement(UI::ElementType::UITYPE_CHECKBOX, true, UI::TransformEventsFlags::FLAG_CLICKABLE)
+    Checkbox::Checkbox(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_CHECKBOX, name, collisionEnabled, UI::TransformEventsFlags::FLAG_CLICKABLE)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Checkbox>(_entityId);
@@ -23,7 +23,7 @@ namespace UIScripting
         registry->emplace<UIComponent::ImageEventStyles>(_entityId);
         registry->emplace<UIComponent::Renderable>(_entityId, UI::RenderType::Image);
 
-        _checkPanel = Panel::CreatePanel(false);
+        _checkPanel = Panel::CreatePanel(name + "-Check",false);
         InternalAddChild(_checkPanel);
         auto checkTransform = &registry->get<UIComponent::Transform>(_checkPanel->GetEntityId());
         checkTransform->SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
@@ -33,7 +33,7 @@ namespace UIScripting
     {
         i32 r = ScriptEngine::RegisterScriptClass("Checkbox", 0, asOBJ_REF | asOBJ_NOCOUNT);
         r = RegisterEventBase<Checkbox>("Checkbox");
-        r = ScriptEngine::RegisterScriptFunction("Checkbox@ CreateCheckbox()", asFUNCTION(Checkbox::CreateCheckbox)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptFunction("Checkbox@ CreateCheckbox(string name, bool collisionEnabled = true)", asFUNCTION(Checkbox::CreateCheckbox)); assert(r >= 0);
 
         // Checkbox Functions
         r = ScriptEngine::RegisterScriptClassFunction("bool IsChecked()", asMETHOD(Checkbox, IsChecked)); assert(r >= 0);
@@ -129,9 +129,10 @@ namespace UIScripting
         return false;
     }
 
-    Checkbox* Checkbox::CreateCheckbox()
+    Checkbox* Checkbox::CreateCheckbox(const std::string& name, bool collisionEnabled)
     {
-        Checkbox* checkbox = new Checkbox();
+        Checkbox* checkbox = new Checkbox(name, collisionEnabled);
+
         return checkbox;
     }
 }

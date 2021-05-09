@@ -10,7 +10,7 @@
 
 namespace UIScripting
 {
-    Panel::Panel(bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_PANEL, collisionEnabled)
+    Panel::Panel(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_PANEL, name, collisionEnabled)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Image>(_entityId);
@@ -23,7 +23,7 @@ namespace UIScripting
         i32 r = ScriptEngine::RegisterScriptClass("Panel", 0, asOBJ_REF | asOBJ_NOCOUNT); assert(r >= 0);
         r = RegisterEventBase<Panel>("Panel");
 
-        r = ScriptEngine::RegisterScriptFunction("Panel@ CreatePanel(bool collisionEnabled = true)", asFUNCTION(Panel::CreatePanel)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptFunction("Panel@ CreatePanel(string name, bool collisionEnabled = true)", asFUNCTION(Panel::CreatePanel)); assert(r >= 0);
 
         // Renderable Functions
         r = ScriptEngine::RegisterScriptClassFunction("void SetStylesheet(ImageStylesheet styleSheet)", asMETHOD(Panel, SetStylesheet)); assert(r >= 0);
@@ -59,9 +59,9 @@ namespace UIScripting
         imageStyles->styleMap[UI::TransformEventState::STATE_DISABLED] = stylesheet;
     }
 
-    Panel* Panel::CreatePanel(bool collisionEnabled)
+    Panel* Panel::CreatePanel(const std::string& name, bool collisionEnabled)
     {
-        Panel* panel = new Panel(collisionEnabled);
+        Panel* panel = new Panel(name, collisionEnabled);
 
         return panel;
     }
