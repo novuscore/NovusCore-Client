@@ -6,7 +6,10 @@ namespace UI
 {
     enum TransformFlags : u8
     {
-        FILL_PARENTSIZE = 1 << 0
+        FILL_PARENTSIZE_X = 1 << 0,
+        FILL_PARENTSIZE_Y = 1 << 1,
+
+        FILL_PARENTSIZE = FILL_PARENTSIZE_X | FILL_PARENTSIZE_Y
     };
 }
 

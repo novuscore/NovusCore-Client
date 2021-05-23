@@ -36,15 +36,17 @@ namespace UIUtils::Transform
             return;
         
         const hvec2 minAnchorBound = GetMinBounds(transform) + hvec2(transform.padding.left, transform.padding.top);
-        const hvec2 adjustedSize = transform.size - hvec2(transform.padding.right, transform.padding.bottom);
+        const hvec2 innerBounds = GetInnerSize(&transform);
 
         for (const entt::entity childId : relation.children)
         {
             UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(childId);
 
-            childTransform->anchorPosition = minAnchorBound + adjustedSize * childTransform->anchor;
-            if (childTransform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
-                childTransform->size = transform.size;
+            childTransform->anchorPosition = minAnchorBound + innerBounds * childTransform->anchor;
+            if (childTransform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE_X))
+                childTransform->size.x = innerBounds.x;
+            if (childTransform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE_Y))
+                childTransform->size.y = innerBounds.y;
 
             UpdateChildTransforms(registry, childId);
         }
