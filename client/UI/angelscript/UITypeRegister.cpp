@@ -32,7 +32,7 @@ namespace UI
         u32 flags = asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS | asOBJ_APP_CLASS_CONSTRUCTOR | asOBJ_APP_CLASS_ASSIGNMENT | asOBJ_APP_CLASS_COPY_CONSTRUCTOR;
 
         //Box
-        i32 r = ScriptEngine::RegisterScriptClass("Box", sizeof(Box), flags); assert(r >= 0);
+        i32 r = ScriptEngine::RegisterScriptClass("Box", sizeof(Box), flags | asOBJ_APP_CLASS_ALLINTS); assert(r >= 0);
         {
             r = ScriptEngine::RegisterScriptClassProperty("uint top", asOFFSET(Box, top)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassProperty("uint right", asOFFSET(Box, right)); assert(r >= 0);

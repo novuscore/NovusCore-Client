@@ -40,7 +40,7 @@ namespace UIScripting
         registry->emplace<UIComponent::Transform>(_entityId);
 
         registry->emplace<UIComponent::SortKey>(_entityId);
-        
+
         registry->emplace<UIComponent::Visibility>(_entityId);
         registry->emplace<UIComponent::Visible>(_entityId);
 
@@ -81,32 +81,42 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         UIComponent::Transform& transform = registry->get<UIComponent::Transform>(_entityId);
 
-        // Early out if we are just filling parent size.
-        if (transform.HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
-            return;
         transform.size = size;
+        if (registry->has<UIComponent::TransformFill>(_entityId) && !registry->has<UIComponent::Root>(_entityId))
+        {
+            auto [transformFill, relation] = registry->get<UIComponent::TransformFill, UIComponent::Relation>(_entityId);
+            const UIComponent::Transform& parentTransform = registry->get<UIComponent::Transform>(relation.parent);
+            UIUtils::Transform::CalculateFillFromInnerBounds(transformFill, UIUtils::Transform::GetInnerSize(&parentTransform), transform.position, transform.size);
+        }
 
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
+
     bool BaseElement::GetFillParentSize() const
     {
-        const auto transform = &ServiceLocator::GetUIRegistry()->get<UIComponent::Transform>(_entityId);
-        return transform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE);
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        return registry->has<UIComponent::TransformFill>(_entityId) && registry->get<UIComponent::TransformFill>(_entityId).HasFlag(UI::TransformFillFlags::FILL_PARENTSIZE);
     }
     void BaseElement::SetFillParentSize(bool fillParent)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        auto [transform, relation] = registry->get <UIComponent::Transform, UIComponent::Relation>(_entityId);
-
-        if (transform.HasFlag(UI::TransformFlags::FILL_PARENTSIZE) == fillParent)
+        if (registry->has<UIComponent::TransformFill>(_entityId) && !fillParent)
+        {
+            registry->remove<UIComponent::TransformFill>(_entityId);
             return;
-        transform.ToggleFlag(UI::TransformFlags::FILL_PARENTSIZE);
+        }
+        else if (!registry->has<UIComponent::TransformFill>(_entityId) && fillParent)
+            registry->emplace<UIComponent::TransformFill>(_entityId);
 
-        if (relation.parent == entt::null)
-            return;
+        UIComponent::TransformFill& transformFill = registry->get<UIComponent::TransformFill>(_entityId);
+        transformFill.SetFlag(UI::TransformFillFlags::FILL_PARENTSIZE);
 
-        auto parentTransform = &registry->get<UIComponent::Transform>(relation.parent);
-        transform.size = UIUtils::Transform::GetInnerSize(parentTransform);
+        if (registry->has<UIComponent::Root>(_entityId))
+            return; 
+
+        auto [transform, relation] = registry->get<UIComponent::Transform, UIComponent::Relation>(_entityId);
+        const UIComponent::Transform& parentTransform = registry->get<UIComponent::Transform>(relation.parent);
+        UIUtils::Transform::CalculateFillFromInnerBounds(transformFill, UIUtils::Transform::GetInnerSize(&parentTransform), transform.position, transform.size);
 
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
@@ -117,8 +127,14 @@ namespace UIScripting
         UIComponent::Transform& transform = registry->get<UIComponent::Transform>(_entityId);
 
         transform.position = position;
-        if (!transform.HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
-            transform.size = size;
+        transform.size = size;
+
+        if (registry->has<UIComponent::TransformFill>(_entityId) && !registry->has<UIComponent::Root>(_entityId))
+        {
+            auto [transformFill, relation] = registry->get<UIComponent::TransformFill, UIComponent::Relation>(_entityId);
+            const UIComponent::Transform& parentTransform = registry->get<UIComponent::Transform>(relation.parent);
+            UIUtils::Transform::CalculateFillFromInnerBounds(transformFill, UIUtils::Transform::GetInnerSize(&parentTransform), transform.position, transform.size);
+        }
 
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
@@ -153,11 +169,11 @@ namespace UIScripting
     void BaseElement::SetLocalAnchor(const vec2& localAnchor)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        auto transform = &registry->get<UIComponent::Transform>(_entityId);
+        UIComponent::Transform& transform = registry->get<UIComponent::Transform>(_entityId);
 
-        if (transform->localAnchor == hvec2(localAnchor))
+        if (transform.localAnchor == hvec2(localAnchor))
             return;
-        transform->localAnchor = localAnchor;
+        transform.localAnchor = localAnchor;
 
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
@@ -199,7 +215,7 @@ namespace UIScripting
     }
     void BaseElement::SetDepth(const u16 depth)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry(); 
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
         if (!registry->has<UIComponent::Root>(_entityId))
         {
             DebugHandler::PrintWarning("UI: Can't set depth on non-root element.");
@@ -276,8 +292,7 @@ namespace UIScripting
 
     bool BaseElement::IsVisible() const
     {
-        const UIComponent::Visibility* visibility = &ServiceLocator::GetUIRegistry()->get<UIComponent::Visibility>(_entityId);
-        return visibility->visibilityFlags == UI::VisibilityFlags::FULL_VISIBLE;
+        return ServiceLocator::GetUIRegistry()->has<UIComponent::Visible>(_entityId);
     }
     bool BaseElement::IsSelfVisible() const
     {
@@ -297,10 +312,9 @@ namespace UIScripting
         if (!UIUtils::Visibility::UpdateVisibility(visibility, visible))
             return;
 
-        const bool newVisibility = UIUtils::Visibility::IsVisible(visibility);
-        UIUtils::Visibility::UpdateChildVisibility(registry, _entityId, newVisibility);
+        UIUtils::Visibility::UpdateChildVisibility(registry, _entityId, visible);
 
-        if (newVisibility)
+        if (visible)
             registry->emplace<UIComponent::Visible>(_entityId);
         else
             registry->remove<UIComponent::Visible>(_entityId);
@@ -324,7 +338,7 @@ namespace UIScripting
     void BaseElement::Destroy(bool destroyChildren)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        if(!registry->has<UIComponent::Destroy>(_entityId))
+        if (!registry->has<UIComponent::Destroy>(_entityId))
             registry->emplace<UIComponent::Destroy>(_entityId);
 
         if (destroyChildren)
@@ -359,9 +373,9 @@ namespace UIScripting
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto [elementRelation, elementSortKey] = registry->get<UIComponent::Relation, UIComponent::SortKey>(element->GetEntityId());
         elementRelation.parent = _entityId;
-        elementSortKey.data.depth++;
-        registry->remove<UIComponent::Root>(element->GetEntityId());
+        elementSortKey.data.compoundDepth++;
 
+        registry->remove<UIComponent::Root>(element->GetEntityId());
         registry->get<UIComponent::Relation>(_entityId).children.push_back(element->GetEntityId());
     }
 }

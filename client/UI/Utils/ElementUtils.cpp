@@ -70,8 +70,11 @@ namespace UIUtils
 
         childRelation.parent = parent;
         childTransform.anchorPosition = UIUtils::Transform::GetAnchorPositionInElement(parentTransform, childTransform.anchor);
-        if (childTransform.HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
-            childTransform.size = UIUtils::Transform::GetInnerSize(&parentTransform);
+        if (registry->has<UIComponent::TransformFill>(child))
+        {
+            UIComponent::TransformFill& childTransformFill = registry->get<UIComponent::TransformFill>(child);
+            UIUtils::Transform::CalculateFillFromInnerBounds(childTransformFill, UIUtils::Transform::GetInnerSize(&parentTransform), childTransform.position, childTransform.size);
+        }
 
         UIUtils::Transform::UpdateChildTransforms(registry, child);
 

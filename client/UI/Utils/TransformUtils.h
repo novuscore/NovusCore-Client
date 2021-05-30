@@ -2,6 +2,7 @@
 #include <NovusTypes.h>
 #include <entity/fwd.hpp>
 #include "../ECS/Components/Transform.h"
+#include "../ECS/Components/TransformFill.h"
 
 namespace UIUtils::Transform
 {
@@ -43,6 +44,8 @@ namespace UIUtils::Transform
     hvec2 GetAnchorPositionOnScreen(hvec2 anchorPosition);
 
     void UpdateChildTransforms(entt::registry* registry, entt::entity entity);
+
+    void CalculateFillFromInnerBounds(const UIComponent::TransformFill& childTransformFill, const hvec2 innerBounds, hvec2& selfPosition, hvec2& selfSize);
 
     void UpdateChildPositions(entt::registry* registry, entt::entity entity);
 };

@@ -5,7 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <tracy/Tracy.hpp>
 
-#include "../ECS/Components/Transform.h"
+#include "../ECS/Components/TransformFill.h"
 #include "../ECS/Components/TransformEvents.h"
 #include "../ECS/Components/Renderable.h"
 #include "../ECS/Components/Image.h"
@@ -25,8 +25,7 @@ namespace UIScripting
 
         _checkPanel = Panel::CreatePanel(name + "-Check",false);
         InternalAddChild(_checkPanel);
-        auto checkTransform = &registry->get<UIComponent::Transform>(_checkPanel->GetEntityId());
-        checkTransform->SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
+        registry->emplace<UIComponent::TransformFill>(_checkPanel->GetEntityId()).flags = UI::TransformFillFlags::FILL_PARENTSIZE;
     }
 
     void Checkbox::RegisterType()

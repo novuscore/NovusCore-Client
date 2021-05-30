@@ -8,6 +8,7 @@
 
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
 #include "../ECS/Components/Relation.h"
+#include "../ECS/Components/TransformFill.h"
 
 namespace UIUtils::Transform
 {
@@ -40,15 +41,35 @@ namespace UIUtils::Transform
 
         for (const entt::entity childId : relation.children)
         {
-            UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(childId);
+            UIComponent::Transform& childTransform = registry->get<UIComponent::Transform>(childId);
 
-            childTransform->anchorPosition = minAnchorBound + innerBounds * childTransform->anchor;
-            if (childTransform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE_X))
-                childTransform->size.x = innerBounds.x;
-            if (childTransform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE_Y))
-                childTransform->size.y = innerBounds.y;
+            childTransform.anchorPosition = minAnchorBound + innerBounds * childTransform.anchor;
 
+            if (registry->has<UIComponent::TransformFill>(childId))
+            {
+                //Calculate size & position for elements that want to fill.
+                const UIComponent::TransformFill& childTransformFill = registry->get<UIComponent::TransformFill>(childId);
+                CalculateFillFromInnerBounds(childTransformFill, innerBounds, childTransform.position, childTransform.size);
+            }
+        }
+
+        for (const entt::entity childId : relation.children)
+        {
             UpdateChildTransforms(registry, childId);
+        }
+    }
+
+    void CalculateFillFromInnerBounds(const UIComponent::TransformFill& childTransformFill, const hvec2 innerBounds, hvec2& selfPosition, hvec2& selfSize)
+    {
+        if (childTransformFill.HasFlag(UI::TransformFillFlags::FILL_PARENTSIZE_X))
+        {
+            selfPosition.x = childTransformFill.fill.left * innerBounds.x;
+            selfSize.x = childTransformFill.fill.right * innerBounds.x - selfPosition.x;
+        }
+        if (childTransformFill.HasFlag(UI::TransformFillFlags::FILL_PARENTSIZE_Y))
+        {
+            selfPosition.y = childTransformFill.fill.top * innerBounds.y;
+            selfSize.y = childTransformFill.fill.bottom * innerBounds.y - selfPosition.y;
         }
     }
 

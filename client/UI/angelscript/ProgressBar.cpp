@@ -4,6 +4,7 @@
 #include "../ECS/Components/ProgressBar.h"
 #include "../ECS/Components/Image.h"
 #include "../ECS/Components/Renderable.h"
+#include "../ECS/Components/TransformFill.h"
 
 #include "Panel.h"
 
@@ -18,6 +19,7 @@ namespace UIScripting
 
         _panel = Panel::CreatePanel(name + "-Panel", false);
         InternalAddChild(_panel);
+        registry->emplace<UIComponent::TransformFill>(_panel->GetEntityId()).flags = UI::TransformFillFlags::FILL_PARENTSIZE;
     }
 
     void ProgressBar::RegisterType()

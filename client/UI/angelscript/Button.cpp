@@ -2,7 +2,7 @@
 #include "Label.h"
 #include "../../Utils/ServiceLocator.h"
 
-#include "../ECS/Components/Transform.h"
+#include "../ECS/Components/TransformFill.h"
 #include "../ECS/Components/Image.h"
 #include "../ECS/Components/ImageEventStyles.h"
 #include "../ECS/Components/Renderable.h"
@@ -18,8 +18,7 @@ namespace UIScripting
         
         _label = Label::CreateLabel(name + "-Label");
         InternalAddChild(_label);
-        UIComponent::Transform& labelTransform = registry->get<UIComponent::Transform>(_label->GetEntityId());
-        labelTransform.SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
+        registry->emplace<UIComponent::TransformFill>(_label->GetEntityId()).flags = UI::TransformFillFlags::FILL_PARENTSIZE;
     }
     
     void Button::RegisterType()
