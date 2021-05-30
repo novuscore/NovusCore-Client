@@ -32,8 +32,9 @@ namespace UIScripting
 
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetSize()", asMETHOD(T, GetSize)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetSize(vec2 size)", asMETHOD(T, SetSize)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("bool GetFillParentSize()", asMETHOD(T, GetFillParentSize)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("bool DoesFillParentSize()", asMETHOD(T, DoesFillParentSize)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetFillParentSize(bool fillParent)", asMETHOD(T, SetFillParentSize)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetFillParentSizeAxis(bool fillX, bool fillY)", asMETHOD(T, SetFillParentSizeAxis)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("void SetTransform(vec2 position, vec2 size)", asMETHOD(T, SetTransform)); assert(r >= 0);
 
@@ -80,8 +81,9 @@ namespace UIScripting
 
         vec2 GetSize() const;
         void SetSize(const vec2& size);
-        bool GetFillParentSize() const;
+        bool DoesFillParentSize() const;
         void SetFillParentSize(bool fillParent);
+        void SetFillParentSizeAxis(bool fillX, bool fillY);
 
         void SetTransform(const vec2& position, const vec2& size);
 

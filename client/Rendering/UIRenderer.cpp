@@ -23,6 +23,7 @@
 #include "../UI/ECS/Components/Root.h"
 #include "../UI/ECS/Components/SortKey.h"
 #include "../UI/ECS/Components/Transform.h"
+#include "../UI/ECS/Components/TransformFill.h"
 #include "../UI/ECS/Components/TransformEvents.h"
 
 #include "../UI/ECS/Components/Renderable.h"
@@ -77,6 +78,7 @@ UIRenderer::UIRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRendere
     registry->reserve<UIComponent::Root>(ENTITIES_TO_RESERVE);
     registry->reserve<UIComponent::SortKey>(ENTITIES_TO_RESERVE);
     registry->reserve<UIComponent::Transform>(ENTITIES_TO_RESERVE);
+    registry->reserve<UIComponent::TransformFill>(ENTITIES_TO_RESERVE);
     registry->reserve<UIComponent::TransformEvents>(ENTITIES_TO_RESERVE);
 
     registry->reserve<UIComponent::Renderable>(ENTITIES_TO_RESERVE);

@@ -92,7 +92,7 @@ namespace UIScripting
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
 
-    bool BaseElement::GetFillParentSize() const
+    bool BaseElement::DoesFillParentSize() const
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         return registry->has<UIComponent::TransformFill>(_entityId) && registry->get<UIComponent::TransformFill>(_entityId).HasFlag(UI::TransformFillFlags::FILL_PARENTSIZE);
@@ -100,16 +100,40 @@ namespace UIScripting
     void BaseElement::SetFillParentSize(bool fillParent)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        if (registry->has<UIComponent::TransformFill>(_entityId) && !fillParent)
+        if (!fillParent)
         {
-            registry->remove<UIComponent::TransformFill>(_entityId);
+            registry->remove_if_exists<UIComponent::TransformFill>(_entityId);
             return;
         }
-        else if (!registry->has<UIComponent::TransformFill>(_entityId) && fillParent)
+        else if (!registry->has<UIComponent::TransformFill>(_entityId))
             registry->emplace<UIComponent::TransformFill>(_entityId);
 
         UIComponent::TransformFill& transformFill = registry->get<UIComponent::TransformFill>(_entityId);
         transformFill.SetFlag(UI::TransformFillFlags::FILL_PARENTSIZE);
+
+        if (registry->has<UIComponent::Root>(_entityId))
+            return; 
+
+        auto [transform, relation] = registry->get<UIComponent::Transform, UIComponent::Relation>(_entityId);
+        const UIComponent::Transform& parentTransform = registry->get<UIComponent::Transform>(relation.parent);
+        UIUtils::Transform::CalculateFillFromInnerBounds(transformFill, UIUtils::Transform::GetInnerSize(&parentTransform), transform.position, transform.size);
+
+        UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
+    }
+
+    void BaseElement::SetFillParentSizeAxis(bool fillX, bool fillY)
+    {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        if (!fillX && !fillY)
+        {
+            registry->remove_if_exists<UIComponent::TransformFill>(_entityId);
+            return;
+        }
+        else if (!registry->has<UIComponent::TransformFill>(_entityId))
+            registry->emplace<UIComponent::TransformFill>(_entityId);
+
+        UIComponent::TransformFill& transformFill = registry->get<UIComponent::TransformFill>(_entityId);
+        transformFill.flags = UI::TransformFillFlags::FILL_PARENTSIZE_X * fillX | UI::TransformFillFlags::FILL_PARENTSIZE_Y * fillY;
 
         if (registry->has<UIComponent::Root>(_entityId))
             return; 

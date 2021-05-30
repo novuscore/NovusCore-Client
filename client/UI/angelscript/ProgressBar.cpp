@@ -14,12 +14,10 @@ namespace UIScripting
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::ProgressBar>(_entityId);
-        registry->emplace<UIComponent::Image>(_entityId);
-        registry->emplace<UIComponent::Renderable>(_entityId, UI::RenderType::Image);
 
-        _panel = Panel::CreatePanel(name + "-Panel", false);
+        _panel = Panel::CreatePanel(name + "-Bar", false);
         InternalAddChild(_panel);
-        registry->emplace<UIComponent::TransformFill>(_panel->GetEntityId()).flags = UI::TransformFillFlags::FILL_PARENTSIZE;
+        registry->emplace<UIComponent::TransformFill>(_panel->GetEntityId()).flags = UI::TransformFillFlags::FILL_PARENTSIZE_Y;
     }
 
     void ProgressBar::RegisterType()

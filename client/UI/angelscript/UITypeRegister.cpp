@@ -8,6 +8,7 @@
 #include "Inputfield.h"
 #include "Checkbox.h"
 #include "Slider.h"
+#include "ProgressBar.h"
 
 #include "../Stylesheets/ImageStylesheet.h"
 #include "../Stylesheets/TextStylesheet.h"
@@ -64,6 +65,7 @@ namespace UI
         UIScripting::InputField::RegisterType();
         UIScripting::Checkbox::RegisterType();
         UIScripting::Slider::RegisterType();
+        UIScripting::ProgressBar::RegisterType();
         UIUtils::RegisterNamespace();
     }
 }
