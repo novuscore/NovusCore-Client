@@ -41,8 +41,8 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("void SetMinValue(float min)", asMETHOD(Slider, SetMinValue)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("float GetMaxValue()", asMETHOD(Slider, GetMaxValue)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetMaxValue(float max)", asMETHOD(Slider, SetMaxValue)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("float GetPercentValue()", asMETHOD(Slider, SetMaxValue)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetPercentValue(float percent)", asMETHOD(Slider, SetMaxValue)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("float GetPercentValue()", asMETHOD(Slider, GetPercentValue)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetPercentValue(float percent)", asMETHOD(Slider, SetPercentValue)); assert(r >= 0);
 
         // Image Functions
         r = ScriptEngine::RegisterScriptClassFunction("void SetStylesheet(ImageStylesheet styleSheet)", asMETHOD(Slider, SetStylesheet)); assert(r >= 0);
@@ -59,6 +59,7 @@ namespace UIScripting
         r = ScriptEngine::RegisterScriptClassFunction("float GetStepSize()", asMETHOD(Slider, GetStepSize)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetStepSize(float stepSize)", asMETHOD(Slider, SetStepSize)); assert(r >= 0);
 
+        r = ScriptEngine::RegisterScriptClassFunction("void SetHandleSize(vec2 size)", asMETHOD(Slider, SetHandleSize)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void OnValueChange(SliderEventCallback@ cb)", asMETHOD(Slider, SetOnValueChangedCallback)); assert(r >= 0);
     }
 

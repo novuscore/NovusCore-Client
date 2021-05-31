@@ -12,6 +12,7 @@ namespace UI
         UITYPE_CHECKBOX,
         UITYPE_SLIDER,
         UITYPE_SLIDERHANDLE,
+        UITYPE_PROGRESSBAR,
 
         UITYPE_LABEL,
         UITYPE_INPUTFIELD

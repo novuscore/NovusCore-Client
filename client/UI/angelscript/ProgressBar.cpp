@@ -10,20 +10,21 @@
 
 namespace UIScripting
 {
-    ProgressBar::ProgressBar(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_SLIDER, name, collisionEnabled)
+    ProgressBar::ProgressBar(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_PROGRESSBAR, name, collisionEnabled)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::ProgressBar>(_entityId);
 
         _panel = Panel::CreatePanel(name + "-Bar", false);
         InternalAddChild(_panel);
-        registry->emplace<UIComponent::TransformFill>(_panel->GetEntityId()).flags = UI::TransformFillFlags::FILL_PARENTSIZE_Y;
+        registry->emplace<UIComponent::TransformFill>(_panel->GetEntityId()).flags = UI::TransformFillFlags::FILL_PARENTSIZE;
     }
 
     void ProgressBar::RegisterType()
     {
         i32 r = ScriptEngine::RegisterScriptClass("ProgressBar", 0, asOBJ_REF | asOBJ_NOCOUNT);
-        RegisterBase<ProgressBar>();
+        RegisterEventBase<ProgressBar>("ProgressBar");
+
         r = ScriptEngine::RegisterScriptFunction("ProgressBar@ CreateProgressBar(string name, bool collisionEnabled)", asFUNCTION(ProgressBar::CreateProgressBar)); assert(r >= 0);
 
         r = ScriptEngine::RegisterScriptClassFunction("float GetCurrentValue()", asMETHOD(ProgressBar, GetCurrentValue)); assert(r >= 0);
@@ -40,14 +41,18 @@ namespace UIScripting
     }
     void ProgressBar::SetCurrentValue(f32 current)
     {
-        UIComponent::ProgressBar& progressBar = ServiceLocator::GetUIRegistry()->get<UIComponent::ProgressBar>(_entityId);
+        current = Math::Clamp(current, 0.f, 1.f);
+
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+        UIComponent::ProgressBar& progressBar = registry->get<UIComponent::ProgressBar>(_entityId);
         progressBar.currentValue = current;
+
+        _panel->SetFillBounds({ 0.f, current, 1.f, 0.f });
     }
 
     void ProgressBar::SetStylesheet(const UI::ImageStylesheet& styleSheet)
     {
-        UIComponent::Image& image = ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image.style = styleSheet;
+        _panel->SetStylesheet(styleSheet);
     }
 
     ProgressBar* ProgressBar::CreateProgressBar(const std::string& name, bool collisionEnabled)
