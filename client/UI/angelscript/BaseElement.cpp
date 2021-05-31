@@ -46,10 +46,7 @@ namespace UIScripting
 
         UIComponent::Collision* collision = &registry->emplace<UIComponent::Collision>(_entityId);
         if (collisionEnabled)
-        {
-            collision->SetFlag(UI::CollisionFlags::COLLISION);
             registry->emplace<UIComponent::Collidable>(_entityId);
-        }
     }
 
     vec2 BaseElement::GetScreenPosition() const
@@ -105,14 +102,12 @@ namespace UIScripting
             registry->remove_if_exists<UIComponent::TransformFill>(_entityId);
             return;
         }
-        else if (!registry->has<UIComponent::TransformFill>(_entityId))
-            registry->emplace<UIComponent::TransformFill>(_entityId);
 
-        UIComponent::TransformFill& transformFill = registry->get<UIComponent::TransformFill>(_entityId);
+        UIComponent::TransformFill& transformFill = registry->get_or_emplace<UIComponent::TransformFill>(_entityId);
         transformFill.SetFlag(UI::TransformFillFlags::FILL_PARENTSIZE);
 
         if (registry->has<UIComponent::Root>(_entityId))
-            return; 
+            return;
 
         auto [transform, relation] = registry->get<UIComponent::Transform, UIComponent::Relation>(_entityId);
         const UIComponent::Transform& parentTransform = registry->get<UIComponent::Transform>(relation.parent);
@@ -120,7 +115,6 @@ namespace UIScripting
 
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
-
     void BaseElement::SetFillParentSizeAxis(bool fillX, bool fillY)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
@@ -129,14 +123,28 @@ namespace UIScripting
             registry->remove_if_exists<UIComponent::TransformFill>(_entityId);
             return;
         }
-        else if (!registry->has<UIComponent::TransformFill>(_entityId))
-            registry->emplace<UIComponent::TransformFill>(_entityId);
 
-        UIComponent::TransformFill& transformFill = registry->get<UIComponent::TransformFill>(_entityId);
+        UIComponent::TransformFill& transformFill = registry->get_or_emplace<UIComponent::TransformFill>(_entityId);
         transformFill.flags = UI::TransformFillFlags::FILL_PARENTSIZE_X * fillX | UI::TransformFillFlags::FILL_PARENTSIZE_Y * fillY;
 
         if (registry->has<UIComponent::Root>(_entityId))
-            return; 
+            return;
+
+        auto [transform, relation] = registry->get<UIComponent::Transform, UIComponent::Relation>(_entityId);
+        const UIComponent::Transform& parentTransform = registry->get<UIComponent::Transform>(relation.parent);
+        UIUtils::Transform::CalculateFillFromInnerBounds(transformFill, UIUtils::Transform::GetInnerSize(&parentTransform), transform.position, transform.size);
+
+        UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
+    }
+    void BaseElement::SetFillBounds(const UI::FBox& fillBounds)
+    {
+        entt::registry* registry = ServiceLocator::GetUIRegistry();
+
+        UIComponent::TransformFill& transformFill = registry->get_or_emplace<UIComponent::TransformFill>(_entityId);
+        transformFill.fill = fillBounds;
+
+        if (registry->has<UIComponent::Root>(_entityId))
+            return;
 
         auto [transform, relation] = registry->get<UIComponent::Transform, UIComponent::Relation>(_entityId);
         const UIComponent::Transform& parentTransform = registry->get<UIComponent::Transform>(relation.parent);
@@ -347,11 +355,8 @@ namespace UIScripting
     void BaseElement::SetCollisionEnabled(bool enabled)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        auto collision = &registry->get<UIComponent::Collision>(_entityId);
-        if (collision->HasFlag(UI::CollisionFlags::COLLISION) == enabled)
+        if (registry->has<UIComponent::Collidable>(_entityId) == enabled)
             return;
-
-        collision->ToggleFlag(UI::CollisionFlags::COLLISION);
 
         if (enabled)
             registry->emplace<UIComponent::Collidable>(_entityId);

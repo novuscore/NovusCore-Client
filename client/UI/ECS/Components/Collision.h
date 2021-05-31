@@ -5,8 +5,7 @@ namespace UI
 {
     enum CollisionFlags : u8
     {
-        COLLISION = 1 << 0,
-        INCLUDE_CHILDBOUNDS = 1 << 1
+        INCLUDE_CHILDBOUNDS = 1 << 0
     };
 }
 

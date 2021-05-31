@@ -35,6 +35,7 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("bool DoesFillParentSize()", asMETHOD(T, DoesFillParentSize)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetFillParentSize(bool fillParent)", asMETHOD(T, SetFillParentSize)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetFillParentSizeAxis(bool fillX, bool fillY)", asMETHOD(T, SetFillParentSizeAxis)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetFillBounds(FBox fillBounds)", asMETHOD(T, SetFillBounds)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("void SetTransform(vec2 position, vec2 size)", asMETHOD(T, SetTransform)); assert(r >= 0);
 
@@ -84,6 +85,7 @@ namespace UIScripting
         bool DoesFillParentSize() const;
         void SetFillParentSize(bool fillParent);
         void SetFillParentSizeAxis(bool fillX, bool fillY);
+        void SetFillBounds(const UI::FBox& fillBounds);
 
         void SetTransform(const vec2& position, const vec2& size);
 
