@@ -75,10 +75,12 @@ namespace UISystem
             // Transform Updates.
             const vec2 pos = UIUtils::Transform::GetMinBounds(transform);
             const vec2 size = transform.size;
+            const UI::FBox& texCoordScaler = image.texCoordScaler;
             const UI::FBox& texCoords = image.style.texCoord;
+            const UI::FBox scaledTexCoords = { texCoordScaler.top * texCoords.top, texCoordScaler.right * texCoords.right, texCoordScaler.bottom * texCoords.bottom, texCoordScaler.left * texCoords.left };
 
             UI::UIVertex vertices[4] = {};
-            CalculateVertices(pos, size, texCoords, &vertices[0]);
+            CalculateVertices(pos, size, scaledTexCoords, &vertices[0]);
 
             constexpr u32 bufferSize = sizeof(UI::UIVertex) * 4; // 4 vertices per image
 

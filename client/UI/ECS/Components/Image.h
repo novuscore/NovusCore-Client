@@ -22,6 +22,8 @@ namespace UIComponent
         Image(){ }
 
         UI::ImageStylesheet style;
+        UI::FBox texCoordScaler = { 1.f, 1.f, 1.f, 1.f };
+
         Renderer::TextureID textureID = Renderer::TextureID::Invalid();
         Renderer::TextureID borderID = Renderer::TextureID::Invalid();
         Renderer::BufferID vertexBufferID = Renderer::BufferID::Invalid();

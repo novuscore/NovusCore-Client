@@ -48,6 +48,7 @@ namespace UIScripting
         progressBar.currentValue = current;
 
         _panel->SetFillBounds({ 0.f, current, 1.f, 0.f });
+        registry->get<UIComponent::Image>(_panel->GetEntityId()).texCoordScaler.right = current;
     }
 
     void ProgressBar::SetStylesheet(const UI::ImageStylesheet& styleSheet)
