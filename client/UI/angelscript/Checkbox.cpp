@@ -15,7 +15,7 @@
 
 namespace UIScripting
 {
-    Checkbox::Checkbox(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_CHECKBOX, name, collisionEnabled, UI::TransformEventsFlags::FLAG_CLICKABLE)
+    Checkbox::Checkbox(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::CHECKBOX, name, collisionEnabled, UI::TransformEventsFlags::FLAG_CLICKABLE)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Checkbox>(_entityId);

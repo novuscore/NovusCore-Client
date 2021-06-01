@@ -10,7 +10,7 @@
 
 namespace UIScripting
 {
-    Panel::Panel(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_PANEL, name, collisionEnabled)
+    Panel::Panel(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::PANEL, name, collisionEnabled)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Image>(_entityId);

@@ -15,7 +15,7 @@
 
 namespace UIScripting
 {
-    InputField::InputField(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_INPUTFIELD, name, collisionEnabled, UI::TransformEventsFlags::FLAG_FOCUSABLE)
+    InputField::InputField(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::INPUTFIELD, name, collisionEnabled, UI::TransformEventsFlags::FLAG_FOCUSABLE)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::InputField>(_entityId);

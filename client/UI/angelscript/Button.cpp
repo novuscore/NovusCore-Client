@@ -9,7 +9,7 @@
 
 namespace UIScripting
 {
-    Button::Button(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_BUTTON, name, collisionEnabled, UI::TransformEventsFlags::FLAG_CLICKABLE) 
+    Button::Button(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::BUTTON, name, collisionEnabled, UI::TransformEventsFlags::FLAG_CLICKABLE) 
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Image>(_entityId);

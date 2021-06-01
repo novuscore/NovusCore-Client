@@ -10,7 +10,7 @@
 
 namespace UIScripting
 {
-    ProgressBar::ProgressBar(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_PROGRESSBAR, name, collisionEnabled)
+    ProgressBar::ProgressBar(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::PROGRESSBAR, name, collisionEnabled)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::ProgressBar>(_entityId);

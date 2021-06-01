@@ -5,38 +5,41 @@ namespace UI
 {
     enum class ElementType : u8
     {
-        UITYPE_NONE,
+        NONE,
 
-        UITYPE_PANEL,
-        UITYPE_BUTTON,
-        UITYPE_CHECKBOX,
-        UITYPE_SLIDER,
-        UITYPE_SLIDERHANDLE,
-        UITYPE_PROGRESSBAR,
+        PANEL,
+        BUTTON,
+        CHECKBOX,
+        SLIDER,
+        SLIDERHANDLE,
+        PROGRESSBAR,
 
-        UITYPE_LABEL,
-        UITYPE_INPUTFIELD
+        LABEL,
+        INPUTFIELD
     };
 
     static char* GetElementTypeAsString(ElementType type)
     {
         switch (type)
         {
-        case ElementType::UITYPE_NONE:
+        case ElementType::NONE:
             return "None";
-        case ElementType::UITYPE_PANEL:
+        case ElementType::PANEL:
             return "Panel";
-        case ElementType::UITYPE_BUTTON:
+        case ElementType::BUTTON:
             return "Button";
-        case ElementType::UITYPE_CHECKBOX:
+        case ElementType::CHECKBOX:
             return "Checkbox";
-        case ElementType::UITYPE_SLIDER:
+        case ElementType::SLIDER:
             return "Slider";
-        case ElementType::UITYPE_SLIDERHANDLE:
+        case ElementType::SLIDERHANDLE:
             return "Slider Handle";
-        case ElementType::UITYPE_LABEL:
+        case ElementType::PROGRESSBAR:
+            return "Progress Bar";
+
+        case ElementType::LABEL:
             return "Label";
-        case ElementType::UITYPE_INPUTFIELD:
+        case ElementType::INPUTFIELD:
             return "Inputfield";
         default:
             DebugHandler::PrintFatal("ElementType has no valid string translation.");

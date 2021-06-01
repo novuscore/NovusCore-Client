@@ -15,7 +15,7 @@
 
 namespace UIScripting
 {
-    Slider::Slider(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::UITYPE_SLIDER, name, collisionEnabled, UI::TransformEventsFlags::FLAG_CLICKABLE)
+    Slider::Slider(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::SLIDER, name, collisionEnabled, UI::TransformEventsFlags::FLAG_CLICKABLE)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         registry->emplace<UIComponent::Slider>(_entityId);
