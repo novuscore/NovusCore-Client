@@ -25,7 +25,7 @@ namespace UIScripting
         i32 r = ScriptEngine::RegisterScriptClass("ProgressBar", 0, asOBJ_REF | asOBJ_NOCOUNT);
         RegisterEventBase<ProgressBar>("ProgressBar");
 
-        r = ScriptEngine::RegisterScriptFunction("ProgressBar@ CreateProgressBar(string name, bool collisionEnabled)", asFUNCTION(ProgressBar::CreateProgressBar)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptFunction("ProgressBar@ CreateProgressBar(string name, bool collisionEnabled = true)", asFUNCTION(ProgressBar::CreateProgressBar)); assert(r >= 0);
 
         r = ScriptEngine::RegisterScriptClassFunction("float GetCurrentValue()", asMETHOD(ProgressBar, GetCurrentValue)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetCurrentValue(float current)", asMETHOD(ProgressBar, SetCurrentValue)); assert(r >= 0);

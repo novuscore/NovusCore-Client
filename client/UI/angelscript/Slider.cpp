@@ -33,7 +33,7 @@ namespace UIScripting
     {
         i32 r = ScriptEngine::RegisterScriptClass("Slider", 0, asOBJ_REF | asOBJ_NOCOUNT);
         r = RegisterEventBase<Slider>("Slider");
-        r = ScriptEngine::RegisterScriptFunction("Slider@ CreateSlider(string name, bool collisionEnabled)", asFUNCTION(Slider::CreateSlider)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptFunction("Slider@ CreateSlider(string name, bool collisionEnabled = true)", asFUNCTION(Slider::CreateSlider)); assert(r >= 0);
 
         r = ScriptEngine::RegisterScriptClassFunction("float GetCurrentValue()", asMETHOD(Slider, GetCurrentValue)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetCurrentValue(float current)", asMETHOD(Slider, SetCurrentValue)); assert(r >= 0);
