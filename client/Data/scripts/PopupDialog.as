@@ -53,7 +53,7 @@ void main()
         dialogButton.SetSize(vec2(120, 60));
         dialogButton.SetAnchor(vec2(0.5,1));
         dialogButton.SetLocalAnchor(vec2(0.5,1));
-	    dialogButton.SetPadding(8.f, 0.f, 0.f, 0.f);
+	    dialogButton.SetPadding(FBox(8, 0, 0, 0));
         
         ImageStylesheet buttonSheet("Data/extracted/Textures/interface/glues/common/glue-panel-button-up-blue.dds");
 	    buttonSheet.SetTexCoord(FBox(0.0f, 0.578125f, 0.75f, 0.0f));

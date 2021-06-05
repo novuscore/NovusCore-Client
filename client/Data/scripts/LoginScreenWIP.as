@@ -114,7 +114,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	userNameFieldPanel.SetAnchor(vec2(0.5,0.5));
 	userNameFieldPanel.SetLocalAnchor(vec2(0.5,0));
 	userNameFieldPanel.SetStylesheet(fieldSheet);
-	userNameFieldPanel.SetPadding(2, 5, 9, 10);
+	userNameFieldPanel.SetPadding(FBox(2, 5, 9, 10));
 	background.AddChild(userNameFieldPanel);
 			
 	usernameField.SetFillParentSize(true);
@@ -134,7 +134,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	passwordFieldPanel.SetAnchor(vec2(0.5,0.5));
 	passwordFieldPanel.SetLocalAnchor(vec2(0.5,0));
 	passwordFieldPanel.SetStylesheet(fieldSheet);
-	passwordFieldPanel.SetPadding(2, 5, 9, 10);
+	passwordFieldPanel.SetPadding(FBox(2, 5, 9, 10));
 	background.AddChild(passwordFieldPanel);
 		
 	passwordField.SetFillParentSize(true);
@@ -146,7 +146,7 @@ void OnLoginScreenLoaded(uint SceneLoaded)
 	submitButton.SetTransform(vec2(0, SIZE.y * 2.25f), SIZE * vec2(1.1f,1.4f));
 	submitButton.SetAnchor(vec2(0.5,0.5));
 	submitButton.SetLocalAnchor(vec2(0.5,0));
-	submitButton.SetPadding(8.f, 0.f, 0.f, 0.f);
+	submitButton.SetPadding(FBox(8, 0, 0, 0));
 	submitButton.SetText("Login");
 	submitButton.SetStylesheet(buttonSheet);
 	submitButton.SetPressedStylesheet(buttonDownSheet);

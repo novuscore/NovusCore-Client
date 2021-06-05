@@ -27,9 +27,6 @@ namespace UI
 
     void RegisterTypes()
     {
-        /*
-        *   TODO: Move.
-        */
         u32 flags = asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS | asOBJ_APP_CLASS_CONSTRUCTOR | asOBJ_APP_CLASS_ASSIGNMENT | asOBJ_APP_CLASS_COPY_CONSTRUCTOR;
 
         //Box

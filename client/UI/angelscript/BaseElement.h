@@ -44,7 +44,7 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetLocalAnchor()", asMETHOD(T, GetLocalAnchor)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetLocalAnchor(vec2 anchor)", asMETHOD(T, SetLocalAnchor)); assert(r >= 0);
 
-            r = ScriptEngine::RegisterScriptClassFunction("void SetPadding(float top, float right, float bottom, float left)", asMETHOD(T, SetPadding)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetPadding(FBox padding)", asMETHOD(T, SetPadding)); assert(r >= 0);
             
             r = ScriptEngine::RegisterScriptClassFunction("uint8 GetDepthLayer()", asMETHOD(T, GetDepthLayer)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetDepthLayer(uint8 layer)", asMETHOD(T, SetDepthLayer)); assert(r >= 0);
@@ -95,7 +95,7 @@ namespace UIScripting
         vec2 GetLocalAnchor() const;
         void SetLocalAnchor(const vec2& localAnchor);
         
-        void SetPadding(f32 top, f32 right, f32 bottom, f32 left);
+        void SetPadding(const UI::FBox& padding);
 
         UI::DepthLayer GetDepthLayer() const;
         void SetDepthLayer(const UI::DepthLayer layer);

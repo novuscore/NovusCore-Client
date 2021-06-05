@@ -210,11 +210,11 @@ namespace UIScripting
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
 
-    void BaseElement::SetPadding(f32 top, f32 right, f32 bottom, f32 left)
+    void BaseElement::SetPadding(const UI::FBox& padding)
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
         auto transform = &registry->get<UIComponent::Transform>(_entityId);
-        transform->padding = UI::HBox{ f16(top), f16(right), f16(bottom), f16(left) };
+        transform->padding = { f16(padding.top), f16(padding.right), f16(padding.bottom), f16(padding.left) };
 
         UIUtils::Transform::UpdateChildTransforms(registry, _entityId);
     }
