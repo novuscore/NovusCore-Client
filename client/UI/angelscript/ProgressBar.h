@@ -1,7 +1,11 @@
 #pragma once
 #include <NovusTypes.h>
 #include "EventElement.h"
-#include "../Stylesheets/ImageStylesheet.h"
+
+namespace UI
+{
+    struct ImageStylesheet;
+}
 
 namespace UIScripting
 {

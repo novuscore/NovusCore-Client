@@ -26,7 +26,7 @@ namespace UISingleton
         hvec2 dragOffset = hvec2(0.f,0.f);
 
         //Resolution
-        const f32 referenceHeight = 1080.f;
+        const f32 referenceHeight = 768.f;
         hvec2 UIRESOLUTION = hvec2(0.0f, 0.f);
     };
 }

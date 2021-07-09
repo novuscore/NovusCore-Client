@@ -2,8 +2,11 @@
 #include <NovusTypes.h>
 #include "EventElement.h"
 
-#include "../Stylesheets/ImageStylesheet.h"
-#include "../Stylesheets/TextStylesheet.h"
+namespace UI
+{
+    struct ImageStylesheet;
+    struct TextStylesheet;
+}
 
 namespace UIScripting
 {

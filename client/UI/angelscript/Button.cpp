@@ -7,6 +7,9 @@
 #include "../ECS/Components/ImageEventStyles.h"
 #include "../ECS/Components/Renderable.h"
 
+#include "../Stylesheets/ImageStylesheet.h"
+#include "../Stylesheets/TextStylesheet.h"
+
 namespace UIScripting
 {
     Button::Button(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::BUTTON, name, collisionEnabled, UI::TransformEventsFlags::FLAG_CLICKABLE) 

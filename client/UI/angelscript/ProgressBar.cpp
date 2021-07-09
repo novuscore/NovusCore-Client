@@ -6,6 +6,8 @@
 #include "../ECS/Components/Renderable.h"
 #include "../ECS/Components/TransformFill.h"
 
+#include "../Stylesheets/ImageStylesheet.h"
+
 #include "Panel.h"
 
 namespace UIScripting

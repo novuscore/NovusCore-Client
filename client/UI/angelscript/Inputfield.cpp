@@ -10,6 +10,8 @@
 #include "../Utils/TextUtils.h"
 #include "../Utils/EventUtils.h"
 
+#include "../Stylesheets/TextStylesheet.h"
+
 #include <GLFW/glfw3.h>
 #include <tracy/Tracy.hpp>
 

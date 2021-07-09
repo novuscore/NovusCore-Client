@@ -6,6 +6,8 @@
 #include "../ECS/Components/ImageEventStyles.h"
 #include "../ECS/Components/Renderable.h"
 
+#include "../Stylesheets/ImageStylesheet.h"
+
 #include <tracy/Tracy.hpp>
 
 namespace UIScripting

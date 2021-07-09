@@ -13,6 +13,8 @@
 #include "../ECS/Components/Checkbox.h"
 #include "../Utils/EventUtils.h"
 
+#include "../Stylesheets/ImageStylesheet.h"
+
 namespace UIScripting
 {
     Checkbox::Checkbox(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::CHECKBOX, name, collisionEnabled, UI::TransformEventsFlags::FLAG_CLICKABLE)

@@ -1,6 +1,5 @@
 #pragma once
 #include <NovusTypes.h>
-
 #include "EventElement.h"
 
 namespace UIScripting

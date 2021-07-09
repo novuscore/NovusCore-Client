@@ -13,6 +13,8 @@
 #include "../Utils/SliderUtils.h"
 #include "../Utils/EventUtils.h"
 
+#include "../Stylesheets/ImageStylesheet.h"
+
 namespace UIScripting
 {
     Slider::Slider(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::SLIDER, name, collisionEnabled, UI::TransformEventsFlags::FLAG_CLICKABLE)
