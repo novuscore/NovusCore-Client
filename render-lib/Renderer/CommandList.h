@@ -12,7 +12,7 @@
 #include "Descriptors/CommandListDesc.h"
 #include "Descriptors/GraphicsPipelineDesc.h"
 #include "Descriptors/ComputePipelineDesc.h"
-#include "Descriptors/GPUSemaphoreDesc.h"
+#include "Descriptors/SemaphoreDesc.h"
 
 #define COMMANDLIST_DEBUG_IMMEDIATE_MODE 1 // This makes it easier to debug the renderer by providing better callstacks if it asserts or crashes inside of render-lib
 
@@ -82,8 +82,8 @@ namespace Renderer
         void Dispatch(u32 numThreadGroupsX, u32 numThreadGroupsY, u32 numThreadGroupsZ);
         void DispatchIndirect(BufferID argumentBuffer, u32 argumentBufferOffset);
 
-        void AddSignalSemaphore(GPUSemaphoreID semaphoreID);
-        void AddWaitSemaphore(GPUSemaphoreID semaphoreID);
+        void AddSignalSemaphore(SemaphoreID semaphoreID);
+        void AddWaitSemaphore(SemaphoreID semaphoreID);
 
         void CopyImage(ImageID dstImage, uvec2 dstPos, u32 dstMipLevel, ImageID srcImage, uvec2 srcPos, u32 srcMipLevel, uvec2 size);
 

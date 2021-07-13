@@ -3,6 +3,7 @@
 #include <robin_hood.h>
 #include <filesystem>
 #include <Utils/ByteBuffer.h>
+#include <Utils/SafeVector.h>
 
 #include <Renderer/Buffer.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
@@ -257,5 +258,5 @@ private:
     u32 _numTriangles;
     u32 _numSurvivingTriangles;
 
-    std::vector<MapObjectToBeLoaded> _mapObjectsToBeLoaded;
+    SafeVector<MapObjectToBeLoaded> _mapObjectsToBeLoaded;  // TODO: Make this a concurrent queue
 };

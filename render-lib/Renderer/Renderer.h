@@ -16,7 +16,8 @@
 #include "Descriptors/TextureDesc.h"
 #include "Descriptors/TextureArrayDesc.h"
 #include "Descriptors/SamplerDesc.h"
-#include "Descriptors/GPUSemaphoreDesc.h"
+#include "Descriptors/SemaphoreDesc.h"
+#include "Descriptors/UploadBuffer.h"
 
 class Window;
 
@@ -56,7 +57,7 @@ namespace Renderer
         virtual [[nodiscard]] DepthImageID CreateDepthImage(DepthImageDesc& desc) = 0;
 
         virtual [[nodiscard]] SamplerID CreateSampler(SamplerDesc& sampler) = 0;
-        virtual [[nodiscard]] GPUSemaphoreID CreateGPUSemaphore() = 0;
+        virtual [[nodiscard]] SemaphoreID CreateNSemaphore() = 0;
 
         virtual [[nodiscard]] GraphicsPipelineID CreatePipeline(GraphicsPipelineDesc& desc) = 0;
         virtual [[nodiscard]] ComputePipelineID CreatePipeline(ComputePipelineDesc& desc) = 0;
@@ -105,8 +106,8 @@ namespace Renderer
         virtual void MarkFrameStart(CommandListID commandListID, u32 frameIndex) = 0;
         virtual void BeginTrace(CommandListID commandListID, const tracy::SourceLocationData* sourceLocation) = 0;
         virtual void EndTrace(CommandListID commandListID) = 0;
-        virtual void AddSignalSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) = 0;
-        virtual void AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) = 0;
+        virtual void AddSignalSemaphore(CommandListID commandListID, SemaphoreID semaphoreID) = 0;
+        virtual void AddWaitSemaphore(CommandListID commandListID, SemaphoreID semaphoreID) = 0;
         virtual void CopyImage(CommandListID commandListID, ImageID dstImageID, uvec2 dstPos, u32 dstMipLevel, ImageID srcImageID, uvec2 srcPos, u32 srcMipLevel, uvec2 size) = 0;
         virtual void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
         virtual void PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer) = 0;
@@ -117,36 +118,41 @@ namespace Renderer
         virtual void UpdateBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, void* data) = 0;
 
         // Present functions
-        virtual void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) = 0;
-        virtual void Present(Window* window, DepthImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) = 0;
+        virtual void Present(Window* window, ImageID image, SemaphoreID semaphoreID = SemaphoreID::Invalid()) = 0;
+        virtual void Present(Window* window, DepthImageID image, SemaphoreID semaphoreID = SemaphoreID::Invalid()) = 0;
+
+        // Staging and memory
+        virtual [[nodiscard]] std::shared_ptr<UploadBuffer> CreateUploadBuffer(BufferID targetBuffer, size_t targetOffset, size_t size) = 0;
+        virtual [[nodiscard]] bool ShouldWaitForUpload() = 0;
+        virtual [[nodiscard]] SemaphoreID GetUploadFinishedSemaphore() = 0;
+
+        [[nodiscard]] BufferID CreateBuffer(BufferID bufferID, BufferDesc& desc);
+        [[nodiscard]] BufferID CreateAndFillBuffer(BufferID bufferID, BufferDesc desc, void* data, size_t dataSize); // Deletes the current BufferID if it's not invalid
+        [[nodiscard]] BufferID CreateAndFillBuffer(BufferDesc desc, void* data, size_t dataSize);
+        [[nodiscard]] BufferID CreateAndFillBuffer(BufferID bufferID, BufferDesc desc, const std::function<void(void*)>& callback); // Deletes the current BufferID if it's not invalid
+        [[nodiscard]] BufferID CreateAndFillBuffer(BufferDesc desc, const std::function<void(void*)>& callback);
+        virtual void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
+
+        virtual [[nodiscard]] void* MapBuffer(BufferID buffer) = 0;
+        virtual void UnmapBuffer(BufferID buffer) = 0;
 
         // Utils
+        virtual void FlipFrame(u32 frameIndex) = 0;
+
         virtual [[nodiscard]] ImageDesc GetImageDesc(ImageID ID) = 0;
         virtual [[nodiscard]] DepthImageDesc GetDepthImageDesc(DepthImageID ID) = 0;
         virtual [[nodiscard]] uvec2 GetImageDimension(const ImageID id, u32 mipLevel) = 0;
 
-        virtual void FlipFrame(u32 frameIndex) = 0;
-
-        [[nodiscard]] BufferID CreateBuffer(BufferID bufferID, BufferDesc& desc);
-        [[nodiscard]] BufferID CreateAndFillBuffer(BufferID bufferID, BufferDesc desc, void* data, size_t dataSize);
-        [[nodiscard]] BufferID CreateAndFillBuffer(BufferDesc desc, void* data, size_t dataSize);
-        [[nodiscard]] BufferID CreateAndFillBuffer(BufferID bufferID, BufferDesc desc, const std::function<void(void*)>& callback);
-        [[nodiscard]] BufferID CreateAndFillBuffer(BufferDesc desc, const std::function<void(void*)>& callback);
-        virtual void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) = 0;
-        
-        virtual [[nodiscard]] void* MapBuffer(BufferID buffer) = 0;
-        virtual void UnmapBuffer(BufferID buffer) = 0;
-
-        virtual const std::string& GetGPUName() = 0;
+        virtual [[nodiscard]] const std::string& GetGPUName() = 0;
 
         virtual [[nodiscard]] size_t GetVRAMUsage() = 0;
         virtual [[nodiscard]] size_t GetVRAMBudget() = 0;
 
-        virtual void InitImgui() = 0;
-        virtual void DrawImgui(CommandListID commandListID) = 0;
-
         virtual [[nodiscard]] u32 GetNumImages() = 0;
         virtual [[nodiscard]] u32 GetNumDepthImages() = 0;
+
+        virtual void InitImgui() = 0;
+        virtual void DrawImgui(CommandListID commandListID) = 0;
 
     protected:
         Renderer() {}; // Pure virtual class, disallow creation of it

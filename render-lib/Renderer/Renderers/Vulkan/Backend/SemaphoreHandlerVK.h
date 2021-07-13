@@ -2,8 +2,7 @@
 #include <NovusTypes.h>
 #include <vulkan/vulkan_core.h>
 
-#include "../../../Descriptors/GPUSemaphoreDesc.h"
-
+#include "../../../Descriptors/SemaphoreDesc.h"
 
 namespace tracy
 {
@@ -23,9 +22,9 @@ namespace Renderer
         public:
             void Init(RenderDeviceVK* device);
 
-            GPUSemaphoreID CreateGPUSemaphore();
+            SemaphoreID CreateNSemaphore();
 
-            VkSemaphore GetVkSemaphore(GPUSemaphoreID id);
+            VkSemaphore GetVkSemaphore(SemaphoreID id);
 
         private:
             

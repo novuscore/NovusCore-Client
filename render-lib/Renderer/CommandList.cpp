@@ -392,7 +392,7 @@ namespace Renderer
 #endif
     }
 
-    void CommandList::AddSignalSemaphore(GPUSemaphoreID semaphoreID)
+    void CommandList::AddSignalSemaphore(SemaphoreID semaphoreID)
     {
         Commands::AddSignalSemaphore* command = AddCommand<Commands::AddSignalSemaphore>();
         command->semaphore = semaphoreID;
@@ -402,7 +402,7 @@ namespace Renderer
 #endif
     }
 
-    void CommandList::AddWaitSemaphore(GPUSemaphoreID semaphoreID)
+    void CommandList::AddWaitSemaphore(SemaphoreID semaphoreID)
     {
         Commands::AddWaitSemaphore* command = AddCommand<Commands::AddWaitSemaphore>();
         command->semaphore = semaphoreID;

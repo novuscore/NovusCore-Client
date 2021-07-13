@@ -24,13 +24,13 @@ namespace Renderer
             _data = new SemaphoreHandlerVKData();
         }
 
-        GPUSemaphoreID SemaphoreHandlerVK::CreateGPUSemaphore()
+        SemaphoreID SemaphoreHandlerVK::CreateNSemaphore()
         {
             SemaphoreHandlerVKData& data = static_cast<SemaphoreHandlerVKData&>(*_data);
 
             size_t nextID = data.semaphores.size();
             // Make sure we haven't exceeded the limit of the SemaphoreID type, if this hits you need to change type of SemaphoreID to something bigger
-            assert(nextID < GPUSemaphoreID::MaxValue());
+            assert(nextID < SemaphoreID::MaxValue());
 
             VkSemaphore& semaphore = data.semaphores.emplace_back();
 
@@ -42,17 +42,17 @@ namespace Renderer
                 DebugHandler::PrintFatal("Failed to create sampler!");
             }
 
-            return GPUSemaphoreID(static_cast<GPUSemaphoreID::type>(nextID));
+            return SemaphoreID(static_cast<SemaphoreID::type>(nextID));
         }
 
-        VkSemaphore SemaphoreHandlerVK::GetVkSemaphore(GPUSemaphoreID id)
+        VkSemaphore SemaphoreHandlerVK::GetVkSemaphore(SemaphoreID id)
         {
             SemaphoreHandlerVKData& data = static_cast<SemaphoreHandlerVKData&>(*_data);
 
             // Lets make sure this id exists
-            assert(data.semaphores.size() > static_cast<GPUSemaphoreID::type>(id));
+            assert(data.semaphores.size() > static_cast<SemaphoreID::type>(id));
 
-            return data.semaphores[static_cast<GPUSemaphoreID::type>(id)];
+            return data.semaphores[static_cast<SemaphoreID::type>(id)];
         }
     }
 }

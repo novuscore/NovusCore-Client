@@ -2,6 +2,7 @@
 #include "../../../Window/Window.h"
 #include <Utils/StringUtils.h>
 #include <Utils/DebugHandler.h>
+#include <Utils/SafeVector.h>
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyVulkan.hpp>
 
@@ -14,6 +15,7 @@
 #include "Backend/CommandListHandlerVK.h"
 #include "Backend/SamplerHandlerVK.h"
 #include "Backend/SemaphoreHandlerVK.h"
+#include "Backend/UploadBufferHandlerVK.h"
 #include "Backend/SwapChainVK.h"
 #include "Backend/DebugMarkerUtilVK.h"
 #include "Backend/DescriptorSetBuilderVK.h"
@@ -23,7 +25,7 @@
 
 namespace Renderer
 {
-    RendererVK::RendererVK(TextureDesc& debugTexture)
+    RendererVK::RendererVK()
         : _device(new Backend::RenderDeviceVK())
     {
         // Create handlers
@@ -35,19 +37,21 @@ namespace Renderer
         _commandListHandler = new Backend::CommandListHandlerVK();
         _samplerHandler = new Backend::SamplerHandlerVK();
         _semaphoreHandler = new Backend::SemaphoreHandlerVK();
+        _uploadBufferHandler = new Backend::UploadBufferHandlerVK();
 
         // Init
         _device->Init();
         _bufferHandler->Init(_device);
         _imageHandler->Init(_device);
-        _textureHandler->Init(_device, _bufferHandler);
+        _textureHandler->Init(_device, _bufferHandler, _uploadBufferHandler);
         _shaderHandler->Init(_device);
         _pipelineHandler->Init(_device, _shaderHandler, _imageHandler);
         _commandListHandler->Init(_device);
         _samplerHandler->Init(_device);
         _semaphoreHandler->Init(_device);
+        _uploadBufferHandler->Init(_device, _bufferHandler, _textureHandler, _semaphoreHandler, _commandListHandler);
 
-        _textureHandler->LoadDebugTexture(debugTexture);
+        _textureHandler->InitDebugTexture();
 
         CreateDummyPipeline();
     }
@@ -98,6 +102,7 @@ namespace Renderer
 
     void RendererVK::QueueDestroyBuffer(BufferID buffer)
     {
+        std::scoped_lock(_destroyListMutex);
         _destroyLists[_destroyListIndex].buffers.push_back(buffer);
     }
 
@@ -116,9 +121,9 @@ namespace Renderer
         return _samplerHandler->CreateSampler(desc);
     }
 
-    GPUSemaphoreID RendererVK::CreateGPUSemaphore()
+    SemaphoreID RendererVK::CreateNSemaphore()
     {
-        return _semaphoreHandler->CreateGPUSemaphore();
+        return _semaphoreHandler->CreateNSemaphore();
     }
 
     GraphicsPipelineID RendererVK::CreatePipeline(GraphicsPipelineDesc& desc)
@@ -212,18 +217,17 @@ namespace Renderer
         }
 
         _commandListHandler->ResetCommandBuffers();
+        _uploadBufferHandler->ExecuteUploadTasks();
         _bufferHandler->OnFrameStart();
 
         vmaSetCurrentFrameIndex(_device->_allocator, frameIndex);
         vmaGetBudget(_device->_allocator, sBudgets);
     }
 
-
     ImageDesc RendererVK::GetImageDesc(ImageID ID)
     {
         return _imageHandler->GetImageDesc(ID);
     }
-
 
     uvec2 RendererVK::GetImageDimension(const ImageID id, u32 mipLevel)
     {
@@ -237,16 +241,11 @@ namespace Renderer
 
     CommandListID RendererVK::BeginCommandList()
     {
-        return _commandListHandler->BeginCommandList();
+        return _commandListHandler->BeginCommandList(Backend::QueueType::Graphics);
     }
 
     void RendererVK::EndCommandList(CommandListID commandListID)
     {
-        if (_renderPassOpenCount != 0)
-        {
-            DebugHandler::PrintFatal("We found unmatched calls to BeginPipeline in your commandlist, for every BeginPipeline you need to also EndPipeline!");
-        }
-
         _commandListHandler->EndCommandList(commandListID, VK_NULL_HANDLE);
     }
 
@@ -317,7 +316,7 @@ namespace Renderer
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
-        if (_renderPassOpenCount <= 0)
+        if (_commandListHandler->GetRenderPassOpenCount(commandListID) <= 0)
         {
             DebugHandler::PrintFatal("You tried to draw without first calling BeginPipeline!");
         }
@@ -329,7 +328,7 @@ namespace Renderer
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
-        if (_renderPassOpenCount <= 0)
+        if (_commandListHandler->GetRenderPassOpenCount(commandListID) <= 0)
         {
             DebugHandler::PrintFatal("You tried to draw without first calling BeginPipeline!");
         }
@@ -343,7 +342,7 @@ namespace Renderer
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
-        if (_renderPassOpenCount <= 0)
+        if (_commandListHandler->GetRenderPassOpenCount(commandListID) <= 0)
         {
             DebugHandler::PrintFatal("You tried to draw without first calling BeginPipeline!");
         }
@@ -355,7 +354,7 @@ namespace Renderer
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
-        if (_renderPassOpenCount <= 0)
+        if (_commandListHandler->GetRenderPassOpenCount(commandListID) <= 0)
         {
             DebugHandler::PrintFatal("You tried to draw without first calling BeginPipeline!");
         }
@@ -369,7 +368,7 @@ namespace Renderer
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
-        if (_renderPassOpenCount <= 0)
+        if (_commandListHandler->GetRenderPassOpenCount(commandListID) <= 0)
         {
             DebugHandler::PrintFatal("You tried to draw without first calling BeginPipeline!");
         }
@@ -416,11 +415,13 @@ namespace Renderer
         VkRenderPass renderPass = _pipelineHandler->GetRenderPass(pipelineID);
         VkFramebuffer frameBuffer = _pipelineHandler->GetFramebuffer(pipelineID);
 
-        if (_renderPassOpenCount != 0)
+        i8 renderPassOpenCount = _commandListHandler->GetRenderPassOpenCount(commandListID);
+        if (renderPassOpenCount != 0)
         {
             DebugHandler::PrintFatal("You need to match your BeginPipeline calls with a EndPipeline call before beginning another pipeline!");
         }
-        _renderPassOpenCount++;
+        renderPassOpenCount++;
+        _commandListHandler->SetRenderPassOpenCount(commandListID, renderPassOpenCount);
 
         uvec2 renderSize = _device->GetMainWindowSize();
 
@@ -458,11 +459,13 @@ namespace Renderer
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
-        if (_renderPassOpenCount <= 0)
+        i8 renderPassOpenCount = _commandListHandler->GetRenderPassOpenCount(commandListID);
+        if (renderPassOpenCount <= 0)
         {
             DebugHandler::PrintFatal("You tried to call EndPipeline without first calling BeginPipeline!");
         }
-        _renderPassOpenCount--;
+        renderPassOpenCount--;
+        _commandListHandler->SetRenderPassOpenCount(commandListID, renderPassOpenCount);
 
         vkCmdEndRenderPass(commandBuffer);
         _commandListHandler->SetBoundGraphicsPipeline(commandListID, GraphicsPipelineID::Invalid());
@@ -488,11 +491,13 @@ namespace Renderer
 
         VkPipeline pipeline = _pipelineHandler->GetPipeline(pipelineID);
 
-        if (_renderPassOpenCount != 0)
+        i8 renderPassOpenCount = _commandListHandler->GetRenderPassOpenCount(commandListID);
+        if (renderPassOpenCount != 0)
         {
             DebugHandler::PrintFatal("You need to match your BeginPipeline calls with a EndPipeline call before beginning another pipeline!");
         }
-        _renderPassOpenCount++;
+        renderPassOpenCount++;
+        _commandListHandler->SetRenderPassOpenCount(commandListID, renderPassOpenCount);
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 
@@ -503,11 +508,13 @@ namespace Renderer
     {
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
 
-        if (_renderPassOpenCount <= 0)
+        i8 renderPassOpenCount = _commandListHandler->GetRenderPassOpenCount(commandListID);
+        if (renderPassOpenCount <= 0)
         {
             DebugHandler::PrintFatal("You tried to call EndPipeline without first calling BeginPipeline!");
         }
-        _renderPassOpenCount--;
+        renderPassOpenCount--;
+        _commandListHandler->SetRenderPassOpenCount(commandListID, renderPassOpenCount);
 
         VkPipeline pipeline = _pipelineHandler->GetPipeline(pipelineID);
 
@@ -636,25 +643,30 @@ namespace Renderer
         }
         else if (descriptor.descriptorType == DescriptorType::DESCRIPTOR_TYPE_TEXTURE_ARRAY)
         {
-            const std::vector<TextureID>& textureIDs = _textureHandler->GetTextureIDsInArray(descriptor.textureArrayID);
+            const SafeVector<TextureID>& textureIDs = _textureHandler->GetTextureIDsInArray(descriptor.textureArrayID);
             std::vector<VkDescriptorImageInfo>& imageInfos = imageInfosArrays.emplace_back();
 
             u32 textureArraySize = _textureHandler->GetTextureArraySize(descriptor.textureArrayID);
             imageInfos.reserve(textureArraySize);
             
-            u32 numTextures = static_cast<u32>(textureIDs.size());
+            u32 numTextures = static_cast<u32>(textureIDs.Size());
 
             // From 0 to numTextures, add our actual textures
             bool texturesAreOnionTextures = false;
-            for (auto textureID : textureIDs)
-            {
-                VkDescriptorImageInfo& imageInfo = imageInfos.emplace_back();
-                imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                imageInfo.imageView = _textureHandler->GetImageView(textureID);
-                imageInfo.sampler = VK_NULL_HANDLE;
 
-                texturesAreOnionTextures = _textureHandler->IsOnionTexture(textureID);
-            }
+            textureIDs.ReadLock(
+                [&](const std::vector<TextureID> textures)
+                {
+                    for (auto textureID : textures)
+                    {
+                        VkDescriptorImageInfo& imageInfo = imageInfos.emplace_back();
+                        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        imageInfo.imageView = _textureHandler->GetImageView(textureID);
+                        imageInfo.sampler = VK_NULL_HANDLE;
+
+                        texturesAreOnionTextures = _textureHandler->IsOnionTexture(textureID);
+                    }
+                });
 
             // from numTextures to textureArraySize, add debug texture
             VkDescriptorImageInfo imageInfoDebugTexture;
@@ -814,7 +826,6 @@ namespace Renderer
 #else
     void RendererVK::BeginTrace(CommandListID commandListID, const tracy::SourceLocationData* sourceLocation)
     {
-
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
         tracy::VkCtxManualScope*& tracyScope = _commandListHandler->GetTracyScope(commandListID);
 
@@ -848,13 +859,13 @@ namespace Renderer
 #endif
     }
 
-    void RendererVK::AddSignalSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID)
+    void RendererVK::AddSignalSemaphore(CommandListID commandListID, SemaphoreID semaphoreID)
     {
         VkSemaphore semaphore = _semaphoreHandler->GetVkSemaphore(semaphoreID);
         _commandListHandler->AddSignalSemaphore(commandListID, semaphore);
     }
 
-    void RendererVK::AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID)
+    void RendererVK::AddWaitSemaphore(CommandListID commandListID, SemaphoreID semaphoreID)
     {
         VkSemaphore semaphore = _semaphoreHandler->GetVkSemaphore(semaphoreID);
         _commandListHandler->AddWaitSemaphore(commandListID, semaphore);
@@ -1036,9 +1047,9 @@ namespace Renderer
         }
     }
 
-    void RendererVK::Present(Window* window, ImageID imageID, GPUSemaphoreID semaphoreID)
+    void RendererVK::Present(Window* window, ImageID imageID, SemaphoreID semaphoreID)
     {
-        CommandListID commandListID = _commandListHandler->BeginCommandList();
+        CommandListID commandListID = _commandListHandler->BeginCommandList(Backend::QueueType::Graphics);
         VkCommandBuffer commandBuffer = _commandListHandler->GetCommandBuffer(commandListID);
         
         // Tracy profiling
@@ -1087,7 +1098,7 @@ namespace Renderer
         {
             ZoneScopedNC("Present::AddSemaphores", tracy::Color::Red);
 
-            if (semaphoreID != GPUSemaphoreID::Invalid())
+            if (semaphoreID != SemaphoreID::Invalid())
             {
                 VkSemaphore semaphore = _semaphoreHandler->GetVkSemaphore(semaphoreID);
                 _commandListHandler->AddWaitSemaphore(commandListID, semaphore); // Wait for the provided semaphore to finish
@@ -1272,13 +1283,30 @@ namespace Renderer
             swapChain->frameIndex = !swapChain->frameIndex;
 
             _destroyListIndex = (_destroyListIndex + 1) % _destroyLists.size();
+
+            std::scoped_lock(_destroyListMutex);
             DestroyObjects(_destroyLists[_destroyListIndex]);
         }
     }
 
-    void RendererVK::Present(Window* /*window*/, DepthImageID /*image*/, GPUSemaphoreID /*semaphoreID*/)
+    void RendererVK::Present(Window* /*window*/, DepthImageID /*image*/, SemaphoreID /*semaphoreID*/)
     {
         
+    }
+
+    std::shared_ptr<UploadBuffer> RendererVK::CreateUploadBuffer(BufferID targetBuffer, size_t targetOffset, size_t size)
+    {
+        return _uploadBufferHandler->CreateUploadBuffer(targetBuffer, targetOffset, size);
+    }
+
+    bool RendererVK::ShouldWaitForUpload()
+    {
+        return _uploadBufferHandler->ShouldWaitForUpload();
+    }
+
+    SemaphoreID RendererVK::GetUploadFinishedSemaphore()
+    {
+        return _uploadBufferHandler->GetUploadFinishedSemaphore();
     }
 
     void RendererVK::CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range)
@@ -1287,7 +1315,8 @@ namespace Renderer
         VkBuffer vkSrcBuffer = _bufferHandler->GetBuffer(srcBuffer);
         _device->CopyBuffer(vkDstBuffer, dstOffset, vkSrcBuffer, srcOffset, range);
 
-        DestroyObjects(_destroyLists[_destroyListIndex]);
+        //std::scoped_lock(_destroyListMutex);
+        //DestroyObjects(_destroyLists[_destroyListIndex]);
     }
 
     void RendererVK::FillBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, u32 data)

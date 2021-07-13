@@ -5,12 +5,16 @@
 #include "../../../Descriptors/TextureDesc.h"
 #include "../../../Descriptors/TextureArrayDesc.h"
 
+template<typename T>
+class SafeVector;
+
 namespace Renderer
 {
     namespace Backend
     {
         class RenderDeviceVK;
         class BufferHandlerVK;
+        class UploadBufferHandlerVK;
         struct Texture;
 
         struct ITextureHandlerVKData {};
@@ -18,9 +22,9 @@ namespace Renderer
         class TextureHandlerVK
         {
         public:
-            void Init(RenderDeviceVK* device, BufferHandlerVK* bufferHandler);
+            void Init(RenderDeviceVK* device, BufferHandlerVK* bufferHandler, UploadBufferHandlerVK* uploadBufferHandler);
 
-            void LoadDebugTexture(const TextureDesc& desc);
+            void InitDebugTexture();
 
             TextureID LoadTexture(const TextureDesc& desc);
             TextureID LoadTextureIntoArray(const TextureDesc& desc, TextureArrayID textureArrayID, u32& arrayIndex);
@@ -33,7 +37,10 @@ namespace Renderer
             TextureID CreateDataTexture(const DataTextureDesc& desc);
             TextureID CreateDataTextureIntoArray(const DataTextureDesc& desc, TextureArrayID textureArrayID, u32& arrayIndex);
 
-            const std::vector<TextureID>& GetTextureIDsInArray(const TextureArrayID textureID);
+            void CopyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer srcBuffer, size_t srcOffset, TextureID dstTextureID);
+            void TransitionImageLayout(VkCommandBuffer commandBuffer, TextureID textureID, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+            const SafeVector<TextureID>& GetTextureIDsInArray(const TextureArrayID textureID);
 
             bool IsOnionTexture(const TextureID textureID);
 
@@ -48,14 +55,15 @@ namespace Renderer
             bool TryFindExistingTexture(u64 descHash, size_t& id);
             bool TryFindExistingTextureInArray(TextureArrayID textureArrayID, u64 descHash, size_t& arrayIndex, TextureID& textureID);
 
-            u8* ReadFile(const std::string& filename, i32& width, i32& height, i32& layers, i32& mipLevels, VkFormat& format, size_t& fileSize);
-            void CreateTexture(Texture& texture, u8* pixels);
+            void LoadFile(const std::string& filename, Texture& texture, TextureID textureID);
+            void CreateTexture(Texture& texture);
 
         private:
             ITextureHandlerVKData* _data;
 
             RenderDeviceVK* _device;
             BufferHandlerVK* _bufferHandler;
+            UploadBufferHandlerVK* _uploadBufferHandler;
 
             TextureID _debugTexture;
             TextureID _debugOnionTexture; // "TextureArrays" using texture layers rather than arrays of descriptors are now called Onion Textures to make it possible to differentiate between them...

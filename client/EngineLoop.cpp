@@ -228,6 +228,8 @@ bool EngineLoop::Init()
 
 void EngineLoop::Run()
 {
+    tracy::SetThreadName("GameThread");
+
     if (!Init())
     {
         Abort();
@@ -242,7 +244,7 @@ void EngineLoop::Run()
     Timer timer;
     Timer updateTimer;
     Timer renderTimer;
-
+    
     EngineStatsSingleton::Frame timings;
     while (true)
     {
@@ -300,7 +302,6 @@ void EngineLoop::Run()
     }
 
     // Clean up stuff here
-
     Message exitMessage;
     exitMessage.code = MSG_OUT_EXIT_CONFIRM;
     _outputQueue.enqueue(exitMessage);

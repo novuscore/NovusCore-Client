@@ -28,11 +28,12 @@ namespace Renderer
         struct QueueFamilyIndices
         {
             std::optional<uint32_t> graphicsFamily;
+            std::optional<uint32_t> transferFamily;
             std::optional<uint32_t> presentFamily;
 
             bool IsComplete()
             {
-                return graphicsFamily.has_value() && presentFamily.has_value();
+                return graphicsFamily.has_value() && transferFamily.has_value() && presentFamily.has_value();
             }
         };
 
@@ -86,6 +87,7 @@ namespace Renderer
 
             void CopyBuffer(VkBuffer dstBuffer, u64 dstOffset, VkBuffer srcBuffer, u64 srcOffset, u64 range);
             void CopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, VkFormat format, u32 width, u32 height, u32 numLayers, u32 numMipLevels);
+            void CopyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer srcBuffer, size_t srcOffset, VkImage dstImage, VkFormat format, u32 width, u32 height, u32 numLayers, u32 numMipLevels);
             void TransitionImageLayout(VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout, u32 numLayers, u32 numMipLevels);
             void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout, u32 numLayers, u32 numMipLevels);
 
@@ -105,9 +107,11 @@ namespace Renderer
             std::string _gpuName;
             VkPhysicalDevice _physicalDevice = VK_NULL_HANDLE;
             VkDevice _device = VK_NULL_HANDLE;
-            VkCommandPool _commandPool = VK_NULL_HANDLE;
+            VkCommandPool _graphicsCommandPool = VK_NULL_HANDLE;
+            VkCommandPool _transferCommandPool = VK_NULL_HANDLE;
 
             VkQueue _graphicsQueue = VK_NULL_HANDLE;
+            VkQueue _transferQueue = VK_NULL_HANDLE;
             VkQueue _presentQueue = VK_NULL_HANDLE;
 
             std::vector<SwapChainVK*> _swapChains;
@@ -128,6 +132,7 @@ namespace Renderer
             friend class CommandListHandlerVK;
             friend class SamplerHandlerVK;
             friend class SemaphoreHandlerVK;
+            friend class UploadBufferHandlerVK;
             friend struct DescriptorAllocatorHandleVK;
             friend class DescriptorAllocatorPoolVKImpl;
             friend class DescriptorSetBuilderVK;
