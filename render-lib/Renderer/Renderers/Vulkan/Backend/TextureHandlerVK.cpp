@@ -547,7 +547,8 @@ namespace Renderer
             // If stbi could open this file
             if (pixels != nullptr)
             {
-                texture.fileSize = texture.width * texture.height * channels;
+                // This is hardcoded to 4 instead of channels since STBI is loading it as STBI_rgb_alpha, making it 4 channels
+                texture.fileSize = texture.width * texture.height * 4;
                 texture.format = VK_FORMAT_R8G8B8A8_UNORM;
                 texture.mipLevels = 1; // If we are not loading using gli we don't support mips, so don't bother with it
                 texture.layers = 1; // If we are not loading using gli we don't support layers, so don't bother with it
