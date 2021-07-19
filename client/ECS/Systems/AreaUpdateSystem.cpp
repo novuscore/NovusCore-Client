@@ -151,10 +151,20 @@ void AreaUpdateSystem::Update(entt::registry& registry)
 
                         lightColor.ambientColor = glm::mix(lightColor.ambientColor, outerColorData.ambientColor, val);
                         lightColor.diffuseColor = glm::mix(lightColor.diffuseColor, outerColorData.diffuseColor, val);
+                        lightColor.skybandTopColor = glm::mix(lightColor.skybandTopColor, outerColorData.skybandTopColor, val);
+                        lightColor.skybandMiddleColor = glm::mix(lightColor.skybandMiddleColor, outerColorData.skybandMiddleColor, val);
+                        lightColor.skybandBottomColor = glm::mix(lightColor.skybandBottomColor, outerColorData.skybandBottomColor, val);
+                        lightColor.skybandAboveHorizonColor = glm::mix(lightColor.skybandAboveHorizonColor, outerColorData.skybandAboveHorizonColor, val);
+                        lightColor.skybandHorizonColor = glm::mix(lightColor.skybandHorizonColor, outerColorData.skybandHorizonColor, val);
                     }
 
                     finalColorData.ambientColor = lightColor.ambientColor;
                     finalColorData.diffuseColor = lightColor.diffuseColor;
+                    finalColorData.skybandTopColor = lightColor.skybandTopColor;
+                    finalColorData.skybandMiddleColor = lightColor.skybandMiddleColor;
+                    finalColorData.skybandBottomColor = lightColor.skybandBottomColor;
+                    finalColorData.skybandAboveHorizonColor = lightColor.skybandAboveHorizonColor;
+                    finalColorData.skybandHorizonColor = lightColor.skybandHorizonColor;
                 }
             }
         }
