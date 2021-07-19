@@ -5,6 +5,7 @@
 namespace NDBC
 {
     struct Light;
+    struct LightIntBand;
 }
 
 struct NDBCSingleton;
@@ -17,5 +18,6 @@ public:
 
     static void GetChunkIdAndCellIdFromPosition(const vec3& position, u16& inChunkId, u16& inCellId);
     static AreaUpdateLightColorData GetLightColorData(NDBCSingleton& ndbcSingleton, MapSingleton& mapSingleton, const NDBC::Light* light);
+    static vec3 AreaUpdateSystem::GetColorValueFromLightIntBand(NDBC::LightIntBand* lightIntBand, u32 timeInSeconds);
     static vec3 UnpackUIntBGRToColor(u32 bgr);
 };

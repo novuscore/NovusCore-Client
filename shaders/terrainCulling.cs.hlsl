@@ -101,13 +101,13 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
     if (_constants.occlusionCull) 
     {
-        if (!IsVisible(aabb.min, aabb.max,_viewData.eye, _depthPyramid, _depthSampler, _viewData.lastViewProjectionMatrix))
+        if (!IsVisible(aabb.min, aabb.max, _viewData.eyePosition.xyz, _depthPyramid, _depthSampler, _viewData.lastViewProjectionMatrix))
         {
             return;
         }
     }
 
-    //if (distance(_viewData.eye, (aabb.min + aabb.max) * 0.5) < 500)
+    //if (distance(_viewData.eyePosition.xyz, (aabb.min + aabb.max) * 0.5) < 500)
     //{
         //debugDrawAABB3D(aabb.min, aabb.max, 0xff0000ff);
     //}

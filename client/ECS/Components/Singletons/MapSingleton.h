@@ -41,6 +41,21 @@ struct MapSingleton
 
 	vec3 GetLightDirection() { return _lightDirection; }
 	void SetLightDirection(vec3 lightDirection) { _lightDirection = lightDirection; }
+
+	vec3 GetSkybandTopColor() { return _skybandTopColor; }
+	void SetSkybandTopColor(vec3 color) { _skybandTopColor = color; }
+
+	vec3 GetSkybandMiddleColor() { return _skybandMiddleColor; }
+	void SetSkybandMiddleColor(vec3 color) { _skybandMiddleColor = color; }
+
+	vec3 GetSkybandBottomColor() { return _skybandBottomColor; }
+	void SetSkybandBottomColor(vec3 color) { _skybandBottomColor = color; }
+
+	vec3 GetSkybandAboveHorizonColor() { return _skybandAboveHorizonColor; }
+	void SetSkybandAboveHorizonColor(vec3 color) { _skybandAboveHorizonColor = color; }
+
+	vec3 GetSkybandHorizonColor() { return _skybandHorizonColor; }
+	void SetSkybandHorizonColor(vec3 color) { _skybandHorizonColor = color; }
 	
 	std::vector<const std::string*>& GetMapNames() { return _mapNames; }
 	NDBC::Map* GetMapByNameHash(u32 mapNameHash)
@@ -117,6 +132,12 @@ private:
 	vec3 _ambientLight = vec3(0.380392164f, 0.509803891f, 0.635294139f);
 	vec3 _diffuseLight = vec3(0.113725491f, 0.235294104f, 0.329411745f);
 	vec3 _lightDirection = vec3(-0.595154941f, -0.595155120f, -0.539982319f);
+
+	vec3 _skybandTopColor = vec3(0.0f, 0.0f, 0.0f);
+	vec3 _skybandMiddleColor = vec3(0.0f, 0.0f, 0.0f);
+	vec3 _skybandBottomColor = vec3(0.0f, 0.0f, 0.0f);
+	vec3 _skybandAboveHorizonColor = vec3(0.0f, 0.0f, 0.0f);
+	vec3 _skybandHorizonColor = vec3(0.0f, 0.0f, 0.0f);
 
 	std::vector<const std::string*> _mapNames;
 	robin_hood::unordered_map<u32, NDBC::Map*> _mapNameHashToDBC;

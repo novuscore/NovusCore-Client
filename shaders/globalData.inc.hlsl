@@ -4,7 +4,8 @@ struct ViewData
     float4x4 viewProjectionMatrix;
     float4x4 lastViewProjectionMatrix;
     float4x4 viewMatrix;
-    float3 eye;
+    float4 eyePosition;
+    float4 eyeRotation;
 };
 [[vk::binding(0, GLOBAL)]] ConstantBuffer<ViewData> _viewData;
 

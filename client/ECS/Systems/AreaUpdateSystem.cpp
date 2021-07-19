@@ -161,6 +161,11 @@ void AreaUpdateSystem::Update(entt::registry& registry)
 
         mapSingleton.SetAmbientLight(finalColorData.ambientColor);
         mapSingleton.SetDiffuseLight(finalColorData.diffuseColor);
+        mapSingleton.SetSkybandTopColor(finalColorData.skybandTopColor);
+        mapSingleton.SetSkybandMiddleColor(finalColorData.skybandMiddleColor);
+        mapSingleton.SetSkybandBottomColor(finalColorData.skybandBottomColor);
+        mapSingleton.SetSkybandAboveHorizonColor(finalColorData.skybandAboveHorizonColor);
+        mapSingleton.SetSkybandHorizonColor(finalColorData.skybandHorizonColor);
 
         // Get Light Direction
         {
@@ -204,7 +209,6 @@ void AreaUpdateSystem::Update(entt::registry& registry)
             f32 sinTheta = glm::sin(thetaValue);
             f32 cosTheta = glm::cos(thetaValue);
 
-
             f32 lightDirX = sinPhi * cosTheta;
             f32 lightDirY = sinPhi * sinTheta;
             f32 lightDirZ = cosPhi;
@@ -239,12 +243,10 @@ AreaUpdateLightColorData AreaUpdateSystem::GetLightColorData(NDBCSingleton& ndbc
     NDBC::File* lightIntBandNDBC = ndbcSingleton.GetNDBCFile("LightIntBand"_h);
     NDBC::File* lightFloatBandNDBC = ndbcSingleton.GetNDBCFile("LightFloatBand"_h);
 
+    AreaUpdateLightColorData colorData;
     u32 timeInSeconds = static_cast<u32>(dayNightSingleton.seconds);
 
-    AreaUpdateLightColorData colorData;
-
     NDBC::LightParams* lightParams = lightParamNDBC->GetRowById<NDBC::LightParams>(light->paramClearId);
-
     u32 lightIntBandStartId = lightParams->id * 18 - 17;
     u32 lightFloatBandStartId = lightParams->id * 6 - 5;
 
@@ -254,98 +256,92 @@ AreaUpdateLightColorData AreaUpdateSystem::GetLightColorData(NDBCSingleton& ndbc
     // Get Ambient Light
     {
         NDBC::LightIntBand* lightIntBand = lightIntBandNDBC->GetRowByIndex<NDBC::LightIntBand>(lightIntBandStartId);
-        vec3 color = vec3(0.0f, 0.0f, 0.0f);
-
-        if (lightIntBand->timeValues[0] < timeInSeconds)
-        {
-            color = UnpackUIntBGRToColor(lightIntBand->colorValues[0]);
-
-            if (lightIntBand->entries > 1)
-            {
-                u32 currentIndex = 0;
-                u32 nextIndex = 0;
-
-                for (i32 i = lightIntBand->entries - 1; i >= 0; i--)
-                {
-                    if (lightIntBand->timeValues[i] <= timeInSeconds)
-                    {
-                        currentIndex = i;
-                        break;
-                    }
-                }
-
-                if (currentIndex < lightIntBand->entries - 1)
-                    nextIndex = currentIndex + 1;
-
-                // Lerp between Current the color of the current timestamp and the color of the next timestamp
-                {
-                    u32 currentTimestamp = lightIntBand->timeValues[currentIndex];
-                    u32 nextTimestamp = lightIntBand->timeValues[nextIndex];
-
-                    f32 transitionTime = static_cast<f32>(nextTimestamp - currentTimestamp);
-                    f32 relativeSeconds = static_cast<f32>(timeInSeconds - currentTimestamp);
-
-                    f32 transitionProgress = relativeSeconds / transitionTime;
-
-                    vec3 currentColor = UnpackUIntBGRToColor(lightIntBand->colorValues[currentIndex]);
-                    vec3 nextColor = UnpackUIntBGRToColor(lightIntBand->colorValues[nextIndex]);
-
-                    color = glm::mix(currentColor, nextColor, transitionProgress);
-                }
-            }
-        }
-
-        colorData.ambientColor = vec3(color.r, color.g, color.b);
+        colorData.ambientColor = GetColorValueFromLightIntBand(lightIntBand, timeInSeconds);
     }
 
     // Get Diffuse Light
     {
         NDBC::LightIntBand* lightIntBand = lightIntBandNDBC->GetRowByIndex<NDBC::LightIntBand>(lightIntBandStartId + 1);
-        vec3 color = vec3(0.0f, 0.0f, 0.0f);
+        colorData.diffuseColor = GetColorValueFromLightIntBand(lightIntBand, timeInSeconds);
+    }
 
-        if (lightIntBand->timeValues[0] < timeInSeconds)
-        {
-            color = UnpackUIntBGRToColor(lightIntBand->colorValues[0]);
+    // Get Skyband Color Top
+    {
+        NDBC::LightIntBand* lightIntBand = lightIntBandNDBC->GetRowByIndex<NDBC::LightIntBand>(lightIntBandStartId + 2);
+        colorData.skybandTopColor = GetColorValueFromLightIntBand(lightIntBand, timeInSeconds);
+    }
 
-            if (lightIntBand->entries > 1)
-            {
-                u32 currentIndex = std::numeric_limits<u32>().max();
-                u32 nextIndex = 0;
+    // Get Skyband Color Middle
+    {
+        NDBC::LightIntBand* lightIntBand = lightIntBandNDBC->GetRowByIndex<NDBC::LightIntBand>(lightIntBandStartId + 3);
+        colorData.skybandMiddleColor = GetColorValueFromLightIntBand(lightIntBand, timeInSeconds);
+    }
 
-                for (i32 i = lightIntBand->entries - 1; i >= 0; i--)
-                {
-                    if (lightIntBand->timeValues[i] <= timeInSeconds)
-                    {
-                        currentIndex = i;
-                        break;
-                    }
-                }
+    // Get Skyband Color Bottom
+    {
+        NDBC::LightIntBand* lightIntBand = lightIntBandNDBC->GetRowByIndex<NDBC::LightIntBand>(lightIntBandStartId + 4);
+        colorData.skybandBottomColor = GetColorValueFromLightIntBand(lightIntBand, timeInSeconds);
+    }
 
-                if (currentIndex < lightIntBand->entries - 1)
-                    nextIndex = currentIndex + 1;
+    // Get Skyband Color AboveHorizon
+    {
+        NDBC::LightIntBand* lightIntBand = lightIntBandNDBC->GetRowByIndex<NDBC::LightIntBand>(lightIntBandStartId + 5);
+        colorData.skybandAboveHorizonColor = GetColorValueFromLightIntBand(lightIntBand, timeInSeconds);
+    }
 
-                // Lerp between Current the color of the current timestamp and the color of the next timestamp
-                {
-                    u32 currentTimestamp = lightIntBand->timeValues[currentIndex];
-                    u32 nextTimestamp = lightIntBand->timeValues[nextIndex];
-
-                    f32 transitionTime = static_cast<f32>(nextTimestamp - currentTimestamp);
-                    f32 relativeSeconds = static_cast<f32>(timeInSeconds - currentTimestamp);
-
-                    f32 transitionProgress = relativeSeconds / transitionTime;
-
-                    vec3 currentColor = UnpackUIntBGRToColor(lightIntBand->colorValues[currentIndex]);
-                    vec3 nextColor = UnpackUIntBGRToColor(lightIntBand->colorValues[nextIndex]);
-
-                    color = glm::mix(currentColor, nextColor, transitionProgress);
-                }
-            }
-        }
-
-        colorData.diffuseColor = vec3(color.r, color.g, color.b);
+    // Get Skyband Color Horizon
+    {
+        NDBC::LightIntBand* lightIntBand = lightIntBandNDBC->GetRowByIndex<NDBC::LightIntBand>(lightIntBandStartId + 6);
+        colorData.skybandHorizonColor = GetColorValueFromLightIntBand(lightIntBand, timeInSeconds);
     }
 
     return colorData;
+}
+
+vec3 AreaUpdateSystem::GetColorValueFromLightIntBand(NDBC::LightIntBand* lightIntBand, u32 timeInSeconds)
+{
+    vec3 color = vec3(0.0f, 0.0f, 0.0f);
+
+    if (lightIntBand->timeValues[0] < timeInSeconds)
+    {
+        color = UnpackUIntBGRToColor(lightIntBand->colorValues[0]);
+
+        if (lightIntBand->entries > 1)
+        {
+            u32 currentIndex = 0;
+            u32 nextIndex = 0;
+
+            for (i32 i = lightIntBand->entries - 1; i >= 0; i--)
+            {
+                if (lightIntBand->timeValues[i] <= timeInSeconds)
+                {
+                    currentIndex = i;
+                    break;
+                }
+            }
+
+            if (currentIndex < lightIntBand->entries - 1)
+                nextIndex = currentIndex + 1;
+
+            // Lerp between Current the color of the current timestamp and the color of the next timestamp
+            {
+                u32 currentTimestamp = lightIntBand->timeValues[currentIndex];
+                u32 nextTimestamp = lightIntBand->timeValues[nextIndex];
+
+                f32 transitionTime = static_cast<f32>(nextTimestamp - currentTimestamp);
+                f32 relativeSeconds = static_cast<f32>(timeInSeconds - currentTimestamp);
+
+                f32 transitionProgress = relativeSeconds / transitionTime;
+
+                vec3 currentColor = UnpackUIntBGRToColor(lightIntBand->colorValues[currentIndex]);
+                vec3 nextColor = UnpackUIntBGRToColor(lightIntBand->colorValues[nextIndex]);
+
+                color = glm::mix(currentColor, nextColor, transitionProgress);
+            }
+        }
+    }
+
+    return color;
 }
 
 vec3 AreaUpdateSystem::UnpackUIntBGRToColor(u32 bgr)

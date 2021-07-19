@@ -2,6 +2,7 @@
 #include "UIRenderer.h"
 #include "TerrainRenderer.h"
 #include "CModelRenderer.h"
+#include "SkyboxRenderer.h"
 #include "PostProcessRenderer.h"
 #include "RendertargetVisualizer.h"
 #include "DebugRenderer.h"
@@ -99,6 +100,7 @@ ClientRenderer::ClientRenderer()
     _debugRenderer = new DebugRenderer(_renderer, _resources);
     _uiRenderer = new UIRenderer(_renderer, _debugRenderer);
     _cModelRenderer = new CModelRenderer(_renderer, _debugRenderer);
+    _skyboxRenderer = new SkyboxRenderer(_renderer, _debugRenderer);
     _postProcessRenderer = new PostProcessRenderer(_renderer);
     _rendertargetVisualizer = new RendertargetVisualizer(_renderer);
     _terrainRenderer = new TerrainRenderer(_renderer, _debugRenderer, _cModelRenderer);
@@ -153,7 +155,8 @@ void ClientRenderer::Render()
     _resources.viewConstantBuffer->resource.lastViewProjectionMatrix = _resources.viewConstantBuffer->resource.viewProjectionMatrix;
     _resources.viewConstantBuffer->resource.viewProjectionMatrix = camera->GetViewProjectionMatrix();
     _resources.viewConstantBuffer->resource.viewMatrix = camera->GetViewMatrix();
-    _resources.viewConstantBuffer->resource.eye = camera->GetPosition();
+    _resources.viewConstantBuffer->resource.eyePosition = vec4(camera->GetPosition(), 0.0f);
+    _resources.viewConstantBuffer->resource.eyeRotation = vec4(camera->GetRotation(), 0.0f);
     _resources.viewConstantBuffer->Apply(_frameIndex);
 
     entt::registry* registry = ServiceLocator::GetGameRegistry();
@@ -212,6 +215,9 @@ void ClientRenderer::Render()
     // Color pass
     _terrainRenderer->AddTerrainPass(&renderGraph, _resources, _frameIndex);
     _cModelRenderer->AddComplexModelPass(&renderGraph, _resources, _frameIndex);
+
+    // Skybox
+    _skyboxRenderer->AddSkyboxPass(&renderGraph, _resources, _frameIndex);
 
     // Postprocessing
     _postProcessRenderer->AddPostProcessPass(&renderGraph, _resources, _frameIndex);

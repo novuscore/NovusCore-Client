@@ -23,6 +23,7 @@ class CameraFreeLook;
 class UIRenderer;
 class TerrainRenderer;
 class CModelRenderer;
+class SkyboxRenderer;
 class PostProcessRenderer;
 class RendertargetVisualizer;
 class InputManager;
@@ -79,6 +80,7 @@ private:
     UIRenderer* _uiRenderer;
     TerrainRenderer* _terrainRenderer;
     CModelRenderer* _cModelRenderer;
+    SkyboxRenderer* _skyboxRenderer;
     PostProcessRenderer* _postProcessRenderer;
     RendertargetVisualizer* _rendertargetVisualizer;
 

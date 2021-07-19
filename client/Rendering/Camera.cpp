@@ -37,7 +37,7 @@ bool Camera::LoadFromFile(std::string filename)
 
     _position = saveData.position;
     _yaw = saveData.yaw;
-    _pitch = saveData.pitch;
+    _pitch = glm::clamp(saveData.pitch, -89.0f, 89.0f);
     _movementSpeed = saveData.movement;
 
     UpdateCameraVectors();

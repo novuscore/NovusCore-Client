@@ -203,7 +203,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
     if (_constants.occlusionCull)
     {
-        if (!IsVisible(aabb.min, aabb.max, _viewData.eye, _depthPyramid, _depthSampler, _viewData.lastViewProjectionMatrix))
+        if (!IsVisible(aabb.min, aabb.max, _viewData.eyePosition.xyz, _depthPyramid, _depthSampler, _viewData.lastViewProjectionMatrix))
         {
             return;
         }

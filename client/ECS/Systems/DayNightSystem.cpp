@@ -81,19 +81,19 @@ void DayNightSystem::SetInitialState(entt::registry& registry, DayNightTimestamp
     timeStamp.timeOffsetInSeconds = newInitialState.timeOffsetInSeconds;
 
     i32 timeOffset = timeStamp.secondsSinceMidnightUTC + timeStamp.timeOffsetInSeconds;
-    i32 secondsSinceDawnWithOffset = GetSecondsSinceMidnightUTC() + timeOffset;
+    i32 secondsSinceMidnightWithOffset = GetSecondsSinceMidnightUTC() + timeOffset;
 
-    while (secondsSinceDawnWithOffset < 0 ||
-           secondsSinceDawnWithOffset > DayNight_SecondsPerDay)
+    while (secondsSinceMidnightWithOffset < 0 ||
+        secondsSinceMidnightWithOffset > DayNight_SecondsPerDay)
     {
-        if (secondsSinceDawnWithOffset > DayNight_SecondsPerDay)
-            secondsSinceDawnWithOffset -= DayNight_SecondsPerDay;
+        if (secondsSinceMidnightWithOffset > DayNight_SecondsPerDay)
+            secondsSinceMidnightWithOffset -= DayNight_SecondsPerDay;
 
-        if (secondsSinceDawnWithOffset < 0)
-            secondsSinceDawnWithOffset += DayNight_SecondsPerDay;
+        if (secondsSinceMidnightWithOffset < 0)
+            secondsSinceMidnightWithOffset += DayNight_SecondsPerDay;
     }
 
-    dayNightSingleton.seconds = static_cast<f32>(secondsSinceDawnWithOffset);
+    dayNightSingleton.seconds = static_cast<f32>(secondsSinceMidnightWithOffset);
 }
 
 u32 DayNightSystem::GetSecondsSinceMidnightUTC()

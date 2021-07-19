@@ -32,6 +32,16 @@ struct RenderResources;
 class SkyboxRenderer
 {
 public:
+    struct SkybandColors
+    {
+        vec4 top = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+        vec4 middle = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+        vec4 bottom = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+        vec4 aboveHorizon = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+        vec4 horizon = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    };
+
+public:
     SkyboxRenderer(Renderer::Renderer* renderer, DebugRenderer* debugRenderer);
     ~SkyboxRenderer();
 
@@ -43,7 +53,8 @@ private:
     void CreatePermanentResources();
 
     Renderer::Renderer* _renderer;
-    
+
+    SkybandColors _skybandColors;
 
     DebugRenderer* _debugRenderer;
 };
