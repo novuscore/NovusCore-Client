@@ -1,194 +1,91 @@
 #include "Button.h"
 #include "Label.h"
-#include <tracy/Tracy.hpp>
-#include "../../Scripting/ScriptEngine.h"
 #include "../../Utils/ServiceLocator.h"
 
-#include "../ECS/Components/Transform.h"
-#include "../ECS/Components/Transformevents.h"
+#include "../ECS/Components/TransformFill.h"
 #include "../ECS/Components/Image.h"
+#include "../ECS/Components/ImageEventStyles.h"
 #include "../ECS/Components/Renderable.h"
+
+#include "../Stylesheets/ImageStylesheet.h"
+#include "../Stylesheets/TextStylesheet.h"
 
 namespace UIScripting
 {
-    Button::Button() : BaseElement(UI::ElementType::UITYPE_BUTTON) 
+    Button::Button(const std::string& name, bool collisionEnabled) : EventElement(UI::ElementType::BUTTON, name, collisionEnabled, UI::TransformEventsFlags::FLAG_CLICKABLE) 
     {
-        ZoneScoped;
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-
-        registry->emplace<UIComponent::TransformEvents>(_entityId);
         registry->emplace<UIComponent::Image>(_entityId);
-        registry->emplace<UIComponent::Renderable>(_entityId).renderType = UI::RenderType::Image;
+        registry->emplace<UIComponent::ImageEventStyles>(_entityId);
+        registry->emplace<UIComponent::Renderable>(_entityId, UI::RenderType::Image);
         
-        _label = Label::CreateLabel();
-        _label->SetHorizontalAlignment(UI::TextHorizontalAlignment::CENTER);
+        _label = Label::CreateLabel(name + "-Label");
         InternalAddChild(_label);
-        auto labelTransform = &registry->get<UIComponent::Transform>(_label->GetEntityId());
-        labelTransform->SetFlag(UI::TransformFlags::FILL_PARENTSIZE);
+        registry->emplace<UIComponent::TransformFill>(_label->GetEntityId()).flags = UI::TransformFillFlags::FILL_PARENTSIZE;
     }
     
     void Button::RegisterType()
     {
-        i32 r = ScriptEngine::RegisterScriptClass("Button", 0, asOBJ_REF | asOBJ_NOCOUNT);
-        r = ScriptEngine::RegisterScriptInheritance<BaseElement, Button>("BaseElement");
-        r = ScriptEngine::RegisterScriptFunction("Button@ CreateButton()", asFUNCTION(Button::CreateButton)); assert(r >= 0);
+        i32 r = ScriptEngine::RegisterScriptClass("Button", 0, asOBJ_REF | asOBJ_NOCOUNT); assert(r >= 0);
+        r = RegisterEventBase<Button>("Button");
 
-        //Button Functions.
-        r = ScriptEngine::RegisterScriptClassFunction("bool IsClickable()", asMETHOD(Button, IsClickable)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptFunctionDef("void ButtonEventCallback(Button@ button)"); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void OnClick(ButtonEventCallback@ cb)", asMETHOD(Button, SetOnClickCallback)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptFunction("Button@ CreateButton(string name, bool collisionEnabled = true)", asFUNCTION(Button::CreateButton)); assert(r >= 0);
 
         //Label Functions
-        r = ScriptEngine::RegisterScriptClassFunction("string GetText()", asMETHOD(Button, GetText)); assert(r >= 0);
         r = ScriptEngine::RegisterScriptClassFunction("void SetText(string text)", asMETHOD(Button, SetText)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("Color GetTextColor()", asMETHOD(Button, GetTextColor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetTextColor(Color color)", asMETHOD(Button, SetTextColor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("Color GetOutlineColor()", asMETHOD(Button, GetTextOutlineColor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineColor(Color color)", asMETHOD(Button, SetTextOutlineColor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("float GetOutlineWidth()", asMETHOD(Button, GetTextOutlineWidth)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetOutlineWidth(float width)", asMETHOD(Button, SetTextOutlineWidth)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetFont(string fontPath, float fontSize)", asMETHOD(Button, SetFont)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetTextStylesheet(TextStylesheet stylesheet)", asMETHOD(Button, SetTextStylesheet)); assert(r >= 0);
 
         //Panel Functions.
-        r = ScriptEngine::RegisterScriptClassFunction("string GetTexture()", asMETHOD(Button, GetTexture)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetTexture(string Texture)", asMETHOD(Button, SetTexture)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetTexCoord(vec4 texCoords)", asMETHOD(Button, SetTexCoord)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("Color GetColor()", asMETHOD(Button, GetColor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetColor(Color color)", asMETHOD(Button, SetColor)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("string GetBorder()", asMETHOD(Button, GetBorder)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetBorder(string Texture)", asMETHOD(Button, SetBorder)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetBorderSize(uint topSize, uint rightSize, uint bottomSize, uint leftSize)", asMETHOD(Button, SetBorderSize)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetBorderInset(uint topBorderInset, uint rightBorderInset, uint bottomBorderInset, uint leftBorderInset)", asMETHOD(Button, SetBorderInset)); assert(r >= 0);
-        r = ScriptEngine::RegisterScriptClassFunction("void SetSlicing(uint topOffset, uint rightOffset, uint bottomOffset, uint leftOffset)", asMETHOD(Button, SetSlicing)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetStylesheet(ImageStylesheet stylesheet)", asMETHOD(Button, SetStylesheet)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetFocusedStylesheet(ImageStylesheet stylesheet)", asMETHOD(Button, SetFocusedStylesheet)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetHoveredStylesheet(ImageStylesheet stylesheet)", asMETHOD(Button, SetHoveredStylesheet)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetPressedStylesheet(ImageStylesheet stylesheet)", asMETHOD(Button, SetPressedStylesheet)); assert(r >= 0);
+        r = ScriptEngine::RegisterScriptClassFunction("void SetDisabledStylesheet(ImageStylesheet stylesheet)", asMETHOD(Button, SetDisabledStylesheet)); assert(r >= 0);
     }
 
-    const bool Button::IsClickable() const
-    {
-        const UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        return events->IsClickable();
-    }
-
-    void Button::SetOnClickCallback(asIScriptFunction* callback)
-    {
-        UIComponent::TransformEvents* events = &ServiceLocator::GetUIRegistry()->get<UIComponent::TransformEvents>(_entityId);
-        events->onClickCallback = callback;
-        events->SetFlag(UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE);
-    }
-
-    void Button::SetText(const std::string& text)
-    {
-        _label->SetText(text);
-    }
     const std::string Button::GetText() const
     {
         return _label->GetText();
     }
-
-    void Button::SetTextColor(const Color& color)
+    void Button::SetText(const std::string& text)
     {
-        _label->SetColor(color);
-    }
-    const Color& Button::GetTextColor() const
-    {
-        return _label->GetColor();
+        _label->SetText(text);
     }
 
-    void Button::SetTextOutlineColor(const Color& outlineColor)
+    void Button::SetTextStylesheet(const UI::TextStylesheet& textStylesheet)
     {
-        _label->SetOutlineColor(outlineColor);
-    }
-    const Color& Button::GetTextOutlineColor() const
-    {
-        return _label->GetOutlineColor();
+        _label->SetStylesheet(textStylesheet);
     }
 
-    void Button::SetTextOutlineWidth(f32 outlineWidth)
+    void Button::SetStylesheet(const UI::ImageStylesheet& stylesheet)
     {
-        _label->SetOutlineWidth(outlineWidth);
+        UIComponent::ImageEventStyles* imageStyles = &ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        imageStyles->styleMap[UI::TransformEventState::STATE_NORMAL] = stylesheet;
     }
-    const f32 Button::GetTextOutlineWidth() const
+    void Button::SetFocusedStylesheet(const UI::ImageStylesheet& stylesheet)
     {
-        return _label->GetOutlineWidth();
+        UIComponent::ImageEventStyles* imageStyles = &ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        imageStyles->styleMap[UI::TransformEventState::STATE_FOCUSED] = stylesheet;
     }
-
-    void Button::SetFont(std::string fontPath, f32 fontSize)
+    void Button::SetHoveredStylesheet(const UI::ImageStylesheet& stylesheet)
     {
-        _label->SetFont(fontPath, fontSize);
+        UIComponent::ImageEventStyles* imageStyles = &ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        imageStyles->styleMap[UI::TransformEventState::STATE_HOVERED] = stylesheet;
     }
-
-    const std::string& Button::GetTexture() const
+    void Button::SetPressedStylesheet(const UI::ImageStylesheet& stylesheet)
     {
-        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->style.texture;
+        UIComponent::ImageEventStyles* imageStyles = &ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        imageStyles->styleMap[UI::TransformEventState::STATE_PRESSED] = stylesheet;
     }
-    void Button::SetTexture(const std::string& texture)
+    void Button::SetDisabledStylesheet(const UI::ImageStylesheet& stylesheet)
     {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
-        image->style.texture = texture;
-    }
-
-    void Button::SetTexCoord(const vec4& texCoord)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.texCoord.top = texCoord.x;
-        image->style.texCoord.right = texCoord.y;
-        image->style.texCoord.bottom = texCoord.z;
-        image->style.texCoord.left = texCoord.w;
+        UIComponent::ImageEventStyles* imageStyles = &ServiceLocator::GetUIRegistry()->get<UIComponent::ImageEventStyles>(_entityId);
+        imageStyles->styleMap[UI::TransformEventState::STATE_DISABLED] = stylesheet;
     }
 
-    const Color Button::GetColor() const
+    Button* Button::CreateButton(const std::string& name, bool collisionEnabled)
     {
-        const UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->style.color;
-    }
-    void Button::SetColor(const Color& color)
-    {
-        entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UIComponent::Image* image = &registry->get<UIComponent::Image>(_entityId);
-        image->style.color = color;
-    }
-
-    const std::string& Button::GetBorder() const
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        return image->style.border;
-    }
-    void Button::SetBorder(const std::string& texture)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.border = texture;
-    }
-
-    void Button::SetBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderSize.top = topSize;
-        image->style.borderSize.right = rightSize;
-        image->style.borderSize.bottom = bottomSize;
-        image->style.borderSize.left = leftSize;
-    }
-    void Button::SetBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.borderInset.top = topBorderInset;
-        image->style.borderInset.right = rightBorderInset;
-        image->style.borderInset.bottom = bottomBorderInset;
-        image->style.borderInset.left = leftBorderInset;
-    }
-
-    void Button::SetSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset)
-    {
-        UIComponent::Image* image = &ServiceLocator::GetUIRegistry()->get<UIComponent::Image>(_entityId);
-        image->style.slicingOffset.top = topOffset;
-        image->style.slicingOffset.right = rightOffset;
-        image->style.slicingOffset.bottom = bottomOffset;
-        image->style.slicingOffset.left = leftOffset;
-    }
-
-    Button* Button::CreateButton()
-    {
-        Button* button = new Button();
+        Button* button = new Button(name, collisionEnabled);
 
         return button;
     }

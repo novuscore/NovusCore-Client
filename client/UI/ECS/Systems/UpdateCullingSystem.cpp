@@ -6,14 +6,12 @@
 #include "../Components/Dirty.h"
 #include "../Components/NotCulled.h"
 
-#include "../../Utils/TransformUtils.h"
-
 
 namespace UISystem
 {
     void UpdateCullingSystem::Update(entt::registry& registry)
     {
-        auto& dataSingleton = registry.ctx<UISingleton::UIDataSingleton>();
+        const hvec2 UIRESOLUTION = registry.ctx<UISingleton::UIDataSingleton>().UIRESOLUTION;
 
         auto oldCulledView = registry.view<UIComponent::NotCulled, UIComponent::Dirty>();
         registry.remove<UIComponent::NotCulled>(oldCulledView.begin(), oldCulledView.end());
@@ -24,13 +22,13 @@ namespace UISystem
 
         cullView.each([&](entt::entity entity, UIComponent::Transform& transform)
         {
-            const vec2 screenPosition = UIUtils::Transform::GetScreenPosition(&transform);
-            const vec2 offset = transform.localAnchor * transform.size;
+            const hvec2 screenPosition = transform.anchorPosition + transform.position;
+            const hvec2 offset = transform.localAnchor * transform.size;
 
-            const vec2 minBounds = screenPosition - offset;
-            const vec2 maxBounds = minBounds + vec2(transform.size);
+            const hvec2 minBounds = screenPosition - offset;
+            const hvec2 maxBounds = minBounds + transform.size;
 
-            if (maxBounds.x < 0 || maxBounds.y < 0 || minBounds.x > dataSingleton.UIRESOLUTION.x || minBounds.y > dataSingleton.UIRESOLUTION.y)
+            if (maxBounds.x < 0 || maxBounds.y < 0 || minBounds.x > UIRESOLUTION.x || minBounds.y > UIRESOLUTION.y)
                 return;
 
             notCulled.push_back(entity);

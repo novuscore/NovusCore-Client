@@ -8,6 +8,7 @@
 
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
 #include "../ECS/Components/Relation.h"
+#include "../ECS/Components/TransformFill.h"
 
 namespace UIUtils::Transform
 {
@@ -35,18 +36,40 @@ namespace UIUtils::Transform
         if (!relation.children.size())
             return;
         
-        const hvec2 minAnchorBound = GetMinBounds(&transform) + hvec2(transform.padding.left, transform.padding.top);
-        const hvec2 adjustedSize = transform.size - hvec2(transform.padding.right, transform.padding.bottom);
+        const hvec2 minAnchorBound = GetMinBounds(transform) + hvec2(transform.padding.left, transform.padding.top);
+        const hvec2 innerBounds = GetInnerSize(&transform);
 
-        for (const UI::UIChild& child : relation.children)
+        for (const entt::entity childId : relation.children)
         {
-            UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
+            UIComponent::Transform& childTransform = registry->get<UIComponent::Transform>(childId);
 
-            childTransform->anchorPosition = minAnchorBound + adjustedSize * childTransform->anchor;
-            if (childTransform->HasFlag(UI::TransformFlags::FILL_PARENTSIZE))
-                childTransform->size = transform.size;
+            childTransform.anchorPosition = minAnchorBound + innerBounds * childTransform.anchor;
 
-            UpdateChildTransforms(registry, child.entId);
+            if (registry->has<UIComponent::TransformFill>(childId))
+            {
+                //Calculate size & position for elements that want to fill.
+                const UIComponent::TransformFill& childTransformFill = registry->get<UIComponent::TransformFill>(childId);
+                CalculateFillFromInnerBounds(childTransformFill, innerBounds, childTransform.position, childTransform.size);
+            }
+        }
+
+        for (const entt::entity childId : relation.children)
+        {
+            UpdateChildTransforms(registry, childId);
+        }
+    }
+
+    void CalculateFillFromInnerBounds(const UIComponent::TransformFill& childTransformFill, const hvec2 innerBounds, hvec2& selfPosition, hvec2& selfSize)
+    {
+        if (childTransformFill.HasFlag(UI::TransformFillFlags::FILL_PARENTSIZE_X))
+        {
+            selfPosition.x = childTransformFill.fill.left * innerBounds.x;
+            selfSize.x = childTransformFill.fill.right * innerBounds.x - selfPosition.x;
+        }
+        if (childTransformFill.HasFlag(UI::TransformFillFlags::FILL_PARENTSIZE_Y))
+        {
+            selfPosition.y = childTransformFill.fill.top * innerBounds.y;
+            selfSize.y = childTransformFill.fill.bottom * innerBounds.y - selfPosition.y;
         }
     }
 
@@ -57,18 +80,18 @@ namespace UIUtils::Transform
         if (!relation.children.size())
             return;
 
-        const hvec2 minAnchorBound = GetMinBounds(&transform) + hvec2(transform.padding.left, transform.padding.top);
+        const hvec2 minAnchorBound = GetMinBounds(transform) + hvec2(transform.padding.left, transform.padding.top);
         const hvec2 adjustedSize = transform.size - hvec2(transform.padding.right, transform.padding.bottom);
 
-        for (const UI::UIChild& child : relation.children)
+        for (const entt::entity childId : relation.children)
         {
-            UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(child.entId);
+            UIComponent::Transform* childTransform = &registry->get<UIComponent::Transform>(childId);
             childTransform->anchorPosition = minAnchorBound + adjustedSize * childTransform->anchor;
         }
 
-        for (const UI::UIChild& child : relation.children)
+        for (const entt::entity childId : relation.children)
         {
-            UpdateChildPositions(registry, child.entId);
+            UpdateChildPositions(registry, childId);
         }
     }
 }

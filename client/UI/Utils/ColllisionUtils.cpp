@@ -12,16 +12,16 @@ namespace UIUtils::Collision
         ZoneScoped;
         auto[collision, transform, relation] = registry->get<UIComponent::Collision, UIComponent::Transform, UIComponent::Relation>(entityId);
 
-        const hvec2 screenPosition = UIUtils::Transform::GetScreenPosition(&transform);
+        const hvec2 screenPosition = UIUtils::Transform::GetScreenPosition(transform);
         const hvec2 offset = transform.localAnchor * transform.size;
 
         hvec2 minBound = screenPosition - offset;
         hvec2 maxBound = minBound + transform.size;
 
-        for (const UI::UIChild& child : relation.children)
+        for (const entt::entity childId : relation.children)
         {
-            UpdateBounds(registry, child.entId, false);
-            UIComponent::Collision* childCollision = &registry->get<UIComponent::Collision>(child.entId);
+            UpdateBounds(registry, childId, false);
+            UIComponent::Collision* childCollision = &registry->get<UIComponent::Collision>(childId);
 
             if (!collision.HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
                 continue;
@@ -48,14 +48,14 @@ namespace UIUtils::Collision
     {
         ZoneScoped;
         auto [collision, transform, relation] = registry->get<UIComponent::Collision, UIComponent::Transform, UIComponent::Relation>(entityId);
-        collision.minBound = UIUtils::Transform::GetMinBounds(&transform);
-        collision.maxBound = UIUtils::Transform::GetMaxBounds(&transform);
+        collision.minBound = UIUtils::Transform::GetMinBounds(transform);
+        collision.maxBound = UIUtils::Transform::GetMaxBounds(transform);
 
         if (collision.HasFlag(UI::CollisionFlags::INCLUDE_CHILDBOUNDS))
         {
-            for (const UI::UIChild& child : relation.children)
+            for (const entt::entity childId : relation.children)
             {
-                UIComponent::Collision* childCollision = &registry->get<UIComponent::Collision>(child.entId);
+                UIComponent::Collision* childCollision = &registry->get<UIComponent::Collision>(childId);
 
                 if (childCollision->minBound.x < collision.minBound.x) { collision.minBound.x = childCollision->minBound.x; }
                 if (childCollision->minBound.y < collision.minBound.y) { collision.minBound.y = childCollision->minBound.y; }

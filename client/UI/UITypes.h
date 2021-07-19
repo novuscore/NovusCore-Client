@@ -5,17 +5,47 @@ namespace UI
 {
     enum class ElementType : u8
     {
-        UITYPE_NONE,
+        NONE,
 
-        UITYPE_PANEL,
-        UITYPE_BUTTON,
-        UITYPE_CHECKBOX,
-        UITYPE_SLIDER,
-        UITYPE_SLIDERHANDLE,
+        PANEL,
+        BUTTON,
+        CHECKBOX,
+        SLIDER,
+        SLIDERHANDLE,
+        PROGRESSBAR,
 
-        UITYPE_LABEL,
-        UITYPE_INPUTFIELD
+        LABEL,
+        INPUTFIELD
     };
+
+    static char* GetElementTypeAsString(ElementType type)
+    {
+        switch (type)
+        {
+        case ElementType::NONE:
+            return "None";
+        case ElementType::PANEL:
+            return "Panel";
+        case ElementType::BUTTON:
+            return "Button";
+        case ElementType::CHECKBOX:
+            return "Checkbox";
+        case ElementType::SLIDER:
+            return "Slider";
+        case ElementType::SLIDERHANDLE:
+            return "Slider Handle";
+        case ElementType::PROGRESSBAR:
+            return "Progress Bar";
+
+        case ElementType::LABEL:
+            return "Label";
+        case ElementType::INPUTFIELD:
+            return "Inputfield";
+        default:
+            DebugHandler::PrintFatal("ElementType has no valid string translation.");
+            return "Unknown";
+        }
+    }
 
     enum class DepthLayer : u16
     {
@@ -69,16 +99,10 @@ namespace UI
         f16 left = f16(0.0f);
     };
 #pragma pack(pop)
-
-    struct TextStylesheet
+    
+    struct UIVertex
     {
-        Color color = Color(1, 1, 1, 1);
-        Color outlineColor = Color(0, 0, 0, 0);
-        f32 outlineWidth = 0.f;
-
-        std::string fontPath = "";
-        f32 fontSize = 0;
-
-        f32 lineHeightMultiplier = 1.15f;
+        vec2 pos;
+        vec2 uv;
     };
 }

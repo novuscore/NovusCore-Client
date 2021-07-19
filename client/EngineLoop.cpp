@@ -29,8 +29,10 @@
 #include "ECS/Components/Physics/Rigidbody.h"
 #include "ECS/Components/Rendering/DebugBox.h"
 
-#include "UI/ECS/Components/Transform.h"
+#include "UI/ECS/Components/ElementInfo.h"
+#include "UI/ECS/Components/Name.h"
 #include "UI/ECS/Components/NotCulled.h"
+#include "UI/ECS/Components/Singletons/UIDataSingleton.h"
 
 // Systems
 #include "ECS/Systems/Network/ConnectionSystems.h"
@@ -41,7 +43,12 @@
 #include "ECS/Systems/DayNightSystem.h"
 
 #include "UI/ECS/Systems/DeleteElementsSystem.h"
-#include "UI/ECS/Systems/UpdateRenderingSystem.h"
+#include "UI/ECS/Systems/AssembleImageStyleSystem.h"
+#include "UI/ECS/Systems/AssembleTextStyleSystem.h"
+#include "UI/ECS/Systems/DeleteElementsSystem.h"
+#include "UI/ECS/Systems/LoadTexturesSystem.h"
+#include "UI/ECS/Systems/UpdateImageModelSystem.h"
+#include "UI/ECS/Systems/UpdateTextModelSystem.h"
 #include "UI/ECS/Systems/UpdateBoundsSystem.h"
 #include "UI/ECS/Systems/UpdateCullingSystem.h"
 #include "UI/ECS/Systems/BuildSortKeySystem.h"
@@ -434,21 +441,12 @@ void EngineLoop::SetupUpdateFramework()
 
     /* UI SYSTEMS */
     // DeleteElementsSystem
-    /*tf::Task uiDeleteElementSystem = framework.emplace([&uiRegistry, &gameRegistry]()
+    tf::Task uiDeleteElementSystem = framework.emplace([&uiRegistry, &gameRegistry]()
     {
         ZoneScopedNC("DeleteElementsSystem::Update", tracy::Color::Gainsboro);
         UISystem::DeleteElementsSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
-
-    // UpdateRenderingSystem
-    tf::Task uiUpdateRenderingSystem = framework.emplace([&uiRegistry, &gameRegistry]()
-    {
-        ZoneScopedNC("UpdateRenderingSystem::Update", tracy::Color::Gainsboro);
-        UISystem::UpdateRenderingSystem::Update(uiRegistry);
-        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
-    });
-    uiUpdateRenderingSystem.gather(uiDeleteElementSystem);
 
     // UpdateBoundsSystem
     tf::Task uiUpdateBoundsSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
@@ -457,7 +455,16 @@ void EngineLoop::SetupUpdateFramework()
         UISystem::UpdateBoundsSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
-    uiUpdateRenderingSystem.gather(uiDeleteElementSystem);
+    uiUpdateBoundsSystemTask.gather(uiDeleteElementSystem);
+
+    // BuildSortKeySystem
+    tf::Task uiBuildSortKeySystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+    {
+        ZoneScopedNC("BuildSortKeySystem::Update", tracy::Color::Gainsboro);
+        UISystem::BuildSortKeySystem::Update(uiRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
+    uiBuildSortKeySystemTask.gather(uiDeleteElementSystem);
 
     // UpdateCullingSystem
     tf::Task uiUpdateCullingSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
@@ -466,16 +473,54 @@ void EngineLoop::SetupUpdateFramework()
         UISystem::UpdateCullingSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
-    uiUpdateRenderingSystem.gather(uiDeleteElementSystem);
-    
-    // BuildSortKeySystem
-    tf::Task uiBuildSortKeySystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+    uiUpdateCullingSystemTask.gather(uiDeleteElementSystem);
+
+    // AssembleImageStyleSystem
+    tf::Task uiAssembleImageStyleSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
     {
-        ZoneScopedNC("BuildSortKeySystem::Update", tracy::Color::Gainsboro);
-        UISystem::BuildSortKeySystem::Update(uiRegistry);
+        ZoneScopedNC("AssembleImageStyleSystem::Update", tracy::Color::Gainsboro);
+        UISystem::AssembleImageStyleSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
-    uiUpdateRenderingSystem.gather(uiDeleteElementSystem);
+    uiAssembleImageStyleSystemTask.gather(uiUpdateCullingSystemTask);
+    
+    // AssembleTextStyleSystem
+    tf::Task uiAssembleTextStyleSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+    {
+        ZoneScopedNC("AssembleTextStyleSystem::Update", tracy::Color::Gainsboro);
+        UISystem::AssembleTextStyleSystem::Update(uiRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
+    uiAssembleTextStyleSystemTask.gather(uiUpdateCullingSystemTask);
+
+    // LoadTextureSystem
+    tf::Task uiLoadTexturesSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+    {
+        ZoneScopedNC("LoadTextureSystem::Update", tracy::Color::Gainsboro);
+        UISystem::LoadTexturesSystem::Update(uiRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
+    uiLoadTexturesSystemTask.gather(uiAssembleImageStyleSystemTask);
+    uiLoadTexturesSystemTask.gather(uiAssembleTextStyleSystemTask);
+
+    // UpdateImageModelsSystem
+    tf::Task uiUpdateImageModelsSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+    {
+        ZoneScopedNC("UpdateImageModelsSystem::Update", tracy::Color::Gainsboro);
+        UISystem::UpdateImageModelSystem::Update(uiRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
+    uiUpdateImageModelsSystemTask.gather(uiLoadTexturesSystemTask);
+
+    // UpdateTextModelSystem
+    tf::Task uiUpdateTextModelsSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
+    {
+        ZoneScopedNC("UpdateTextModelSystem::Update", tracy::Color::Gainsboro);
+        UISystem::UpdateTextModelSystem::Update(uiRegistry);
+        gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
+    });
+    uiUpdateTextModelsSystemTask.gather(uiLoadTexturesSystemTask);
+    uiUpdateTextModelsSystemTask.gather(uiUpdateImageModelsSystemTask); // Remove when buffers are fixed.
 
     // FinalCleanUpSystem
     tf::Task uiFinalCleanUpSystemTask = framework.emplace([&uiRegistry, &gameRegistry]()
@@ -484,9 +529,10 @@ void EngineLoop::SetupUpdateFramework()
         UISystem::FinalCleanUpSystem::Update(uiRegistry);
         gameRegistry.ctx<ScriptSingleton>().CompleteSystem();
     });
-    uiFinalCleanUpSystemTask.gather(uiUpdateRenderingSystem);
-    uiFinalCleanUpSystemTask.gather(uiUpdateCullingSystemTask);
-    uiFinalCleanUpSystemTask.gather(uiBuildSortKeySystemTask);*/
+    uiFinalCleanUpSystemTask.gather(uiUpdateImageModelsSystemTask);
+    uiFinalCleanUpSystemTask.gather(uiUpdateTextModelsSystemTask);
+    uiFinalCleanUpSystemTask.gather(uiUpdateBoundsSystemTask);
+    uiFinalCleanUpSystemTask.gather(uiBuildSortKeySystemTask);
     /* END UI SYSTEMS */
 
     // MovementSystem
@@ -541,7 +587,7 @@ void EngineLoop::SetupUpdateFramework()
         gameRegistry.ctx<ScriptSingleton>().ExecuteTransactions();
         gameRegistry.ctx<ScriptSingleton>().ResetCompletedSystems();
     });
-    //scriptSingletonTask.gather(uiFinalCleanUpSystemTask);
+    scriptSingletonTask.gather(uiFinalCleanUpSystemTask);
     scriptSingletonTask.gather(renderModelSystemTask);
 }
 void EngineLoop::SetupMessageHandler()
@@ -845,15 +891,65 @@ void EngineLoop::DrawPositionStats()
 void EngineLoop::DrawUIStats()
 {
     entt::registry* registry = ServiceLocator::GetUIRegistry();
-    size_t count = registry->size<UIComponent::Transform>();
-    size_t notCulled = registry->size<UIComponent::NotCulled>();
+    auto dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();
+
+    ImGui::Columns(4);
+    ImGui::Separator();
+
+    ImGui::Text("Status");
+    ImGui::NextColumn();
+    ImGui::Text("Name");
+    ImGui::NextColumn();
+    ImGui::Text("Id");
+    ImGui::NextColumn();
+    ImGui::Text("Type");
+    ImGui::NextColumn();
+    ImGui::Separator();
+
+    auto DisplayElementInfo = [&](char* interactionName, entt::entity entId)
+    {
+        if (entId == entt::null)
+        {
+            ImGui::Text("%s", interactionName);
+            ImGui::NextColumn();
+            ImGui::Text("None");
+            ImGui::NextColumn();
+            ImGui::Text("None");
+            ImGui::NextColumn();
+            ImGui::Text("None");
+            ImGui::NextColumn();
+        }
+        else
+        {
+            ImGui::Text("%s", interactionName);
+            ImGui::NextColumn();
+            ImGui::Text("%s", registry->get<UIComponent::Name>(entId).name.c_str());
+            ImGui::NextColumn();
+            ImGui::Text("%d", entt::to_integral(entId));
+            ImGui::NextColumn();
+            ImGui::Text("%s", UI::GetElementTypeAsString(registry->get<UIComponent::ElementInfo>(entId).type));
+            ImGui::NextColumn();
+        }
+    };
+
+    DisplayElementInfo("Focused", dataSingleton->focusedElement);
+    DisplayElementInfo("Hovered", dataSingleton->hoveredElement);
+    DisplayElementInfo("Pressed", dataSingleton->pressedElement);
+    DisplayElementInfo("Resized", dataSingleton->resizedElement);
+    DisplayElementInfo("Dragged", dataSingleton->draggedElement);
+
+    ImGui::Columns(1);
+    ImGui::Separator();
+
+    size_t count = registry->size<UIComponent::ElementInfo>();
+    size_t culled = count - registry->size<UIComponent::NotCulled>();
     bool* drawCollisionBounds = reinterpret_cast<bool*>(CVarSystem::Get()->GetIntCVar("ui.drawCollisionBounds"));
 
     ImGui::Text("Total Elements : %d", count);
-    ImGui::Text("Culled elements : %d", (count-notCulled));
-    
+    ImGui::Text("Culled elements : %d", culled);
+    ImGui::Text("UI Resolution : (%.0f, %.0f)", static_cast<f32>(dataSingleton->UIRESOLUTION.x), static_cast<f32>(dataSingleton->UIRESOLUTION.y));
     ImGui::Spacing();
-    ImGui::Spacing();
+
     ImGui::Checkbox("Show Collision Bounds", drawCollisionBounds);
 }
 void EngineLoop::DrawMemoryStats()

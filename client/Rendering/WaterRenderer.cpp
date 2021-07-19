@@ -74,7 +74,6 @@ void WaterRenderer::AddWaterPass(Renderer::RenderGraph* renderGraph, RenderResou
         {
             data.color = builder.Write(resources.color, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
             data.depth = builder.Write(resources.depth, Renderer::RenderGraphBuilder::WriteMode::RENDERTARGET, Renderer::RenderGraphBuilder::LoadMode::CLEAR);
-
             return true; // Return true from setup to enable this pass, return false to disable it
         }, 
         [=](WaterPassData& data, Renderer::RenderGraphResources& graphResources, Renderer::CommandList& commandList)
@@ -325,7 +324,11 @@ bool WaterRenderer::RegisterChunksToBeLoaded(const std::vector<u16>& chunkIDs)
 }
 
 void WaterRenderer::ExecuteLoad()
-{
+{    
+    size_t numDrawCalls = _drawCalls.size();
+    if (numDrawCalls == 0)
+        return;
+
     // -- Create DrawCall Buffer --
     {
         if (_drawCallsBuffer != Renderer::BufferID::Invalid())

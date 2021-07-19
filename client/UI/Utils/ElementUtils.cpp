@@ -1,65 +1,88 @@
 #include "ElementUtils.h"
 #include <entity/registry.hpp>
 #include "../../Utils/ServiceLocator.h"
-#include "../angelscript/BaseElement.h"
 
 #include "../ECS/Components/Singletons/UIDataSingleton.h"
+#include "../ECS/Components/ElementInfo.h"
+#include "../ECS/Components/Root.h"
 #include "../ECS/Components/Relation.h"
 #include "../ECS/Components/Transform.h"
 #include "../ECS/Components/Destroy.h"
 #include "../ECS/Components/Dirty.h"
+#include "../ECS/Components/SortKeyDirty.h"
 
 #include "TransformUtils.h"
+#include "SortUtils.h"
 
 namespace UIUtils
 {
     void ClearAllElements()
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        UISingleton::UIDataSingleton* dataSingleton = &registry->ctx<UISingleton::UIDataSingleton>();
 
-        std::vector<entt::entity> entityIds;
-        entityIds.reserve(dataSingleton->entityToElement.size());
-
-        for (auto& pair : dataSingleton->entityToElement)
+        auto deleteView = registry->view<UIComponent::ElementInfo>();
+        deleteView.each([&](UIComponent::ElementInfo& elementInfo)
         {
-            entityIds.push_back(pair.first);
-            delete pair.second;
-        }
-        dataSingleton->entityToElement.clear();
+            delete elementInfo.scriptingObject;
+        });
+        registry->destroy(deleteView.begin(), deleteView.end());
 
         // Delete entities.
-        registry->destroy(entityIds.begin(), entityIds.end());
+        UISingleton::UIDataSingleton& dataSingleton = registry->ctx<UISingleton::UIDataSingleton>();
+        dataSingleton.entityToElement.clear();
 
-        dataSingleton->focusedWidget = entt::null;
-        dataSingleton->hoveredWidget = entt::null;
-        dataSingleton->draggedWidget = entt::null;
+        dataSingleton.focusedElement = entt::null;
+        dataSingleton.hoveredElement = entt::null;
+        dataSingleton.pressedElement = entt::null;
+
+        dataSingleton.resizedElement = entt::null;
+        dataSingleton.draggedElement = entt::null;
     }
 
     void MarkChildrenDirty(entt::registry* registry, const entt::entity entityId)
     {
         const UIComponent::Relation* relation = &registry->get<UIComponent::Relation>(entityId);
-        for (const UI::UIChild& child : relation->children)
+        for (const entt::entity childId : relation->children)
         {
-            if (!registry->has<UIComponent::Dirty>(child.entId))
-                registry->emplace<UIComponent::Dirty>(child.entId);
+            if (!registry->has<UIComponent::Dirty>(childId))
+                registry->emplace<UIComponent::Dirty>(childId);
 
-            MarkChildrenDirty(registry, child.entId);
+            MarkChildrenDirty(registry, childId);
         }
     }
 
     void MarkChildrenForDestruction(entt::registry* registry, entt::entity entityId)
     {
         const UIComponent::Relation* relation = &registry->get<UIComponent::Relation>(entityId);
-        for (const UI::UIChild& child : relation->children)
+        for (const entt::entity childId : relation->children)
         {
-            if (!registry->has<UIComponent::Destroy>(child.entId))
-                registry->emplace<UIComponent::Destroy>(child.entId);
+            if (!registry->has<UIComponent::Destroy>(childId))
+                registry->emplace<UIComponent::Destroy>(childId);
 
             MarkChildrenForDestruction(registry, entityId);
         }
     }
     
+    void AddChild(entt::registry* registry, entt::entity parent, entt::entity child)
+    {
+        auto [childRelation, childTransform] = registry->get<UIComponent::Relation, UIComponent::Transform>(child);
+        auto [parentRelation, parentTransform] = registry->get<UIComponent::Relation, UIComponent::Transform>(parent);
+
+        childRelation.parent = parent;
+        childTransform.anchorPosition = UIUtils::Transform::GetAnchorPositionInElement(parentTransform, childTransform.anchor);
+        if (registry->has<UIComponent::TransformFill>(child))
+        {
+            UIComponent::TransformFill& childTransformFill = registry->get<UIComponent::TransformFill>(child);
+            UIUtils::Transform::CalculateFillFromInnerBounds(childTransformFill, UIUtils::Transform::GetInnerSize(&parentTransform), childTransform.position, childTransform.size);
+        }
+
+        UIUtils::Transform::UpdateChildTransforms(registry, child);
+
+        parentRelation.children.push_back(child);
+
+        registry->remove<UIComponent::Root>(child);
+        UIUtils::Sort::MarkSortTreeDirty(registry, parent);
+    }
     void RemoveFromParent(entt::registry* registry, entt::entity child)
     {
         auto[childRelation,childTransform] = registry->get<UIComponent::Relation, UIComponent::Transform>(child);
@@ -68,6 +91,10 @@ namespace UIUtils
         childRelation.parent = entt::null;
         childTransform.anchorPosition = UIUtils::Transform::GetAnchorPositionOnScreen(childTransform.anchor);
 
-        parentRelation.children.erase(std::remove_if(parentRelation.children.begin(), parentRelation.children.end(), [child](UI::UIChild& uiChild) { return uiChild.entId == child; }), parentRelation.children.end());
+        parentRelation.children.erase(std::remove(parentRelation.children.begin(), parentRelation.children.end(), child), parentRelation.children.end());
+
+        registry->emplace<UIComponent::Root>(child);
+        if (!registry->has<UIComponent::SortKeyDirty>(child))
+            registry->emplace<UIComponent::SortKeyDirty>(child);
     }
 }

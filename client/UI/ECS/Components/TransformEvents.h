@@ -7,15 +7,27 @@ namespace UI
 {
     enum TransformEventsFlags : u8
     {
-        UIEVENTS_FLAG_NONE = 1 << 0,
+        FLAG_NONE = 1 << 0,
 
-        UIEVENTS_FLAG_CLICKABLE = 1 << 1,
-        UIEVENTS_FLAG_DRAGGABLE = 1 << 2,
-        UIEVENTS_FLAG_FOCUSABLE = 1 << 3,
-        UIEVENTS_FLAG_RESIZEABLE = 1 << 4,
+        FLAG_CLICKABLE = 1 << 1,
+        FLAG_DRAGGABLE = 1 << 2,
+        FLAG_FOCUSABLE = 1 << 3,
+        FLAG_RESIZEABLE = 1 << 4,
 
-        UIEVENTS_FLAG_DRAGLOCK_X = 1 << 5,
-        UIEVENTS_FLAG_DRAGLOCK_Y = 1 << 6
+        FLAG_DRAGLOCK_X = 1 << 5,
+        FLAG_DRAGLOCK_Y = 1 << 6
+    };
+
+    enum TransformEventState : u8
+    {
+        STATE_NORMAL = 0,
+        STATE_FOCUSED = 1 << 0,
+        STATE_HOVERED = 1 << 1,
+        STATE_PRESSED = 1 << 2,
+
+        STATE_DISABLED = 1 << 3,
+
+        COUNT = 5
     };
 }
 
@@ -28,6 +40,8 @@ namespace UIComponent
         TransformEvents() { }
 
         u8 flags = 0;
+        u8 state = 0;
+
         asIScriptFunction* onClickCallback = nullptr;
 
         asIScriptFunction* onDragStartedCallback = nullptr;
@@ -42,8 +56,9 @@ namespace UIComponent
         inline void SetFlag(const UI::TransformEventsFlags inFlags) { flags |= inFlags; }
         inline void UnsetFlag(const UI::TransformEventsFlags inFlags) { flags &= ~inFlags; }
         inline bool HasFlag(const UI::TransformEventsFlags inFlags) const { return (flags & inFlags) == inFlags; }
-        inline const bool IsClickable() const { return (flags & UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE) == UI::TransformEventsFlags::UIEVENTS_FLAG_CLICKABLE; }
-        inline const bool IsDraggable() const { return (flags & UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE) == UI::TransformEventsFlags::UIEVENTS_FLAG_DRAGGABLE; }
-        inline const bool IsFocusable() const { return (flags & UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE) == UI::TransformEventsFlags::UIEVENTS_FLAG_FOCUSABLE; }
+
+        inline void SetState(const UI::TransformEventState inState) { state |= inState; }
+        inline void UnsetState(const UI::TransformEventState inState) { state &= ~inState; }
+        inline bool HasState(const UI::TransformEventState inState) const { return (state & inState) == inState; }
     };
 }

@@ -38,7 +38,7 @@ namespace UIUtils::Text
 
     inline static vec2 GetAlignment(const UIComponent::Text* text)
     {
-        return vec2(GetHorizontalAlignment(text->horizontalAlignment), GetVerticalAlignment(text->verticalAlignment));
+        return vec2(GetHorizontalAlignment(text->style.horizontalAlignment), GetVerticalAlignment(text->style.verticalAlignment));
     }
 
     /*

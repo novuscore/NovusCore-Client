@@ -2,7 +2,6 @@
 #include <NovusTypes.h>
 #include <entity/fwd.hpp>
 #include "../ECS/Components/Dirty.h"
-#include "../ECS/Components/BoundsDirty.h"
 
 namespace UIUtils
 {
@@ -11,6 +10,7 @@ namespace UIUtils
     void MarkChildrenDirty(entt::registry* registry, const entt::entity entityId);
     void MarkChildrenForDestruction(entt::registry* registry, entt::entity entityId);
     
+    void AddChild(entt::registry* registry, entt::entity parent, entt::entity child);
     void RemoveFromParent(entt::registry* registry, entt::entity child);
 
     inline static void MarkDirty(entt::registry* registry, entt::entity entId)

@@ -1,6 +1,7 @@
 #pragma once
 #include <NovusTypes.h>
 #include "../../UITypes.h"
+#include "../../Stylesheets/TextStylesheet.h"
 #include <Renderer/Renderer.h>
 #include <Renderer/Buffer.h>
 #include <Renderer/Font.h>
@@ -28,10 +29,6 @@ namespace UIComponent
         size_t pushback = 0;
 
         UI::TextStylesheet style;
-
-        UI::TextHorizontalAlignment horizontalAlignment = UI::TextHorizontalAlignment::LEFT;
-        UI::TextVerticalAlignment verticalAlignment = UI::TextVerticalAlignment::TOP;
-        bool multiline = false;
 
         Renderer::Font* font = nullptr;
 

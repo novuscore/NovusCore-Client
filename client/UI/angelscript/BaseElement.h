@@ -1,6 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include <entity/entity.hpp>
+#include <entity/fwd.hpp>
 #include "../../Scripting/ScriptEngine.h"
 #include "../UITypes.h"
 
@@ -9,7 +9,7 @@ namespace UIScripting
     class BaseElement
     {
     public:
-        BaseElement(UI::ElementType elementType, bool collisionEnabled = true);
+        BaseElement(UI::ElementType elementType, std::string name, bool collisionEnabled = true);
 
         virtual ~BaseElement() { }
 
@@ -32,8 +32,10 @@ namespace UIScripting
 
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetSize()", asMETHOD(T, GetSize)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetSize(vec2 size)", asMETHOD(T, SetSize)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("bool GetFillParentSize()", asMETHOD(T, GetFillParentSize)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("bool DoesFillParentSize()", asMETHOD(T, DoesFillParentSize)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetFillParentSize(bool fillParent)", asMETHOD(T, SetFillParentSize)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetFillParentSizeAxis(bool fillX, bool fillY)", asMETHOD(T, SetFillParentSizeAxis)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetFillBounds(FBox fillBounds)", asMETHOD(T, SetFillBounds)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("void SetTransform(vec2 position, vec2 size)", asMETHOD(T, SetTransform)); assert(r >= 0);
 
@@ -42,7 +44,7 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("vec2 GetLocalAnchor()", asMETHOD(T, GetLocalAnchor)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetLocalAnchor(vec2 anchor)", asMETHOD(T, SetLocalAnchor)); assert(r >= 0);
 
-            r = ScriptEngine::RegisterScriptClassFunction("void SetPadding(float top, float right, float bottom, float left)", asMETHOD(T, SetPadding)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void SetPadding(FBox padding)", asMETHOD(T, SetPadding)); assert(r >= 0);
             
             r = ScriptEngine::RegisterScriptClassFunction("uint8 GetDepthLayer()", asMETHOD(T, GetDepthLayer)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void SetDepthLayer(uint8 layer)", asMETHOD(T, SetDepthLayer)); assert(r >= 0);
@@ -50,8 +52,9 @@ namespace UIScripting
             r = ScriptEngine::RegisterScriptClassFunction("void SetDepth(uint16 depth)", asMETHOD(T, SetDepth)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("BaseElement@ GetParent()", asMETHOD(T, GetParent)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void SetParent(BaseElement@ parent)", asMETHOD(T, SetParent)); assert(r >= 0);
-            r = ScriptEngine::RegisterScriptClassFunction("void UnsetParent()", asMETHOD(T, UnsetParent)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void AddChild(BaseElement@ child)", asMETHOD(T, AddChild)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void RemoveChild(BaseElement@ child)", asMETHOD(T, RemoveChild)); assert(r >= 0);
+            r = ScriptEngine::RegisterScriptClassFunction("void RemoveFromParent()", asMETHOD(T, RemoveFromParent)); assert(r >= 0);
             r = ScriptEngine::RegisterScriptClassFunction("void Destroy(bool destroyChildren = true)", asMETHOD(T, Destroy)); assert(r >= 0);
 
             r = ScriptEngine::RegisterScriptClassFunction("void GetCollisionIncludesChildren()", asMETHOD(T, GetCollisionIncludesChildren)); assert(r >= 0);
@@ -79,8 +82,10 @@ namespace UIScripting
 
         vec2 GetSize() const;
         void SetSize(const vec2& size);
-        bool GetFillParentSize() const;
+        bool DoesFillParentSize() const;
         void SetFillParentSize(bool fillParent);
+        void SetFillParentSizeAxis(bool fillX, bool fillY);
+        void SetFillBounds(const UI::FBox& fillBounds);
 
         void SetTransform(const vec2& position, const vec2& size);
 
@@ -90,7 +95,7 @@ namespace UIScripting
         vec2 GetLocalAnchor() const;
         void SetLocalAnchor(const vec2& localAnchor);
         
-        void SetPadding(f32 top, f32 right, f32 bottom, f32 left);
+        void SetPadding(const UI::FBox& padding);
 
         UI::DepthLayer GetDepthLayer() const;
         void SetDepthLayer(const UI::DepthLayer layer);
@@ -98,9 +103,11 @@ namespace UIScripting
         u16 GetDepth() const;
         void SetDepth(const u16 depth);
 
+        const bool HasParent() const;
         BaseElement* GetParent() const;
-        void SetParent(BaseElement* parent);
-        void UnsetParent();
+        void AddChild(BaseElement* child);
+        void RemoveChild(BaseElement* child);
+        void RemoveFromParent();
 
         bool GetCollisionIncludesChildren() const;
         void SetCollisionIncludesChildren(bool expand);

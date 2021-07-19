@@ -10,18 +10,18 @@ void UIUtils::Visibility::UpdateChildVisibility(entt::registry* registry, const 
 {
     ZoneScoped;
     const UIComponent::Relation* relation = &registry->get<UIComponent::Relation>(parent);
-    for (const UI::UIChild& child : relation->children)
+    for (const entt::entity childId : relation->children)
     {
-        UIComponent::Visibility* visibility = &registry->get<UIComponent::Visibility>(child.entId);
+        UIComponent::Visibility* visibility = &registry->get<UIComponent::Visibility>(childId);
         if (!UpdateParentVisibility(visibility, parentVisibility))
             continue;
 
         const bool newVisibility = visibility->visibilityFlags == UI::VisibilityFlags::FULL_VISIBLE;
-        UpdateChildVisibility(registry, child.entId, newVisibility);
+        UpdateChildVisibility(registry, childId, newVisibility);
 
         if (newVisibility)
-            registry->emplace<UIComponent::Visible>(child.entId);
+            registry->emplace<UIComponent::Visible>(childId);
         else
-            registry->remove<UIComponent::Visible>(child.entId);
+            registry->remove<UIComponent::Visible>(childId);
     }
 }

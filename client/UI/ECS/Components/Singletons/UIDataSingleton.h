@@ -17,13 +17,16 @@ namespace UISingleton
 
         robin_hood::unordered_map<entt::entity, UIScripting::BaseElement*> entityToElement;
 
-        entt::entity focusedWidget = entt::null;
-        entt::entity draggedWidget = entt::null;
-        entt::entity hoveredWidget = entt::null;
+        entt::entity focusedElement = entt::null;
+        entt::entity hoveredElement = entt::null;
+        entt::entity pressedElement = entt::null;
+
+        entt::entity resizedElement = entt::null;
+        entt::entity draggedElement = entt::null;
         hvec2 dragOffset = hvec2(0.f,0.f);
 
         //Resolution
-        const f32 referenceHeight = 1080.f;
+        const f32 referenceHeight = 768.f;
         hvec2 UIRESOLUTION = hvec2(0.0f, 0.f);
     };
 }

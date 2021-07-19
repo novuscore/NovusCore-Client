@@ -1,22 +1,19 @@
 #pragma once
 #include <NovusTypes.h>
-
-#include "BaseElement.h"
+#include "EventElement.h"
 
 namespace UIScripting
 {
     class Slider;
 
-    class SliderHandle : public BaseElement
+    class SliderHandle : public EventElement
     {
         friend Slider;
 
-        SliderHandle(Slider* owningSlider);
+        SliderHandle(Slider* owningSlider, const std::string& name, bool collisionEnabled = true);
 
     public:
-        void OnDragged();
-
-        static SliderHandle* CreateSliderHandle(Slider* owningSlider);
+        void OnDrag() override;
 
     private:
         Slider* _slider;

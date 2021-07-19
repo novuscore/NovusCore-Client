@@ -1,55 +1,38 @@
 #pragma once
 #include <NovusTypes.h>
-#include "BaseElement.h"
+#include "EventElement.h"
+
+namespace UI
+{
+    struct ImageStylesheet;
+    struct TextStylesheet;
+}
 
 namespace UIScripting
 {
     class Label;
 
-    class Button : public BaseElement
+    class Button : public EventElement
     {
     public:
-        Button();
+        Button(const std::string& name, bool collisionEnabled);
 
         static void RegisterType();
-
-        //Button Functions.
-        const bool IsClickable() const;
-        void SetOnClickCallback(asIScriptFunction* callback);
 
         //Label Functions
         const std::string GetText() const;
         void SetText(const std::string& text);
 
-        const Color& GetTextColor() const;
-        void SetTextColor(const Color& color);
+        void SetTextStylesheet(const UI::TextStylesheet& textStylesheet);
 
-        const Color& GetTextOutlineColor() const;
-        void SetTextOutlineColor(const Color& outlineColor);
+        //Panel Functions
+        void SetStylesheet(const UI::ImageStylesheet& stylesheet);
+        void SetFocusedStylesheet(const UI::ImageStylesheet& stylesheet);
+        void SetHoveredStylesheet(const UI::ImageStylesheet& stylesheet);
+        void SetPressedStylesheet(const UI::ImageStylesheet& stylesheet);
+        void SetDisabledStylesheet(const UI::ImageStylesheet& stylesheet);
 
-        const f32 GetTextOutlineWidth() const;
-        void SetTextOutlineWidth(f32 outlineWidth);
-
-        void SetFont(std::string fontPath, f32 fontSize);
-
-        //Panel Functions        
-        const std::string& GetTexture() const;
-        void SetTexture(const std::string& texture);
-
-        void SetTexCoord(const vec4& texCoords);
-
-        const Color GetColor() const;
-        void SetColor(const Color& color);
-
-        const std::string& GetBorder() const;
-        void SetBorder(const std::string& texture);
-
-        void SetBorderSize(const u32 topSize, const u32 rightSize, const u32 bottomSize, const u32 leftSize);
-        void SetBorderInset(const u32 topBorderInset, const u32 rightBorderInset, const u32 bottomBorderInset, const u32 leftBorderInset);
-
-        void SetSlicing(const u32 topOffset, const u32 rightOffset, const u32 bottomOffset, const u32 leftOffset);
-
-        static Button* CreateButton();
+        static Button* CreateButton(const std::string& name, bool collisionEnabled = true);
 
     private:
         Label* _label;
