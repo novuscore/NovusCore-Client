@@ -92,7 +92,7 @@ namespace UIScripting
     bool BaseElement::DoesFillParentSize() const
     {
         entt::registry* registry = ServiceLocator::GetUIRegistry();
-        return registry->has<UIComponent::TransformFill>(_entityId) && registry->get<UIComponent::TransformFill>(_entityId).HasFlag(UI::TransformFillFlags::FILL_PARENTSIZE);
+        return registry->has<UIComponent::TransformFill>(_entityId) && registry->get<UIComponent::TransformFill>(_entityId).flags;
     }
     void BaseElement::SetFillParentSize(bool fillParent)
     {

@@ -14,41 +14,11 @@
 
 #include "../../Utils/TransformUtils.h"
 #include "../../Utils/TextUtils.h"
+#include "../../Utils/RenderModelUtils.h"
 
 
 namespace UISystem
 {
-    inline void CalculateVertices(const vec2& pos, const vec2& size, const UI::FBox& texCoords, std::array<UI::UIVertex, 4>& vertices)
-    {
-        const UISingleton::UIDataSingleton& dataSingleton = ServiceLocator::GetUIRegistry()->ctx<UISingleton::UIDataSingleton>();
-
-        vec2 upperLeftPos = vec2(pos.x, pos.y);
-        vec2 upperRightPos = vec2(pos.x + size.x, pos.y);
-        vec2 lowerLeftPos = vec2(pos.x, pos.y + size.y);
-        vec2 lowerRightPos = vec2(pos.x + size.x, pos.y + size.y);
-
-        // Convert positions to UI render space (0.0 to 1.0).
-        upperLeftPos /= dataSingleton.UIRESOLUTION;
-        upperRightPos /= dataSingleton.UIRESOLUTION;
-        lowerLeftPos /= dataSingleton.UIRESOLUTION;
-        lowerRightPos /= dataSingleton.UIRESOLUTION;
-
-        // Flip Y.
-        upperLeftPos.y = 1.0f - upperLeftPos.y;
-        upperRightPos.y = 1.0f - upperRightPos.y;
-        lowerLeftPos.y = 1.0f - lowerLeftPos.y;
-        lowerRightPos.y = 1.0f - lowerRightPos.y;
-
-        // UI Vertices. (Pos, UV)
-        vertices[0] = { upperLeftPos, vec2(texCoords.left, texCoords.top) };
-
-        vertices[1] = { upperRightPos, vec2(texCoords.right, texCoords.top) };
-
-        vertices[2] = { lowerLeftPos, vec2(texCoords.left, texCoords.bottom) };
-
-        vertices[3] = { lowerRightPos, vec2(texCoords.right, texCoords.bottom) };
-    }
-
     void UpdateTextModelSystem::Update(entt::registry& registry)
     {
         Renderer::Renderer* renderer = ServiceLocator::GetRenderer();
@@ -135,11 +105,11 @@ namespace UISystem
                     const vec2 size = vec2(fontChar.width, fontChar.height);
                     constexpr UI::FBox texCoords{ 0.f, 1.f, 1.f, 0.f };
 
-                    std::array<UI::UIVertex, 4> vertices;
-                    CalculateVertices(pos, size, texCoords, vertices);
+                    UI::UIVertex vertices[4] = {};
+                    UIUtils::RenderModel::CreatePanelVertices(&registry, pos, size, texCoords, &vertices[0]);
 
                     UI::UIVertex* dst = &baseVertices[glyph * 4]; // 4 vertices per glyph
-                    memcpy(dst, vertices.data(), perGlyphVertexSize);
+                    memcpy(dst, vertices, perGlyphVertexSize);
                     baseTextureID[glyph] = fontChar.textureIndex;
 
                     currentPosition.x += fontChar.advance;
