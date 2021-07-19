@@ -26,8 +26,8 @@ namespace Renderer
             AddPass(pass);
         }
 
-        void AddSignalSemaphore(GPUSemaphoreID semaphoreID);
-        void AddWaitSemaphore(GPUSemaphoreID semaphoreID);
+        void AddSignalSemaphore(SemaphoreID semaphoreID);
+        void AddWaitSemaphore(SemaphoreID semaphoreID);
 
         void Setup();
         void Execute();

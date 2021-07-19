@@ -348,7 +348,7 @@ void MapObjectRenderer::RegisterMapObjectToBeLoaded(const std::string& mapObject
     u32 uniqueID = mapObjectPlacement.uniqueID;
     if (_uniqueIdCounter[uniqueID]++ == 0)
     {
-        MapObjectToBeLoaded& mapObjectToBeLoaded = _mapObjectsToBeLoaded.emplace_back();
+        MapObjectToBeLoaded& mapObjectToBeLoaded = _mapObjectsToBeLoaded.EmplaceBack();
         mapObjectToBeLoaded.placement = &mapObjectPlacement;
         mapObjectToBeLoaded.nmorName = &mapObjectName;
         mapObjectToBeLoaded.nmorNameHash = StringUtils::fnv1a_32(mapObjectName.c_str(), mapObjectName.length());
@@ -357,7 +357,7 @@ void MapObjectRenderer::RegisterMapObjectToBeLoaded(const std::string& mapObject
 
 void MapObjectRenderer::RegisterMapObjectsToBeLoaded(u16 chunkID, const Terrain::Chunk& chunk, StringTable& stringTable)
 {
-    _mapChunkToPlacementOffset[chunkID] = static_cast<u16>(_mapObjectsToBeLoaded.size());
+    _mapChunkToPlacementOffset[chunkID] = static_cast<u32>(_mapObjectsToBeLoaded.Size());
 
     for (u32 i = 0; i < chunk.mapObjectPlacements.size(); i++)
     {
@@ -366,7 +366,7 @@ void MapObjectRenderer::RegisterMapObjectsToBeLoaded(u16 chunkID, const Terrain:
         u32 uniqueID = mapObjectPlacement.uniqueID;
         if (_uniqueIdCounter[uniqueID]++ == 0)
         {
-            MapObjectToBeLoaded& mapObjectToBeLoaded = _mapObjectsToBeLoaded.emplace_back();
+            MapObjectToBeLoaded& mapObjectToBeLoaded = _mapObjectsToBeLoaded.EmplaceBack();
             mapObjectToBeLoaded.placement = &mapObjectPlacement;
             mapObjectToBeLoaded.nmorName = &stringTable.GetString(mapObjectPlacement.nameID);
             mapObjectToBeLoaded.nmorNameHash = stringTable.GetStringHash(mapObjectPlacement.nameID);
@@ -376,54 +376,67 @@ void MapObjectRenderer::RegisterMapObjectsToBeLoaded(u16 chunkID, const Terrain:
 
 void MapObjectRenderer::ExecuteLoad()
 {
-    size_t numMapObjectsToLoad = _mapObjectsToBeLoaded.size();
+    ZoneScopedN("MapObjectRenderer::ExecuteLoad()");
+
+    size_t numMapObjectsToLoad = _mapObjectsToBeLoaded.Size();
 
     if (numMapObjectsToLoad == 0)
         return;
 
-    for (MapObjectToBeLoaded& mapObjectToBeLoaded : _mapObjectsToBeLoaded)
-    {
-        // Placements reference a path to a MapObject, several placements can reference the same object
-        // Because of this we want only the first load to actually load the object, subsequent loads should just return the id to the already loaded version
-        u32 mapObjectID;
-
-        auto it = _nameHashToIndexMap.find(mapObjectToBeLoaded.nmorNameHash);
-        if (it == _nameHashToIndexMap.end())
+    _mapObjectsToBeLoaded.WriteLock(
+        [&](std::vector<MapObjectToBeLoaded>& mapObjectsToBeLoaded)
         {
-            mapObjectID = static_cast<u32>(_loadedMapObjects.size());
-            LoadedMapObject& mapObject = _loadedMapObjects.emplace_back();
-            mapObject.objectID = mapObjectID;
-            if (!LoadMapObject(mapObjectToBeLoaded, mapObject))
+            for (MapObjectToBeLoaded& mapObjectToBeLoaded : mapObjectsToBeLoaded)
             {
-                _loadedMapObjects.pop_back();
-                continue;
+                ZoneScoped;
+                ZoneText(mapObjectToBeLoaded.nmorName->c_str(), mapObjectToBeLoaded.nmorName->length());
+
+                // Placements reference a path to a MapObject, several placements can reference the same object
+                // Because of this we want only the first load to actually load the object, subsequent loads should just return the id to the already loaded version
+                u32 mapObjectID;
+
+                auto it = _nameHashToIndexMap.find(mapObjectToBeLoaded.nmorNameHash);
+                if (it == _nameHashToIndexMap.end())
+                {
+                    mapObjectID = static_cast<u32>(_loadedMapObjects.size());
+                    LoadedMapObject& mapObject = _loadedMapObjects.emplace_back();
+                    mapObject.objectID = mapObjectID;
+                    if (!LoadMapObject(mapObjectToBeLoaded, mapObject))
+                    {
+                        _loadedMapObjects.pop_back();
+                        continue;
+                    }
+
+                    _nameHashToIndexMap[mapObjectToBeLoaded.nmorNameHash] = mapObjectID;
+                }
+                else
+                {
+                    mapObjectID = it->second;
+                }
+
+                // Add Placement Details (This is used to go from a placement to LoadedMapObject or InstanceData
+                Terrain::PlacementDetails& placementDetails = _mapObjectPlacementDetails.emplace_back();
+                placementDetails.loadedIndex = mapObjectID;
+                placementDetails.instanceIndex = static_cast<u32>(_instances.size());
+
+                // Add placement as an instance here
+                AddInstance(_loadedMapObjects[mapObjectID], mapObjectToBeLoaded.placement);
             }
+        });
 
-            _nameHashToIndexMap[mapObjectToBeLoaded.nmorNameHash] = mapObjectID;
-        }
-        else
-        {
-            mapObjectID = it->second;
-        }
-        
-        // Add Placement Details (This is used to go from a placement to LoadedMapObject or InstanceData
-        Terrain::PlacementDetails& placementDetails = _mapObjectPlacementDetails.emplace_back();
-        placementDetails.loadedIndex = mapObjectID;
-        placementDetails.instanceIndex = static_cast<u32>(_instances.size());
-
-        // Add placement as an instance here
-        AddInstance(_loadedMapObjects[mapObjectID], mapObjectToBeLoaded.placement);
-    }
-
-    CreateBuffers();
-    _mapObjectsToBeLoaded.clear();
-
-    // Calculate triangles
-    _numTriangles = 0;
-
-    for (const DrawParameters& drawParameters : _drawParameters)
     {
-        _numTriangles += drawParameters.indexCount / 3;
+        ZoneScopedN("MapObjectRenderer::ExecuteLoad()::CreateBuffers()");
+
+        CreateBuffers();
+        _mapObjectsToBeLoaded.Clear();
+
+        // Calculate triangles
+        _numTriangles = 0;
+
+        for (const DrawParameters& drawParameters : _drawParameters)
+        {
+            _numTriangles += drawParameters.indexCount / 3;
+        }
     }
 }
 
@@ -609,7 +622,7 @@ bool MapObjectRenderer::LoadMapObject(MapObjectToBeLoaded& mapObjectToBeLoaded, 
     return true;
 }
 
-bool MapObjectRenderer::LoadRoot(const std::filesystem::path nmorPath, MeshRoot& meshRoot, LoadedMapObject& mapObject)
+bool MapObjectRenderer::LoadRoot(std::filesystem::path nmorPath, MeshRoot& meshRoot, LoadedMapObject& mapObject)
 {
     FileReader nmorFile(nmorPath.string(), nmorPath.filename().string());
     if (!nmorFile.Open())

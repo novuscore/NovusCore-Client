@@ -21,8 +21,8 @@ namespace Renderer
         DynamicArray<IRenderPass*> passes;
         DynamicArray<IRenderPass*> executingPasses;
 
-        DynamicArray<GPUSemaphoreID> signalSemaphores;
-        DynamicArray<GPUSemaphoreID> waitSemaphores;
+        DynamicArray<SemaphoreID> signalSemaphores;
+        DynamicArray<SemaphoreID> waitSemaphores;
     };
 
     RenderGraph::RenderGraph(Memory::Allocator* allocator, Renderer* renderer)
@@ -58,13 +58,13 @@ namespace Renderer
         }
     }
 
-    void RenderGraph::AddSignalSemaphore(GPUSemaphoreID semaphoreID)
+    void RenderGraph::AddSignalSemaphore(SemaphoreID semaphoreID)
     {
         RenderGraphData* data = static_cast<RenderGraphData*>(_data);
         data->signalSemaphores.Insert(semaphoreID);
     }
 
-    void RenderGraph::AddWaitSemaphore(GPUSemaphoreID semaphoreID)
+    void RenderGraph::AddWaitSemaphore(SemaphoreID semaphoreID)
     {
         RenderGraphData* data = static_cast<RenderGraphData*>(_data);
         data->waitSemaphores.Insert(semaphoreID);
@@ -97,12 +97,12 @@ namespace Renderer
         CommandList commandList(_renderer, _desc.allocator);
 
         // Add semaphores
-        for (GPUSemaphoreID signalSemaphore : data->signalSemaphores)
+        for (SemaphoreID signalSemaphore : data->signalSemaphores)
         {
             commandList.AddSignalSemaphore(signalSemaphore);
         }
 
-        for (GPUSemaphoreID waitSemaphore : data->waitSemaphores)
+        for (SemaphoreID waitSemaphore : data->waitSemaphores)
         {
             commandList.AddWaitSemaphore(waitSemaphore);
         }

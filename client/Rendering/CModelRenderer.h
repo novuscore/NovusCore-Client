@@ -3,6 +3,7 @@
 
 #include <Utils/StringUtils.h>
 #include <Utils/ConcurrentQueue.h>
+#include <Utils/SafeVector.h>
 #include <Memory/BufferRangeAllocator.h>
 
 #include <Renderer/Descriptors/ImageDesc.h>
@@ -331,7 +332,7 @@ private:
     robin_hood::unordered_map<u16, u32> _mapChunkToPlacementOffset;
     std::vector<Terrain::PlacementDetails> _complexModelPlacementDetails;
 
-    std::vector<ComplexModelToBeLoaded> _complexModelsToBeLoaded;
+    SafeVector<ComplexModelToBeLoaded> _complexModelsToBeLoaded; // TODO: Make this a concurrent queue
     std::vector<LoadedComplexModel> _loadedComplexModels;
     robin_hood::unordered_map<u32, u32> _nameHashToIndexMap;
     robin_hood::unordered_map<u32, u32> _opaqueDrawCallDataIndexToLoadedModelIndex;

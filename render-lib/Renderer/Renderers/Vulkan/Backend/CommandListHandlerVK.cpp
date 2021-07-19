@@ -25,16 +25,23 @@ namespace Renderer
 
             GraphicsPipelineID boundGraphicsPipeline = GraphicsPipelineID::Invalid();
             ComputePipelineID boundComputePipeline = ComputePipelineID::Invalid();
+
+            i8 renderPassOpenCount = 0;
+            QueueType queueType = QueueType::Graphics;
+        };
+
+        struct CommandListFamily
+        {
+            std::queue<CommandListID> availableCommandLists;
+            FrameResource<std::queue<CommandListID>, 2> closedCommandLists;
         };
 
         struct CommandListHandlerVKData : ICommandListHandlerVKData
         {
             std::vector<CommandList> commandLists;
-            std::queue<CommandListID> availableCommandLists;
+            std::array<CommandListFamily, QueueType::COUNT> commandListFamilies;
 
             u8 frameIndex = 0;
-            FrameResource<std::queue<CommandListID>, 2> closedCommandLists;
-
             FrameResource<VkFence, 2> frameFences;
         };
 
@@ -61,7 +68,7 @@ namespace Renderer
 
             data.frameIndex++;
 
-            if (data.frameIndex >= data.closedCommandLists.Num)
+            if (data.frameIndex >= data.commandListFamilies[0].closedCommandLists.Num)
             {
                 data.frameIndex = 0;
             }
@@ -71,32 +78,37 @@ namespace Renderer
         {
             CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
 
-            std::queue<CommandListID>& closedCommandLists = data.closedCommandLists.Get(data.frameIndex);
-
-            while (!closedCommandLists.empty())
+            for (u32 i = 0; i < data.commandListFamilies.size(); i++)
             {
-                CommandListID commandListID = closedCommandLists.front();
-                closedCommandLists.pop();
+                std::queue<CommandListID>& closedCommandLists = data.commandListFamilies[i].closedCommandLists.Get(data.frameIndex);
 
-                CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(commandListID)];
+                while (!closedCommandLists.empty())
+                {
+                    CommandListID commandListID = closedCommandLists.front();
+                    closedCommandLists.pop();
 
-                // Reset commandlist
-                vkResetCommandPool(_device->_device, commandList.commandPool, 0);
+                    CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(commandListID)];
 
-                // Push the commandlist into availableCommandLists
-                data.availableCommandLists.push(commandListID);
+                    // Reset commandlist
+                    vkResetCommandPool(_device->_device, commandList.commandPool, 0);
+
+                    // Push the commandlist into availableCommandLists
+                    data.commandListFamilies[i].availableCommandLists.push(commandListID);
+                }
             }
         }
 
-        CommandListID CommandListHandlerVK::BeginCommandList()
+        CommandListID CommandListHandlerVK::BeginCommandList(QueueType queueType)
         {
             CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
 
+            u32 queueTypeIndex = static_cast<u32>(queueType);
+
             CommandListID id;
-            if (!data.availableCommandLists.empty())
+            if (!data.commandListFamilies[queueTypeIndex].availableCommandLists.empty())
             {
-                id = data.availableCommandLists.front();
-                data.availableCommandLists.pop();
+                id = data.commandListFamilies[queueTypeIndex].availableCommandLists.front();
+                data.commandListFamilies[queueTypeIndex].availableCommandLists.pop();
 
                 CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(id)];
 
@@ -112,7 +124,7 @@ namespace Renderer
             }
             else
             {
-                return CreateCommandList();
+                return CreateCommandList(queueType);
             }
 
             return id;
@@ -127,7 +139,28 @@ namespace Renderer
             CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(id)];
 
             {
-                ZoneScopedNC("Submit", tracy::Color::Red3)
+                ZoneScopedNC("Submit", tracy::Color::Red3);
+
+                VkQueue queue = nullptr;
+
+                switch (commandList.queueType)
+                {
+                case QueueType::Graphics:
+                    queue = _device->_graphicsQueue;
+                    break;
+                case QueueType::Transfer:
+                    queue = _device->_transferQueue;
+                    break;
+                default:
+                    DebugHandler::PrintFatal("Tried to EndCommandList with unknown QueueType, did we add a QueueType without updating this function?");
+                    break;
+                }
+
+                // Validate command list
+                if (commandList.renderPassOpenCount != 0)
+                {
+                    DebugHandler::PrintFatal("We found unmatched calls to BeginPipeline in your commandlist, for every BeginPipeline you need to also EndPipeline!");
+                }
 
                 // Close command list
                 if (vkEndCommandBuffer(commandList.commandBuffer) != VK_SUCCESS)
@@ -156,14 +189,15 @@ namespace Renderer
                 submitInfo.signalSemaphoreCount = static_cast<u32>(commandList.signalSemaphores.size());
                 submitInfo.pSignalSemaphores = commandList.signalSemaphores.data();
 
-                vkQueueSubmit(_device->_graphicsQueue, 1, &submitInfo, fence);
+                vkQueueSubmit(queue, 1, &submitInfo, fence);
             }
 
             commandList.waitSemaphores.clear();
             commandList.signalSemaphores.clear();
             commandList.boundGraphicsPipeline = GraphicsPipelineID::Invalid();
 
-            data.closedCommandLists.Get(data.frameIndex).push(id);
+            u32 queueTypeIndex = static_cast<u32>(commandList.queueType);
+            data.commandListFamilies[queueTypeIndex].closedCommandLists.Get(data.frameIndex).push(id);
         }
 
         VkCommandBuffer CommandListHandlerVK::GetCommandBuffer(CommandListID id)
@@ -246,6 +280,24 @@ namespace Renderer
             return data.commandLists[static_cast<CommandListID::type>(id)].boundComputePipeline;
         }
 
+        i8 CommandListHandlerVK::GetRenderPassOpenCount(CommandListID id)
+        {
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
+
+            CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(id)];
+
+            return commandList.renderPassOpenCount;
+        }
+
+        void CommandListHandlerVK::SetRenderPassOpenCount(CommandListID id, i8 count)
+        {
+            CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
+
+            CommandList& commandList = data.commandLists[static_cast<CommandListID::type>(id)];
+
+            commandList.renderPassOpenCount = count;
+        }
+
         tracy::VkCtxManualScope*& CommandListHandlerVK::GetTracyScope(CommandListID id)
         {
             CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
@@ -262,7 +314,7 @@ namespace Renderer
             return data.frameFences.Get(data.frameIndex);
         }
 
-        CommandListID CommandListHandlerVK::CreateCommandList()
+        CommandListID CommandListHandlerVK::CreateCommandList(QueueType queueType)
         {
             CommandListHandlerVKData& data = static_cast<CommandListHandlerVKData&>(*_data);
 
@@ -270,9 +322,24 @@ namespace Renderer
             assert(id < CommandListID::MaxValue());
 
             CommandList commandList;
+            commandList.queueType = queueType;
 
             // Create commandpool
             QueueFamilyIndices queueFamilyIndices = _device->FindQueueFamilies(_device->_physicalDevice);
+
+            u32 queueFamilyIndex = 0;
+            switch (queueType)
+            {
+            case QueueType::Graphics:
+                queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+                break;
+            case QueueType::Transfer:
+                queueFamilyIndex = queueFamilyIndices.transferFamily.value();
+                break;
+            default:
+                DebugHandler::PrintFatal("Tried to create a CommandList with an unknown QueueType, did we add a QueueType without updating this function?");
+                break;
+            }
 
             VkCommandPoolCreateInfo poolInfo = {};
             poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;

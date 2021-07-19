@@ -86,11 +86,8 @@ ClientRenderer::ClientRenderer()
     glfwSetCursorPosCallback(_window->GetWindow(), CursorPositionCallback);
     glfwSetScrollCallback(_window->GetWindow(), ScrollCallback);
     glfwSetWindowIconifyCallback(_window->GetWindow(), WindowIconifyCallback);
-
-    Renderer::TextureDesc debugTexture;
-    debugTexture.path = "Data/textures/DebugTexture.bmp";
     
-    _renderer = new Renderer::RendererVK(debugTexture);
+    _renderer = new Renderer::RendererVK();
     _renderer->InitWindow(_window);
 
     InitImgui();
@@ -264,6 +261,11 @@ void ClientRenderer::Render()
         renderGraph.AddWaitSemaphore(_frameSyncSemaphores.Get(!_frameIndex)); // Wait for previous frame to finish
     }
 
+    if (_renderer->ShouldWaitForUpload())
+    {
+        renderGraph.AddWaitSemaphore(_renderer->GetUploadFinishedSemaphore());
+    }
+
     renderGraph.Setup();
     renderGraph.Execute();
     
@@ -358,12 +360,12 @@ void ClientRenderer::CreatePermanentResources()
     _resources.lightConstantBuffer = new Renderer::Buffer<LightConstantBuffer>(_renderer, "LightConstantBufffer", Renderer::BufferUsage::UNIFORM_BUFFER, Renderer::BufferCPUAccess::WriteOnly);
 
     // Frame allocator, this is a fast allocator for data that is only needed this frame
-    _frameAllocator = new Memory::StackAllocator(FRAME_ALLOCATOR_SIZE);
-    _frameAllocator->Init();
+    _frameAllocator = new Memory::StackAllocator();
+    _frameAllocator->Init(FRAME_ALLOCATOR_SIZE);
 
-    _sceneRenderedSemaphore = _renderer->CreateGPUSemaphore();
+    _sceneRenderedSemaphore = _renderer->CreateNSemaphore();
     for (u32 i = 0; i < _frameSyncSemaphores.Num; i++)
     {
-        _frameSyncSemaphores.Get(i) = _renderer->CreateGPUSemaphore();
+        _frameSyncSemaphores.Get(i) = _renderer->CreateNSemaphore();
     }
 }

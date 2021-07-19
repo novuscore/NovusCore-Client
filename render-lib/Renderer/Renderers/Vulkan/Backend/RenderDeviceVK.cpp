@@ -232,7 +232,7 @@ namespace Renderer
             VkCommandBufferAllocateInfo allocInfo = {};
             allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
             allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            allocInfo.commandPool = _commandPool;
+            allocInfo.commandPool = _graphicsCommandPool;
             allocInfo.commandBufferCount = 1;
 
             VkCommandBuffer command_buffer;
@@ -255,7 +255,7 @@ namespace Renderer
             vkQueueWaitIdle(_graphicsQueue);
 
             ImGui_ImplVulkan_DestroyFontUploadObjects();
-            vkFreeCommandBuffers(_device, _commandPool, 1, &command_buffer);
+            vkFreeCommandBuffers(_device, _graphicsCommandPool, 1, &command_buffer);
         }
 
         void RenderDeviceVK::InitVulkan()
@@ -284,32 +284,26 @@ namespace Renderer
             std::vector<VkExtensionProperties> extensions(extensionCount);
             vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
 
-            /*DebugHandler::Print("[Renderer]: Supported extensions:");
-            for (VkExtensionProperties& extension : extensions)
-            {
-                DebugHandler::Print("[Renderer]: %s", extension.extensionName);
-            }*/
-
             auto requiredExtensions = GetRequiredExtensions();
 
             createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
             createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
-#if _DEBUG && ENABLE_VALIDATION_IN_DEBUG
+#if _DEBUG
             VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
+#if ENABLE_VALIDATION_IN_DEBUG
             createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
             createInfo.ppEnabledLayerNames = validationLayers.data();
+#endif
 
             PopulateDebugMessengerCreateInfo(debugCreateInfo);
-
-
             createInfo.pNext = &debugCreateInfo;
-            
 #else
             createInfo.enabledLayerCount = 0;
 
             createInfo.pNext = nullptr;
 #endif
+
             if (vkCreateInstance(&createInfo, nullptr, &_instance) != VK_SUCCESS)
             {
                 DebugHandler::PrintFatal("Failed to create Vulkan instance!");
@@ -395,7 +389,7 @@ namespace Renderer
             QueueFamilyIndices indices = FindQueueFamilies(_physicalDevice);
 
             std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-            std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+            std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.transferFamily.value(), indices.presentFamily.value() };
 
             float queuePriority = 1.0f;
             for (uint32_t queueFamily : uniqueQueueFamilies) 
@@ -471,6 +465,7 @@ namespace Renderer
             DebugMarkerUtilVK::InitializeFunctions(_device);
 
             vkGetDeviceQueue(_device, indices.graphicsFamily.value(), 0, &_graphicsQueue);
+            vkGetDeviceQueue(_device, indices.transferFamily.value(), 0, &_transferQueue);
             vkGetDeviceQueue(_device, indices.presentFamily.value(), 0, &_presentQueue);
         }
 
@@ -488,14 +483,30 @@ namespace Renderer
         {
             QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(_physicalDevice);
 
-            VkCommandPoolCreateInfo poolInfo = {};
-            poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-            poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-            poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT; // Optional
-
-            if (vkCreateCommandPool(_device, &poolInfo, nullptr, &_commandPool) != VK_SUCCESS)
+            // Create graphics command pool
             {
-                DebugHandler::PrintFatal("Failed to create command pool!");
+                VkCommandPoolCreateInfo poolInfo = {};
+                poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+                poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+                poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT; // Optional
+
+                if (vkCreateCommandPool(_device, &poolInfo, nullptr, &_graphicsCommandPool) != VK_SUCCESS)
+                {
+                    DebugHandler::PrintFatal("Failed to create command pool!");
+                }
+            }
+
+            // Create transfer command pool
+            {
+                VkCommandPoolCreateInfo poolInfo = {};
+                poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+                poolInfo.queueFamilyIndex = queueFamilyIndices.transferFamily.value();
+                poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT; // Optional
+
+                if (vkCreateCommandPool(_device, &poolInfo, nullptr, &_transferCommandPool) != VK_SUCCESS)
+                {
+                    DebugHandler::PrintFatal("Failed to create command pool!");
+                }
             }
         }
 
@@ -504,7 +515,7 @@ namespace Renderer
             VkCommandBufferAllocateInfo allocInfo = {};
             allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
             allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            allocInfo.commandPool = _commandPool;
+            allocInfo.commandPool = _graphicsCommandPool;
             allocInfo.commandBufferCount = 1;
 
             VkCommandBuffer tracyBuffer;
@@ -513,7 +524,7 @@ namespace Renderer
             _tracyContext = TracyVkContext(_physicalDevice, _device, _graphicsQueue, tracyBuffer);
 
             vkQueueWaitIdle(_graphicsQueue);
-            vkFreeCommandBuffers(_device, _commandPool, 1, &tracyBuffer);
+            vkFreeCommandBuffers(_device, _graphicsCommandPool, 1, &tracyBuffer);
         }
 
         void RenderDeviceVK::CreateSurface(GLFWwindow* window, SwapChainVK* swapChain)
@@ -592,8 +603,8 @@ namespace Renderer
         {
             for (u32 i = 0; i < SwapChainVK::FRAME_BUFFER_COUNT; i++)
             {
-                swapChain->imageAvailableSemaphores.Get(i) = semaphoreHandler->CreateGPUSemaphore();
-                swapChain->blitFinishedSemaphores.Get(i) = semaphoreHandler->CreateGPUSemaphore();
+                swapChain->imageAvailableSemaphores.Get(i) = semaphoreHandler->CreateNSemaphore();
+                swapChain->blitFinishedSemaphores.Get(i) = semaphoreHandler->CreateNSemaphore();
             }
         }
 
@@ -713,12 +724,22 @@ namespace Renderer
             std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
             vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
+            VkQueueFlags transferQueueFlags = VK_QUEUE_TRANSFER_BIT;
+#if _DEBUG
+            transferQueueFlags |= VK_QUEUE_COMPUTE_BIT;
+#endif
+
             int i = 0;
             for (const auto& queueFamily : queueFamilies)
             {
                 if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
                 {
                     indices.graphicsFamily = i;
+                }
+
+                if (queueFamily.queueCount > 0 && (queueFamily.queueFlags & transferQueueFlags) == transferQueueFlags)
+                {
+                    indices.transferFamily = i;
                 }
                 
                 VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
@@ -1233,7 +1254,7 @@ namespace Renderer
             VkCommandBufferAllocateInfo allocInfo = {};
             allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
             allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            allocInfo.commandPool = _commandPool;
+            allocInfo.commandPool = _graphicsCommandPool;
             allocInfo.commandBufferCount = 1;
 
             VkCommandBuffer commandBuffer;
@@ -1260,7 +1281,7 @@ namespace Renderer
             vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
             vkQueueWaitIdle(_graphicsQueue);
 
-            vkFreeCommandBuffers(_device, _commandPool, 1, &commandBuffer);
+            vkFreeCommandBuffers(_device, _graphicsCommandPool, 1, &commandBuffer);
         }
 
         void RenderDeviceVK::CopyBuffer(VkBuffer dstBuffer, u64 dstOffset, VkBuffer srcBuffer, u64 srcOffset, u64 range)
@@ -1278,9 +1299,16 @@ namespace Renderer
 
         void RenderDeviceVK::CopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, VkFormat format, u32 width, u32 height, u32 numLayers, u32 numMipLevels)
         {
-            VkDeviceSize bufferOffset = 0;
-
             VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
+
+            CopyBufferToImage(commandBuffer, srcBuffer, 0, dstImage, format, width, height, numLayers, numMipLevels);
+
+            EndSingleTimeCommands(commandBuffer);
+        }
+
+        void RenderDeviceVK::CopyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer srcBuffer, size_t srcOffset, VkImage dstImage, VkFormat format, u32 width, u32 height, u32 numLayers, u32 numMipLevels)
+        {
+            VkDeviceSize bufferOffset = srcOffset;
 
             std::vector<VkBufferImageCopy> regions;
             regions.reserve(numMipLevels);
@@ -1339,8 +1367,6 @@ namespace Renderer
                 numMipLevels,
                 regions.data()
             );
-
-            EndSingleTimeCommands(commandBuffer);
         }
 
         void RenderDeviceVK::TransitionImageLayout(VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout, u32 numLayers, u32 numMipLevels)

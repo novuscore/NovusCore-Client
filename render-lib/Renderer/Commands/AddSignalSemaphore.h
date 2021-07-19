@@ -1,6 +1,6 @@
 #pragma once
 #include <NovusTypes.h>
-#include "../Descriptors/GPUSemaphoreDesc.h"
+#include "../Descriptors/SemaphoreDesc.h"
 
 namespace Renderer
 {
@@ -10,7 +10,7 @@ namespace Renderer
         {
             static const BackendDispatchFunction DISPATCH_FUNCTION;
 
-            GPUSemaphoreID semaphore;
+            SemaphoreID semaphore;
         };
     }
 }

@@ -20,6 +20,13 @@ namespace Renderer
 
         struct ICommandListHandlerVKData {};
 
+        enum QueueType
+        {
+            Graphics,
+            Transfer,
+            COUNT
+        };
+
         class CommandListHandlerVK
         {
         public:
@@ -28,7 +35,7 @@ namespace Renderer
             void FlipFrame();
             void ResetCommandBuffers();
 
-            CommandListID BeginCommandList();
+            CommandListID BeginCommandList(QueueType queueType);
             void EndCommandList(CommandListID id, VkFence fence);
 
             VkCommandBuffer GetCommandBuffer(CommandListID id);
@@ -42,12 +49,15 @@ namespace Renderer
             GraphicsPipelineID GetBoundGraphicsPipeline(CommandListID id);
             ComputePipelineID GetBoundComputePipeline(CommandListID id);
 
+            i8 GetRenderPassOpenCount(CommandListID id);
+            void SetRenderPassOpenCount(CommandListID id, i8 count);
+
             tracy::VkCtxManualScope*& GetTracyScope(CommandListID id);
 
             VkFence GetCurrentFence();
 
         private:
-            CommandListID CreateCommandList();
+            CommandListID CreateCommandList(QueueType queueType);
 
         private:
 

@@ -4,6 +4,7 @@
 #include <array>
 
 #include <Utils/StringUtils.h>
+#include <Utils/SafeVector.h>
 #include <Math/Geometry.h>
 #include <Renderer/Descriptors/ImageDesc.h>
 #include <Renderer/Descriptors/DepthImageDesc.h>
@@ -88,15 +89,15 @@ public:
 
     bool LoadMap(const NDBC::Map* map);
 
-    const std::vector<Geometry::AABoundingBox>& GetBoundingBoxes() { return _cellBoundingBoxes; }
+    const SafeVector<Geometry::AABoundingBox>& GetBoundingBoxes() { return _cellBoundingBoxes; }
     MapObjectRenderer* GetMapObjectRenderer() { return _mapObjectRenderer; }
 
     // Drawcall stats
-    u32 GetNumDrawCalls() { return Terrain::MAP_CELLS_PER_CHUNK * static_cast<u32>(_loadedChunks.size()); }
+    u32 GetNumDrawCalls() { return Terrain::MAP_CELLS_PER_CHUNK * static_cast<u32>(_loadedChunks.Size()); }
     u32 GetNumSurvivingDrawCalls() { return _numSurvivingDrawCalls; }
 
     // Triangle stats
-    u32 GetNumTriangles() { return Terrain::MAP_CELLS_PER_CHUNK * static_cast<u32>(_loadedChunks.size()) * Terrain::NUM_TRIANGLES_PER_CELL; }
+    u32 GetNumTriangles() { return Terrain::MAP_CELLS_PER_CHUNK * static_cast<u32>(_loadedChunks.Size()) * Terrain::NUM_TRIANGLES_PER_CELL; }
     u32 GetNumSurvivingTriangles() { return _numSurvivingDrawCalls * Terrain::NUM_TRIANGLES_PER_CELL; }
 private:
     void CreatePermanentResources();
@@ -129,6 +130,7 @@ private:
     Renderer::BufferID _cellIndexBuffer;
     
     Renderer::TextureArrayID _terrainColorTextureArray;
+
     Renderer::TextureArrayID _terrainAlphaTextureArray;
 
     Renderer::SamplerID _alphaSampler;
@@ -139,12 +141,13 @@ private:
 
     Renderer::DescriptorSet _cullingPassDescriptorSet;
 
-    std::vector<u16> _loadedChunks;
-    std::vector<Geometry::AABoundingBox> _cellBoundingBoxes;
+    SafeVector<u16> _loadedChunks;
+    SafeVector<Geometry::AABoundingBox> _cellBoundingBoxes;
 
     std::vector<CellInstance> _culledInstances;
-
     std::vector<ChunkToBeLoaded> _chunksToBeLoaded;
+
+    std::mutex _subLoadMutex;
 
     u32 _numSurvivingDrawCalls;
     

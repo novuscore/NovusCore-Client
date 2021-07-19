@@ -90,29 +90,31 @@ Vertex UnpackVertex(PackedVertex packedVertex)
     return vertex;
 }
 
-Vertex LoadVertex(uint vertexID, uint vertexColor1Offset, uint vertexColor2Offset, uint vertexColorTextureID0, uint vertexColorTextureID1, uint vertexMeshOffset)
+Vertex LoadVertex(uint vertexID, uint vertexColor0Offset, uint vertexColor1Offset, uint vertexColorTextureID0, uint vertexColorTextureID1, uint vertexMeshOffset)
 {
     PackedVertex packedVertex = _packedVertices[vertexID];
     
     Vertex vertex = UnpackVertex(packedVertex);
 
 #if COLOR_PASS
-    uint offsetVertex = vertexID - vertexMeshOffset;
+    // vertexMeshOffset refers to the offset into the global vertices list where the mesh that this vertex is part of starts
+    // localVertexOffset refers to the local vertex id, if the mesh starts at 300 and vertexID is 303, the localVertexOffset is 3
+    uint localVertexOffset = vertexID - vertexMeshOffset;
+
+    bool hasVertexColor0 = vertexColor0Offset != 0xffffffff;
+    {
+        uint offsetVertexID0 = (localVertexOffset + vertexColor0Offset) * hasVertexColor0;
+        uint3 vertexColorUV0 = uint3((float)offsetVertexID0 % 1024.0f, (float)offsetVertexID0 / 1024.0f, 0);
+
+        vertex.color0 = _textures[NonUniformResourceIndex(vertexColorTextureID0)].Load(vertexColorUV0) * float4(hasVertexColor0, hasVertexColor0, hasVertexColor0, 1.0f);
+    }
 
     bool hasVertexColor1 = vertexColor1Offset != 0xffffffff;
     {
-        uint offsetVertexID1 = (offsetVertex + vertexColor1Offset) * hasVertexColor1;
+        uint offsetVertexID1 = (localVertexOffset + vertexColor1Offset) * hasVertexColor1;
         uint3 vertexColorUV1 = uint3((float)offsetVertexID1 % 1024.0f, (float)offsetVertexID1 / 1024.0f, 0);
 
-        vertex.color0 = _textures[NonUniformResourceIndex(vertexColorTextureID0)].Load(vertexColorUV1) * float4(hasVertexColor1, hasVertexColor1, hasVertexColor1, 1.0f);
-    }
-
-    bool hasVertexColor2 = vertexColor2Offset != 0xffffffff;
-    {
-        uint offsetVertexID2 = (offsetVertex + vertexColor2Offset) * hasVertexColor2;
-        uint3 vertexColorUV2 = uint3((float)offsetVertexID2 % 1024.0f, (float)offsetVertexID2 / 1024.0f, 0);
-
-        vertex.color1 = _textures[NonUniformResourceIndex(vertexColorTextureID1)].Load(vertexColorUV2) * float4(hasVertexColor2, hasVertexColor2, hasVertexColor2, 1.0f);
+        vertex.color1 = _textures[NonUniformResourceIndex(vertexColorTextureID1)].Load(vertexColorUV1) * float4(hasVertexColor1, hasVertexColor1, hasVertexColor1, 1.0f);
     }
 #endif
 
@@ -151,7 +153,7 @@ VSOutput main(VSInput input)
     uint materialParamID = lookupData.materialParamID;
 
     InstanceData instanceData = _instanceData[instanceID];
-    Vertex vertex = LoadVertex(input.vertexID, lookupData.vertexColor1Offset, lookupData.vertexColor2Offset, vertexColorTextureID0, vertexColorTextureID1, vertexOffset);
+    Vertex vertex = LoadVertex(input.vertexID, lookupData.vertexColor0Offset, lookupData.vertexColor1Offset, vertexColorTextureID0, vertexColorTextureID1, vertexOffset);
 
     float4 position = float4(vertex.position, 1.0f);
     position = mul(position, instanceData.instanceMatrix);

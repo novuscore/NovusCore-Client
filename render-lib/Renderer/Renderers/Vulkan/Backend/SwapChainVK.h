@@ -5,7 +5,7 @@
 #include "../../../SwapChain.h"
 #include "../../../FrameResource.h"
 #include "../../../Descriptors/GraphicsPipelineDesc.h"
-#include "../../../Descriptors/GPUSemaphoreDesc.h"
+#include "../../../Descriptors/SemaphoreDesc.h"
 
 struct GLFWwindow;
 
@@ -126,8 +126,8 @@ namespace Renderer
 
             static const u32 FRAME_BUFFER_COUNT = 2;
             FrameResource<ImageID, FRAME_BUFFER_COUNT> imageIDs;
-            FrameResource<GPUSemaphoreID, FRAME_BUFFER_COUNT> imageAvailableSemaphores;
-            FrameResource<GPUSemaphoreID, FRAME_BUFFER_COUNT> blitFinishedSemaphores;
+            FrameResource<SemaphoreID, FRAME_BUFFER_COUNT> imageAvailableSemaphores;
+            FrameResource<SemaphoreID, FRAME_BUFFER_COUNT> blitFinishedSemaphores;
         };
     }
 }

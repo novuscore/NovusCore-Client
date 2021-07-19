@@ -1,6 +1,7 @@
 #pragma once
 #include "../../Renderer.h"
 #include <array>
+#include <mutex>
 
 struct VkDescriptorSetLayoutBinding;
 
@@ -17,6 +18,7 @@ namespace Renderer
         class CommandListHandlerVK;
         class SamplerHandlerVK;
         class SemaphoreHandlerVK;
+        class UploadBufferHandlerVK;
         struct BindInfo;
         class DescriptorSetBuilderVK;
         struct SwapChainVK;
@@ -26,7 +28,7 @@ namespace Renderer
     class RendererVK : public Renderer
     {
     public:
-        RendererVK(TextureDesc& debugTexture);
+        RendererVK();
 
         void InitWindow(Window* window) override;
         void Deinit() override;
@@ -42,7 +44,7 @@ namespace Renderer
         [[nodiscard]] DepthImageID CreateDepthImage(DepthImageDesc& desc) override;
 
         [[nodiscard]] SamplerID CreateSampler(SamplerDesc& desc) override;
-        [[nodiscard]] GPUSemaphoreID CreateGPUSemaphore() override;
+        [[nodiscard]] SemaphoreID CreateNSemaphore() override;
 
         [[nodiscard]] GraphicsPipelineID CreatePipeline(GraphicsPipelineDesc& desc) override;
         [[nodiscard]] ComputePipelineID CreatePipeline(ComputePipelineDesc& desc) override;
@@ -91,8 +93,8 @@ namespace Renderer
         void MarkFrameStart(CommandListID commandListID, u32 frameIndex) override;
         void BeginTrace(CommandListID commandListID, const tracy::SourceLocationData* sourceLocation) override;
         void EndTrace(CommandListID commandListID) override;
-        void AddSignalSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) override;
-        void AddWaitSemaphore(CommandListID commandListID, GPUSemaphoreID semaphoreID) override;
+        void AddSignalSemaphore(CommandListID commandListID, SemaphoreID semaphoreID) override;
+        void AddWaitSemaphore(CommandListID commandListID, SemaphoreID semaphoreID) override;
         void CopyImage(CommandListID commandListID, ImageID dstImageID, uvec2 dstPos, u32 dstMipLevel, ImageID srcImageID, uvec2 srcPos, u32 srcMipLevel, uvec2 size) override;
         void CopyBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
         void PipelineBarrier(CommandListID commandListID, PipelineBarrierType type, BufferID buffer) override;
@@ -102,33 +104,37 @@ namespace Renderer
         void FillBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, u32 data) override;
         void UpdateBuffer(CommandListID commandListID, BufferID dstBuffer, u64 dstOffset, u64 size, void* data) override;
 
-        // Non-commandlist based present functions
-        void Present(Window* window, ImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;
-        void Present(Window* window, DepthImageID image, GPUSemaphoreID semaphoreID = GPUSemaphoreID::Invalid()) override;
+        // Present functions
+        void Present(Window* window, ImageID image, SemaphoreID semaphoreID = SemaphoreID::Invalid()) override;
+        void Present(Window* window, DepthImageID image, SemaphoreID semaphoreID = SemaphoreID::Invalid()) override;
+
+        // Staging and memory
+        [[nodiscard]] std::shared_ptr<UploadBuffer> CreateUploadBuffer(BufferID targetBuffer, size_t targetOffset, size_t size) override;
+        [[nodiscard]] bool ShouldWaitForUpload() override;
+        [[nodiscard]] SemaphoreID GetUploadFinishedSemaphore() override;
+
+        void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
+
+        [[nodiscard]] void* MapBuffer(BufferID buffer) override;
+        void UnmapBuffer(BufferID buffer) override;
 
         // Utils
         void FlipFrame(u32 frameIndex) override;
 
         [[nodiscard]] ImageDesc GetImageDesc(ImageID ID) override;
         [[nodiscard]] DepthImageDesc GetDepthImageDesc(DepthImageID ID) override;
-
         [[nodiscard]] uvec2 GetImageDimension(const ImageID id, u32 mipLevel) override;
-
-        void CopyBuffer(BufferID dstBuffer, u64 dstOffset, BufferID srcBuffer, u64 srcOffset, u64 range) override;
-
-        void* MapBuffer(BufferID buffer) override;
-        void UnmapBuffer(BufferID buffer) override;
 
         [[nodiscard]] const std::string& GetGPUName() override;
 
         [[nodiscard]] size_t GetVRAMUsage() override;
         [[nodiscard]] size_t GetVRAMBudget() override;
 
-        void InitImgui() override;
-        void DrawImgui(CommandListID commandListID) override;
-
         [[nodiscard]] u32 GetNumImages() override;
         [[nodiscard]] u32 GetNumDepthImages() override;
+
+        void InitImgui() override;
+        void DrawImgui(CommandListID commandListID) override;
 
     private:
         [[nodiscard]] bool ReflectDescriptorSet(const std::string& name, u32 nameHash, u32 type, i32& set, const std::vector<Backend::BindInfo>& bindInfos, u32& outBindInfoIndex, VkDescriptorSetLayoutBinding* outDescriptorLayoutBinding);
@@ -147,6 +153,7 @@ namespace Renderer
         Backend::CommandListHandlerVK* _commandListHandler = nullptr;
         Backend::SamplerHandlerVK* _samplerHandler = nullptr;
         Backend::SemaphoreHandlerVK* _semaphoreHandler = nullptr;
+        Backend::UploadBufferHandlerVK* _uploadBufferHandler = nullptr;
 
         GraphicsPipelineID _globalDummyPipeline = GraphicsPipelineID::Invalid();
         Backend::DescriptorSetBuilderVK* _descriptorSetBuilder = nullptr;
@@ -154,7 +161,7 @@ namespace Renderer
         Viewport _lastViewport;
         ScissorRect _lastScissorRect;
 
-        i8 _renderPassOpenCount = 0; // TODO: Move these into CommandListHandler I guess?
+        std::mutex _destroyListMutex;
 
         struct ObjectDestroyList
         {

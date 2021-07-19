@@ -4,5 +4,5 @@
 
 namespace Renderer
 {
-    STRONG_TYPEDEF(GPUSemaphoreID, u16);
+    STRONG_TYPEDEF(SemaphoreID, u16);
 }

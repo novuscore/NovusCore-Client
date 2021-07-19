@@ -36,7 +36,7 @@ namespace ASSceneManagerUtils
             {
                 context->SetArgDWord(0, sceneLoaded);
             }
-            ZoneScopedN(sceneCallback.callback->GetName())
+            ZoneScoped;
             context->Execute();
         }
 
@@ -46,7 +46,7 @@ namespace ASSceneManagerUtils
             {
                 context->SetArgDWord(0, sceneLoaded);
             }
-            ZoneScopedN(sceneCallback.callback->GetName())
+            ZoneScoped;
             context->Execute();
         }
     }

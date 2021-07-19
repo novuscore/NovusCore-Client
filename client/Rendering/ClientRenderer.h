@@ -2,7 +2,7 @@
 #include <NovusTypes.h>
 
 #include <Renderer/Descriptors/SamplerDesc.h>
-#include <Renderer/Descriptors/GPUSemaphoreDesc.h>
+#include <Renderer/Descriptors/SemaphoreDesc.h>
 
 #include <Renderer/FrameResource.h>
 
@@ -71,8 +71,8 @@ private:
 
     RenderResources _resources;
 
-    Renderer::GPUSemaphoreID _sceneRenderedSemaphore; // This semaphore tells the present function when the scene is ready to be blitted and presented
-    FrameResource<Renderer::GPUSemaphoreID, 2> _frameSyncSemaphores; // This semaphore makes sure the GPU handles frames in order
+    Renderer::SemaphoreID _sceneRenderedSemaphore; // This semaphore tells the present function when the scene is ready to be blitted and presented
+    FrameResource<Renderer::SemaphoreID, 2> _frameSyncSemaphores; // This semaphore makes sure the GPU handles frames in order
 
     // Sub renderers
     DebugRenderer* _debugRenderer;

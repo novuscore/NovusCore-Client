@@ -9,7 +9,7 @@
 #include <Renderer/Descriptors/TextureDesc.h>
 #include <Renderer/Descriptors/ModelDesc.h>
 #include <Renderer/Descriptors/SamplerDesc.h>
-#include <Renderer/Descriptors/GPUSemaphoreDesc.h>
+#include <Renderer/Descriptors/SemaphoreDesc.h>
 #include <Renderer/DescriptorSet.h>
 #include <Renderer/FrameResource.h>
 #include <Renderer/Buffer.h>

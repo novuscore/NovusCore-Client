@@ -27,6 +27,7 @@
 #include "RenderResources.h"
 
 #define USE_PACKED_HEIGHT_RANGE 1
+#define PARALLEL_LOADING 1
 
 
 AutoCVar_Int CVAR_OcclusionCullingEnabled("terrain.occlusionCull.Enable", "enable culling of terrain tiles", 1, CVarFlags::EditCheckbox);
@@ -125,7 +126,7 @@ void TerrainRenderer::Update(f32 deltaTime)
     }
 
     // Read back from culling counters
-    u32 numDrawCalls = Terrain::MAP_CELLS_PER_CHUNK * static_cast<u32>(_loadedChunks.size());
+    u32 numDrawCalls = Terrain::MAP_CELLS_PER_CHUNK * static_cast<u32>(_loadedChunks.Size());
     _numSurvivingDrawCalls = numDrawCalls;
 
     if (cullingEnabled)
@@ -212,9 +213,9 @@ void TerrainRenderer::CPUCulling(const Camera* camera)
     }
 
     _culledInstances.clear();
-    _culledInstances.reserve(_loadedChunks.size() * Terrain::MAP_CELLS_PER_CHUNK);
+    _culledInstances.reserve(_loadedChunks.Size() * Terrain::MAP_CELLS_PER_CHUNK);
 
-    const size_t chunkCount = _loadedChunks.size();
+    const size_t chunkCount = _loadedChunks.Size();
     size_t boundingBoxIndex = 0;
     for (size_t i = 0; i < chunkCount; ++i)
     {
@@ -222,10 +223,20 @@ void TerrainRenderer::CPUCulling(const Camera* camera)
         {
             u32 index = static_cast<u32>(boundingBoxIndex++);
 
-            const Geometry::AABoundingBox& boundingBox = _cellBoundingBoxes[index];
-            if (IsInsideFrustum(frustumPlanes, boundingBox))
+            const Geometry::AABoundingBox* boundingBox = nullptr;
+            _cellBoundingBoxes.ReadLock([&](const std::vector<Geometry::AABoundingBox>& boundingBoxes) {
+                boundingBox = &boundingBoxes[index];
+                });
+
+            //const Geometry::AABoundingBox& boundingBox = _cellBoundingBoxes[index];
+            if (IsInsideFrustum(frustumPlanes, *boundingBox))
             {
-                const u16 chunkId = _loadedChunks[i];
+                u16 chunkId = 0;
+                _loadedChunks.ReadLock(
+                    [&](const std::vector<u16>& loadedChunks)
+                    {
+                        chunkId = loadedChunks[i];
+                    });
 
                 CellInstance& cellInstance = _culledInstances.emplace_back();
                 cellInstance.packedChunkCellID = (chunkId << 16) | cellId;
@@ -295,19 +306,9 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
                 // Upload culled instances
                 if (cullingEnabled && !gpuCullEnabled && !_culledInstances.empty())
                 {
-                    Renderer::BufferDesc uploadBufferDesc;
-                    uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
-                    uploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-                    uploadBufferDesc.size = sizeof(CellInstance) * _culledInstances.size();
-                    uploadBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-
-                    Renderer::BufferID instanceUploadBuffer = _renderer->CreateBuffer(uploadBufferDesc);
-                    _renderer->QueueDestroyBuffer(instanceUploadBuffer);
-
-                    void* instanceBufferMemory = _renderer->MapBuffer(instanceUploadBuffer);
-                    memcpy(instanceBufferMemory, _culledInstances.data(), uploadBufferDesc.size);
-                    _renderer->UnmapBuffer(instanceUploadBuffer);
-                    commandList.CopyBuffer(_culledInstanceBuffer, 0, instanceUploadBuffer, 0, uploadBufferDesc.size);
+                    size_t size = sizeof(CellInstance) * _culledInstances.size();
+                    auto uploadBuffer = _renderer->CreateUploadBuffer(_culledInstanceBuffer, 0, size);
+                    memcpy(uploadBuffer->mappedMemory, _culledInstances.data(), size);
 
                     commandList.PipelineBarrier(Renderer::PipelineBarrierType::TransferDestToIndirectArguments, _culledInstanceBuffer);
                 }
@@ -365,7 +366,7 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
                     commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::GLOBAL, &resources.globalDescriptorSet, frameIndex);
                     commandList.BindDescriptorSet(Renderer::DescriptorSetSlot::PER_PASS, &_cullingPassDescriptorSet, frameIndex);
 
-                    const u32 cellCount = (u32)_loadedChunks.size() * Terrain::MAP_CELLS_PER_CHUNK;
+                    const u32 cellCount = (u32)_loadedChunks.Size() * Terrain::MAP_CELLS_PER_CHUNK;
                     commandList.Dispatch((cellCount + 31) / 32, 1, 1);
 
                     commandList.EndPipeline(pipeline);
@@ -439,7 +440,7 @@ void TerrainRenderer::AddTerrainDepthPrepass(Renderer::RenderGraph* renderGraph,
                 }
                 else
                 {
-                    const u32 cellCount = Terrain::MAP_CELLS_PER_CHUNK * (u32)_loadedChunks.size();
+                    const u32 cellCount = Terrain::MAP_CELLS_PER_CHUNK * (u32)_loadedChunks.Size();
                     TracyPlot("Cell Instance Count", (i64)cellCount);
                     commandList.DrawIndexed(Terrain::NUM_INDICES_PER_CELL, cellCount, 0, 0, 0);
                 }
@@ -573,7 +574,7 @@ void TerrainRenderer::AddTerrainPass(Renderer::RenderGraph* renderGraph, RenderR
             }
             else
             {
-                const u32 cellCount = Terrain::MAP_CELLS_PER_CHUNK * (u32)_loadedChunks.size();
+                const u32 cellCount = Terrain::MAP_CELLS_PER_CHUNK * (u32)_loadedChunks.Size();
                 TracyPlot("Cell Instance Count", (i64)cellCount);
                 commandList.DrawIndexed(Terrain::NUM_INDICES_PER_CELL, cellCount, 0, 0, 0);
             }
@@ -788,6 +789,8 @@ void TerrainRenderer::RegisterChunkToBeLoaded(Terrain::Map& map, u16 chunkPosX, 
 
 void TerrainRenderer::ExecuteLoad()
 {
+    ZoneScopedN("TerrainRenderer::ExecuteLoad()");
+
     size_t numChunksToLoad = _chunksToBeLoaded.size();
 
     {
@@ -838,10 +841,29 @@ void TerrainRenderer::ExecuteLoad()
         _cellHeightRangeBuffer = _renderer->CreateBuffer(_cellHeightRangeBuffer, desc);
     }
 
+#if PARALLEL_LOADING
+    tf::Taskflow tf;
+    tf.parallel_for(_chunksToBeLoaded.begin(), _chunksToBeLoaded.end(), [&](const auto& chunk)
+        {
+            std::string chunkIDString = std::to_string(chunk.chunkID);
+
+            ZoneScoped;
+            ZoneText(chunkIDString.c_str(), chunkIDString.length());
+
+            LoadChunk(chunk);
+        });
+    tf.wait_for_all();
+#else
     for (const ChunkToBeLoaded& chunk : _chunksToBeLoaded)
     {
+        std::string chunkIDString = std::to_string(chunk.chunkID);
+
+        ZoneScoped;
+        ZoneText(chunkIDString.c_str(), chunkIDString.length());
+
         LoadChunk(chunk);
     }
+#endif
 
     _chunksToBeLoaded.clear();
 }
@@ -857,8 +879,8 @@ bool TerrainRenderer::LoadMap(const NDBC::Map* map)
     Terrain::Map& currentMap = mapSingleton.GetCurrentMap();
 
     // Clear Terrain, WMOs and Water
-    _loadedChunks.clear();
-    _cellBoundingBoxes.clear();
+    _loadedChunks.Clear();
+    _cellBoundingBoxes.Clear();
     _mapObjectRenderer->Clear();
     _complexModelRenderer->Clear();
     _waterRenderer->Clear();
@@ -885,7 +907,7 @@ bool TerrainRenderer::LoadMap(const NDBC::Map* map)
     
         // Upload instance data
         {
-            const size_t cellCount = Terrain::MAP_CELLS_PER_CHUNK * _loadedChunks.size();
+            const size_t cellCount = Terrain::MAP_CELLS_PER_CHUNK * _loadedChunks.Size();
 
             Renderer::BufferDesc uploadBufferDesc;
             uploadBufferDesc.name = "TerrainInstanceUploadBuffer";
@@ -900,14 +922,19 @@ bool TerrainRenderer::LoadMap(const NDBC::Map* map)
             CellInstance* instanceData = static_cast<CellInstance*>(instanceBufferMemory);
             u32 instanceDataIndex = 0;
 
-            for (const u16 chunkID : _loadedChunks)
-            {
-                for (u32 cellID = 0; cellID < Terrain::MAP_CELLS_PER_CHUNK; ++cellID)
+            _loadedChunks.ReadLock(
+                [&](std::vector<u16> loadedChunks)
                 {
-                    instanceData[instanceDataIndex].packedChunkCellID = (chunkID << 16) | (cellID & 0xffff);
-                    instanceData[instanceDataIndex++].instanceID = instanceDataIndex;
-                }
-            }
+                    for (const u16 chunkID : loadedChunks)
+                    {
+                        for (u32 cellID = 0; cellID < Terrain::MAP_CELLS_PER_CHUNK; ++cellID)
+                        {
+                            instanceData[instanceDataIndex].packedChunkCellID = (chunkID << 16) | (cellID & 0xffff);
+                            instanceData[instanceDataIndex++].instanceID = instanceDataIndex;
+                        }
+                    }
+                });
+            
             assert(instanceDataIndex == cellCount);
             _renderer->UnmapBuffer(instanceUploadBuffer);
             _renderer->CopyBuffer(_instanceBuffer, 0, instanceUploadBuffer, 0, uploadBufferDesc.size);
@@ -935,28 +962,33 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
     entt::registry* registry = ServiceLocator::GetGameRegistry();     
     TextureSingleton& textureSingleton = registry->ctx<TextureSingleton>();
 
-    size_t currentChunkIndex = _loadedChunks.size();
+    size_t currentChunkIndex = 0;
+    _loadedChunks.WriteLock(
+        [&currentChunkIndex, chunkID](std::vector<u16>& loadedChunks)
+        {
+            currentChunkIndex = loadedChunks.size();
+            loadedChunks.push_back(chunkID);
+        }
+    );
 
     // Upload cell data.
     {
-        Renderer::BufferDesc cellDataUploadBufferDesc;
-        cellDataUploadBufferDesc.name = "TerrainCellUploadBuffer";
-        cellDataUploadBufferDesc.size = sizeof(TerrainCellData) * Terrain::MAP_CELLS_PER_CHUNK;
-        cellDataUploadBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-        cellDataUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+        ZoneScopedN("Upload CellData");
 
-        Renderer::BufferID cellUploadBuffer = _renderer->CreateBuffer(cellDataUploadBufferDesc);
-        _renderer->QueueDestroyBuffer(cellUploadBuffer);
-
-        TerrainCellData* cellDatas = static_cast<TerrainCellData*>(_renderer->MapBuffer(cellUploadBuffer));
-
-        memset(cellDatas, 0, cellDataUploadBufferDesc.size);
+        size_t size = sizeof(TerrainCellData) * Terrain::MAP_CELLS_PER_CHUNK;
+        const u64 cellBufferOffset = (currentChunkIndex * Terrain::MAP_CELLS_PER_CHUNK) * sizeof(TerrainCellData);
+        auto uploadBuffer = _renderer->CreateUploadBuffer(_cellBuffer, cellBufferOffset, size);
 
         u32 chunkVertexOffset = static_cast<u32>(currentChunkIndex) * Terrain::NUM_VERTICES_PER_CHUNK;
+        TerrainCellData* cellDatas = static_cast<TerrainCellData*>(uploadBuffer->mappedMemory);
+
+        // Clear memory
+        memset(cellDatas, 0, size);
 
         // Loop over all the cells in the chunk
         for (u32 i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i++)
         {
+            ZoneScopedN("Cell");
             const Terrain::Cell& cell = chunk.cells[i];
 
             TerrainCellData& cellData = cellDatas[i];
@@ -970,14 +1002,18 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
                 {
                     break;
                 }
-                    
+
                 const std::string& texturePath = textureSingleton.textureHashToPath[layer.textureId];
 
                 Renderer::TextureDesc textureDesc;
                 textureDesc.path = texturePath;
 
                 u32 diffuseID = 0;
-                _renderer->LoadTextureIntoArray(textureDesc, _terrainColorTextureArray, diffuseID);
+                {
+                    ZoneScopedN("LoadTexture");
+                    _renderer->LoadTextureIntoArray(textureDesc, _terrainColorTextureArray, diffuseID);
+                }
+
                 if (diffuseID > 4096)
                 {
                     DebugHandler::PrintFatal("This is bad!");
@@ -986,10 +1022,6 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
                 cellData.diffuseIDs[layerCount++] = diffuseID;
             }
         }
-
-        _renderer->UnmapBuffer(cellUploadBuffer);
-        const u64 cellBufferOffset = (currentChunkIndex * Terrain::MAP_CELLS_PER_CHUNK) * sizeof(TerrainCellData);
-        _renderer->CopyBuffer(_cellBuffer, cellBufferOffset, cellUploadBuffer, 0, cellDataUploadBufferDesc.size);
     }
 
     u32 alphaMapStringID = chunk.alphaMapStringID;
@@ -1000,40 +1032,32 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
         Renderer::TextureDesc chunkAlphaMapDesc;
         chunkAlphaMapDesc.path = "Data/extracted/" + stringTable.GetString(alphaMapStringID);
 
-        _renderer->LoadTextureIntoArray(chunkAlphaMapDesc, _terrainAlphaTextureArray, alphaID);
+        {
+            _renderer->LoadTextureIntoArray(chunkAlphaMapDesc, _terrainAlphaTextureArray, alphaID);
+        }
     }
 
     // Upload chunk data.
     {
-        Renderer::BufferDesc chunkDataUploadBufferDesc;
-        chunkDataUploadBufferDesc.name = "TerrainChunkUploadBuffer";
-        chunkDataUploadBufferDesc.size = sizeof(TerrainChunkData);
-        chunkDataUploadBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-        chunkDataUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+        ZoneScopedN("Upload ChunkData");
 
-        Renderer::BufferID chunkUploadBuffer = _renderer->CreateBuffer(chunkDataUploadBufferDesc);
-        _renderer->QueueDestroyBuffer(chunkUploadBuffer);
-
-        TerrainChunkData* chunkData = static_cast<TerrainChunkData*>(_renderer->MapBuffer(chunkUploadBuffer));
-        chunkData->alphaMapID = alphaID;
-
-        _renderer->UnmapBuffer(chunkUploadBuffer);
+        size_t size = sizeof(TerrainChunkData);
         const u64 chunkBufferOffset = currentChunkIndex * sizeof(TerrainChunkData);
-        _renderer->CopyBuffer(_chunkBuffer, chunkBufferOffset, chunkUploadBuffer, 0, chunkDataUploadBufferDesc.size);
+        auto uploadBuffer = _renderer->CreateUploadBuffer(_chunkBuffer, chunkBufferOffset, size);
+
+        TerrainChunkData* chunkData = static_cast<TerrainChunkData*>(uploadBuffer->mappedMemory);
+        chunkData->alphaMapID = alphaID;
     }
 
     // Upload height data.
     {
-        Renderer::BufferDesc vertexUploadBufferDesc;
-        vertexUploadBufferDesc.name = "TerrainVertexUploadBuffer";
-        vertexUploadBufferDesc.size = sizeof(TerrainVertex) * Terrain::NUM_VERTICES_PER_CHUNK;
-        vertexUploadBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-        vertexUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
+        ZoneScopedN("Upload HeightData");
 
-        Renderer::BufferID vertexUploadBuffer = _renderer->CreateBuffer(vertexUploadBufferDesc);
-        _renderer->QueueDestroyBuffer(vertexUploadBuffer);
+        size_t size = sizeof(TerrainVertex) * Terrain::NUM_VERTICES_PER_CHUNK;
+        const u64 chunkVertexBufferOffset = currentChunkIndex * sizeof(TerrainVertex) * Terrain::NUM_VERTICES_PER_CHUNK;
+        auto uploadBuffer = _renderer->CreateUploadBuffer(_vertexBuffer, chunkVertexBufferOffset, size);
 
-        TerrainVertex* vertexBufferMemory = reinterpret_cast<TerrainVertex*>(_renderer->MapBuffer(vertexUploadBuffer));
+        TerrainVertex* vertexBufferMemory = reinterpret_cast<TerrainVertex*>(uploadBuffer->mappedMemory);
         for (size_t i = 0; i < Terrain::MAP_CELLS_PER_CHUNK; i++)
         {
             size_t cellOffset = i * Terrain::MAP_CELL_TOTAL_GRID_SIZE;
@@ -1060,14 +1084,12 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
                 vertexBufferMemory[offset].color[2] = chunk.cells[i].colorData[j][2];
             }
         }
-
-        _renderer->UnmapBuffer(vertexUploadBuffer);
-        const u64 chunkVertexBufferOffset = currentChunkIndex * sizeof(TerrainVertex) * Terrain::NUM_VERTICES_PER_CHUNK;
-        _renderer->CopyBuffer(_vertexBuffer, chunkVertexBufferOffset, vertexUploadBuffer, 0, vertexUploadBufferDesc.size);
     }
 
     // Calculate bounding boxes and upload height ranges
     {
+        ZoneScopedN("Calculate Bounding Boxes");
+
         constexpr float halfWorldSize = 17066.66656f;
 
         vec2 chunkOrigin;
@@ -1099,10 +1121,9 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
             max.y = chunkOrigin.x - ((cellX + 1) * Terrain::MAP_CELL_SIZE);
             max.z = *minmax.second;
 
-            Geometry::AABoundingBox boundingBox;
+            Geometry::AABoundingBox& boundingBox = _cellBoundingBoxes.EmplaceBack();
             boundingBox.min = glm::max(min, max);
             boundingBox.max = glm::min(min, max);
-            _cellBoundingBoxes.push_back(boundingBox);
 
             TerrainCellHeightRange heightRange;
 #if USE_PACKED_HEIGHT_RANGE
@@ -1118,26 +1139,20 @@ void TerrainRenderer::LoadChunk(const ChunkToBeLoaded& chunkToBeLoaded)
 
         // Upload height ranges
         {
-            Renderer::BufferDesc heightRangeUploadBufferDesc;
-            heightRangeUploadBufferDesc.name = "HeightRangeUploadBuffer";
-            heightRangeUploadBufferDesc.size = sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK;
-            heightRangeUploadBufferDesc.usage = Renderer::BufferUsage::TRANSFER_SOURCE;
-            heightRangeUploadBufferDesc.cpuAccess = Renderer::BufferCPUAccess::WriteOnly;
-
-            Renderer::BufferID heightRangeUploadBuffer = _renderer->CreateBuffer(heightRangeUploadBufferDesc);
-            _renderer->QueueDestroyBuffer(heightRangeUploadBuffer);
-
-            void* heightRangeBufferMemory = _renderer->MapBuffer(heightRangeUploadBuffer);
-            memcpy(heightRangeBufferMemory, heightRanges.data(), heightRangeUploadBufferDesc.size);
-            _renderer->UnmapBuffer(heightRangeUploadBuffer);
-
+            size_t size = sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK;
             const u64 chunkVertexBufferOffset = currentChunkIndex * sizeof(TerrainCellHeightRange) * Terrain::MAP_CELLS_PER_CHUNK;
-            _renderer->CopyBuffer(_cellHeightRangeBuffer, chunkVertexBufferOffset, heightRangeUploadBuffer, 0, heightRangeUploadBufferDesc.size);
+            auto uploadBuffer = _renderer->CreateUploadBuffer(_cellHeightRangeBuffer, chunkVertexBufferOffset, size);
+
+            memcpy(uploadBuffer->mappedMemory, heightRanges.data(), size);
         }
     }
 
-    _mapObjectRenderer->RegisterMapObjectsToBeLoaded(chunkID, chunk, stringTable);
-    _complexModelRenderer->RegisterLoadFromChunk(chunkID, chunk, stringTable);
+    // TODO: Parallelize loading in the other renderers so we don't have to do this... But lets split this task into smaller chunks.
+    {
+        std::scoped_lock lock(_subLoadMutex);
 
-    _loadedChunks.push_back(chunkID);
+        ZoneScopedN("Subload");
+        _mapObjectRenderer->RegisterMapObjectsToBeLoaded(chunkID, chunk, stringTable);
+        _complexModelRenderer->RegisterLoadFromChunk(chunkID, chunk, stringTable);
+    }
 }
